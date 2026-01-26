@@ -6,6 +6,7 @@ using Atlas.WebApi.Tenancy;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.IdentityModel.Tokens;
 using NLog.Web;
 using System.Text;
@@ -17,6 +18,16 @@ builder.Host.UseNLog();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+builder.Services.AddHttpLogging(options =>
+{
+    options.LoggingFields = HttpLoggingFields.RequestPath
+        | HttpLoggingFields.RequestMethod
+        | HttpLoggingFields.RequestQuery
+        | HttpLoggingFields.RequestHeaders
+        | HttpLoggingFields.ResponseStatusCode
+        | HttpLoggingFields.Duration;
+});
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Atlas.Core.Tenancy.ITenantProvider, HttpContextTenantProvider>();
@@ -58,7 +69,7 @@ builder.Services.AddAtlasInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
-app.UseMiddleware<HttpLoggingMiddleware>();
+app.UseHttpLogging();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<TenantContextMiddleware>();
 
