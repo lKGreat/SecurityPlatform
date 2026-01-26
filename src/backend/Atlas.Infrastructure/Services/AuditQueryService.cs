@@ -1,35 +1,40 @@
-﻿using Atlas.Application.Audit.Abstractions;
+﻿using AutoMapper;
+using Atlas.Application.Audit.Abstractions;
 using Atlas.Application.Audit.Models;
-using Atlas.Core.Abstractions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Domain.Audit.Entities;
+using SqlSugar;
 
 namespace Atlas.Infrastructure.Services;
 
 public sealed class AuditQueryService : IAuditQueryService
 {
-    private readonly IIdGenerator _idGenerator;
+    private readonly ISqlSugarClient _db;
+    private readonly IMapper _mapper;
 
-    public AuditQueryService(IIdGenerator idGenerator)
+    public AuditQueryService(ISqlSugarClient db, IMapper mapper)
     {
-        _idGenerator = idGenerator;
+        _db = db;
+        _mapper = mapper;
     }
 
     public PagedResult<AuditListItem> QueryAudits(PagedRequest request, TenantId tenantId)
     {
-        var total = 18;
         var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
         var pageSize = request.PageSize < 1 ? 10 : request.PageSize;
-        var start = (pageIndex - 1) * pageSize;
-        if (start >= total)
+        var total = 0;
+
+        var query = _db.Queryable<AuditRecord>();
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            return new PagedResult<AuditListItem>(Array.Empty<AuditListItem>(), total, pageIndex, pageSize);
+            query = query.Where(x => x.Action.Contains(request.Keyword));
         }
 
-        var count = Math.Min(pageSize, total - start);
-        var baseTime = DateTimeOffset.UtcNow;
-        var items = Enumerable.Range(start, count)
-            .Select(i => new AuditListItem(_idGenerator.NextId().ToString(), $"审计操作-{i + 1}", baseTime.AddMinutes(-i)))
+        var items = query
+            .OrderBy(x => x.OccurredAt, OrderByType.Desc)
+            .ToPageList(pageIndex, pageSize, ref total)
+            .Select(x => _mapper.Map<AuditListItem>(x))
             .ToArray();
 
         return new PagedResult<AuditListItem>(items, total, pageIndex, pageSize);

@@ -1,35 +1,40 @@
-﻿using Atlas.Application.Alert.Abstractions;
+﻿using AutoMapper;
+using Atlas.Application.Alert.Abstractions;
 using Atlas.Application.Alert.Models;
-using Atlas.Core.Abstractions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Domain.Alert.Entities;
+using SqlSugar;
 
 namespace Atlas.Infrastructure.Services;
 
 public sealed class AlertQueryService : IAlertQueryService
 {
-    private readonly IIdGenerator _idGenerator;
+    private readonly ISqlSugarClient _db;
+    private readonly IMapper _mapper;
 
-    public AlertQueryService(IIdGenerator idGenerator)
+    public AlertQueryService(ISqlSugarClient db, IMapper mapper)
     {
-        _idGenerator = idGenerator;
+        _db = db;
+        _mapper = mapper;
     }
 
     public PagedResult<AlertListItem> QueryAlerts(PagedRequest request, TenantId tenantId)
     {
-        var total = 12;
         var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
         var pageSize = request.PageSize < 1 ? 10 : request.PageSize;
-        var start = (pageIndex - 1) * pageSize;
-        if (start >= total)
+        var total = 0;
+
+        var query = _db.Queryable<AlertRecord>();
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            return new PagedResult<AlertListItem>(Array.Empty<AlertListItem>(), total, pageIndex, pageSize);
+            query = query.Where(x => x.Title.Contains(request.Keyword));
         }
 
-        var count = Math.Min(pageSize, total - start);
-        var baseTime = DateTimeOffset.UtcNow;
-        var items = Enumerable.Range(start, count)
-            .Select(i => new AlertListItem(_idGenerator.NextId().ToString(), $"告警-{i + 1}", baseTime.AddMinutes(-i * 5)))
+        var items = query
+            .OrderBy(x => x.CreatedAt, OrderByType.Desc)
+            .ToPageList(pageIndex, pageSize, ref total)
+            .Select(x => _mapper.Map<AlertListItem>(x))
             .ToArray();
 
         return new PagedResult<AlertListItem>(items, total, pageIndex, pageSize);

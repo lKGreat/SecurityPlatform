@@ -1,34 +1,40 @@
-﻿using Atlas.Application.Assets.Abstractions;
+﻿using AutoMapper;
+using Atlas.Application.Assets.Abstractions;
 using Atlas.Application.Assets.Models;
-using Atlas.Core.Abstractions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Domain.Assets.Entities;
+using SqlSugar;
 
 namespace Atlas.Infrastructure.Services;
 
 public sealed class AssetQueryService : IAssetQueryService
 {
-    private readonly IIdGenerator _idGenerator;
+    private readonly ISqlSugarClient _db;
+    private readonly IMapper _mapper;
 
-    public AssetQueryService(IIdGenerator idGenerator)
+    public AssetQueryService(ISqlSugarClient db, IMapper mapper)
     {
-        _idGenerator = idGenerator;
+        _db = db;
+        _mapper = mapper;
     }
 
     public PagedResult<AssetListItem> QueryAssets(PagedRequest request, TenantId tenantId)
     {
-        var total = 25;
         var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
         var pageSize = request.PageSize < 1 ? 10 : request.PageSize;
-        var start = (pageIndex - 1) * pageSize;
-        if (start >= total)
+        var total = 0;
+
+        var query = _db.Queryable<Asset>();
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            return new PagedResult<AssetListItem>(Array.Empty<AssetListItem>(), total, pageIndex, pageSize);
+            query = query.Where(x => x.Name.Contains(request.Keyword));
         }
 
-        var count = Math.Min(pageSize, total - start);
-        var items = Enumerable.Range(start, count)
-            .Select(i => new AssetListItem(_idGenerator.NextId().ToString(), $"资产-{i + 1}"))
+        var items = query
+            .OrderBy(x => x.Id, OrderByType.Desc)
+            .ToPageList(pageIndex, pageSize, ref total)
+            .Select(x => _mapper.Map<AssetListItem>(x))
             .ToArray();
 
         return new PagedResult<AssetListItem>(items, total, pageIndex, pageSize);
