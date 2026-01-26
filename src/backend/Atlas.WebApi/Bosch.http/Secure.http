@@ -1,0 +1,8 @@
+﻿@baseUrl = http://localhost:5000
+@tenantId = 00000000-0000-0000-0000-000000000001
+@accessToken = {{token}}
+
+### Secure Ping
+GET {{baseUrl}}/secure/ping
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
