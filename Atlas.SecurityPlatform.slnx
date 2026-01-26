@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/backend/">
+    <Project Path="src/backend/Atlas.Application.Alert/Atlas.Application.Alert.csproj" />
+    <Project Path="src/backend/Atlas.Application.Assets/Atlas.Application.Assets.csproj" />
+    <Project Path="src/backend/Atlas.Application.Audit/Atlas.Application.Audit.csproj" />
+    <Project Path="src/backend/Atlas.Application/Atlas.Application.csproj" />
+    <Project Path="src/backend/Atlas.Core/Atlas.Core.csproj" />
+    <Project Path="src/backend/Atlas.Domain.Alert/Atlas.Domain.Alert.csproj" />
+    <Project Path="src/backend/Atlas.Domain.Assets/Atlas.Domain.Assets.csproj" />
+    <Project Path="src/backend/Atlas.Domain.Audit/Atlas.Domain.Audit.csproj" />
+    <Project Path="src/backend/Atlas.Domain/Atlas.Domain.csproj" />
+    <Project Path="src/backend/Atlas.Infrastructure/Atlas.Infrastructure.csproj" />
+    <Project Path="src/backend/Atlas.WebApi/Atlas.WebApi.csproj" />
+  </Folder>
+</Solution>

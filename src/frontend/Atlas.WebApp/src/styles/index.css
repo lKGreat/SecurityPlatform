@@ -1,0 +1,49 @@
+﻿:root {
+  font-family: "HarmonyOS Sans", "Microsoft YaHei", sans-serif;
+  color-scheme: light;
+  color: #1a1a1a;
+  background: #f6f7fb;
+}
+
+body {
+  margin: 0;
+  background: #f6f7fb;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.brand {
+  height: 48px;
+  margin: 16px;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #eef0f5;
+}
+
+.app-content {
+  padding: 24px;
+}
+
+.page-card {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.login-card {
+  max-width: 420px;
+}
