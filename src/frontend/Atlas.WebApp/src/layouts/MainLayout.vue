@@ -3,7 +3,7 @@
   <a-layout v-else class="app-shell">
     <a-layout-sider collapsible :collapsed="collapsed" @collapse="toggle">
       <div class="brand">Atlas 安全平台</div>
-      <a-menu theme="dark" mode="inline" :selectedKeys="selectedKeys">
+      <a-menu theme="dark" mode="inline" :selected-keys="selectedKeys">
         <a-menu-item key="home" @click="go('/')">总览</a-menu-item>
         <a-menu-item key="assets" @click="go('/assets')">资产</a-menu-item>
         <a-menu-item key="audit" @click="go('/audit')">审计</a-menu-item>

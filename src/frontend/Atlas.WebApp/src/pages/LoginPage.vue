@@ -16,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+import { message } from "ant-design-vue";
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { createToken } from "@/services/api";
@@ -36,6 +37,8 @@ const onFinish = async () => {
     localStorage.setItem("access_token", result.accessToken);
     localStorage.setItem("tenant_id", form.tenantId);
     router.push("/");
+  } catch (error) {
+    message.error((error as Error).message || "登录失败");
   } finally {
     loading.value = false;
   }

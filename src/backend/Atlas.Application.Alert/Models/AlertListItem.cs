@@ -1,3 +1,3 @@
 ﻿namespace Atlas.Application.Alert.Models;
 
-public sealed record AlertListItem(Guid Id, string Title, DateTimeOffset CreatedAt);
+public sealed record AlertListItem(string Id, string Title, DateTimeOffset CreatedAt);

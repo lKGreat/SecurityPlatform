@@ -2,7 +2,9 @@
 using Atlas.Application.Alert.Abstractions;
 using Atlas.Application.Assets.Abstractions;
 using Atlas.Application.Audit.Abstractions;
+using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
+using Atlas.Infrastructure.IdGen;
 using Atlas.Infrastructure.Options;
 using Atlas.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
@@ -17,7 +19,9 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddAtlasInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<DatabaseOptions>(configuration.GetSection("Database"));
+        services.Configure<SnowflakeOptions>(configuration.GetSection("Snowflake"));
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IIdGenerator, SnowflakeIdGenerator>();
         services.AddScoped<IAuthTokenService, JwtAuthTokenService>();
         services.AddScoped<IAssetQueryService, AssetQueryService>();
         services.AddScoped<IAuditQueryService, AuditQueryService>();

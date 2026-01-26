@@ -1,6 +1,7 @@
 ﻿import type { ApiResponse, PagedRequest, PagedResult } from "@/types/api";
+import { message } from "ant-design-vue";
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
 interface TokenResult {
   accessToken: string;
@@ -25,7 +26,7 @@ export interface AlertListItem {
 }
 
 export async function createToken(tenantId: string, username: string, password: string) {
-  const response = await request<ApiResponse<TokenResult>>("/auth/token", {
+  const response = await requestApi<ApiResponse<TokenResult>>("/auth/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -41,9 +42,9 @@ export async function createToken(tenantId: string, username: string, password: 
   return response.data;
 }
 
-export async function getAssetsPaged(request: PagedRequest) {
-  const query = toQuery(request);
-  const response = await request<ApiResponse<PagedResult<AssetListItem>>>(`/assets?${query}`);
+export async function getAssetsPaged(pagedRequest: PagedRequest) {
+  const query = toQuery(pagedRequest);
+  const response = await requestApi<ApiResponse<PagedResult<AssetListItem>>>(`/assets?${query}`);
   if (!response.data) {
     throw new Error(response.message || "查询失败");
   }
@@ -51,9 +52,9 @@ export async function getAssetsPaged(request: PagedRequest) {
   return response.data;
 }
 
-export async function getAuditsPaged(request: PagedRequest) {
-  const query = toQuery(request);
-  const response = await request<ApiResponse<PagedResult<AuditListItem>>>(`/audit?${query}`);
+export async function getAuditsPaged(pagedRequest: PagedRequest) {
+  const query = toQuery(pagedRequest);
+  const response = await requestApi<ApiResponse<PagedResult<AuditListItem>>>(`/audit?${query}`);
   if (!response.data) {
     throw new Error(response.message || "查询失败");
   }
@@ -61,9 +62,9 @@ export async function getAuditsPaged(request: PagedRequest) {
   return response.data;
 }
 
-export async function getAlertsPaged(request: PagedRequest) {
-  const query = toQuery(request);
-  const response = await request<ApiResponse<PagedResult<AlertListItem>>>(`/alert?${query}`);
+export async function getAlertsPaged(pagedRequest: PagedRequest) {
+  const query = toQuery(pagedRequest);
+  const response = await requestApi<ApiResponse<PagedResult<AlertListItem>>>(`/alert?${query}`);
   if (!response.data) {
     throw new Error(response.message || "查询失败");
   }
@@ -71,19 +72,19 @@ export async function getAlertsPaged(request: PagedRequest) {
   return response.data;
 }
 
-function toQuery(request: PagedRequest) {
+function toQuery(pagedRequest: PagedRequest) {
   const query = new URLSearchParams({
-    pageIndex: request.pageIndex.toString(),
-    pageSize: request.pageSize.toString(),
-    keyword: request.keyword ?? "",
-    sortBy: request.sortBy ?? "",
-    sortDesc: request.sortDesc ? "true" : "false"
+    pageIndex: pagedRequest.pageIndex.toString(),
+    pageSize: pagedRequest.pageSize.toString(),
+    keyword: pagedRequest.keyword ?? "",
+    sortBy: pagedRequest.sortBy ?? "",
+    sortDesc: pagedRequest.sortDesc ? "true" : "false"
   });
 
   return query.toString();
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers ?? {});
   const token = localStorage.getItem("access_token");
   const tenantId = localStorage.getItem("tenant_id");
@@ -102,7 +103,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error("网络请求失败");
+    const text = await response.text();
+    message.error(text || "网络请求失败");
+    throw new Error(text || "网络请求失败");
   }
 
   return (await response.json()) as T;
