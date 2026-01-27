@@ -24,11 +24,46 @@ public sealed class UserAccountRepository : IUserAccountRepository
         return _db.Updateable(account).ExecuteCommandAsync(cancellationToken);
     }
 
+    public async Task<UserAccount?> FindByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
+    {
+        var query = _db.Queryable<UserAccount>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Id == id);
+        return await query.FirstAsync(cancellationToken);
+    }
+
     public async Task<UserAccount?> FindByUsernameAsync(TenantId tenantId, string username, CancellationToken cancellationToken)
     {
         var query = _db.Queryable<UserAccount>()
             .Where(x => x.TenantIdValue == tenantId.Value && x.Username == username);
         var result = await query.FirstAsync(cancellationToken);
         return result;
+    }
+
+    public async Task<(IReadOnlyList<UserAccount> Items, int TotalCount)> QueryPageAsync(
+        int pageIndex,
+        int pageSize,
+        string? keyword,
+        CancellationToken cancellationToken)
+    {
+        var query = _db.Queryable<UserAccount>();
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            query = query.Where(x => x.Username.Contains(keyword) || x.DisplayName.Contains(keyword));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var list = await query
+            .OrderBy(x => x.Id, OrderByType.Desc)
+            .ToPageListAsync(pageIndex, pageSize, cancellationToken);
+
+        return (list, totalCount);
+    }
+
+    public async Task<bool> ExistsByUsernameAsync(TenantId tenantId, string username, CancellationToken cancellationToken)
+    {
+        var count = await _db.Queryable<UserAccount>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Username == username)
+            .CountAsync(cancellationToken);
+        return count > 0;
     }
 }

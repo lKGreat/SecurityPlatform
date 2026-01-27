@@ -1,0 +1,37 @@
+@baseUrl = http://localhost:5000
+@tenantId = 00000000-0000-0000-0000-000000000001
+@accessToken = {{token}}
+
+### Get Departments (Paged)
+GET {{baseUrl}}/departments?pageIndex=1&pageSize=10
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Get Departments (All)
+GET {{baseUrl}}/departments/all
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Create Department
+POST {{baseUrl}}/departments
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "Head Office",
+  "parentId": null,
+  "sortOrder": 0
+}
+
+### Update Department
+PUT {{baseUrl}}/departments/1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "Head Office",
+  "parentId": null,
+  "sortOrder": 0
+}

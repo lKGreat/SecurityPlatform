@@ -1,0 +1,62 @@
+using Atlas.Application.Identity.Repositories;
+using Atlas.Core.Tenancy;
+using Atlas.Domain.Identity.Entities;
+using SqlSugar;
+
+namespace Atlas.Infrastructure.Repositories;
+
+public sealed class DepartmentRepository : IDepartmentRepository
+{
+    private readonly ISqlSugarClient _db;
+
+    public DepartmentRepository(ISqlSugarClient db)
+    {
+        _db = db;
+    }
+
+    public async Task<Department?> FindByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
+    {
+        return await _db.Queryable<Department>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Id == id)
+            .FirstAsync(cancellationToken);
+    }
+
+    public async Task<(IReadOnlyList<Department> Items, int TotalCount)> QueryPageAsync(
+        int pageIndex,
+        int pageSize,
+        string? keyword,
+        CancellationToken cancellationToken)
+    {
+        var query = _db.Queryable<Department>();
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            query = query.Where(x => x.Name.Contains(keyword));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var list = await query
+            .OrderBy(x => x.SortOrder, OrderByType.Asc)
+            .ToPageListAsync(pageIndex, pageSize, cancellationToken);
+
+        return (list, totalCount);
+    }
+
+    public async Task<IReadOnlyList<Department>> QueryAllAsync(TenantId tenantId, CancellationToken cancellationToken)
+    {
+        var list = await _db.Queryable<Department>()
+            .Where(x => x.TenantIdValue == tenantId.Value)
+            .OrderBy(x => x.SortOrder, OrderByType.Asc)
+            .ToListAsync(cancellationToken);
+        return list;
+    }
+
+    public Task AddAsync(Department department, CancellationToken cancellationToken)
+    {
+        return _db.Insertable(department).ExecuteCommandAsync(cancellationToken);
+    }
+
+    public Task UpdateAsync(Department department, CancellationToken cancellationToken)
+    {
+        return _db.Updateable(department).ExecuteCommandAsync(cancellationToken);
+    }
+}

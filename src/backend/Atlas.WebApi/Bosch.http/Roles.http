@@ -1,0 +1,56 @@
+@baseUrl = http://localhost:5000
+@tenantId = 00000000-0000-0000-0000-000000000001
+@accessToken = {{token}}
+
+### Get Roles (Paged)
+GET {{baseUrl}}/roles?pageIndex=1&pageSize=10
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Get Role Detail
+GET {{baseUrl}}/roles/1
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Create Role
+POST {{baseUrl}}/roles
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "Admin",
+  "code": "Admin",
+  "description": "System admin"
+}
+
+### Update Role
+PUT {{baseUrl}}/roles/1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "Admin",
+  "description": "System admin"
+}
+
+### Update Role Permissions
+PUT {{baseUrl}}/roles/1/permissions
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "permissionIds": []
+}
+
+### Update Role Menus
+PUT {{baseUrl}}/roles/1/menus
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "menuIds": []
+}

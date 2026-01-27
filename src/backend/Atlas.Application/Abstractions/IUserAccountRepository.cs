@@ -6,6 +6,13 @@ namespace Atlas.Application.Abstractions;
 public interface IUserAccountRepository
 {
     Task<UserAccount?> FindByUsernameAsync(TenantId tenantId, string username, CancellationToken cancellationToken);
+    Task<UserAccount?> FindByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken);
+    Task<(IReadOnlyList<UserAccount> Items, int TotalCount)> QueryPageAsync(
+        int pageIndex,
+        int pageSize,
+        string? keyword,
+        CancellationToken cancellationToken);
+    Task<bool> ExistsByUsernameAsync(TenantId tenantId, string username, CancellationToken cancellationToken);
     Task AddAsync(UserAccount account, CancellationToken cancellationToken);
     Task UpdateAsync(UserAccount account, CancellationToken cancellationToken);
 }

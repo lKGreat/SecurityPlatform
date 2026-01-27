@@ -1,0 +1,63 @@
+@baseUrl = http://localhost:5000
+@tenantId = 00000000-0000-0000-0000-000000000001
+@accessToken = {{token}}
+
+### Get Users (Paged)
+GET {{baseUrl}}/users?pageIndex=1&pageSize=10
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Get User Detail
+GET {{baseUrl}}/users/1
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Create User
+POST {{baseUrl}}/users
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "username": "demo",
+  "password": "P@ssw0rd!",
+  "displayName": "Demo User",
+  "email": "demo@example.com",
+  "phoneNumber": "13800000000",
+  "isActive": true,
+  "roleIds": [],
+  "departmentIds": []
+}
+
+### Update User
+PUT {{baseUrl}}/users/1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "displayName": "Demo User",
+  "email": "demo@example.com",
+  "phoneNumber": "13800000000",
+  "isActive": true
+}
+
+### Update User Roles
+PUT {{baseUrl}}/users/1/roles
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "roleIds": []
+}
+
+### Update User Departments
+PUT {{baseUrl}}/users/1/departments
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "departmentIds": []
+}

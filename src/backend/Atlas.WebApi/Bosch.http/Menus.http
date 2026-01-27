@@ -1,0 +1,47 @@
+@baseUrl = http://localhost:5000
+@tenantId = 00000000-0000-0000-0000-000000000001
+@accessToken = {{token}}
+
+### Get Menus (Paged)
+GET {{baseUrl}}/menus?pageIndex=1&pageSize=10
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Get Menus (All)
+GET {{baseUrl}}/menus/all
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Create Menu
+POST {{baseUrl}}/menus
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "System",
+  "path": "/system",
+  "parentId": null,
+  "sortOrder": 0,
+  "component": "Layout",
+  "icon": "settings",
+  "permissionCode": "system:admin",
+  "isHidden": false
+}
+
+### Update Menu
+PUT {{baseUrl}}/menus/1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "System",
+  "path": "/system",
+  "parentId": null,
+  "sortOrder": 0,
+  "component": "Layout",
+  "icon": "settings",
+  "permissionCode": "system:admin",
+  "isHidden": false
+}

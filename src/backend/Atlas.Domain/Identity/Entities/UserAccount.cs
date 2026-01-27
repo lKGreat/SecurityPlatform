@@ -3,15 +3,19 @@ using Atlas.Core.Tenancy;
 
 namespace Atlas.Domain.Identity.Entities;
 
-public sealed class UserAccount : TenantEntity
+public class UserAccount : TenantEntity
 {
     public UserAccount()
         : base(TenantId.Empty)
     {
         Username = string.Empty;
+        DisplayName = string.Empty;
         PasswordHash = string.Empty;
         Roles = string.Empty;
+        Email = null;
+        PhoneNumber = null;
         IsActive = false;
+        IsSystem = false;
         FailedLoginCount = 0;
         LastPasswordChangeAt = DateTimeOffset.UtcNow;
     }
@@ -20,17 +24,41 @@ public sealed class UserAccount : TenantEntity
         : base(tenantId)
     {
         Username = username;
+        DisplayName = username;
         PasswordHash = passwordHash;
         Roles = roles;
+        Email = null;
+        PhoneNumber = null;
         IsActive = true;
+        IsSystem = false;
+        FailedLoginCount = 0;
+        LastPasswordChangeAt = DateTimeOffset.UtcNow;
+    }
+
+    public UserAccount(TenantId tenantId, string username, string displayName, string passwordHash, long id)
+        : base(tenantId)
+    {
+        Id = id;
+        Username = username;
+        DisplayName = displayName;
+        PasswordHash = passwordHash;
+        Roles = string.Empty;
+        Email = null;
+        PhoneNumber = null;
+        IsActive = true;
+        IsSystem = false;
         FailedLoginCount = 0;
         LastPasswordChangeAt = DateTimeOffset.UtcNow;
     }
 
     public string Username { get; private set; }
+    public string DisplayName { get; private set; }
     public string PasswordHash { get; private set; }
     public string Roles { get; private set; }
+    public string? Email { get; private set; }
+    public string? PhoneNumber { get; private set; }
     public bool IsActive { get; private set; }
+    public bool IsSystem { get; private set; }
     public int FailedLoginCount { get; private set; }
     public DateTimeOffset? LockoutEndAt { get; private set; }
     public bool IsManualLocked { get; private set; }
@@ -83,5 +111,27 @@ public sealed class UserAccount : TenantEntity
     public void Deactivate()
     {
         IsActive = false;
+    }
+
+    public void Activate()
+    {
+        IsActive = true;
+    }
+
+    public void UpdateProfile(string displayName, string? email, string? phoneNumber)
+    {
+        DisplayName = displayName;
+        Email = email;
+        PhoneNumber = phoneNumber;
+    }
+
+    public void UpdateRoles(string roles)
+    {
+        Roles = roles;
+    }
+
+    public void MarkSystemAccount()
+    {
+        IsSystem = true;
     }
 }

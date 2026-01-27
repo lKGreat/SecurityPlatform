@@ -1,0 +1,38 @@
+@baseUrl = http://localhost:5000
+@tenantId = 00000000-0000-0000-0000-000000000001
+@accessToken = {{token}}
+
+### Get Permissions (Paged)
+GET {{baseUrl}}/permissions?pageIndex=1&pageSize=10
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Get Permission Detail
+GET {{baseUrl}}/permissions/1
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Create Permission
+POST {{baseUrl}}/permissions
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "System Admin",
+  "code": "system:admin",
+  "type": "Api",
+  "description": "All access"
+}
+
+### Update Permission
+PUT {{baseUrl}}/permissions/1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "System Admin",
+  "type": "Api",
+  "description": "All access"
+}

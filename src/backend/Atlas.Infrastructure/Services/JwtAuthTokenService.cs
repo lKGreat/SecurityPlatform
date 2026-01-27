@@ -1,4 +1,5 @@
 using Atlas.Application.Abstractions;
+using Atlas.Application.Identity.Repositories;
 using Atlas.Application.Audit.Abstractions;
 using Atlas.Application.Models;
 using Atlas.Application.Options;
@@ -24,6 +25,8 @@ public sealed class JwtAuthTokenService : IAuthTokenService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAuditWriter _auditWriter;
     private readonly TimeProvider _timeProvider;
+    private readonly IUserRoleRepository _userRoleRepository;
+    private readonly IRoleRepository _roleRepository;
 
     public JwtAuthTokenService(
         IOptions<JwtOptions> jwtOptions,
@@ -32,7 +35,9 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         IUserAccountRepository userAccountRepository,
         IPasswordHasher passwordHasher,
         IAuditWriter auditWriter,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IUserRoleRepository userRoleRepository,
+        IRoleRepository roleRepository)
     {
         _jwtOptions = jwtOptions.Value;
         _passwordPolicy = passwordPolicy.Value;
@@ -41,6 +46,8 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         _passwordHasher = passwordHasher;
         _auditWriter = auditWriter;
         _timeProvider = timeProvider;
+        _userRoleRepository = userRoleRepository;
+        _roleRepository = roleRepository;
     }
 
     public async Task<AuthTokenResult> CreateTokenAsync(
@@ -96,7 +103,8 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         await WriteAuditAsync(tenantId, request.Username, "LOGIN", "SUCCESS", null, context, cancellationToken);
 
         var expires = now.AddMinutes(_jwtOptions.ExpiresMinutes);
-        var claims = BuildClaims(account, tenantId);
+        var roleCodes = await ResolveRoleCodesAsync(account, tenantId, cancellationToken);
+        var claims = BuildClaims(account, tenantId, roleCodes);
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -114,7 +122,7 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         return new AuthTokenResult(tokenString, expires);
     }
 
-    private static List<Claim> BuildClaims(UserAccount account, TenantId tenantId)
+    private static List<Claim> BuildClaims(UserAccount account, TenantId tenantId, IReadOnlyList<string> roleCodes)
     {
         var claims = new List<Claim>
         {
@@ -122,13 +130,43 @@ public sealed class JwtAuthTokenService : IAuthTokenService
             new("tenant_id", tenantId.Value.ToString("D"))
         };
 
-        if (!string.IsNullOrWhiteSpace(account.Roles))
+        if (roleCodes.Count > 0)
         {
-            var roles = account.Roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+            claims.AddRange(roleCodes.Select(role => new Claim(ClaimTypes.Role, role)));
         }
 
         return claims;
+    }
+
+    private async Task<IReadOnlyList<string>> ResolveRoleCodesAsync(
+        UserAccount account,
+        TenantId tenantId,
+        CancellationToken cancellationToken)
+    {
+        var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(account.Roles))
+        {
+            foreach (var role in account.Roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                codes.Add(role);
+            }
+        }
+
+        var userRoles = await _userRoleRepository.QueryByUserIdAsync(tenantId, account.Id, cancellationToken);
+        if (userRoles.Count == 0)
+        {
+            return codes.ToArray();
+        }
+
+        var roleIds = userRoles.Select(x => x.RoleId).Distinct().ToArray();
+        var roles = await _roleRepository.QueryByIdsAsync(tenantId, roleIds, cancellationToken);
+        foreach (var role in roles)
+        {
+            codes.Add(role.Code);
+        }
+
+        return codes.ToArray();
     }
 
     private bool IsLocked(UserAccount account, DateTimeOffset now, out bool stateChanged)
