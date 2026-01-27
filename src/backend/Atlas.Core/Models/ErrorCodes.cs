@@ -1,4 +1,4 @@
-﻿namespace Atlas.Core.Models;
+namespace Atlas.Core.Models;
 
 public static class ErrorCodes
 {
@@ -8,4 +8,6 @@ public static class ErrorCodes
     public const string Forbidden = "FORBIDDEN";
     public const string NotFound = "NOT_FOUND";
     public const string ServerError = "SERVER_ERROR";
+    public const string AccountLocked = "ACCOUNT_LOCKED";
+    public const string PasswordExpired = "PASSWORD_EXPIRED";
 }

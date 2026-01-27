@@ -5,5 +5,9 @@ namespace Atlas.Application.Abstractions;
 
 public interface IAuthTokenService
 {
-    AuthTokenResult CreateToken(AuthTokenRequest request, TenantId tenantId);
+    Task<AuthTokenResult> CreateTokenAsync(
+        AuthTokenRequest request,
+        TenantId tenantId,
+        AuthRequestContext context,
+        CancellationToken cancellationToken);
 }

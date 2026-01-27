@@ -21,7 +21,7 @@ public sealed class AuditController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<PagedResult<AuditListItem>>>> Get(
         [FromQuery] PagedRequest request,
         CancellationToken cancellationToken)

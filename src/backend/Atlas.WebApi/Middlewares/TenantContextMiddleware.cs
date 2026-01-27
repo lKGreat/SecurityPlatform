@@ -1,21 +1,23 @@
-﻿using Atlas.Core.Models;
+using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Tenancy;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 
 namespace Atlas.WebApi.Middlewares;
 
 public sealed class TenantContextMiddleware
 {
-    public const string TenantHeaderName = "X-Tenant-Id";
     public const string TenantClaimType = "tenant_id";
 
     private readonly RequestDelegate _next;
+    private readonly TenancyOptions _options;
 
-    public TenantContextMiddleware(RequestDelegate next)
+    public TenantContextMiddleware(RequestDelegate next, IOptions<TenancyOptions> options)
     {
         _next = next;
+        _options = options.Value;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -33,22 +35,44 @@ public sealed class TenantContextMiddleware
             return;
         }
 
-        if (!TryResolveTenantId(context, out var tenantId))
+        var isAuthenticated = context.User?.Identity?.IsAuthenticated == true;
+        var hasHeaderTenant = TryResolveTenantFromHeader(context, out var headerTenantId);
+        var hasClaimTenant = TryResolveTenantFromClaim(context, out var claimTenantId);
+
+        if (isAuthenticated)
         {
-            await WriteTenantErrorAsync(context, "无效或缺失租户标识");
+            if (!hasClaimTenant)
+            {
+                await WriteTenantErrorAsync(context, StatusCodes.Status401Unauthorized, ErrorCodes.Unauthorized, "缺少租户声明");
+                return;
+            }
+
+            if (hasHeaderTenant && headerTenantId != claimTenantId)
+            {
+                await WriteTenantErrorAsync(context, StatusCodes.Status403Forbidden, ErrorCodes.Forbidden, "租户标识不一致");
+                return;
+            }
+
+            context.Items[HttpContextTenantProvider.TenantContextKey] = new TenantContext(claimTenantId);
+            await _next(context);
             return;
         }
 
-        context.Items[HttpContextTenantProvider.TenantContextKey] = new TenantContext(tenantId);
+        if (!hasHeaderTenant)
+        {
+            await WriteTenantErrorAsync(context, StatusCodes.Status400BadRequest, ErrorCodes.ValidationError, "无效或缺失租户标识");
+            return;
+        }
 
+        context.Items[HttpContextTenantProvider.TenantContextKey] = new TenantContext(headerTenantId);
         await _next(context);
     }
 
-    private static bool TryResolveTenantId(HttpContext context, out TenantId tenantId)
+    private bool TryResolveTenantFromHeader(HttpContext context, out TenantId tenantId)
     {
         tenantId = TenantId.Empty;
 
-        if (context.Request.Headers.TryGetValue(TenantHeaderName, out var headerValue))
+        if (context.Request.Headers.TryGetValue(_options.HeaderName, out var headerValue))
         {
             if (Guid.TryParse(headerValue.ToString(), out var tenantGuid))
             {
@@ -59,6 +83,12 @@ public sealed class TenantContextMiddleware
             return false;
         }
 
+        return false;
+    }
+
+    private static bool TryResolveTenantFromClaim(HttpContext context, out TenantId tenantId)
+    {
+        tenantId = TenantId.Empty;
         var claim = context.User.FindFirstValue(TenantClaimType);
         if (!string.IsNullOrWhiteSpace(claim) && Guid.TryParse(claim, out var claimGuid))
         {
@@ -69,12 +99,12 @@ public sealed class TenantContextMiddleware
         return false;
     }
 
-    private static async Task WriteTenantErrorAsync(HttpContext context, string message)
+    private static async Task WriteTenantErrorAsync(HttpContext context, int statusCode, string code, string message)
     {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json";
 
-        var payload = ApiResponse<object?>.Fail(ErrorCodes.ValidationError, message, context.TraceIdentifier);
+        var payload = ApiResponse<object?>.Fail(code, message, context.TraceIdentifier);
         await context.Response.WriteAsJsonAsync(payload);
     }
 }

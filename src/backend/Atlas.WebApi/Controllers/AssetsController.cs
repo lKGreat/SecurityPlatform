@@ -50,7 +50,7 @@ public sealed class AssetsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> Create(
         [FromBody] AssetCreateRequest request,
         CancellationToken cancellationToken)

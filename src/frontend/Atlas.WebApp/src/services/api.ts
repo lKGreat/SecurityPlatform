@@ -15,7 +15,12 @@ export interface AssetListItem {
 
 export interface AuditListItem {
   id: string;
+  actor: string;
   action: string;
+  result: string;
+  target: string;
+  ipAddress?: string;
+  userAgent?: string;
   occurredAt: string;
 }
 

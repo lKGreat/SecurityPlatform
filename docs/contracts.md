@@ -1,8 +1,8 @@
-﻿# 接口契约
+# 接口契约
 
 ## 通用头
 
-- `X-Tenant-Id`: 租户标识（GUID）。除 `GET /health` 与开发环境 `openapi` 外，所有接口必须提供。
+- `X-Tenant-Id`: 租户标识（GUID）。匿名请求除 `GET /health` 与开发环境 `openapi` 外必须提供；已认证请求可省略，但若提供必须与JWT租户一致。
 - `Authorization`: `Bearer <JWT>`。受保护接口必须提供。
 
 ## 通用响应
@@ -53,5 +53,7 @@
 - `VALIDATION_ERROR`
 - `UNAUTHORIZED`
 - `FORBIDDEN`
+- `ACCOUNT_LOCKED`
+- `PASSWORD_EXPIRED`
 - `NOT_FOUND`
 - `SERVER_ERROR`

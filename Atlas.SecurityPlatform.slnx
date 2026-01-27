@@ -13,12 +13,4 @@
     <Project Path="src/backend/Atlas.Infrastructure/Atlas.Infrastructure.csproj" />
     <Project Path="src/backend/Atlas.WebApi/Atlas.WebApi.csproj" />
   </Folder>
-  <Folder Name="/src/backend/Bosch.http/">
-    <Item Path="src/backend/Bosch.http/Alert.http" />
-    <Item Path="src/backend/Bosch.http/Assets.http" />
-    <Item Path="src/backend/Bosch.http/Audit.http" />
-    <Item Path="src/backend/Bosch.http/Auth.http" />
-    <Item Path="src/backend/Bosch.http/Health.http" />
-    <Item Path="src/backend/Bosch.http/Secure.http" />
-  </Folder>
 </Solution>

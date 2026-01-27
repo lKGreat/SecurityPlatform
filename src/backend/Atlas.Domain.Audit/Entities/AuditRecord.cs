@@ -5,13 +5,40 @@ namespace Atlas.Domain.Audit.Entities;
 
 public sealed class AuditRecord : TenantEntity
 {
-    public AuditRecord(TenantId tenantId, string action)
-        : base(tenantId)
+    public AuditRecord()
+        : base(TenantId.Empty)
     {
-        Action = action;
+        Actor = string.Empty;
+        Action = string.Empty;
+        Result = string.Empty;
+        Target = string.Empty;
         OccurredAt = DateTimeOffset.UtcNow;
     }
 
+    public AuditRecord(
+        TenantId tenantId,
+        string actor,
+        string action,
+        string result,
+        string? target,
+        string? ipAddress,
+        string? userAgent)
+        : base(tenantId)
+    {
+        Actor = actor;
+        Action = action;
+        Result = result;
+        Target = target ?? string.Empty;
+        IpAddress = ipAddress;
+        UserAgent = userAgent;
+        OccurredAt = DateTimeOffset.UtcNow;
+    }
+
+    public string Actor { get; private set; }
     public string Action { get; private set; }
+    public string Result { get; private set; }
+    public string Target { get; private set; }
+    public string? IpAddress { get; private set; }
+    public string? UserAgent { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
 }

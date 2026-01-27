@@ -1,5 +1,7 @@
-﻿@baseUrl = http://localhost:5000
+@baseUrl = http://localhost:5000
 @tenantId = 00000000-0000-0000-0000-000000000001
+@username = admin
+@password = P@ssw0rd!
 
 ### Create Token
 POST {{baseUrl}}/auth/token
@@ -7,6 +9,6 @@ Content-Type: application/json
 X-Tenant-Id: {{tenantId}}
 
 {
-  "username": "admin",
-  "password": "P@ssw0rd!"
+  "username": "{{username}}",
+  "password": "{{password}}"
 }

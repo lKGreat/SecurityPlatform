@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using FluentValidation;
 using Atlas.Application.Abstractions;
 using Atlas.Application.Models;
@@ -34,7 +34,9 @@ public sealed class AuthController : ControllerBase
 
     [HttpPost("token")]
     [AllowAnonymous]
-    public ActionResult<ApiResponse<AuthTokenResult>> CreateToken([FromBody] AuthTokenViewModel request)
+    public async Task<ActionResult<ApiResponse<AuthTokenResult>>> CreateToken(
+        [FromBody] AuthTokenViewModel request,
+        CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.GetTenantId();
         if (tenantId.IsEmpty)
@@ -45,7 +47,8 @@ public sealed class AuthController : ControllerBase
         var dto = _mapper.Map<AuthTokenRequest>(request);
         _validator.ValidateAndThrow(dto);
 
-        var result = _authTokenService.CreateToken(dto, tenantId);
+        var context = new AuthRequestContext(HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString());
+        var result = await _authTokenService.CreateTokenAsync(dto, tenantId, context, cancellationToken);
         var payload = ApiResponse<AuthTokenResult>.Ok(result, HttpContext.TraceIdentifier);
         return Ok(payload);
     }

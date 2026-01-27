@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-card title="审计模块" class="page-card">
     <a-table
       :columns="columns"
@@ -18,13 +18,21 @@ import type { TablePaginationConfig } from "ant-design-vue";
 
 interface AuditRow {
   id: string;
+  actor: string;
   action: string;
+  result: string;
+  target: string;
+  ipAddress?: string;
   occurredAt: string;
 }
 
 const columns = [
   { title: "审计ID", dataIndex: "id" },
+  { title: "账号", dataIndex: "actor" },
   { title: "行为", dataIndex: "action" },
+  { title: "结果", dataIndex: "result" },
+  { title: "目标", dataIndex: "target" },
+  { title: "IP", dataIndex: "ipAddress" },
   { title: "时间", dataIndex: "occurredAt" }
 ];
 

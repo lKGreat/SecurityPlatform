@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+using FluentValidation;
+using Atlas.Core.Exceptions;
 using Atlas.Core.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
@@ -26,10 +27,27 @@ public sealed class ExceptionHandlingMiddleware
             var message = string.Join("; ", ex.Errors.Select(e => e.ErrorMessage));
             await WriteErrorAsync(context, HttpStatusCode.BadRequest, ErrorCodes.ValidationError, message);
         }
+        catch (BusinessException ex)
+        {
+            var statusCode = MapStatusCode(ex.Code);
+            await WriteErrorAsync(context, statusCode, ex.Code, ex.Message);
+        }
         catch (Exception)
         {
             await WriteErrorAsync(context, HttpStatusCode.InternalServerError, ErrorCodes.ServerError, "服务器内部错误");
         }
+    }
+
+    private static HttpStatusCode MapStatusCode(string code)
+    {
+        return code switch
+        {
+            ErrorCodes.Unauthorized => HttpStatusCode.Unauthorized,
+            ErrorCodes.Forbidden => HttpStatusCode.Forbidden,
+            ErrorCodes.AccountLocked => HttpStatusCode.Forbidden,
+            ErrorCodes.PasswordExpired => HttpStatusCode.Forbidden,
+            _ => HttpStatusCode.BadRequest
+        };
     }
 
     private static async Task WriteErrorAsync(HttpContext context, HttpStatusCode statusCode, string code, string message)
