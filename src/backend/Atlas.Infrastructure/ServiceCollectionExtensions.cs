@@ -69,7 +69,17 @@ public static class ServiceCollectionExtensions
             {
                 ConnectionString = options.ConnectionString,
                 DbType = DbType.Sqlite,
-                IsAutoCloseConnection = true
+                IsAutoCloseConnection = true,
+                ConfigureExternalServices = new ConfigureExternalServices
+                {
+                    EntityService = (property, column) =>
+                    {
+                        if (property.Name == nameof(Atlas.Core.Abstractions.TenantEntity.TenantId))
+                        {
+                            column.IsIgnore = true;
+                        }
+                    }
+                }
             };
 
             var db = new SqlSugarScope(config);

@@ -18,6 +18,8 @@ public sealed class AssetsMappingProfile : Profile
                 var tenantId = (TenantId)ctx.Items["TenantId"];
                 var id = (long)ctx.Items["Id"];
                 return new Asset(tenantId, src.Name, id);
-            });
+            })
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.TenantIdValue, opt => opt.Ignore());
     }
 }

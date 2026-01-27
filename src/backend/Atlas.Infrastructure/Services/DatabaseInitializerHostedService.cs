@@ -111,6 +111,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             if (existingRole is null)
             {
                 var role = new Role(tenantId, roleCode, roleCode, idGenerator.NextId());
+                role.Update(roleCode, roleCode);
                 role.MarkSystemRole();
                 await roleRepository.AddAsync(role, cancellationToken);
                 roleIds.Add(role.Id);
