@@ -56,6 +56,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDepartmentCommandService, DepartmentCommandService>();
         services.AddScoped<IMenuQueryService, MenuQueryService>();
         services.AddScoped<IMenuCommandService, MenuCommandService>();
+        
+        // Approval Workflow Services
+        services.AddScoped<Atlas.Application.Approval.Repositories.IApprovalFlowRepository, ApprovalFlowRepository>();
+        services.AddScoped<Atlas.Application.Approval.Repositories.IApprovalInstanceRepository, ApprovalInstanceRepository>();
+        services.AddScoped<Atlas.Application.Approval.Repositories.IApprovalTaskRepository, ApprovalTaskRepository>();
+        services.AddScoped<Atlas.Application.Approval.Repositories.IApprovalHistoryRepository, ApprovalHistoryRepository>();
+        services.AddScoped<Atlas.Application.Approval.Repositories.IApprovalDepartmentLeaderRepository, ApprovalDepartmentLeaderRepository>();
+        services.AddScoped<Atlas.Application.Approval.Abstractions.IApprovalFlowQueryService, ApprovalFlowQueryService>();
+        services.AddScoped<Atlas.Application.Approval.Abstractions.IApprovalFlowCommandService, ApprovalFlowCommandService>();
+        services.AddScoped<Atlas.Application.Approval.Abstractions.IApprovalRuntimeQueryService, ApprovalRuntimeQueryService>();
+        services.AddScoped<Atlas.Application.Approval.Abstractions.IApprovalRuntimeCommandService, ApprovalRuntimeCommandService>();
+        services.AddScoped<Atlas.Application.Approval.Abstractions.IApprovalDepartmentLeaderService, ApprovalDepartmentLeaderService>();
         services.AddHostedService<DatabaseInitializerHostedService>();
         services.AddHostedService<DatabaseBackupHostedService>();
 

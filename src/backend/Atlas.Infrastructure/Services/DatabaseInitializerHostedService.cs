@@ -5,6 +5,7 @@ using Atlas.Application.Security;
 using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.Alert.Entities;
+using Atlas.Domain.Approval.Entities;
 using Atlas.Domain.Assets.Entities;
 using Atlas.Domain.Audit.Entities;
 using Atlas.Domain.Identity.Entities;
@@ -63,7 +64,12 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(RoleMenu),
             typeof(AuditRecord),
             typeof(Asset),
-            typeof(AlertRecord));
+            typeof(AlertRecord),
+            typeof(ApprovalFlowDefinition),
+            typeof(ApprovalProcessInstance),
+            typeof(ApprovalTask),
+            typeof(ApprovalHistoryEvent),
+            typeof(ApprovalDepartmentLeader));
 
         if (!_bootstrapOptions.Enabled)
         {
