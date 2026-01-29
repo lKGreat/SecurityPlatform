@@ -18,4 +18,7 @@
     <Project Path="src/backend/Atlas.WorkflowCore.DSL/Atlas.WorkflowCore.DSL.csproj" />
     <Project Path="src/backend/Atlas.WorkflowCore/Atlas.WorkflowCore.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Atlas.WorkflowCore.Tests/Atlas.WorkflowCore.Tests.csproj" />
+  </Folder>
 </Solution>

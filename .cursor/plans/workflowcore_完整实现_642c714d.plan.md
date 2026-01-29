@@ -100,22 +100,22 @@ todos:
     status: completed
   - id: dsl-models
     content: 实现DSL模型 - DefinitionSource、Envelope、DefinitionSourceV1、StepSourceV1、MappingSourceV1
-    status: pending
+    status: completed
   - id: dsl-interfaces
     content: 定义DSL接口 - IDefinitionLoader、ITypeResolver
-    status: pending
+    status: completed
   - id: dsl-loader
     content: 实现定义加载器 - DefinitionLoader（表达式解析、类型解析、输入输出映射转换、构建WorkflowDefinition）
-    status: pending
+    status: completed
   - id: dsl-resolver
     content: 实现类型解析器 - TypeResolver
-    status: pending
+    status: completed
   - id: dsl-deserializers
     content: 实现反序列化器 - Deserializers（Json、Yaml）
-    status: pending
+    status: completed
   - id: dsl-di
     content: 实现DSL的DI扩展 - ServiceCollectionExtensions
-    status: pending
+    status: completed
   - id: workflow-host-integration
     content: 集成WorkflowHost - 更新构造函数、实现StartAsync/StopAsync、启动后台任务、更新StartWorkflowAsync和PublishEventAsync
     status: completed
@@ -130,7 +130,7 @@ todos:
     status: completed
   - id: unit-tests
     content: 创建单元测试 - Atlas.WorkflowCore.Tests项目、测试ExecutionPointerFactory、ExecutionResultProcessor、CancellationProcessor、ErrorHandlers、Primitives
-    status: pending
+    status: in_progress
   - id: integration-tests
     content: 创建集成测试 - 完整工作流执行、事件订阅发布、错误处理重试、Saga补偿、DSL加载执行
     status: pending
