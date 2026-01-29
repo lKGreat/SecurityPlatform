@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using Atlas.WorkflowCore.Abstractions;
 using Atlas.WorkflowCore.Models;
@@ -10,90 +11,191 @@ namespace Atlas.WorkflowCore.Services.BackgroundTasks;
 /// </summary>
 public abstract class QueueConsumer : IBackgroundTask
 {
+    protected abstract QueueType Queue { get; }
+    protected virtual int MaxConcurrentItems => Math.Max(Environment.ProcessorCount, 2);
+    protected virtual bool EnableSecondPasses => false;
+
     protected readonly IQueueProvider QueueProvider;
     protected readonly ILogger Logger;
-    private Task? _runTask;
-    private CancellationTokenSource? _cts;
+    protected readonly WorkflowOptions Options;
+    protected Task? DispatchTask;        
+    private CancellationTokenSource? _cancellationTokenSource;
+    private Dictionary<string, EventWaitHandle> _activeTasks;
+    private List<Task> _runningTasks;
+    private readonly object _runningTasksLock = new object();
+    private ConcurrentDictionary<string, bool> _secondPasses;
 
-    protected QueueConsumer(IQueueProvider queueProvider, ILogger logger)
+    protected QueueConsumer(IQueueProvider queueProvider, WorkflowOptions options, ILogger logger)
     {
         QueueProvider = queueProvider;
+        Options = options;
         Logger = logger;
+
+        _activeTasks = new Dictionary<string, EventWaitHandle>();
+        _runningTasks = new List<Task>();
+        _secondPasses = new ConcurrentDictionary<string, bool>();
     }
 
-    /// <summary>
-    /// 队列类型
-    /// </summary>
-    protected abstract QueueType Queue { get; }
+    protected abstract Task ProcessItem(string itemId, CancellationToken cancellationToken);
 
-    public Task Start(CancellationToken cancellationToken)
+    public virtual Task Start(CancellationToken cancellationToken = default)
     {
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _runTask = Task.Run(() => Run(_cts.Token), _cts.Token);
-        Logger.LogInformation("{ConsumerName} 已启动", GetType().Name);
+        if (DispatchTask != null)
+        {
+            throw new InvalidOperationException();
+        }
+
+        _cancellationTokenSource = new CancellationTokenSource();
+
+        DispatchTask = Task.Factory.StartNew(Execute, TaskCreationOptions.LongRunning);
+        
         return Task.CompletedTask;
     }
 
-    public async Task Stop()
+    public virtual async Task Stop()
     {
-        if (_cts != null)
+        if (_cancellationTokenSource != null)
         {
-            _cts.Cancel();
-            _cts.Dispose();
+            _cancellationTokenSource.Cancel();
         }
-
-        if (_runTask != null)
+        
+        if (DispatchTask != null)
         {
-            try
-            {
-                await _runTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // 预期的取消异常
-            }
+            await DispatchTask;
+            DispatchTask = null;
         }
-
-        Logger.LogInformation("{ConsumerName} 已停止", GetType().Name);
     }
 
-    private async Task Run(CancellationToken cancellationToken)
+    private async Task Execute()
     {
-        using var activity = WorkflowActivityTracing.StartConsume(Queue);
-        
-        while (!cancellationToken.IsCancellationRequested)
+        var cancelToken = _cancellationTokenSource!.Token;            
+
+        while (!cancelToken.IsCancellationRequested)
         {
+            Activity? activity = default;
             try
             {
-                var itemId = await QueueProvider.DequeueWork(Queue, cancellationToken);
-
-                if (itemId == null)
+                var activeCount = 0;
+                lock (_activeTasks)
                 {
-                    // 队列为空，等待一段时间
-                    await Task.Delay(100, cancellationToken);
+                    activeCount = _activeTasks.Count;
+                }
+                if (activeCount >= MaxConcurrentItems)
+                {
+                    await Task.Delay(Options.IdleTime);
                     continue;
                 }
 
-                activity?.EnrichWithDequeuedItem(itemId);
-                await ProcessItem(itemId, cancellationToken);
+                activity = WorkflowActivityTracing.StartConsume(Queue);
+                var item = await QueueProvider.DequeueWork(Queue, cancelToken);
+
+                if (item == null)
+                {
+                    activity?.Dispose();
+                    if (!QueueProvider.IsDequeueBlocking)
+                        await Task.Delay(Options.IdleTime, cancelToken);
+                    continue;
+                }
+
+                activity?.EnrichWithDequeuedItem(item);
+
+                var hasTask = false;
+                lock (_activeTasks)
+                {
+                    hasTask = _activeTasks.ContainsKey(item);
+                }
+                if (hasTask)
+                {
+                    _secondPasses.TryAdd(item, true);
+                    if (!EnableSecondPasses)
+                        await QueueProvider.QueueWork(item, Queue);
+                    activity?.Dispose();
+                    continue;
+                }
+
+                _secondPasses.TryRemove(item, out _);
+
+                var waitHandle = new ManualResetEvent(false);
+                lock (_activeTasks)
+                {
+                    _activeTasks.Add(item, waitHandle);
+                }
+                var task = ExecuteItem(item, waitHandle, activity);
+                lock (_runningTasksLock)
+                {
+                    _runningTasks.Add(task);
+                }
             }
             catch (OperationCanceledException)
             {
-                break;
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "{ConsumerName} 处理工作项时发生错误", GetType().Name);
+                Logger.LogError(ex, ex.Message);
                 activity?.SetStatus(ActivityStatusCode.Error);
-                await Task.Delay(1000, cancellationToken);
+            }
+            finally
+            {
+                activity?.Dispose();
+            }
+        }
+
+        List<EventWaitHandle> toComplete;
+        lock (_activeTasks)
+        {
+            toComplete = _activeTasks.Values.ToList();
+        }
+
+        foreach (var handle in toComplete)
+            handle.WaitOne();
+
+        // Also await all running tasks to ensure proper async completion
+        Task[] tasksToAwait;
+        lock (_runningTasksLock)
+        {
+            tasksToAwait = _runningTasks.ToArray();
+        }
+
+        if (tasksToAwait.Length > 0)
+        {
+            try
+            {
+                await Task.WhenAll(tasksToAwait);
+            }
+            catch
+            {
+                // Individual task exceptions are already logged in ExecuteItem
             }
         }
     }
 
-    /// <summary>
-    /// 处理工作项
-    /// </summary>
-    /// <param name="itemId">工作项ID</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    protected abstract Task ProcessItem(string itemId, CancellationToken cancellationToken);
+    private async Task ExecuteItem(string itemId, EventWaitHandle waitHandle, Activity? activity)
+    {
+        try
+        {
+            await ProcessItem(itemId, _cancellationTokenSource!.Token);
+            while (EnableSecondPasses && _secondPasses.ContainsKey(itemId))
+            {
+                _secondPasses.TryRemove(itemId, out _);
+                await ProcessItem(itemId, _cancellationTokenSource!.Token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation($"Operation cancelled while processing {itemId}");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error executing item {itemId} - {ex.Message}");
+            activity?.SetStatus(ActivityStatusCode.Error);
+        }
+        finally
+        {
+            waitHandle.Set();
+            lock (_activeTasks)
+            {
+                _activeTasks.Remove(itemId);
+            }
+        }
+    }
 }

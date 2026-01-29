@@ -29,7 +29,7 @@ public class WorkflowConsumer : QueueConsumer
         IDateTimeProvider dateTimeProvider,
         IOptions<WorkflowOptions> options,
         ILogger<WorkflowConsumer> logger)
-        : base(queueProvider, logger)
+        : base(queueProvider, options.Value, logger)
     {
         _persistenceProvider = persistenceProvider;
         _executor = executor;

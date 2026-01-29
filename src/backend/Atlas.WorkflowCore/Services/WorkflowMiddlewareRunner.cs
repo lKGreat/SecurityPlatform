@@ -1,6 +1,6 @@
 using Atlas.WorkflowCore.Abstractions;
 using Atlas.WorkflowCore.Models;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Atlas.WorkflowCore.Services;
 
@@ -9,65 +9,79 @@ namespace Atlas.WorkflowCore.Services;
 /// </summary>
 public class WorkflowMiddlewareRunner : IWorkflowMiddlewareRunner
 {
-    private readonly IEnumerable<IWorkflowMiddleware> _middlewares;
-    private readonly IWorkflowMiddlewareErrorHandler _errorHandler;
-    private readonly ILogger<WorkflowMiddlewareRunner> _logger;
+    private static readonly WorkflowDelegate NoopWorkflowDelegate = () => Task.CompletedTask;
+    private readonly IEnumerable<IWorkflowMiddleware> _middleware;
+    private readonly IServiceProvider _serviceProvider;
 
     public WorkflowMiddlewareRunner(
-        IEnumerable<IWorkflowMiddleware> middlewares,
-        IWorkflowMiddlewareErrorHandler errorHandler,
-        ILogger<WorkflowMiddlewareRunner> logger)
+        IEnumerable<IWorkflowMiddleware> middleware,
+        IServiceProvider serviceProvider)
     {
-        _middlewares = middlewares;
-        _errorHandler = errorHandler;
-        _logger = logger;
+        _middleware = middleware;
+        _serviceProvider = serviceProvider;
     }
 
-    public async Task RunPreMiddleware(WorkflowInstance workflow, CancellationToken cancellationToken = default)
+    /// <inheritdoc cref="IWorkflowMiddlewareRunner.RunPreMiddleware"/>
+    public async Task RunPreMiddleware(WorkflowInstance workflow, WorkflowDefinition def)
     {
-        foreach (var middleware in _middlewares)
+        var preMiddleware = _middleware
+            .Where(m => m.Phase == WorkflowMiddlewarePhase.PreWorkflow);
+
+        await RunWorkflowMiddleware(workflow, preMiddleware);
+    }
+
+    /// <inheritdoc cref="IWorkflowMiddlewareRunner.RunPostMiddleware"/>
+    public Task RunPostMiddleware(WorkflowInstance workflow, WorkflowDefinition def)
+    {
+        return RunWorkflowMiddlewareWithErrorHandling(
+            workflow,
+            WorkflowMiddlewarePhase.PostWorkflow,
+            def.OnPostMiddlewareError);
+    }
+
+    /// <inheritdoc cref="IWorkflowMiddlewareRunner.RunExecuteMiddleware"/>
+    public Task RunExecuteMiddleware(WorkflowInstance workflow, WorkflowDefinition def)
+    {
+        return RunWorkflowMiddlewareWithErrorHandling(
+            workflow, 
+            WorkflowMiddlewarePhase.ExecuteWorkflow,
+            def.OnExecuteMiddlewareError);
+    }
+
+    public async Task RunWorkflowMiddlewareWithErrorHandling(
+        WorkflowInstance workflow, 
+        WorkflowMiddlewarePhase phase,
+        Type? middlewareErrorType)
+    {
+        var middleware = _middleware.Where(m => m.Phase == phase);
+
+        try
         {
-            try
+            await RunWorkflowMiddleware(workflow, middleware);
+        }
+        catch (Exception exception)
+        {
+            var errorHandlerType = middlewareErrorType ?? typeof(IWorkflowMiddlewareErrorHandler);
+
+            using (var scope = _serviceProvider.CreateScope())
             {
-                await middleware.HandlePreWorkflow(workflow, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "PreWorkflow 中间件执行失败: {MiddlewareType}", middleware.GetType().Name);
-                await _errorHandler.HandleError(workflow, WorkflowMiddlewarePhase.PreWorkflow, ex, cancellationToken);
+                var typeInstance = scope.ServiceProvider.GetService(errorHandlerType);
+                if (typeInstance is IWorkflowMiddlewareErrorHandler handler)
+                {
+                    await handler.HandleAsync(exception);
+                }
             }
         }
     }
 
-    public async Task RunExecuteMiddleware(WorkflowInstance workflow, CancellationToken cancellationToken = default)
+    private static Task RunWorkflowMiddleware(
+        WorkflowInstance workflow,
+        IEnumerable<IWorkflowMiddleware> middlewareCollection)
     {
-        foreach (var middleware in _middlewares)
-        {
-            try
-            {
-                await middleware.HandleExecuteWorkflow(workflow, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "ExecuteWorkflow 中间件执行失败: {MiddlewareType}", middleware.GetType().Name);
-                await _errorHandler.HandleError(workflow, WorkflowMiddlewarePhase.ExecuteWorkflow, ex, cancellationToken);
-            }
-        }
-    }
-
-    public async Task RunPostMiddleware(WorkflowInstance workflow, CancellationToken cancellationToken = default)
-    {
-        foreach (var middleware in _middlewares)
-        {
-            try
-            {
-                await middleware.HandlePostWorkflow(workflow, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "PostWorkflow 中间件执行失败: {MiddlewareType}", middleware.GetType().Name);
-                await _errorHandler.HandleError(workflow, WorkflowMiddlewarePhase.PostWorkflow, ex, cancellationToken);
-            }
-        }
+        return middlewareCollection
+            .Reverse()
+            .Aggregate(
+                NoopWorkflowDelegate,
+                (previous, middleware) => () => middleware.HandleAsync(workflow, previous))();
     }
 }

@@ -8,17 +8,14 @@ namespace Atlas.WorkflowCore.Abstractions;
 public interface IWorkflowMiddleware
 {
     /// <summary>
-    /// 工作流执行前处理
+    /// 中间件执行阶段
     /// </summary>
-    Task HandlePreWorkflow(WorkflowInstance workflow, CancellationToken cancellationToken = default);
+    WorkflowMiddlewarePhase Phase { get; }
 
     /// <summary>
-    /// 工作流执行中处理
+    /// 处理工作流中间件
     /// </summary>
-    Task HandleExecuteWorkflow(WorkflowInstance workflow, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 工作流执行后处理
-    /// </summary>
-    Task HandlePostWorkflow(WorkflowInstance workflow, CancellationToken cancellationToken = default);
+    /// <param name="workflow">工作流实例</param>
+    /// <param name="next">下一个中间件委托</param>
+    Task HandleAsync(WorkflowInstance workflow, WorkflowDelegate next);
 }

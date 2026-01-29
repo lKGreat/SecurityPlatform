@@ -11,6 +11,11 @@ public class ScheduledCommand
     public const string ProcessWorkflow = "ProcessWorkflow";
 
     /// <summary>
+    /// 处理事件命令名称
+    /// </summary>
+    public const string ProcessEvent = "ProcessEvent";
+
+    /// <summary>
     /// 命令ID
     /// </summary>
     public string CommandId { get; set; } = string.Empty;

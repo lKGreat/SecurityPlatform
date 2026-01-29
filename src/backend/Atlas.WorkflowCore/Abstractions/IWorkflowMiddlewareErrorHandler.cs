@@ -10,9 +10,5 @@ public interface IWorkflowMiddlewareErrorHandler
     /// <summary>
     /// 处理中间件执行错误
     /// </summary>
-    Task HandleError(
-        WorkflowInstance workflow,
-        WorkflowMiddlewarePhase phase,
-        Exception exception,
-        CancellationToken cancellationToken = default);
+    Task HandleAsync(Exception exception);
 }

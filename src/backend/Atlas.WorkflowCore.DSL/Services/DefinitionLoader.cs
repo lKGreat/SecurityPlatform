@@ -159,10 +159,11 @@ public class DefinitionLoader : IDefinitionLoader
 
     private void LinkSteps(List<StepSourceV1> sources, WorkflowStepCollection steps, Dictionary<string, int> stepIdMap)
     {
+        var stepsList = steps.ToList();
         for (int i = 0; i < sources.Count; i++)
         {
             var source = sources[i];
-            var step = steps[i];
+            var step = stepsList[i];
 
             // 简单的顺序连接（NextStepId）
             if (!string.IsNullOrEmpty(source.NextStepId))

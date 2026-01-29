@@ -16,17 +16,11 @@ public class DefaultWorkflowMiddlewareErrorHandler : IWorkflowMiddlewareErrorHan
         _logger = logger;
     }
 
-    public Task HandleError(
-        WorkflowInstance workflow,
-        WorkflowMiddlewarePhase phase,
-        Exception exception,
-        CancellationToken cancellationToken = default)
+    public Task HandleAsync(Exception exception)
     {
-        _logger.LogError(exception,
-            "工作流中间件错误 (阶段: {Phase}, 工作流: {WorkflowId})",
-            phase, workflow.Id);
-
-        // 默认实现：记录错误但不中断工作流执行
+        _logger.LogError(exception, "工作流中间件错误: {Message}", exception.Message);
+        
+        // 默认处理：记录日志但不抛出异常，允许工作流继续执行
         return Task.CompletedTask;
     }
 }

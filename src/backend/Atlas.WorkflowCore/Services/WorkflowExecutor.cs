@@ -110,7 +110,13 @@ public class WorkflowExecutor : IWorkflowExecutor
         }
         
         ProcessAfterExecutionIteration(workflow, def, wfResult);
-        DetermineNextExecutionTime(workflow, def);
+        await DetermineNextExecutionTime(workflow, def);
+
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var middlewareRunner = scope.ServiceProvider.GetRequiredService<IWorkflowMiddlewareRunner>();
+            await middlewareRunner.RunExecuteMiddleware(workflow, def);
+        }
 
         return wfResult;
     }
@@ -130,6 +136,16 @@ public class WorkflowExecutor : IWorkflowExecutor
         if (pointer.Status != PointerStatus.Running)
         {
             pointer.Status = PointerStatus.Running;
+            _publisher.PublishNotification(new StepStarted
+            {
+                EventTimeUtc = _datetimeProvider.UtcNow,
+                Reference = workflow.Reference,
+                ExecutionPointerId = pointer.Id,
+                StepId = step.Id,
+                WorkflowInstanceId = workflow.Id,
+                WorkflowDefinitionId = workflow.WorkflowDefinitionId,
+                Version = workflow.Version
+            });
         }
 
         if (!pointer.StartTime.HasValue)
@@ -212,7 +228,7 @@ public class WorkflowExecutor : IWorkflowExecutor
         }
     }
 
-    private void DetermineNextExecutionTime(WorkflowInstance workflow, WorkflowDefinition def)
+    private async Task DetermineNextExecutionTime(WorkflowInstance workflow, WorkflowDefinition def)
     {
         //TODO: move to own class
         workflow.NextExecution = null;
@@ -257,22 +273,19 @@ public class WorkflowExecutor : IWorkflowExecutor
         workflow.Status = WorkflowStatus.Complete;
         workflow.CompleteTime = _datetimeProvider.UtcNow;
 
-        foreach (var pointer in workflow.ExecutionPointers.Where(x => x.Status == PointerStatus.WaitingForEvent))
+        using (var scope = _serviceProvider.CreateScope())
         {
-            workflow.Status = WorkflowStatus.Runnable;
-            workflow.CompleteTime = null;
+            var middlewareRunner = scope.ServiceProvider.GetRequiredService<IWorkflowMiddlewareRunner>();
+            await middlewareRunner.RunPostMiddleware(workflow, def);
         }
 
-        if (workflow.Status == WorkflowStatus.Complete)
+        _publisher.PublishNotification(new WorkflowCompleted
         {
-            _publisher.PublishNotification(new WorkflowCompleted
-            {
-                EventTimeUtc = _datetimeProvider.UtcNow,
-                Reference = workflow.Reference,
-                WorkflowInstanceId = workflow.Id,
-                WorkflowDefinitionId = workflow.WorkflowDefinitionId,
-                Version = workflow.Version
-            });
-        }
+            EventTimeUtc = _datetimeProvider.UtcNow,
+            Reference = workflow.Reference,
+            WorkflowInstanceId = workflow.Id,
+            WorkflowDefinitionId = workflow.WorkflowDefinitionId,
+            Version = workflow.Version
+        });
     }
 }

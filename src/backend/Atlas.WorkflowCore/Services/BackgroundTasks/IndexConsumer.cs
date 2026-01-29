@@ -2,6 +2,7 @@ using Atlas.WorkflowCore.Abstractions;
 using Atlas.WorkflowCore.Abstractions.Persistence;
 using Atlas.WorkflowCore.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 
 namespace Atlas.WorkflowCore.Services.BackgroundTasks;
 
@@ -10,17 +11,21 @@ namespace Atlas.WorkflowCore.Services.BackgroundTasks;
 /// </summary>
 public class IndexConsumer : QueueConsumer
 {
-    private readonly IPersistenceProvider _persistenceProvider;
     private readonly ISearchIndex _searchIndex;
+    private readonly ObjectPool<IPersistenceProvider> _persistenceStorePool;
+    private readonly Dictionary<string, int> _errorCounts = new Dictionary<string, int>();
+
+    protected override bool EnableSecondPasses => true;
 
     public IndexConsumer(
         IQueueProvider queueProvider,
-        IPersistenceProvider persistenceProvider,
+        IPooledObjectPolicy<IPersistenceProvider> persistencePoolPolicy,
         ISearchIndex searchIndex,
+        WorkflowOptions options,
         ILogger<IndexConsumer> logger)
-        : base(queueProvider, logger)
+        : base(queueProvider, options, logger)
     {
-        _persistenceProvider = persistenceProvider;
+        _persistenceStorePool = new DefaultObjectPool<IPersistenceProvider>(persistencePoolPolicy);
         _searchIndex = searchIndex;
     }
 
@@ -30,23 +35,60 @@ public class IndexConsumer : QueueConsumer
     {
         try
         {
-            // 1. 获取工作流实例
-            var workflow = await _persistenceProvider.GetWorkflowAsync(itemId, cancellationToken);
-
-            if (workflow == null)
+            var workflow = await FetchWorkflow(itemId, cancellationToken);
+            
+            WorkflowActivityTracing.Enrich(workflow, "index");
+            await _searchIndex.IndexWorkflow(workflow);
+            lock (_errorCounts)
             {
-                Logger.LogWarning("工作流实例 {WorkflowId} 不存在", itemId);
+                _errorCounts.Remove(itemId);
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.LogWarning(default(EventId), $"Error indexing workflow - {itemId} - {e.Message}");
+            var errCount = 0;
+            lock (_errorCounts)
+            {
+                if (!_errorCounts.ContainsKey(itemId))
+                    _errorCounts.Add(itemId, 0);
+
+                _errorCounts[itemId]++;
+                errCount = _errorCounts[itemId];
+            }
+            
+            if (errCount < 5)
+            {
+                await QueueProvider.QueueWork(itemId, Queue);
+                return;
+            }
+            if (errCount < 20)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+                await QueueProvider.QueueWork(itemId, Queue);
                 return;
             }
 
-            // 2. 索引工作流
-            await _searchIndex.IndexWorkflow(workflow);
+            lock (_errorCounts)
+            {
+                _errorCounts.Remove(itemId);
+            }
 
-            Logger.LogDebug("工作流 {WorkflowId} 索引更新完成", itemId);
+            Logger.LogError(default(EventId), e, $"Unable to index workflow - {itemId} - {e.Message}");
         }
-        catch (Exception ex)
+    }
+
+    private async Task<WorkflowInstance> FetchWorkflow(string id, CancellationToken cancellationToken)
+    {
+        var store = _persistenceStorePool.Get();
+        try
         {
-            Logger.LogError(ex, "索引工作流 {WorkflowId} 时发生错误", itemId);
+            var workflow = await store.GetWorkflowAsync(id, cancellationToken);
+            return workflow ?? throw new InvalidOperationException($"Workflow {id} not found");
+        }
+        finally
+        {
+            _persistenceStorePool.Return(store);
         }
     }
 }

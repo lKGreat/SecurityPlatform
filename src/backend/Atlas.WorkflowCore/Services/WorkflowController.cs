@@ -73,7 +73,7 @@ public class WorkflowController : IWorkflowController
         // 运行 PreWorkflow 中间件
         try
         {
-            await _middlewareRunner.RunPreMiddleware(instance, cancellationToken);
+            await _middlewareRunner.RunPreMiddleware(instance, definition);
         }
         catch (Exception ex)
         {

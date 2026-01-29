@@ -74,6 +74,7 @@ public class RunnablePoller : IBackgroundTask
             {
                 await PollRunnableWorkflows(cancellationToken);
                 await PollRunnableEvents(cancellationToken);
+                await PollCommands(cancellationToken);
             }
             catch (Exception ex)
             {
@@ -107,6 +108,8 @@ public class RunnablePoller : IBackgroundTask
 
         try
         {
+            _logger.LogDebug("Polling for runnable workflows");
+
             var now = _dateTimeProvider.UtcNow;
             var runnableInstances = await _persistenceProvider.GetRunnableInstancesAsync(now, cancellationToken);
 
@@ -118,6 +121,26 @@ public class RunnablePoller : IBackgroundTask
 
                 foreach (var instance in instances)
                 {
+                    // 如果支持计划命令，优先使用ScheduledCommand
+                    if (_persistenceProvider.SupportsScheduledCommands)
+                    {
+                        try
+                        {
+                            await _persistenceProvider.ScheduleCommandAsync(new ScheduledCommand
+                            {
+                                CommandName = ScheduledCommand.ProcessWorkflow,
+                                Data = instance.Id,
+                                ExecuteTime = _dateTimeProvider.UtcNow
+                            }, cancellationToken);
+                            continue;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, ex.Message);
+                            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+                        }
+                    }
+                    
                     await _queueProvider.QueueWork(instance.Id, QueueType.Workflow);
                 }
             }
@@ -144,6 +167,8 @@ public class RunnablePoller : IBackgroundTask
 
         try
         {
+            _logger.LogDebug("Polling for unprocessed events");
+
             var now = _dateTimeProvider.UtcNow;
             var runnableEvents = await _persistenceProvider.GetRunnableEventsAsync(now, cancellationToken);
 
@@ -155,6 +180,26 @@ public class RunnablePoller : IBackgroundTask
 
                 foreach (var eventId in events)
                 {
+                    // 如果支持计划命令，优先使用ScheduledCommand
+                    if (_persistenceProvider.SupportsScheduledCommands)
+                    {
+                        try
+                        {
+                            await _persistenceProvider.ScheduleCommandAsync(new ScheduledCommand
+                            {
+                                CommandName = ScheduledCommand.ProcessEvent,
+                                Data = eventId,
+                                ExecuteTime = _dateTimeProvider.UtcNow
+                            }, cancellationToken);
+                            continue;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, ex.Message);
+                            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+                        }
+                    }
+                    
                     await _queueProvider.QueueWork(eventId, QueueType.Event);
                 }
             }
@@ -162,6 +207,51 @@ public class RunnablePoller : IBackgroundTask
         finally
         {
             await _lockProvider.ReleaseLock(lockId);
+        }
+    }
+
+    private async Task PollCommands(CancellationToken cancellationToken)
+    {
+        var activity = WorkflowActivityTracing.StartPoll("commands");
+        try
+        {
+            if (!_persistenceProvider.SupportsScheduledCommands)
+                return;
+
+            if (await _lockProvider.AcquireLock("poll-commands", cancellationToken))
+            {
+                try
+                {
+                    _logger.LogDebug("Polling for scheduled commands");
+                    await _persistenceProvider.ProcessCommands(new DateTimeOffset(_dateTimeProvider.UtcNow), async (command) =>
+                    {
+                        switch (command.CommandName)
+                        {
+                            case ScheduledCommand.ProcessWorkflow:
+                                if (!string.IsNullOrEmpty(command.Data))
+                                    await _queueProvider.QueueWork(command.Data, QueueType.Workflow);
+                                break;
+                            case ScheduledCommand.ProcessEvent:
+                                if (!string.IsNullOrEmpty(command.Data))
+                                    await _queueProvider.QueueWork(command.Data, QueueType.Event);
+                                break;
+                        }
+                    }, cancellationToken);
+                }
+                finally
+                {
+                    await _lockProvider.ReleaseLock("poll-commands");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, ex.Message);
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+        }
+        finally
+        {
+            activity?.Dispose();
         }
     }
 }

@@ -1,6 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Collections;
 using Atlas.WorkflowCore.Abstractions;
 
 namespace Atlas.WorkflowCore.Models;
@@ -72,29 +70,110 @@ public class WorkflowInstance : ISearchable
     }
 }
 
-public class ExecutionPointerCollection : List<ExecutionPointer>
+public class ExecutionPointerCollection : ICollection<ExecutionPointer>
 {
+    private readonly Dictionary<string, ExecutionPointer> _dictionary = new Dictionary<string, ExecutionPointer>();
+    private readonly Dictionary<string, ICollection<ExecutionPointer>> _scopeMap = new Dictionary<string, ICollection<ExecutionPointer>>();
+
     public ExecutionPointerCollection()
     {
     }
 
-    public ExecutionPointerCollection(IEnumerable<ExecutionPointer> collection) : base(collection)
+    public ExecutionPointerCollection(int capacity)
     {
+        _dictionary = new Dictionary<string, ExecutionPointer>(capacity);
     }
 
-    public IEnumerable<ExecutionPointer> FindByScope(string scope)
+    public ExecutionPointerCollection(ICollection<ExecutionPointer> pointers)
     {
-        return this.Where(x => x.Scope.Contains(scope));
+        foreach (var ptr in pointers)
+        {
+            Add(ptr);
+        }
+    }
+
+    public IEnumerator<ExecutionPointer> GetEnumerator()
+    {
+        return _dictionary.Values.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
     }
 
     public ExecutionPointer? FindById(string id)
     {
-        return this.FirstOrDefault(x => x.Id == id);
+        if (!_dictionary.ContainsKey(id))
+            return null;
+
+        return _dictionary[id];
     }
+
+    public ICollection<ExecutionPointer> FindByScope(string stackFrame)
+    {
+        if (!_scopeMap.ContainsKey(stackFrame))
+            return new List<ExecutionPointer>();
+
+        return _scopeMap[stackFrame];
+    }
+
+    public void Add(ExecutionPointer item)
+    {
+        _dictionary.Add(item.Id, item);
+
+        foreach (var stackFrame in item.Scope)
+        {
+            if (!_scopeMap.ContainsKey(stackFrame))
+                _scopeMap.Add(stackFrame, new List<ExecutionPointer>());
+            _scopeMap[stackFrame].Add(item);
+        }
+    }
+
+    public void Clear()
+    {
+        _dictionary.Clear();
+        _scopeMap.Clear();
+    }
+
+    public bool Contains(ExecutionPointer item)
+    {
+        return _dictionary.ContainsValue(item);
+    }
+
+    public void CopyTo(ExecutionPointer[] array, int arrayIndex)
+    {
+        _dictionary.Values.CopyTo(array, arrayIndex);
+    }
+
+    public bool Remove(ExecutionPointer item)
+    {
+        foreach (var stackFrame in item.Scope)
+        {
+            if (_scopeMap.ContainsKey(stackFrame))
+                _scopeMap[stackFrame].Remove(item);
+        }
+
+        return _dictionary.Remove(item.Id);
+    }
+
+    public ExecutionPointer? Find(Predicate<ExecutionPointer> match)
+    {
+        return _dictionary.Values.FirstOrDefault(x => match(x));
+    }
+
+    public ICollection<ExecutionPointer> FindByStatus(PointerStatus status)
+    {
+        //TODO: track states in hash table for O(1)
+        return _dictionary.Values.Where(x => x.Status == status).ToList();
+    }
+
+    public int Count => _dictionary.Count;
+    public bool IsReadOnly => false;
 
     public IEnumerable<ExecutionPointer> FindActive()
     {
-        return this.Where(x => x.Active && x.EndTime == null);
+        return _dictionary.Values.Where(x => x.Active && x.EndTime == null);
     }
 
     /// <summary>
@@ -102,7 +181,7 @@ public class ExecutionPointerCollection : List<ExecutionPointer>
     /// </summary>
     public List<ExecutionPointer> FindByStepId(int stepId)
     {
-        return this.Where(p => p.StepId == stepId).ToList();
+        return _dictionary.Values.Where(p => p.StepId == stepId).ToList();
     }
 
     /// <summary>
@@ -110,7 +189,7 @@ public class ExecutionPointerCollection : List<ExecutionPointer>
     /// </summary>
     public List<ExecutionPointer> GetActivePointers()
     {
-        return this.Where(p => 
+        return _dictionary.Values.Where(p => 
             p.Status == PointerStatus.Running || 
             p.Status == PointerStatus.Pending).ToList();
     }
@@ -120,7 +199,7 @@ public class ExecutionPointerCollection : List<ExecutionPointer>
     /// </summary>
     public List<ExecutionPointer> GetWaitingPointers()
     {
-        return this.Where(p => p.Status == PointerStatus.WaitingForEvent).ToList();
+        return _dictionary.Values.Where(p => p.Status == PointerStatus.WaitingForEvent).ToList();
     }
 
     /// <summary>
@@ -128,7 +207,7 @@ public class ExecutionPointerCollection : List<ExecutionPointer>
     /// </summary>
     public List<ExecutionPointer> GetCompletedPointers()
     {
-        return this.Where(p => p.Status == PointerStatus.Complete).ToList();
+        return _dictionary.Values.Where(p => p.Status == PointerStatus.Complete).ToList();
     }
 
     /// <summary>
@@ -136,7 +215,7 @@ public class ExecutionPointerCollection : List<ExecutionPointer>
     /// </summary>
     public List<ExecutionPointer> GetFailedPointers()
     {
-        return this.Where(p => p.Status == PointerStatus.Failed).ToList();
+        return _dictionary.Values.Where(p => p.Status == PointerStatus.Failed).ToList();
     }
 
     /// <summary>
@@ -144,14 +223,6 @@ public class ExecutionPointerCollection : List<ExecutionPointer>
     /// </summary>
     public bool HasPointersWithStatus(PointerStatus status)
     {
-        return this.Any(p => p.Status == status);
-    }
-
-    /// <summary>
-    /// 根据状态查找执行指针
-    /// </summary>
-    public IEnumerable<ExecutionPointer> FindByStatus(PointerStatus status)
-    {
-        return this.Where(x => x.Status == status);
+        return _dictionary.Values.Any(p => p.Status == status);
     }
 }

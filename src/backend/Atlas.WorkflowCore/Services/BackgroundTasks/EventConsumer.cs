@@ -11,23 +11,39 @@ namespace Atlas.WorkflowCore.Services.BackgroundTasks;
 public class EventConsumer : QueueConsumer
 {
     private readonly IPersistenceProvider _persistenceProvider;
+    private readonly IDistributedLockProvider _lockProvider;
+    private readonly IDateTimeProvider _datetimeProvider;
+    private readonly IGreyList _greylist;
 
     public EventConsumer(
         IQueueProvider queueProvider,
         IPersistenceProvider persistenceProvider,
+        IDistributedLockProvider lockProvider,
+        IDateTimeProvider datetimeProvider,
+        IGreyList greylist,
+        WorkflowOptions options,
         ILogger<EventConsumer> logger)
-        : base(queueProvider, logger)
+        : base(queueProvider, options, logger)
     {
         _persistenceProvider = persistenceProvider;
+        _lockProvider = lockProvider;
+        _datetimeProvider = datetimeProvider;
+        _greylist = greylist;
     }
 
     protected override QueueType Queue => QueueType.Event;
 
     protected override async Task ProcessItem(string itemId, CancellationToken cancellationToken)
     {
+        if (!await _lockProvider.AcquireLock($"evt:{itemId}", cancellationToken))
+        {
+            Logger.LogInformation($"Event locked {itemId}");
+            return;
+        }
+        
         try
         {
-            // 1. 获取事件
+            cancellationToken.ThrowIfCancellationRequested();
             var evt = await _persistenceProvider.GetEventAsync(itemId, cancellationToken);
 
             if (evt == null)
@@ -36,102 +52,124 @@ public class EventConsumer : QueueConsumer
                 return;
             }
 
+            WorkflowActivityTracing.Enrich(evt);
             if (evt.IsProcessed)
             {
-                Logger.LogDebug("事件 {EventId} 已处理", itemId);
+                _greylist.Add($"evt:{evt.Id}");
                 return;
             }
-
-            Logger.LogDebug("处理事件 {EventId}: {EventName} - {EventKey}", itemId, evt.EventName, evt.EventKey);
-
-            // 添加事件追踪信息
-            WorkflowActivityTracing.Enrich(evt);
-
-            // 2. 获取事件订阅
-            var subscriptions = await _persistenceProvider.GetEventSubscriptionsAsync(
-                evt.EventName,
-                evt.EventKey,
-                evt.EventTime,
-                cancellationToken);
-
-            var subscriptionList = subscriptions.ToList();
-
-            if (subscriptionList.Count == 0)
+            if (evt.EventTime <= _datetimeProvider.UtcNow)
             {
-                Logger.LogDebug("事件 {EventId} 没有订阅者", itemId);
-                await _persistenceProvider.MarkEventProcessedAsync(itemId, cancellationToken);
-                return;
+                IEnumerable<EventSubscription> subs;
+                
+                // 特殊处理ActivityResult
+                if (evt.EventData is ActivityResult)
+                {
+                    var activity = await _persistenceProvider.GetEventSubscriptionAsync((evt.EventData as ActivityResult)!.SubscriptionId, cancellationToken);
+                    if (activity == null)
+                    {
+                        Logger.LogWarning($"Activity already processed - {(evt.EventData as ActivityResult)!.SubscriptionId}");
+                        await _persistenceProvider.MarkEventProcessedAsync(itemId, cancellationToken);
+                        return;
+                    }
+                    subs = new List<EventSubscription> { activity };
+                }
+                else
+                {
+                    subs = await _persistenceProvider.GetEventSubscriptionsAsync(evt.EventName, evt.EventKey, evt.EventTime, cancellationToken);
+                }
+
+                var toQueue = new HashSet<string>();
+                var complete = true;
+
+                foreach (var sub in subs.ToList())
+                    complete = complete && await SeedSubscription(evt, sub, toQueue, cancellationToken);
+
+                if (complete)
+                {
+                    await _persistenceProvider.MarkEventProcessedAsync(itemId, cancellationToken);
+                }
+                else
+                {
+                    _greylist.Remove($"evt:{evt.Id}");
+                }
+
+                foreach (var eventId in toQueue)
+                    await QueueProvider.QueueWork(eventId, QueueType.Event);
+            }
+        }
+        finally
+        {
+            await _lockProvider.ReleaseLock($"evt:{itemId}");
+        }
+    }
+    
+    private async Task<bool> SeedSubscription(Event evt, EventSubscription sub, HashSet<string> toQueue, CancellationToken cancellationToken)
+    {
+        // 检查是否有早于当前事件的同类事件需要先处理
+        var eventIds = await _persistenceProvider.GetEvents(sub.EventName, sub.EventKey, sub.SubscribeAsOf, cancellationToken);
+        foreach (var eventId in eventIds)
+        {
+            if (eventId == evt.Id)
+                continue;
+
+            var siblingEvent = await _persistenceProvider.GetEventAsync(eventId, cancellationToken);
+            if (siblingEvent == null)
+                continue;
+                
+            if ((!siblingEvent.IsProcessed) && (siblingEvent.EventTime < evt.EventTime))
+            {
+                await QueueProvider.QueueWork(eventId, QueueType.Event);
+                return false;
             }
 
-            Logger.LogDebug("事件 {EventId} 有 {Count} 个订阅者", itemId, subscriptionList.Count);
+            if (!siblingEvent.IsProcessed)
+                toQueue.Add(siblingEvent.Id);
+        }
 
-            // 3. 唤醒等待的工作流
-            foreach (var subscription in subscriptionList)
+        if (!await _lockProvider.AcquireLock(sub.WorkflowId, cancellationToken))
+        {
+            Logger.LogInformation("Workflow locked {WorkflowId}", sub.WorkflowId);
+            return false;
+        }
+        
+        try
+        {
+            var workflow = await _persistenceProvider.GetWorkflowAsync(sub.WorkflowId, cancellationToken);
+            if (workflow == null)
             {
-                try
-                {
-                    // 获取工作流实例
-                    var workflow = await _persistenceProvider.GetWorkflowAsync(subscription.WorkflowId, cancellationToken);
-
-                    if (workflow == null)
-                    {
-                        Logger.LogWarning("订阅 {SubscriptionId} 的工作流 {WorkflowId} 不存在",
-                            subscription.Id, subscription.WorkflowId);
-                        continue;
-                    }
-
-                    // 查找等待事件的执行指针
-                    var pointer = workflow.ExecutionPointers.FirstOrDefault(p =>
-                        p.Id == subscription.ExecutionPointerId &&
-                        p.Status == PointerStatus.WaitingForEvent);
-
-                    if (pointer == null)
-                    {
-                        Logger.LogDebug("订阅 {SubscriptionId} 的执行指针 {PointerId} 不存在或状态不正确",
-                            subscription.Id, subscription.ExecutionPointerId);
-                        continue;
-                    }
-
-                    // 唤醒执行指针
-                    pointer.Active = true;
-                    pointer.Status = PointerStatus.Pending;
-                    pointer.EventData = evt.EventData?.ToString();
-
-                    // 更新工作流状态
-                    if (workflow.Status != WorkflowStatus.Runnable)
-                    {
-                        workflow.Status = WorkflowStatus.Runnable;
-                    }
-
-                    // 持久化工作流
-                    await _persistenceProvider.PersistWorkflowAsync(workflow, cancellationToken);
-
-                    // 将工作流入队执行
-                    await QueueProvider.QueueWork(workflow.Id, QueueType.Workflow);
-
-                    Logger.LogDebug("工作流 {WorkflowId} 已被事件 {EventId} 唤醒",
-                        workflow.Id, itemId);
-
-                    // 终止订阅
-                    await _persistenceProvider.TerminateEventSubscriptionAsync(subscription.Id, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "处理订阅 {SubscriptionId} 时发生错误", subscription.Id);
-                }
+                Logger.LogWarning("Workflow {WorkflowId} not found", sub.WorkflowId);
+                return false;
             }
+            
+            IEnumerable<ExecutionPointer> pointers;
+            
+            // 支持两种匹配方式：ExecutionPointerId 或 EventName+EventKey
+            if (!string.IsNullOrEmpty(sub.ExecutionPointerId))
+                pointers = workflow.ExecutionPointers.Where(p => p.Id == sub.ExecutionPointerId && !p.EventPublished && p.EndTime == null);
+            else
+                pointers = workflow.ExecutionPointers.Where(p => p.EventName == sub.EventName && p.EventKey == sub.EventKey && !p.EventPublished && p.EndTime == null);
 
-            // 4. 标记事件为已处理
-            await _persistenceProvider.MarkEventProcessedAsync(itemId, cancellationToken);
-
-            Logger.LogInformation("事件 {EventId} 处理完成", itemId);
+            foreach (var p in pointers)
+            {
+                p.EventData = evt.EventData;
+                p.EventPublished = true;
+                p.Active = true;
+            }
+            workflow.NextExecution = 0;
+            await _persistenceProvider.PersistWorkflowAsync(workflow, cancellationToken);
+            await _persistenceProvider.TerminateEventSubscriptionAsync(sub.Id, cancellationToken);
+            return true;
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "处理事件 {EventId} 时发生错误", itemId);
-
-            // 重新入队，稍后重试
-            await QueueProvider.QueueWork(itemId, QueueType.Event);
+            Logger.LogError(ex, ex.Message);
+            return false;
+        }
+        finally
+        {
+            await _lockProvider.ReleaseLock(sub.WorkflowId);
+            await QueueProvider.QueueWork(sub.WorkflowId, QueueType.Workflow);
         }
     }
 }

@@ -19,4 +19,19 @@ public class EventSubscription
     public string? SubscriptionData { get; set; }
 
     public string? EventKeySlug { get; set; }
+
+    /// <summary>
+    /// 外部令牌（用于Activity）
+    /// </summary>
+    public string? ExternalToken { get; set; }
+
+    /// <summary>
+    /// 外部工作节点ID（用于Activity）
+    /// </summary>
+    public string? ExternalWorkerId { get; set; }
+
+    /// <summary>
+    /// 外部令牌过期时间（用于Activity）
+    /// </summary>
+    public DateTime? ExternalTokenExpiry { get; set; }
 }

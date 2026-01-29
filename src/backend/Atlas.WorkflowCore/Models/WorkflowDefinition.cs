@@ -1,3 +1,5 @@
+using System.Collections;
+
 namespace Atlas.WorkflowCore.Models;
 
 public class WorkflowDefinition
@@ -21,27 +23,84 @@ public class WorkflowDefinition
     public TimeSpan? DefaultErrorRetryInterval { get; set; }
 }
 
-public class WorkflowStepCollection : List<WorkflowStep>
+public class WorkflowStepCollection : ICollection<WorkflowStep>
 {
+    private readonly Dictionary<int, WorkflowStep> _dictionary = new Dictionary<int, WorkflowStep>();
+    
     public WorkflowStepCollection()
     {
     }
 
-    public WorkflowStepCollection(IEnumerable<WorkflowStep> steps) : base(steps)
+    public WorkflowStepCollection(int capacity)
     {
+        _dictionary = new Dictionary<int, WorkflowStep>(capacity);
+    }
+
+    public WorkflowStepCollection(ICollection<WorkflowStep> steps)
+    {
+        foreach (var step in steps)
+        {
+            Add(step);
+        }
+    }
+
+    public IEnumerator<WorkflowStep> GetEnumerator()
+    {
+        return _dictionary.Values.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
     }
 
     public WorkflowStep? FindById(int id)
     {
-        return this.FirstOrDefault(x => x.Id == id);
+        if (!_dictionary.ContainsKey(id))
+            return null;
+
+        return _dictionary[id];
     }
+    
+    public void Add(WorkflowStep item)
+    {
+        _dictionary.Add(item.Id, item);
+    }
+
+    public void Clear()
+    {
+        _dictionary.Clear();
+    }
+
+    public bool Contains(WorkflowStep item)
+    {
+        return _dictionary.ContainsValue(item);
+    }
+
+    public void CopyTo(WorkflowStep[] array, int arrayIndex)
+    {
+        _dictionary.Values.CopyTo(array, arrayIndex);
+    }
+
+    public bool Remove(WorkflowStep item)
+    {
+        return _dictionary.Remove(item.Id);
+    }
+
+    public WorkflowStep? Find(Predicate<WorkflowStep> match)
+    {
+        return _dictionary.Values.FirstOrDefault(x => match(x));
+    }
+
+    public int Count => _dictionary.Count;
+    public bool IsReadOnly => false;
 
     /// <summary>
     /// 根据外部ID查找步骤
     /// </summary>
     public WorkflowStep? FindByExternalId(string externalId)
     {
-        return this.FirstOrDefault(s => s.ExternalId == externalId);
+        return _dictionary.Values.FirstOrDefault(s => s.ExternalId == externalId);
     }
 
     /// <summary>
@@ -49,7 +108,7 @@ public class WorkflowStepCollection : List<WorkflowStep>
     /// </summary>
     public WorkflowStep? FindByName(string name)
     {
-        return this.FirstOrDefault(s => s.Name == name);
+        return _dictionary.Values.FirstOrDefault(s => s.Name == name);
     }
 
     /// <summary>
@@ -57,7 +116,7 @@ public class WorkflowStepCollection : List<WorkflowStep>
     /// </summary>
     public List<WorkflowStep> FindAllByName(string name)
     {
-        return this.Where(s => s.Name == name).ToList();
+        return _dictionary.Values.Where(s => s.Name == name).ToList();
     }
 
     /// <summary>
@@ -65,13 +124,13 @@ public class WorkflowStepCollection : List<WorkflowStep>
     /// </summary>
     public List<WorkflowStep> GetRootSteps()
     {
-        var allNextStepIds = this.SelectMany(s => s.Outcomes)
+        var allNextStepIds = _dictionary.Values.SelectMany(s => s.Outcomes)
             .Select(o => o.NextStep)
             .Where(id => id > 0)
             .Distinct()
             .ToHashSet();
 
-        return this.Where(s => !allNextStepIds.Contains(s.Id)).ToList();
+        return _dictionary.Values.Where(s => !allNextStepIds.Contains(s.Id)).ToList();
     }
 
     /// <summary>
@@ -116,7 +175,7 @@ public class WorkflowStepCollection : List<WorkflowStep>
     /// </summary>
     public bool Contains(int stepId)
     {
-        return this.Any(s => s.Id == stepId);
+        return _dictionary.ContainsKey(stepId);
     }
 
     /// <summary>
@@ -124,11 +183,6 @@ public class WorkflowStepCollection : List<WorkflowStep>
     /// </summary>
     public bool RemoveById(int id)
     {
-        var step = FindById(id);
-        if (step != null)
-        {
-            return Remove(step);
-        }
-        return false;
+        return _dictionary.Remove(id);
     }
 }

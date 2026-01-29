@@ -20,19 +20,14 @@ public delegate void LifeCycleEventHandler(LifeCycleEvent evt);
 /// <summary>
 /// 工作流主机实现
 /// </summary>
-public class WorkflowHost : IWorkflowHost
+public class WorkflowHost : IWorkflowHost, IDisposable
 {
-    private readonly IWorkflowRegistry _registry;
-    private readonly IPersistenceProvider _persistenceProvider;
-    private readonly IWorkflowController _controller;
-    private readonly ILifeCycleEventHub _lifeCycleEventHub;
-    private readonly IActivityController _activityController;
-    private readonly IQueueProvider _queueProvider;
-    private readonly IDistributedLockProvider _lockProvider;
+    protected bool _shutdown = true;
+    protected readonly IServiceProvider _serviceProvider;
+
     private readonly IEnumerable<IBackgroundTask> _backgroundTasks;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<WorkflowHost> _logger;
-    private bool _isRunning;
+    private readonly IWorkflowController _workflowController;
+    private readonly IActivityController _activityController;
 
     /// <summary>
     /// 步骤错误事件
@@ -44,150 +39,203 @@ public class WorkflowHost : IWorkflowHost
     /// </summary>
     public event LifeCycleEventHandler? OnLifeCycleEvent;
 
+    // Public dependencies to allow for extension method access.
+    public IPersistenceProvider PersistenceStore { get; private set; }
+    public IDistributedLockProvider LockProvider { get; private set; }
+    public IWorkflowRegistry Registry { get; private set; }
+    public WorkflowOptions Options { get; private set; }
+    public IQueueProvider QueueProvider { get; private set; }
+    public ILogger Logger { get; private set; }
+
+    private readonly ILifeCycleEventHub _lifeCycleEventHub;
+    private readonly ISearchIndex _searchIndex;
+
     public WorkflowHost(
-        IWorkflowRegistry registry,
-        IPersistenceProvider persistenceProvider,
-        IWorkflowController controller,
-        ILifeCycleEventHub lifeCycleEventHub,
-        IActivityController activityController,
+        IPersistenceProvider persistenceStore,
         IQueueProvider queueProvider,
+        WorkflowOptions options,
+        ILogger<WorkflowHost> logger,
+        IServiceProvider serviceProvider,
+        IWorkflowRegistry registry,
         IDistributedLockProvider lockProvider,
         IEnumerable<IBackgroundTask> backgroundTasks,
-        IServiceProvider serviceProvider,
-        ILogger<WorkflowHost> logger)
+        IWorkflowController workflowController,
+        ILifeCycleEventHub lifeCycleEventHub,
+        ISearchIndex searchIndex,
+        IActivityController activityController)
     {
-        _registry = registry;
-        _persistenceProvider = persistenceProvider;
-        _controller = controller;
-        _lifeCycleEventHub = lifeCycleEventHub;
-        _activityController = activityController;
-        _queueProvider = queueProvider;
-        _lockProvider = lockProvider;
-        _backgroundTasks = backgroundTasks;
+        PersistenceStore = persistenceStore;
+        QueueProvider = queueProvider;
+        Options = options;
+        Logger = logger;
         _serviceProvider = serviceProvider;
-        _logger = logger;
+        Registry = registry;
+        LockProvider = lockProvider;
+        _backgroundTasks = backgroundTasks;
+        _workflowController = workflowController;
+        _searchIndex = searchIndex;
+        _activityController = activityController;
+        _lifeCycleEventHub = lifeCycleEventHub;
     }
 
+    public void Start()
+    {
+        StartAsync(CancellationToken.None).Wait();
+    }
+    
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (_isRunning)
+        var activity = WorkflowActivityTracing.StartHost();
+        try
         {
-            _logger.LogWarning("工作流主机已经在运行中");
-            return;
+            _shutdown = false;
+            await PersistenceStore.EnsureStoreExists(cancellationToken);
+            await QueueProvider.Start();
+            await LockProvider.Start();
+            await _lifeCycleEventHub.Start(cancellationToken);
+
+            // Event subscriptions are removed when stopping the event hub.
+            // Add them when starting.
+            AddEventSubscriptions();
+
+            Logger.LogInformation("Starting background tasks");
+
+            foreach (var task in _backgroundTasks)
+                await task.Start(cancellationToken);
         }
-
-        _logger.LogInformation("工作流主机启动中...");
-
-        // 启动主机追踪活动
-        using var activity = WorkflowActivityTracing.StartHost();
-
-        // 1. 确保持久化存储初始化
-        await _persistenceProvider.EnsureStoreExists(cancellationToken);
-        _logger.LogInformation("持久化存储已初始化");
-
-        // 2. 启动生命周期事件中心
-        _lifeCycleEventHub.Start();
-
-        // 订阅生命周期事件
-        _lifeCycleEventHub.Subscribe<LifeCycleEvent>(HandleLifeCycleEvent);
-
-        _logger.LogInformation("生命周期事件中心已启动");
-
-        // 3. 启动队列提供者
-        await _queueProvider.Start();
-        _logger.LogInformation("队列提供者已启动");
-
-        // 4. 启动锁提供者
-        await _lockProvider.Start();
-        _logger.LogInformation("锁提供者已启动");
-
-        // 5. 启动后台任务
-        foreach (var task in _backgroundTasks)
+        catch (Exception)
         {
-            await task.Start(cancellationToken);
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+            throw;
         }
-        _logger.LogInformation("后台任务已启动 ({Count} 个)", _backgroundTasks.Count());
-
-        _isRunning = true;
-        _logger.LogInformation("工作流主机启动完成");
+        finally
+        {
+            activity?.Dispose();
+        }
     }
 
+    public void Stop()
+    {
+        StopAsync(CancellationToken.None).Wait();
+    }
+    
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        if (!_isRunning)
-        {
-            _logger.LogWarning("工作流主机未运行");
-            return;
-        }
+        _shutdown = true;
 
-        _logger.LogInformation("工作流主机停止中...");
+        Logger.LogInformation("Stopping background tasks");
+        foreach (var th in _backgroundTasks)
+            await th.Stop();
 
-        // 1. 停止后台任务
-        foreach (var task in _backgroundTasks)
-        {
-            await task.Stop();
-        }
-        _logger.LogInformation("后台任务已停止");
+        Logger.LogInformation("Worker tasks stopped");
 
-        // 2. 停止锁提供者
-        await _lockProvider.Stop();
-        _logger.LogInformation("锁提供者已停止");
-
-        // 3. 停止队列提供者
-        await _queueProvider.Stop();
-        _logger.LogInformation("队列提供者已停止");
-
-        _isRunning = false;
-        _logger.LogInformation("工作流主机停止完成");
+        await QueueProvider.Stop();
+        await LockProvider.Stop();
+        await _lifeCycleEventHub.Stop();
     }
 
     public void RegisterWorkflow<TWorkflow>() where TWorkflow : IWorkflow
     {
-        // 使用 ActivatorUtilities 支持 DI 注入
-        var workflow = ActivatorUtilities.CreateInstance<TWorkflow>(_serviceProvider);
-        _registry.RegisterWorkflow(workflow);
-        _logger.LogInformation("已注册工作流: {WorkflowId} v{Version}", workflow.Id, workflow.Version);
+        var wf = ActivatorUtilities.CreateInstance<TWorkflow>(_serviceProvider);
+        Registry.RegisterWorkflow(wf);
     }
 
     public void RegisterWorkflow<TWorkflow, TData>() where TWorkflow : IWorkflow<TData> where TData : class, new()
     {
-        // 使用 ActivatorUtilities 支持 DI 注入
-        var workflow = ActivatorUtilities.CreateInstance<TWorkflow>(_serviceProvider);
-        _registry.RegisterWorkflow(workflow);
-        _logger.LogInformation("已注册工作流: {WorkflowId} v{Version}", workflow.Id, workflow.Version);
+        var wf = ActivatorUtilities.CreateInstance<TWorkflow>(_serviceProvider);
+        Registry.RegisterWorkflow(wf);
     }
 
-    // 委托 IWorkflowController 方法到 WorkflowController
+    public Task<string> StartWorkflow(string workflowId, object? data = null, string? reference = null)
+    {
+        return _workflowController.StartWorkflowAsync(workflowId, null, data, reference);
+    }
+
+    public Task<string> StartWorkflow(string workflowId, int? version, object? data = null, string? reference = null)
+    {
+        return _workflowController.StartWorkflowAsync<object>(workflowId, version, data, reference);
+    }
+
+    public Task<string> StartWorkflow<TData>(string workflowId, TData? data = null, string? reference = null)
+        where TData : class
+    {
+        return _workflowController.StartWorkflowAsync<TData>(workflowId, null, data, reference);
+    }
+    
+    public Task<string> StartWorkflow<TData>(string workflowId, int? version, TData? data = null, string? reference = null)
+        where TData : class
+    {
+        return _workflowController.StartWorkflowAsync(workflowId, version, data, reference);
+    }
+
+    public Task PublishEvent(string eventName, string eventKey, object? eventData, DateTime? effectiveDate = null)
+    {
+        return _workflowController.PublishEventAsync(eventName, eventKey, eventData);
+    }
+
+    public Task<bool> SuspendWorkflow(string workflowId)
+    {
+        return _workflowController.SuspendWorkflowAsync(workflowId);
+    }
+
+    public Task<bool> ResumeWorkflow(string workflowId)
+    {
+        return _workflowController.ResumeWorkflowAsync(workflowId);
+    }
+
+    public Task<bool> TerminateWorkflow(string workflowId)
+    {
+        return _workflowController.TerminateWorkflowAsync(workflowId);
+    }
+
+    // 委托 IWorkflowController 方法到 WorkflowController（保持兼容性）
     public Task<string> StartWorkflowAsync(string workflowId, int? version, object? data, string? reference = null, CancellationToken cancellationToken = default)
-        => _controller.StartWorkflowAsync(workflowId, version, data, reference, cancellationToken);
+        => _workflowController.StartWorkflowAsync(workflowId, version, data, reference, cancellationToken);
 
     public Task<string> StartWorkflowAsync<TData>(string workflowId, int? version, TData? data, string? reference = null, CancellationToken cancellationToken = default) where TData : class
-        => _controller.StartWorkflowAsync(workflowId, version, data, reference, cancellationToken);
+        => _workflowController.StartWorkflowAsync(workflowId, version, data, reference, cancellationToken);
 
     public Task<bool> SuspendWorkflowAsync(string workflowInstanceId, CancellationToken cancellationToken = default)
-        => _controller.SuspendWorkflowAsync(workflowInstanceId, cancellationToken);
+        => _workflowController.SuspendWorkflowAsync(workflowInstanceId, cancellationToken);
 
     public Task<bool> ResumeWorkflowAsync(string workflowInstanceId, CancellationToken cancellationToken = default)
-        => _controller.ResumeWorkflowAsync(workflowInstanceId, cancellationToken);
+        => _workflowController.ResumeWorkflowAsync(workflowInstanceId, cancellationToken);
 
     public Task<bool> TerminateWorkflowAsync(string workflowInstanceId, CancellationToken cancellationToken = default)
-        => _controller.TerminateWorkflowAsync(workflowInstanceId, cancellationToken);
+        => _workflowController.TerminateWorkflowAsync(workflowInstanceId, cancellationToken);
 
     public Task PublishEventAsync(string eventName, string eventKey, object? eventData = null, CancellationToken cancellationToken = default)
-        => _controller.PublishEventAsync(eventName, eventKey, eventData, cancellationToken);
+        => _workflowController.PublishEventAsync(eventName, eventKey, eventData, cancellationToken);
 
-    // 活动 API 代理
+    public Task<PendingActivity> GetPendingActivity(string activityName, string workerId, TimeSpan? timeout = null)
+    {
+        // 调用活动控制器获取待处理活动
+        // 注意：这需要IActivityController有GetPendingActivity方法，返回PendingActivity类型
+        throw new NotImplementedException("GetPendingActivity需要IActivityController支持");
+    }
+
+    public Task ReleaseActivityToken(string token)
+    {
+        // 注意：开源版本接口不包含workerId参数
+        throw new NotImplementedException("ReleaseActivityToken需要调整IActivityController接口");
+    }
+
+    public Task SubmitActivitySuccess(string token, object result)
+    {
+        return _activityController.SubmitActivitySuccess(token, result);
+    }
+
+    public Task SubmitActivityFailure(string token, object result)
+    {
+        return _activityController.SubmitActivityFailure(token, result.ToString() ?? "");
+    }
+
+    // 活动 API 代理（保持兼容性）
     public Task<IEnumerable<WorkflowActivity>> GetPendingActivities(string? activityName = null, CancellationToken cancellationToken = default)
         => _activityController.GetPendingActivities(activityName, cancellationToken);
 
     public Task ReleaseActivityToken(string token, string workerId)
         => _activityController.ReleaseActivityToken(token, workerId);
-
-    public Task SubmitActivitySuccess(string token, object? data)
-        => _activityController.SubmitActivitySuccess(token, data);
-
-    public Task SubmitActivityFailure(string token, string message)
-        => _activityController.SubmitActivityFailure(token, message);
 
     /// <summary>
     /// 报告步骤错误
@@ -200,22 +248,23 @@ public class WorkflowHost : IWorkflowHost
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "步骤错误事件处理器执行失败");
+            Logger.LogError(ex, "步骤错误事件处理器执行失败");
         }
     }
 
-    /// <summary>
-    /// 处理生命周期事件
-    /// </summary>
-    private void HandleLifeCycleEvent(LifeCycleEvent evt)
+    public void HandleLifeCycleEvent(LifeCycleEvent evt)
     {
-        try
-        {
-            OnLifeCycleEvent?.Invoke(evt);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "生命周期事件处理器执行失败");
-        }
+        OnLifeCycleEvent?.Invoke(evt);
+    }
+
+    public void Dispose()
+    {
+        if (!_shutdown)
+            Stop();
+    }
+
+    private void AddEventSubscriptions()
+    {
+        _lifeCycleEventHub.Subscribe<LifeCycleEvent>(HandleLifeCycleEvent);
     }
 }
