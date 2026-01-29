@@ -14,9 +14,66 @@ namespace Atlas.WorkflowCore;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// 添加工作流引擎服务
+    /// 添加工作流引擎服务（使用默认配置）
     /// </summary>
+    /// <remarks>
+    /// 默认配置包括：
+    /// - 内存持久化提供者（InMemoryPersistenceProvider）
+    /// - 默认租户提供者（DefaultTenantProvider，返回空租户ID）
+    /// - 默认工作流选项（1秒轮询间隔）
+    /// </remarks>
     public static IServiceCollection AddWorkflowCore(this IServiceCollection services)
+    {
+        return services.AddWorkflowCore(builder => { });
+    }
+
+    /// <summary>
+    /// 添加工作流引擎服务（自定义配置）
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <param name="configure">配置构建器的委托</param>
+    /// <example>
+    /// 使用默认配置：
+    /// <code>
+    /// services.AddWorkflowCore();
+    /// </code>
+    /// 
+    /// 使用内存持久化和自定义选项：
+    /// <code>
+    /// services.AddWorkflowCore(options => 
+    /// {
+    ///     options.UseInMemoryPersistence()
+    ///            .ConfigureOptions(opts => opts.PollInterval = TimeSpan.FromSeconds(5));
+    /// });
+    /// </code>
+    /// 
+    /// 使用自定义租户提供者：
+    /// <code>
+    /// services.AddWorkflowCore(options => 
+    /// {
+    ///     options.UseTenantProvider&lt;MyTenantProvider&gt;();
+    /// });
+    /// </code>
+    /// </example>
+    public static IServiceCollection AddWorkflowCore(
+        this IServiceCollection services,
+        Action<WorkflowCoreBuilder> configure)
+    {
+        // 注册核心服务
+        RegisterCoreServices(services);
+
+        // 创建并配置 Builder
+        var builder = new WorkflowCoreBuilder(services);
+        configure(builder);
+        builder.Build(); // 应用默认值并验证
+
+        return services;
+    }
+
+    /// <summary>
+    /// 注册 WorkflowCore 核心服务
+    /// </summary>
+    private static void RegisterCoreServices(IServiceCollection services)
     {
         // 核心服务
         services.AddSingleton<IWorkflowRegistry, WorkflowRegistry>();
@@ -83,8 +140,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IBackgroundTask, EventConsumer>();
         services.AddSingleton<IBackgroundTask, IndexConsumer>();
         services.AddSingleton<IBackgroundTask, RunnablePoller>();
-
-        return services;
     }
 }
 
