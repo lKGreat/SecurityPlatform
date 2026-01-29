@@ -50,6 +50,82 @@ public class StepBuilder<TData> : IStepBuilder<TData>
         return this;
     }
 
+    public IStepBuilder<TData> Attach(string id)
+    {
+        // 附加到指定步骤 - 添加一个结果指向该步骤ID
+        var steps = (WorkflowBuilder as WorkflowBuilder<TData>)!.Steps;
+        var targetStep = steps.FirstOrDefault(s => s.ExternalId == id);
+        if (targetStep != null)
+        {
+            Step.Outcomes.Add(new ValueOutcome { Value = null, NextStep = targetStep.Id });
+        }
+        return this;
+    }
+
+    public IStepBuilder<TData> Input(Action<TData> action)
+    {
+        // Action 委托输入映射
+        Step.Inputs.Add(new ActionStepParameter<TData>(action));
+        return this;
+    }
+
+    public IStepBuilder<TData> Output(Action<TData> action)
+    {
+        // Action 委托输出映射
+        Step.Outputs.Add(new ActionStepParameter<TData>(action));
+        return this;
+    }
+
+    public IStepBuilder<TData> Branch(object outcomeValue, Action<IStepBuilder<TData>> branchBuilder)
+    {
+        // 创建分支并指向该分支的第一个步骤
+        var branchWorkflowBuilder = (WorkflowBuilder as WorkflowBuilder<TData>)!.CreateBranch();
+        var branchStep = branchWorkflowBuilder.StartWith<InlineStepBody>();
+        branchBuilder(branchStep);
+        
+        // 将分支附加到主工作流
+        (WorkflowBuilder as WorkflowBuilder<TData>)!.AttachBranch(branchWorkflowBuilder);
+        
+        // 添加结果指向分支
+        if (branchWorkflowBuilder.Steps.Count > 0)
+        {
+            Step.Outcomes.Add(new ValueOutcome { Value = outcomeValue, NextStep = branchWorkflowBuilder.Steps[0].Id });
+        }
+        
+        return this;
+    }
+
+    public IStepBuilder<TData> Branch(Expression<Func<TData, object?, bool>> outcomeExpression, Action<IStepBuilder<TData>> branchBuilder)
+    {
+        // 创建分支
+        var branchWorkflowBuilder = (WorkflowBuilder as WorkflowBuilder<TData>)!.CreateBranch();
+        var branchStep = branchWorkflowBuilder.StartWith<InlineStepBody>();
+        branchBuilder(branchStep);
+        
+        // 将分支附加到主工作流
+        (WorkflowBuilder as WorkflowBuilder<TData>)!.AttachBranch(branchWorkflowBuilder);
+        
+        // 添加表达式结果
+        if (branchWorkflowBuilder.Steps.Count > 0)
+        {
+            var outcome = new ExpressionOutcome<TData>(outcomeExpression)
+            {
+                NextStep = branchWorkflowBuilder.Steps[0].Id
+            };
+            Step.Outcomes.Add(outcome);
+        }
+        
+        return this;
+    }
+
+    public IStepBuilder<TData> EndWorkflow()
+    {
+        // 标记工作流结束 - 不添加任何后续步骤
+        // 移除所有现有的结果
+        Step.Outcomes.Clear();
+        return this;
+    }
+
     public IStepBuilder<TData> OnError(WorkflowErrorHandling behavior, TimeSpan? retryInterval = null)
     {
         Step.ErrorBehavior = behavior;

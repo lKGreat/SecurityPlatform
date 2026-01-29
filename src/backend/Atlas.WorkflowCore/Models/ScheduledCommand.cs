@@ -6,6 +6,11 @@ namespace Atlas.WorkflowCore.Models;
 public class ScheduledCommand
 {
     /// <summary>
+    /// 处理工作流命令名称
+    /// </summary>
+    public const string ProcessWorkflow = "ProcessWorkflow";
+
+    /// <summary>
     /// 命令ID
     /// </summary>
     public string CommandId { get; set; } = string.Empty;

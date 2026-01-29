@@ -38,4 +38,9 @@ public sealed class PersistedEvent : TenantEntity
     {
         IsProcessed = true;
     }
+
+    public void MarkAsUnprocessed()
+    {
+        IsProcessed = false;
+    }
 }

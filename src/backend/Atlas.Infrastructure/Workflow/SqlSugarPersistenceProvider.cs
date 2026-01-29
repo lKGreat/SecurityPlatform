@@ -208,6 +208,21 @@ public class SqlSugarPersistenceProvider : IPersistenceProvider
         }
     }
 
+    public async Task PersistWorkflowAsync(WorkflowInstance workflow, List<EventSubscription>? subscriptions, CancellationToken cancellationToken = default)
+    {
+        // 先持久化工作流和指针
+        await PersistWorkflowAsync(workflow, workflow.ExecutionPointers.ToList(), cancellationToken);
+
+        // 如果有订阅,持久化订阅
+        if (subscriptions != null && subscriptions.Count > 0)
+        {
+            foreach (var subscription in subscriptions)
+            {
+                await CreateEventSubscriptionAsync(subscription, cancellationToken);
+            }
+        }
+    }
+
     public async Task TerminateWorkflowAsync(string workflowId, CancellationToken cancellationToken = default)
     {
         var tenantId = _tenantProvider.GetTenantId();
@@ -240,6 +255,20 @@ public class SqlSugarPersistenceProvider : IPersistenceProvider
         if (entity != null)
         {
             entity.MarkAsProcessed();
+            await _db.Updateable(entity).ExecuteCommandAsync(cancellationToken);
+        }
+    }
+
+    public async Task MarkEventUnprocessedAsync(string eventId, CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var entity = await _db.Queryable<PersistedEvent>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Id.ToString() == eventId)
+            .FirstAsync(cancellationToken);
+
+        if (entity != null)
+        {
+            entity.MarkAsUnprocessed();
             await _db.Updateable(entity).ExecuteCommandAsync(cancellationToken);
         }
     }
@@ -366,10 +395,23 @@ public class SqlSugarPersistenceProvider : IPersistenceProvider
         });
     }
 
+    public async Task PersistErrorsAsync(IEnumerable<ExecutionError> errors, CancellationToken cancellationToken = default)
+    {
+        // 简化实现：可以将错误记录到日志或专门的错误表
+        // 这里暂时不实现持久化，因为错误已经记录在 WorkflowInstance.ExecutionErrors 中
+        await Task.CompletedTask;
+    }
+
     // IScheduledCommandRepository 实现
     public bool SupportsScheduledCommands => false;
 
     public Task ScheduleCommand(ScheduledCommand command)
+    {
+        // 暂不支持计划命令
+        throw new NotSupportedException("当前持久化提供者不支持计划命令");
+    }
+
+    public Task ScheduleCommandAsync(ScheduledCommand command, CancellationToken cancellationToken = default)
     {
         // 暂不支持计划命令
         throw new NotSupportedException("当前持久化提供者不支持计划命令");

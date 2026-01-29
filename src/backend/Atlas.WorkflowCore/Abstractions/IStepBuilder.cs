@@ -10,14 +10,21 @@ public interface IStepBuilder<TData>
     // 步骤配置
     IStepBuilder<TData> Name(string name);
     IStepBuilder<TData> Id(string id);
+    IStepBuilder<TData> Attach(string id);
 
     // 输入输出映射
     IStepBuilder<TData> Input<TInput>(Expression<Func<TData, TInput>> value);
     IStepBuilder<TData> Input<TInput>(string name, TInput value);
     IStepBuilder<TData> Input<TInput>(string name, Func<TData, TInput> value);
+    IStepBuilder<TData> Input(Action<TData> action);
 
     IStepBuilder<TData> Output<TInput>(Expression<Func<TData, TInput>> value, Expression<Func<IStepExecutionContext, TInput>> assign);
     IStepBuilder<TData> Output<TInput>(string name, Expression<Func<IStepExecutionContext, TInput>> assign);
+    IStepBuilder<TData> Output(Action<TData> action);
+
+    // 分支控制
+    IStepBuilder<TData> Branch(object outcomeValue, Action<IStepBuilder<TData>> branchBuilder);
+    IStepBuilder<TData> Branch(Expression<Func<TData, object?, bool>> outcomeExpression, Action<IStepBuilder<TData>> branchBuilder);
 
     // 流程控制
     IStepBuilder<TData> Then<TStep>(Action<IStepBuilder<TData>>? stepSetup = null)
@@ -62,5 +69,6 @@ public interface IStepBuilder<TData>
     IStepBuilder<TData> Activity(string activityName, Expression<Func<TData, object>>? parameters = null,
         Expression<Func<TData, DateTime>>? effectiveDate = null);
 
+    IStepBuilder<TData> EndWorkflow();
     IWorkflowBuilder<TData> End(string? name = null);
 }

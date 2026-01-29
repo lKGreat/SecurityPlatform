@@ -222,73 +222,10 @@ public class WorkflowExecutor : IWorkflowExecutor
 
         var executionResult = await _stepExecutor.ExecuteStep(context, body);
 
-        ProcessExecutionResult(workflow, def, pointer, step, executionResult, wfResult);
+        // 委托给 ExecutionResultProcessor 处理执行结果
+        await _executionResultProcessor.ProcessExecutionResult(workflow, def, pointer, step, executionResult, wfResult, cancellationToken);
+        
         step.AfterExecute(wfResult, context, executionResult, pointer);
-    }
-
-    private void ProcessExecutionResult(WorkflowInstance workflow, WorkflowDefinition def, ExecutionPointer pointer, WorkflowStep step, ExecutionResult result, WorkflowExecutorResult wfResult)
-    {
-        if (result.Proceed)
-        {
-            pointer.Status = PointerStatus.Complete;
-            pointer.EndTime = DateTime.UtcNow;
-            pointer.Outcome = result.OutcomeValue;
-
-            if (result.SleepFor.HasValue)
-            {
-                pointer.SleepUntil = DateTime.UtcNow.Add(result.SleepFor.Value);
-                pointer.Status = PointerStatus.Sleeping;
-            }
-            else if (!string.IsNullOrEmpty(result.EventName))
-            {
-                pointer.Status = PointerStatus.WaitingForEvent;
-                pointer.EventName = result.EventName;
-                pointer.EventKey = result.EventKey;
-            }
-            else
-            {
-                // Find next steps
-                var outcomes = step.Outcomes.Where(x => x.GetValue(workflow.Data) == result.OutcomeValue || result.OutcomeValue == null).ToList();
-                if (outcomes.Count == 0)
-                {
-                    outcomes = step.Outcomes.Where(x => x.GetValue(workflow.Data) == null).ToList();
-                }
-
-                foreach (var outcome in outcomes)
-                {
-                    var nextPointer = new ExecutionPointer
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        StepId = outcome.NextStep,
-                        Status = PointerStatus.Pending,
-                        Active = true,
-                        PredecessorId = pointer.Id
-                    };
-                    workflow.ExecutionPointers.Add(nextPointer);
-                }
-            }
-        }
-        else
-        {
-            pointer.PersistenceData = result.PersistenceData;
-            if (result.SleepFor.HasValue)
-            {
-                pointer.SleepUntil = DateTime.UtcNow.Add(result.SleepFor.Value);
-                pointer.Status = PointerStatus.Sleeping;
-            }
-            else if (!string.IsNullOrEmpty(result.EventName))
-            {
-                pointer.Status = PointerStatus.WaitingForEvent;
-                pointer.EventName = result.EventName;
-                pointer.EventKey = result.EventKey;
-            }
-        }
-
-        if (workflow.ExecutionPointers.FindActive().All(x => x.Status == PointerStatus.Complete || x.Status == PointerStatus.Sleeping || x.Status == PointerStatus.WaitingForEvent))
-        {
-            workflow.Status = WorkflowStatus.Complete;
-            workflow.CompleteTime = DateTime.UtcNow;
-        }
     }
 
     private void ProcessAfterExecutionIteration(WorkflowInstance workflow, WorkflowDefinition workflowDef, WorkflowExecutorResult workflowResult)

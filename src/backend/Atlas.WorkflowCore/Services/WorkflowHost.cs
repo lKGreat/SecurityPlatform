@@ -1,8 +1,20 @@
 using Atlas.WorkflowCore.Abstractions;
 using Atlas.WorkflowCore.Abstractions.Persistence;
+using Atlas.WorkflowCore.Models;
+using Atlas.WorkflowCore.Models.LifeCycleEvents;
 using Microsoft.Extensions.Logging;
 
 namespace Atlas.WorkflowCore.Services;
+
+/// <summary>
+/// 步骤错误事件处理器委托
+/// </summary>
+public delegate void StepErrorEventHandler(WorkflowInstance workflow, WorkflowStep step, Exception exception);
+
+/// <summary>
+/// 生命周期事件处理器委托
+/// </summary>
+public delegate void LifeCycleEventHandler(LifeCycleEvent evt);
 
 /// <summary>
 /// 工作流主机实现
@@ -19,6 +31,16 @@ public class WorkflowHost : IWorkflowHost
     private readonly IEnumerable<IBackgroundTask> _backgroundTasks;
     private readonly ILogger<WorkflowHost> _logger;
     private bool _isRunning;
+
+    /// <summary>
+    /// 步骤错误事件
+    /// </summary>
+    public event StepErrorEventHandler? OnStepError;
+
+    /// <summary>
+    /// 生命周期事件
+    /// </summary>
+    public event LifeCycleEventHandler? OnLifeCycleEvent;
 
     public WorkflowHost(
         IWorkflowRegistry registry,
@@ -58,6 +80,10 @@ public class WorkflowHost : IWorkflowHost
 
         // 2. 启动生命周期事件中心
         _lifeCycleEventHub.Start();
+
+        // 订阅生命周期事件
+        _lifeCycleEventHub.Subscribe<LifeCycleEvent>(HandleLifeCycleEvent);
+
         _logger.LogInformation("生命周期事件中心已启动");
 
         // 3. 启动队列提供者
@@ -140,4 +166,47 @@ public class WorkflowHost : IWorkflowHost
 
     public Task PublishEventAsync(string eventName, string eventKey, object? eventData = null, CancellationToken cancellationToken = default)
         => _controller.PublishEventAsync(eventName, eventKey, eventData, cancellationToken);
+
+    // 活动 API 代理
+    public Task<IEnumerable<WorkflowActivity>> GetPendingActivities(string? activityName = null, CancellationToken cancellationToken = default)
+        => _activityController.GetPendingActivities(activityName, cancellationToken);
+
+    public Task ReleaseActivityToken(string token, string workerId)
+        => _activityController.ReleaseActivityToken(token, workerId);
+
+    public Task SubmitActivitySuccess(string token, object? data)
+        => _activityController.SubmitActivitySuccess(token, data);
+
+    public Task SubmitActivityFailure(string token, string message)
+        => _activityController.SubmitActivityFailure(token, message);
+
+    /// <summary>
+    /// 报告步骤错误
+    /// </summary>
+    public void ReportStepError(WorkflowInstance workflow, WorkflowStep step, Exception exception)
+    {
+        try
+        {
+            OnStepError?.Invoke(workflow, step, exception);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "步骤错误事件处理器执行失败");
+        }
+    }
+
+    /// <summary>
+    /// 处理生命周期事件
+    /// </summary>
+    private void HandleLifeCycleEvent(LifeCycleEvent evt)
+    {
+        try
+        {
+            OnLifeCycleEvent?.Invoke(evt);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "生命周期事件处理器执行失败");
+        }
+    }
 }

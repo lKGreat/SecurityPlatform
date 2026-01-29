@@ -2,6 +2,7 @@ using Atlas.WorkflowCore.Abstractions;
 using Atlas.WorkflowCore.Abstractions.Persistence;
 using Atlas.WorkflowCore.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Atlas.WorkflowCore.Services.BackgroundTasks;
 
@@ -14,6 +15,7 @@ public class WorkflowConsumer : QueueConsumer
     private readonly IWorkflowExecutor _executor;
     private readonly IDistributedLockProvider _lockProvider;
     private readonly ILifeCycleEventPublisher _eventPublisher;
+    private readonly WorkflowOptions _options;
 
     public WorkflowConsumer(
         IQueueProvider queueProvider,
@@ -21,6 +23,7 @@ public class WorkflowConsumer : QueueConsumer
         IWorkflowExecutor executor,
         IDistributedLockProvider lockProvider,
         ILifeCycleEventPublisher eventPublisher,
+        IOptions<WorkflowOptions> options,
         ILogger<WorkflowConsumer> logger)
         : base(queueProvider, logger)
     {
@@ -28,6 +31,7 @@ public class WorkflowConsumer : QueueConsumer
         _executor = executor;
         _lockProvider = lockProvider;
         _eventPublisher = eventPublisher;
+        _options = options.Value;
     }
 
     protected override QueueType Queue => QueueType.Workflow;
@@ -35,6 +39,8 @@ public class WorkflowConsumer : QueueConsumer
     protected override async Task ProcessItem(string itemId, CancellationToken cancellationToken)
     {
         var lockAcquired = false;
+        WorkflowInstance? workflow = null;
+        WorkflowExecutorResult? result = null;
 
         try
         {
@@ -43,62 +49,197 @@ public class WorkflowConsumer : QueueConsumer
 
             if (!lockAcquired)
             {
-                Logger.LogDebug("无法获取工作流 {WorkflowId} 的锁，跳过此次执行", itemId);
-                // 重新入队，稍后重试
-                await QueueProvider.QueueWork(itemId, QueueType.Workflow);
+                Logger.LogInformation("工作流 {WorkflowId} 已被锁定", itemId);
                 return;
             }
 
             // 2. 获取工作流实例
-            var instance = await _persistenceProvider.GetWorkflowAsync(itemId, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            workflow = await _persistenceProvider.GetWorkflowAsync(itemId, cancellationToken);
 
-            if (instance == null)
+            if (workflow == null)
             {
                 Logger.LogWarning("工作流实例 {WorkflowId} 不存在", itemId);
                 return;
             }
 
-            if (instance.Status != WorkflowStatus.Runnable)
+            // 3. 添加追踪信息
+            WorkflowTracing.Enrich(workflow);
+
+            if (workflow.Status != WorkflowStatus.Runnable)
             {
-                Logger.LogDebug("工作流 {WorkflowId} 状态为 {Status}，不可执行", itemId, instance.Status);
+                Logger.LogDebug("工作流 {WorkflowId} 状态为 {Status}，不可执行", itemId, workflow.Status);
                 return;
             }
 
-            // 3. 执行工作流
-            Logger.LogDebug("开始执行工作流 {WorkflowId}", itemId);
-            await _executor.Execute(instance, cancellationToken);
-
-            // 4. 持久化工作流状态
-            await _persistenceProvider.PersistWorkflowAsync(instance, cancellationToken);
-
-            // 5. 如果工作流仍可运行，重新入队
-            if (instance.Status == WorkflowStatus.Runnable)
+            // 4. 执行工作流
+            try
             {
-                await QueueProvider.QueueWork(itemId, QueueType.Workflow);
-                Logger.LogDebug("工作流 {WorkflowId} 重新入队", itemId);
+                Logger.LogDebug("开始执行工作流 {WorkflowId}", itemId);
+                result = await _executor.Execute(workflow, cancellationToken);
             }
-            else
+            finally
             {
-                Logger.LogInformation("工作流 {WorkflowId} 执行完成，状态: {Status}", itemId, instance.Status);
-            }
+                // 5. 添加执行结果追踪信息
+                if (result != null)
+                {
+                    WorkflowTracing.Enrich(result);
+                }
 
-            // 6. 入队索引更新
-            await QueueProvider.QueueWork(itemId, QueueType.Index);
+                // 6. 持久化工作流状态和订阅
+                await _persistenceProvider.PersistWorkflowAsync(workflow, result?.Subscriptions, cancellationToken);
+
+                // 7. 入队索引更新
+                await QueueProvider.QueueWork(itemId, QueueType.Index);
+            }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "执行工作流 {WorkflowId} 时发生错误", itemId);
-
-            // 重新入队，稍后重试
-            await QueueProvider.QueueWork(itemId, QueueType.Workflow);
+            throw;
         }
         finally
         {
-            // 7. 释放锁
+            // 8. 释放锁
             if (lockAcquired)
             {
                 await _lockProvider.ReleaseLock(itemId);
             }
+
+            // 9. 处理后续逻辑
+            if (workflow != null && result != null)
+            {
+                // 处理事件订阅
+                foreach (var subscription in result.Subscriptions)
+                {
+                    await TryProcessSubscription(subscription, cancellationToken);
+                }
+
+                // 持久化错误
+                if (result.Errors.Count > 0)
+                {
+                    await _persistenceProvider.PersistErrorsAsync(result.Errors, cancellationToken);
+                }
+
+                // 处理延迟执行
+                if (workflow.Status == WorkflowStatus.Runnable && workflow.NextExecution.HasValue)
+                {
+                    var readAheadTicks = DateTimeOffset.UtcNow.Add(_options.PollInterval).Ticks;
+                    
+                    if (workflow.NextExecution.Value < readAheadTicks)
+                    {
+                        // 在轮询间隔内，使用 FutureQueue 延迟重新入队
+                        _ = Task.Run(() => FutureQueue(workflow, cancellationToken), cancellationToken);
+                    }
+                    else
+                    {
+                        // 超出轮询间隔，使用 ScheduledCommand
+                        if (_persistenceProvider.SupportsScheduledCommands)
+                        {
+                            await _persistenceProvider.ScheduleCommandAsync(new ScheduledCommand
+                            {
+                                CommandName = ScheduledCommand.ProcessWorkflow,
+                                Data = workflow.Id,
+                                ExecuteTime = new DateTime(workflow.NextExecution.Value)
+                            }, cancellationToken);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 尝试处理事件订阅
+    /// </summary>
+    private async Task TryProcessSubscription(EventSubscription subscription, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // 跳过活动类型的事件（活动由 ActivityController 处理）
+            if (subscription.EventName == "Activity")
+            {
+                return;
+            }
+
+            // 查找匹配的事件
+            var events = await _persistenceProvider.GetEventsAsync(
+                subscription.EventName,
+                subscription.EventKey,
+                subscription.SubscribeAsOf,
+                cancellationToken);
+
+            foreach (var evt in events)
+            {
+                var eventKey = $"evt:{evt.Id}";
+                bool acquiredLock = false;
+
+                try
+                {
+                    // 尝试获取事件锁
+                    acquiredLock = await _lockProvider.AcquireLock(eventKey, cancellationToken);
+                    
+                    int attempt = 0;
+                    while (!acquiredLock && attempt < 10)
+                    {
+                        await Task.Delay(_options.IdleTime, cancellationToken);
+                        acquiredLock = await _lockProvider.AcquireLock(eventKey, cancellationToken);
+                        attempt++;
+                    }
+
+                    if (!acquiredLock)
+                    {
+                        Logger.LogWarning("无法获取事件 {EventId} 的锁", evt.Id);
+                        continue;
+                    }
+
+                    // 标记事件为未处理并重新入队
+                    await _persistenceProvider.MarkEventUnprocessedAsync(evt.Id, cancellationToken);
+                    await QueueProvider.QueueWork(evt.Id, QueueType.Event);
+                }
+                finally
+                {
+                    if (acquiredLock)
+                    {
+                        await _lockProvider.ReleaseLock(eventKey);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "处理事件订阅失败: {EventName} - {EventKey}", 
+                subscription.EventName, subscription.EventKey);
+        }
+    }
+
+    /// <summary>
+    /// 延迟队列处理 - 在指定时间后重新入队工作流
+    /// </summary>
+    private async void FutureQueue(WorkflowInstance workflow, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!workflow.NextExecution.HasValue)
+            {
+                return;
+            }
+
+            // 计算延迟时间
+            var target = workflow.NextExecution.Value - DateTimeOffset.UtcNow.Ticks;
+            
+            if (target > 0)
+            {
+                await Task.Delay(TimeSpan.FromTicks(target), cancellationToken);
+            }
+
+            // 重新入队工作流
+            await QueueProvider.QueueWork(workflow.Id, QueueType.Workflow);
+            Logger.LogDebug("工作流 {WorkflowId} 已延迟重新入队", workflow.Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "延迟队列处理失败: {WorkflowId}", workflow.Id);
         }
     }
 }

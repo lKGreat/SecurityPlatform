@@ -19,6 +19,13 @@ public interface IScheduledCommandRepository
     Task ScheduleCommand(ScheduledCommand command);
 
     /// <summary>
+    /// 调度命令（异步版本）
+    /// </summary>
+    /// <param name="command">计划命令</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task ScheduleCommandAsync(ScheduledCommand command, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 处理到期的计划命令
     /// </summary>
     /// <param name="asOf">截止时间</param>

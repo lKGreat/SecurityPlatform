@@ -60,3 +60,22 @@ public class FuncStepParameter<TSource, TValue> : IStepParameter
         return null;
     }
 }
+
+public class ActionStepParameter<TData> : IStepParameter
+{
+    private readonly Action<TData> _action;
+
+    public ActionStepParameter(Action<TData> action)
+    {
+        _action = action;
+    }
+
+    public object? Resolve(object? data)
+    {
+        if (data is TData typedData)
+        {
+            _action(typedData);
+        }
+        return null;
+    }
+}
