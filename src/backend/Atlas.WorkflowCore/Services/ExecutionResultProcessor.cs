@@ -437,12 +437,14 @@ public class ExecutionResultProcessor : IExecutionResultProcessor
             }
         }
 
-        // 构建子工作流引用（标识父子关系）
-        var reference = $"{parentWorkflow.Id}:{pointer.Id}";
+        // 构建子工作流引用（支持链式追踪，保留完整的父子关系链）
+        var reference = string.IsNullOrEmpty(parentWorkflow.Reference)
+            ? $"{parentWorkflow.Id}:{pointer.Id}"
+            : $"{parentWorkflow.Reference}/{parentWorkflow.Id}:{pointer.Id}";
 
         _logger.LogInformation(
-            "父工作流 {ParentId} 步骤 {StepName} 启动子工作流 {ChildId} (版本: {Version})",
-            parentWorkflow.Id, step.Name, childWorkflowId, childVersion ?? -1);
+            "父工作流 {ParentId} 步骤 {StepName} 启动子工作流 {ChildId} (版本: {Version}, 引用链: {Reference})",
+            parentWorkflow.Id, step.Name, childWorkflowId, childVersion ?? -1, reference);
 
         // 启动子工作流
         var childInstanceId = await _workflowController.StartWorkflowAsync(

@@ -16,9 +16,11 @@ public class SagaContainer : ContainerStepBody
 }
 
 /// <summary>
-/// Saga 容器步骤定义 - 重写补偿相关属性
+/// Saga 容器步骤定义（泛型版本） - 重写补偿相关属性
 /// </summary>
-public class SagaContainerStep : WorkflowStep<SagaContainer>
+/// <typeparam name="TStepBody">步骤体类型</typeparam>
+public class SagaContainer<TStepBody> : WorkflowStep<TStepBody>
+    where TStepBody : IStepBody
 {
     /// <summary>
     /// 补偿后不继续执行子步骤

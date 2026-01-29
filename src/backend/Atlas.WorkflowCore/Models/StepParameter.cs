@@ -21,6 +21,18 @@ public class ExpressionStepParameter<TSource, TValue> : IStepParameter
         }
         return null;
     }
+
+    public void AssignInput(object data, IStepBody body, IStepExecutionContext context)
+    {
+        // ExpressionStepParameter主要用于简单值解析，不支持直接映射到步骤属性
+        // 如果需要步骤属性映射，应使用MemberMapParameter
+    }
+
+    public void AssignOutput(object data, IStepBody body, IStepExecutionContext context)
+    {
+        // ExpressionStepParameter主要用于简单值解析，不支持直接映射到步骤属性
+        // 如果需要步骤属性映射，应使用MemberMapParameter
+    }
 }
 
 public class ConstantStepParameter<TValue> : IStepParameter
@@ -37,6 +49,16 @@ public class ConstantStepParameter<TValue> : IStepParameter
     public object? Resolve(object? data)
     {
         return _value;
+    }
+
+    public void AssignInput(object data, IStepBody body, IStepExecutionContext context)
+    {
+        // 常量参数不支持映射到步骤属性
+    }
+
+    public void AssignOutput(object data, IStepBody body, IStepExecutionContext context)
+    {
+        // 常量参数不支持映射到步骤属性
     }
 }
 
@@ -59,6 +81,16 @@ public class FuncStepParameter<TSource, TValue> : IStepParameter
         }
         return null;
     }
+
+    public void AssignInput(object data, IStepBody body, IStepExecutionContext context)
+    {
+        // FuncStepParameter主要用于简单值解析，不支持直接映射到步骤属性
+    }
+
+    public void AssignOutput(object data, IStepBody body, IStepExecutionContext context)
+    {
+        // FuncStepParameter主要用于简单值解析，不支持直接映射到步骤属性
+    }
 }
 
 public class ActionStepParameter<TData> : IStepParameter
@@ -77,5 +109,25 @@ public class ActionStepParameter<TData> : IStepParameter
             _action(typedData);
         }
         return null;
+    }
+
+    public void AssignInput(object data, IStepBody body, IStepExecutionContext context)
+    {
+        // ActionStepParameter主要用于数据操作，不支持直接映射到步骤属性
+        // 如果需要步骤属性映射，应使用ActionParameter<TStepBody, TData>
+        if (data is TData typedData)
+        {
+            _action(typedData);
+        }
+    }
+
+    public void AssignOutput(object data, IStepBody body, IStepExecutionContext context)
+    {
+        // ActionStepParameter主要用于数据操作，不支持直接映射到步骤属性
+        // 如果需要步骤属性映射，应使用ActionParameter<TStepBody, TData>
+        if (data is TData typedData)
+        {
+            _action(typedData);
+        }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using Atlas.WorkflowCore.Abstractions;
 using Atlas.WorkflowCore.Models;
 
@@ -7,35 +8,32 @@ namespace Atlas.WorkflowCore.Builders;
 /// 容器步骤构建器实现
 /// </summary>
 /// <typeparam name="TData">工作流数据类型</typeparam>
-/// <typeparam name="TReturnStep">返回的步骤构建器类型</typeparam>
-public class ContainerStepBuilder<TData, TReturnStep> : IContainerStepBuilder<TData, TReturnStep>
+/// <typeparam name="TStepBody">步骤体类型</typeparam>
+/// <typeparam name="TReturnStep">返回步骤类型</typeparam>
+public class ContainerStepBuilder<TData, TStepBody, TReturnStep> : IContainerStepBuilder<TData, TStepBody, TReturnStep>
     where TData : new()
+    where TStepBody : IStepBody
+    where TReturnStep : IStepBody
 {
     private readonly IWorkflowBuilder<TData> _workflowBuilder;
-    private readonly WorkflowStep _containerStep;
-    private readonly TReturnStep _returnStep;
+    private readonly WorkflowStep _step;
+    private readonly IStepBuilder<TData, TReturnStep> _returnStepBuilder;
 
     public ContainerStepBuilder(
         IWorkflowBuilder<TData> workflowBuilder,
-        WorkflowStep containerStep,
-        TReturnStep returnStep)
+        WorkflowStep step,
+        IStepBuilder<TData, TReturnStep> returnStepBuilder)
     {
         _workflowBuilder = workflowBuilder;
-        _containerStep = containerStep;
-        _returnStep = returnStep;
+        _step = step;
+        _returnStepBuilder = returnStepBuilder;
     }
 
-    public TReturnStep Do(Action<IWorkflowBuilder<TData>> builder)
+    public IStepBuilder<TData, TReturnStep> Do(Action<IWorkflowBuilder<TData>> builder)
     {
-        var branchBuilder = (_workflowBuilder as WorkflowBuilder<TData>)!.CreateBranch();
-        builder(branchBuilder);
-        (_workflowBuilder as WorkflowBuilder<TData>)!.AttachBranch(branchBuilder);
+        builder.Invoke(_workflowBuilder);
+        _step.Children.Add(_step.Id + 1); //TODO: make more elegant
 
-        if (branchBuilder.Steps.Count > 0)
-        {
-            _containerStep.Children.Add(branchBuilder.Steps[0].Id);
-        }
-
-        return _returnStep;
+        return _returnStepBuilder;
     }
 }

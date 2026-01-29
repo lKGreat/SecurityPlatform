@@ -1,3 +1,4 @@
+using System;
 using Atlas.WorkflowCore.Abstractions;
 using Atlas.WorkflowCore.Models;
 
@@ -11,11 +12,11 @@ public class ActionStepBody : StepBody
     /// <summary>
     /// 操作委托
     /// </summary>
-    public Action<IStepExecutionContext>? Action { get; set; }
+    public Action<IStepExecutionContext>? Body { get; set; }
 
     public override ExecutionResult Run(IStepExecutionContext context)
     {
-        Action?.Invoke(context);
+        Body?.Invoke(context);
         return ExecutionResult.Next();
     }
 }

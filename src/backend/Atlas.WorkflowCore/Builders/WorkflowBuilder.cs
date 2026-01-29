@@ -1,3 +1,7 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using Atlas.WorkflowCore.Abstractions;
 using Atlas.WorkflowCore.Models;
@@ -5,10 +9,14 @@ using Atlas.WorkflowCore.Primitives;
 
 namespace Atlas.WorkflowCore.Builders;
 
-public class WorkflowBuilder<TData> : IWorkflowBuilder<TData>
-    where TData : new()
+/// <summary>
+/// 工作流构建器基类
+/// </summary>
+public class WorkflowBuilder : IWorkflowBuilder
 {
-    public List<WorkflowStep> Steps { get; set; } = new();
+    public List<WorkflowStep> Steps { get; set; } = new List<WorkflowStep>();
+
+    protected ICollection<IWorkflowBuilder> Branches { get; set; } = new List<IWorkflowBuilder>();
 
     protected WorkflowErrorHandling DefaultErrorBehavior = WorkflowErrorHandling.Retry;
 
@@ -16,7 +24,13 @@ public class WorkflowBuilder<TData> : IWorkflowBuilder<TData>
 
     public int LastStep => Steps.Count > 0 ? Steps.Max(x => x.Id) : -1;
 
-    public WorkflowDefinition Build(string id, int version)
+    public IWorkflowBuilder<T> UseData<T>() where T : new()
+    {
+        IWorkflowBuilder<T> result = new WorkflowBuilder<T>(Steps);
+        return result;
+    }
+
+    public virtual WorkflowDefinition Build(string id, int version)
     {
         AttachExternalIds();
         return new WorkflowDefinition
@@ -25,8 +39,7 @@ public class WorkflowBuilder<TData> : IWorkflowBuilder<TData>
             Version = version,
             Steps = new WorkflowStepCollection(Steps),
             DefaultErrorBehavior = DefaultErrorBehavior,
-            DefaultErrorRetryInterval = DefaultErrorRetryInterval,
-            DataType = typeof(TData)
+            DefaultErrorRetryInterval = DefaultErrorRetryInterval
         };
     }
 
@@ -43,169 +56,17 @@ public class WorkflowBuilder<TData> : IWorkflowBuilder<TData>
             foreach (var outcome in step.Outcomes.Where(x => !string.IsNullOrEmpty(x.ExternalNextStepId)))
             {
                 if (Steps.All(x => x.ExternalId != outcome.ExternalNextStepId))
-                {
                     throw new KeyNotFoundException($"Cannot find step id {outcome.ExternalNextStepId}");
-                }
 
                 outcome.NextStep = Steps.Single(x => x.ExternalId == outcome.ExternalNextStepId).Id;
             }
         }
     }
 
-    public IStepBuilder<TData> StartWith<TStep>(Action<IStepBuilder<TData>>? stepSetup = null)
-        where TStep : IStepBody
+    public void AttachBranch(IWorkflowBuilder branch)
     {
-        var step = new WorkflowStep<TStep>();
-        var stepBuilder = new StepBuilder<TData>(this, step);
-
-        stepSetup?.Invoke(stepBuilder);
-
-        step.Name = step.Name ?? typeof(TStep).Name;
-        AddStep(step);
-        return stepBuilder;
-    }
-
-    public IStepBuilder<TData> StartWith(Func<IStepExecutionContext, ExecutionResult> body)
-    {
-        var newStep = new WorkflowStepInline();
-        newStep.Body = body;
-        var stepBuilder = new StepBuilder<TData>(this, newStep);
-        AddStep(newStep);
-        return stepBuilder;
-    }
-
-    public IStepBuilder<TData> StartWith(string name, Func<IStepExecutionContext, ExecutionResult> body)
-    {
-        var newStep = new WorkflowStepInline();
-        newStep.Name = name;
-        newStep.Body = body;
-        var stepBuilder = new StepBuilder<TData>(this, newStep);
-        AddStep(newStep);
-        return stepBuilder;
-    }
-
-    public IStepBuilder<TData> Then<TStep>(Action<IStepBuilder<TData>>? stepSetup = null)
-        where TStep : IStepBody
-    {
-        return Start().Then<TStep>(stepSetup);
-    }
-
-    public IStepBuilder<TData> Then(Func<IStepExecutionContext, ExecutionResult> body)
-    {
-        return Start().Then(body);
-    }
-
-    public IStepBuilder<TData> Then(string name, Func<IStepExecutionContext, ExecutionResult> body)
-    {
-        return Start().Then(name, body);
-    }
-
-    public IWorkflowBuilder<TData> If(Func<TData, bool> condition, Action<IWorkflowBuilder<TData>>? branch = null)
-    {
-        var ifStep = new WorkflowStep<Primitives.If>();
-        AddStep(ifStep);
-        var stepBuilder = new StepBuilder<TData>(this, ifStep);
-        stepBuilder.Input(nameof(Primitives.If.Condition), (TData data) => condition(data));
-
-        if (branch != null)
-        {
-            var branchBuilder = CreateBranch();
-            branch(branchBuilder);
-            AttachBranch(branchBuilder);
-            if (branchBuilder.Steps.Count > 0)
-            {
-                ifStep.Children.Add(branchBuilder.Steps[0].Id);
-            }
-        }
-
-        return this;
-    }
-
-    public IWorkflowBuilder<TData> While(Func<TData, bool> condition, Action<IWorkflowBuilder<TData>>? body = null)
-    {
-        var whileStep = new WorkflowStep<Primitives.While>();
-        AddStep(whileStep);
-        var stepBuilder = new StepBuilder<TData>(this, whileStep);
-        stepBuilder.Input(nameof(Primitives.While.Condition), (TData data) => condition(data));
-
-        if (body != null)
-        {
-            var branchBuilder = CreateBranch();
-            body(branchBuilder);
-            AttachBranch(branchBuilder);
-            if (branchBuilder.Steps.Count > 0)
-            {
-                whileStep.Children.Add(branchBuilder.Steps[0].Id);
-            }
-        }
-
-        return this;
-    }
-
-    public IWorkflowBuilder<TData> ForEach(Func<TData, IEnumerable<object>> collection, Action<IStepBuilder<TData>>? stepSetup = null)
-    {
-        var foreachStep = new WorkflowStep<Primitives.Foreach>();
-        AddStep(foreachStep);
-        var stepBuilder = new StepBuilder<TData>(this, foreachStep);
-        stepBuilder.Input(nameof(Primitives.Foreach.Collection), collection);
-
-        stepSetup?.Invoke(stepBuilder);
-
-        return this;
-    }
-
-    public IWorkflowBuilder<TData> Parallel(Action<IParallelStepBuilder<TData>>? parallel)
-    {
-        var sequenceStep = new WorkflowStep<Primitives.Sequence>();
-        AddStep(sequenceStep);
-        var stepBuilder = new StepBuilder<TData>(this, sequenceStep);
-
-        parallel?.Invoke(new ParallelStepBuilder<TData>(this, stepBuilder));
-
-        return this;
-    }
-
-    public IWorkflowBuilder<TData> Saga(Action<IStepBuilder<TData>>? saga)
-    {
-        var sequenceStep = new WorkflowStep<Primitives.Sequence>();
-        AddStep(sequenceStep);
-        var stepBuilder = new StepBuilder<TData>(this, sequenceStep);
-
-        saga?.Invoke(stepBuilder);
-
-        return this;
-    }
-
-    public IWorkflowBuilder<TData> End(string? name = null)
-    {
-        var endStep = new EndStep();
-        AddStep(endStep);
-        return this;
-    }
-
-    private IStepBuilder<TData> Start()
-    {
-        return StartWith(_ => ExecutionResult.Next());
-    }
-
-    public IWorkflowBuilder<TData> UseDefaultErrorBehavior(WorkflowErrorHandling behavior, TimeSpan? retryInterval = null)
-    {
-        DefaultErrorBehavior = behavior;
-        DefaultErrorRetryInterval = retryInterval;
-        return this;
-    }
-
-    public IWorkflowBuilder<TData> CreateBranch()
-    {
-        return new WorkflowBuilder<TData>();
-    }
-
-    public void AttachBranch(IWorkflowBuilder<TData> branch)
-    {
-        if (branch.Steps.Count == 0)
-        {
+        if (Branches.Contains(branch))
             return;
-        }
 
         var branchStart = LastStep + 1;
 
@@ -213,23 +74,18 @@ public class WorkflowBuilder<TData> : IWorkflowBuilder<TData>
         {
             var oldId = step.Id;
             step.Id = oldId + branchStart;
-
             foreach (var step2 in branch.Steps)
             {
                 foreach (var outcome in step2.Outcomes)
                 {
                     if (outcome.NextStep == oldId)
-                    {
                         outcome.NextStep = step.Id;
-                    }
                 }
 
                 for (var i = 0; i < step2.Children.Count; i++)
                 {
                     if (step2.Children[i] == oldId)
-                    {
                         step2.Children[i] = step.Id;
-                    }
                 }
 
                 if (step2.CompensationStepId == oldId)
@@ -243,5 +99,226 @@ public class WorkflowBuilder<TData> : IWorkflowBuilder<TData>
         {
             AddStep(step);
         }
+
+        Branches.Add(branch);
+    }
+}
+
+/// <summary>
+/// 工作流构建器泛型实现
+/// </summary>
+/// <typeparam name="TData">工作流数据类型</typeparam>
+public class WorkflowBuilder<TData> : WorkflowBuilder, IWorkflowBuilder<TData>
+    where TData : new()
+{
+    public WorkflowBuilder()
+    {
+    }
+
+    internal WorkflowBuilder(ICollection<WorkflowStep> steps)
+    {
+        foreach (var step in steps)
+            Steps.Add(step);
+    }
+
+    public override WorkflowDefinition Build(string id, int version)
+    {
+        AttachExternalIds();
+        return new WorkflowDefinition
+        {
+            Id = id,
+            Version = version,
+            Steps = new WorkflowStepCollection(Steps),
+            DefaultErrorBehavior = DefaultErrorBehavior,
+            DefaultErrorRetryInterval = DefaultErrorRetryInterval,
+            DataType = typeof(TData)
+        };
+    }
+
+    private void AttachExternalIds()
+    {
+        foreach (var step in Steps)
+        {
+            foreach (var outcome in step.Outcomes.Where(x => !string.IsNullOrEmpty(x.ExternalNextStepId)))
+            {
+                if (Steps.All(x => x.ExternalId != outcome.ExternalNextStepId))
+                    throw new KeyNotFoundException($"Cannot find step id {outcome.ExternalNextStepId}");
+
+                outcome.NextStep = Steps.Single(x => x.ExternalId == outcome.ExternalNextStepId).Id;
+            }
+        }
+    }
+
+    public IStepBuilder<TData, TStep> StartWith<TStep>(Action<IStepBuilder<TData, TStep>>? stepSetup = null) where TStep : IStepBody
+    {
+        var step = new WorkflowStep<TStep>();
+        var stepBuilder = new StepBuilder<TData, TStep>(this, step);
+
+        stepSetup?.Invoke(stepBuilder);
+
+        step.Name = step.Name ?? typeof(TStep).Name;
+        AddStep(step);
+        return stepBuilder;
+    }
+
+    public IStepBuilder<TData, InlineStepBody> StartWith(Func<IStepExecutionContext, ExecutionResult> body)
+    {
+        var newStep = new WorkflowStepInline();
+        newStep.Body = body;
+        var stepBuilder = new StepBuilder<TData, InlineStepBody>(this, newStep);
+        AddStep(newStep);
+        return stepBuilder;
+    }
+
+    public IStepBuilder<TData, ActionStepBody> StartWith(Action<IStepExecutionContext> body)
+    {
+        var newStep = new WorkflowStep<ActionStepBody>();
+        var stepBuilder = new StepBuilder<TData, ActionStepBody>(this, newStep);
+        stepBuilder.Input(x => x.Body, x => body);
+        AddStep(newStep);
+        return stepBuilder;
+    }
+
+    public IStepBuilder<TData, TStep> Then<TStep>(Action<IStepBuilder<TData, TStep>>? stepSetup = null) where TStep : IStepBody
+    {
+        return Start().Then<TStep>(stepSetup);
+    }
+
+    public IStepBuilder<TData, TStep> Then<TStep>(IStepBuilder<TData, TStep> newStep) where TStep : IStepBody
+    {
+        return Start().Then(newStep);
+    }
+
+    public IStepBuilder<TData, InlineStepBody> Then(Func<IStepExecutionContext, ExecutionResult> body)
+    {
+        return Start().Then(body);
+    }
+
+    public IStepBuilder<TData, ActionStepBody> Then(Action<IStepExecutionContext> body)
+    {
+        return Start().Then(body);
+    }
+
+    public IStepBuilder<TData, WaitFor> WaitFor(string eventName, Expression<Func<TData, string>> eventKey,
+        Expression<Func<TData, DateTime>>? effectiveDate = null, Expression<Func<TData, bool>>? cancelCondition = null)
+    {
+        return Start().WaitFor(eventName, eventKey, effectiveDate, cancelCondition);
+    }
+
+    public IStepBuilder<TData, WaitFor> WaitFor(string eventName,
+        Expression<Func<TData, IStepExecutionContext, string>> eventKey,
+        Expression<Func<TData, DateTime>>? effectiveDate = null, Expression<Func<TData, bool>>? cancelCondition = null)
+    {
+        return Start().WaitFor(eventName, eventKey, effectiveDate, cancelCondition);
+    }
+
+    public IStepBuilder<TData, Delay> Delay(Expression<Func<TData, TimeSpan>> period)
+    {
+        return Start().Delay(period);
+    }
+
+    public IStepBuilder<TData, Decide> Decide(Expression<Func<TData, object>> expression)
+    {
+        return Start().Decide(expression);
+    }
+
+    public IContainerStepBuilder<TData, Foreach, Foreach> ForEach(Expression<Func<TData, IEnumerable>> collection)
+    {
+        return Start().ForEach(collection);
+    }
+
+    public IContainerStepBuilder<TData, Foreach, Foreach> ForEach(Expression<Func<TData, IEnumerable>> collection, Expression<Func<TData, bool>> runParallel)
+    {
+        return Start().ForEach(collection, runParallel);
+    }
+
+    public IContainerStepBuilder<TData, Foreach, Foreach> ForEach(Expression<Func<TData, IStepExecutionContext, IEnumerable>> collection, Expression<Func<TData, bool>> runParallel)
+    {
+        return Start().ForEach(collection, runParallel);
+    }
+
+    public IContainerStepBuilder<TData, While, While> While(Expression<Func<TData, bool>> condition)
+    {
+        return Start().While(condition);
+    }
+
+    public IContainerStepBuilder<TData, While, While> While(Expression<Func<TData, IStepExecutionContext, bool>> condition)
+    {
+        return Start().While(condition);
+    }
+
+    public IContainerStepBuilder<TData, If, If> If(Expression<Func<TData, bool>> condition)
+    {
+        return Start().If(condition);
+    }
+
+    public IContainerStepBuilder<TData, If, If> If(Expression<Func<TData, IStepExecutionContext, bool>> condition)
+    {
+        return Start().If(condition);
+    }
+
+    public IContainerStepBuilder<TData, When, OutcomeSwitch> When(Expression<Func<TData, object>> outcomeValue, string? label = null)
+    {
+        // When方法需要返回IContainerStepBuilder，不能使用Obsolete的When方法
+        // 直接在这里实现逻辑
+        var inlineStep = new WorkflowStepInline();
+        var builder = new StepBuilder<TData, InlineStepBody>(this, inlineStep);
+        AddStep(inlineStep);
+        return builder.When(outcomeValue, label);
+    }
+
+    public IParallelStepBuilder<TData, Sequence> Parallel()
+    {
+        return Start().Parallel();
+    }
+
+    public IStepBuilder<TData, Sequence> Saga(Action<IWorkflowBuilder<TData>> builder)
+    {
+        return Start().Saga(builder);
+    }
+
+    public IContainerStepBuilder<TData, Schedule, InlineStepBody> Schedule(Expression<Func<TData, TimeSpan>> time)
+    {
+        return Start().Schedule(time);
+    }
+
+    public IContainerStepBuilder<TData, Recur, InlineStepBody> Recur(Expression<Func<TData, TimeSpan>> interval,
+        Expression<Func<TData, bool>> until)
+    {
+        return Start().Recur(interval, until);
+    }
+
+    public IStepBuilder<TData, Activity> Activity(string activityName, Expression<Func<TData, object>>? parameters = null,
+        Expression<Func<TData, DateTime>>? effectiveDate = null, Expression<Func<TData, bool>>? cancelCondition = null)
+    {
+        return Start().Activity(activityName, parameters, effectiveDate, cancelCondition);
+    }
+
+    public IStepBuilder<TData, Activity> Activity(Expression<Func<TData, IStepExecutionContext, string>> activityName, Expression<Func<TData, object>>? parameters = null,
+        Expression<Func<TData, DateTime>>? effectiveDate = null, Expression<Func<TData, bool>>? cancelCondition = null)
+    {
+        return Start().Activity(activityName, parameters, effectiveDate, cancelCondition);
+    }
+
+    private IStepBuilder<TData, InlineStepBody> Start()
+    {
+        return StartWith(_ => ExecutionResult.Next());
+    }
+
+    public IEnumerable<WorkflowStep> GetUpstreamSteps(int id)
+    {
+        return Steps.Where(step => step.Outcomes.Any(outcome => outcome.NextStep == id));
+    }
+
+    public IWorkflowBuilder<TData> UseDefaultErrorBehavior(WorkflowErrorHandling behavior, TimeSpan? retryInterval = null)
+    {
+        DefaultErrorBehavior = behavior;
+        DefaultErrorRetryInterval = retryInterval;
+        return this;
+    }
+
+    public IWorkflowBuilder<TData> CreateBranch()
+    {
+        return new WorkflowBuilder<TData>();
     }
 }
