@@ -42,6 +42,8 @@ public class WorkflowConsumer : QueueConsumer
 
     protected override QueueType Queue => QueueType.Workflow;
 
+    protected override int MaxConcurrentItems => _options.MaxConcurrentWorkflows;
+
     protected override async Task ProcessItem(string itemId, CancellationToken cancellationToken)
     {
         var lockAcquired = false;

@@ -207,17 +207,14 @@ public class WorkflowHost : IWorkflowHost, IDisposable
     public Task PublishEventAsync(string eventName, string eventKey, object? eventData = null, CancellationToken cancellationToken = default)
         => _workflowController.PublishEventAsync(eventName, eventKey, eventData, cancellationToken);
 
-    public Task<PendingActivity> GetPendingActivity(string activityName, string workerId, TimeSpan? timeout = null)
+    public Task<PendingActivity?> GetPendingActivity(string activityName, string workerId, TimeSpan? timeout = null)
     {
-        // 调用活动控制器获取待处理活动
-        // 注意：这需要IActivityController有GetPendingActivity方法，返回PendingActivity类型
-        throw new NotImplementedException("GetPendingActivity需要IActivityController支持");
+        return _activityController.GetPendingActivity(activityName, workerId, timeout);
     }
 
     public Task ReleaseActivityToken(string token)
     {
-        // 注意：开源版本接口不包含workerId参数
-        throw new NotImplementedException("ReleaseActivityToken需要调整IActivityController接口");
+        return _activityController.ReleaseActivityToken(token);
     }
 
     public Task SubmitActivitySuccess(string token, object result)
@@ -227,15 +224,8 @@ public class WorkflowHost : IWorkflowHost, IDisposable
 
     public Task SubmitActivityFailure(string token, object result)
     {
-        return _activityController.SubmitActivityFailure(token, result.ToString() ?? "");
+        return _activityController.SubmitActivityFailure(token, result);
     }
-
-    // 活动 API 代理（保持兼容性）
-    public Task<IEnumerable<WorkflowActivity>> GetPendingActivities(string? activityName = null, CancellationToken cancellationToken = default)
-        => _activityController.GetPendingActivities(activityName, cancellationToken);
-
-    public Task ReleaseActivityToken(string token, string workerId)
-        => _activityController.ReleaseActivityToken(token, workerId);
 
     /// <summary>
     /// 报告步骤错误

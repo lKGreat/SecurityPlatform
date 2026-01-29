@@ -1,4 +1,5 @@
 using Atlas.WorkflowCore.Abstractions;
+using Atlas.WorkflowCore.Abstractions.Persistence;
 using Atlas.WorkflowCore.Services;
 using Atlas.WorkflowCore.Services.BackgroundTasks;
 using Atlas.WorkflowCore.Services.DefaultProviders;
@@ -56,6 +57,16 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IWorkflowErrorHandler, SuspendHandler>();
         services.AddSingleton<IWorkflowErrorHandler, TerminateHandler>();
         services.AddSingleton<IWorkflowErrorHandler, CompensateHandler>();
+
+        // 仓储接口（IPersistenceProvider 实现了所有仓储接口）
+        services.AddSingleton<ISubscriptionRepository>(sp => 
+            sp.GetRequiredService<IPersistenceProvider>());
+        services.AddSingleton<IWorkflowRepository>(sp => 
+            sp.GetRequiredService<IPersistenceProvider>());
+        services.AddSingleton<IEventRepository>(sp => 
+            sp.GetRequiredService<IPersistenceProvider>());
+        services.AddSingleton<IScheduledCommandRepository>(sp => 
+            sp.GetRequiredService<IPersistenceProvider>());
 
         // 活动控制器
         services.AddSingleton<IActivityController, ActivityController>();

@@ -14,6 +14,7 @@ public class RunnablePoller : IBackgroundTask
     private readonly IQueueProvider _queueProvider;
     private readonly IDistributedLockProvider _lockProvider;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly IGreyList _greyList;
     private readonly ILogger<RunnablePoller> _logger;
     private readonly TimeSpan _pollInterval;
 
@@ -25,12 +26,14 @@ public class RunnablePoller : IBackgroundTask
         IQueueProvider queueProvider,
         IDistributedLockProvider lockProvider,
         IDateTimeProvider dateTimeProvider,
+        IGreyList greyList,
         ILogger<RunnablePoller> logger)
     {
         _persistenceProvider = persistenceProvider;
         _queueProvider = queueProvider;
         _lockProvider = lockProvider;
         _dateTimeProvider = dateTimeProvider;
+        _greyList = greyList;
         _logger = logger;
         _pollInterval = TimeSpan.FromSeconds(10); // 默认10秒轮询一次
     }
@@ -140,7 +143,16 @@ public class RunnablePoller : IBackgroundTask
                             activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
                         }
                     }
-                    
+
+                    // 检查灰名单，避免重复入队
+                    if (_greyList.Contains($"wf:{instance.Id}"))
+                    {
+                        _logger.LogDebug("工作流 {WorkflowId} 已在灰名单中，跳过", instance.Id);
+                        continue;
+                    }
+
+                    _logger.LogDebug("工作流 {WorkflowId} 入队", instance.Id);
+                    _greyList.Add($"wf:{instance.Id}");
                     await _queueProvider.QueueWork(instance.Id, QueueType.Workflow);
                 }
             }
@@ -199,7 +211,16 @@ public class RunnablePoller : IBackgroundTask
                             activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
                         }
                     }
-                    
+
+                    // 检查灰名单，避免重复入队
+                    if (_greyList.Contains($"evt:{eventId}"))
+                    {
+                        _logger.LogDebug("事件 {EventId} 已在灰名单中，跳过", eventId);
+                        continue;
+                    }
+
+                    _logger.LogDebug("事件 {EventId} 入队", eventId);
+                    _greyList.Add($"evt:{eventId}");
                     await _queueProvider.QueueWork(eventId, QueueType.Event);
                 }
             }

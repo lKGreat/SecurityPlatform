@@ -8,31 +8,31 @@ namespace Atlas.WorkflowCore.Abstractions;
 public interface IActivityController
 {
     /// <summary>
-    /// 获取待处理的活动列表
+    /// 获取待处理的活动（长轮询）
     /// </summary>
-    /// <param name="activityName">活动名称（可选）</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>待处理活动列表</returns>
-    Task<IEnumerable<WorkflowActivity>> GetPendingActivities(string? activityName = null, CancellationToken cancellationToken = default);
+    /// <param name="activityName">活动名称</param>
+    /// <param name="workerId">工作者ID</param>
+    /// <param name="timeout">超时时间（可选）</param>
+    /// <returns>待处理活动，如果超时则返回null</returns>
+    Task<PendingActivity?> GetPendingActivity(string activityName, string workerId, TimeSpan? timeout = null);
 
     /// <summary>
     /// 释放活动令牌（返还给队列）
     /// </summary>
     /// <param name="token">活动令牌</param>
-    /// <param name="workerId">工作者ID</param>
-    Task ReleaseActivityToken(string token, string workerId);
+    Task ReleaseActivityToken(string token);
 
     /// <summary>
     /// 提交活动成功结果
     /// </summary>
     /// <param name="token">活动令牌</param>
-    /// <param name="data">结果数据</param>
-    Task SubmitActivitySuccess(string token, object? data);
+    /// <param name="result">结果数据</param>
+    Task SubmitActivitySuccess(string token, object result);
 
     /// <summary>
     /// 提交活动失败结果
     /// </summary>
     /// <param name="token">活动令牌</param>
-    /// <param name="message">失败消息</param>
-    Task SubmitActivityFailure(string token, string message);
+    /// <param name="result">失败结果</param>
+    Task SubmitActivityFailure(string token, object result);
 }
