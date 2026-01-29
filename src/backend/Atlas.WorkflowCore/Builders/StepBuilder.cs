@@ -37,6 +37,71 @@ public class StepBuilder<TData> : IStepBuilder<TData>
         return this;
     }
 
+    public IStepBuilder<TData> Name(string name)
+    {
+        Step.Name = name;
+        return this;
+    }
+
+    public IStepBuilder<TData> Id(string id)
+    {
+        Step.ExternalId = id;
+        return this;
+    }
+
+    public IStepBuilder<TData> OnError(WorkflowErrorHandling behavior, TimeSpan? retryInterval = null)
+    {
+        Step.ErrorBehavior = behavior;
+        Step.RetryInterval = retryInterval;
+        return this;
+    }
+
+    public IStepBuilder<TData> CompensateWith<TStep>(Action<IStepBuilder<TData>>? stepSetup = null) where TStep : IStepBody
+    {
+        var compensationStep = new WorkflowStep<TStep>();
+        (WorkflowBuilder as WorkflowBuilder<TData>)!.AddStep(compensationStep);
+        var stepBuilder = new StepBuilder<TData>(WorkflowBuilder, compensationStep);
+
+        stepSetup?.Invoke(stepBuilder);
+
+        compensationStep.Name = compensationStep.Name ?? $"Compensate {typeof(TStep).Name}";
+        Step.CompensationStepId = compensationStep.Id;
+
+        return this;
+    }
+
+    public IStepBuilder<TData> CompensateWith(Func<IStepExecutionContext, ExecutionResult> body)
+    {
+        var compensationStep = new WorkflowStepInline();
+        compensationStep.Body = body;
+        (WorkflowBuilder as WorkflowBuilder<TData>)!.AddStep(compensationStep);
+        Step.CompensationStepId = compensationStep.Id;
+
+        return this;
+    }
+
+    public IStepBuilder<TData> CompensateWithSequence(Action<IWorkflowBuilder<TData>> builder)
+    {
+        var branchBuilder = (WorkflowBuilder as WorkflowBuilder<TData>)!.CreateBranch();
+        builder(branchBuilder);
+        (WorkflowBuilder as WorkflowBuilder<TData>)!.AttachBranch(branchBuilder);
+
+        if (branchBuilder.Steps.Count > 0)
+        {
+            Step.CompensationStepId = branchBuilder.Steps[0].Id;
+        }
+
+        return this;
+    }
+
+    public IStepBuilder<TData> CancelCondition(Expression<Func<TData, bool>> cancelCondition, bool proceedAfterCancel = false)
+    {
+        // TODO: 实现取消条件
+        // Step.CancelCondition = cancelCondition;
+        // Step.ProceedOnCancel = proceedAfterCancel;
+        return this;
+    }
+
     public IStepBuilder<TData> Output<TInput>(Expression<Func<TData, TInput>> value, Expression<Func<IStepExecutionContext, TInput>> assign)
     {
         Step.Outputs.Add(new ExpressionStepParameter<IStepExecutionContext, TInput>(assign));

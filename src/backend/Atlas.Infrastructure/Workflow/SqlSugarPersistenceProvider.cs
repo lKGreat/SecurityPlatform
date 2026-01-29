@@ -291,7 +291,7 @@ public class SqlSugarPersistenceProvider : IPersistenceProvider
     public async Task<string> CreateEventSubscriptionAsync(EventSubscription subscription, CancellationToken cancellationToken = default)
     {
         var tenantId = _tenantProvider.GetTenantId();
-        var entity = new PersistedSubscription(tenantId, subscription.WorkflowId, subscription.StepId, subscription.EventName, subscription.EventKey, long.Parse(subscription.Id), subscription.SubscriptionData);
+        var entity = new PersistedSubscription(tenantId, subscription.WorkflowId, subscription.StepId, subscription.ExecutionPointerId, subscription.EventName, subscription.EventKey, long.Parse(subscription.Id), subscription.SubscriptionData);
         await _db.Insertable(entity).ExecuteCommandAsync(cancellationToken);
         return subscription.Id;
     }
@@ -319,6 +319,7 @@ public class SqlSugarPersistenceProvider : IPersistenceProvider
             Id = entity.Id.ToString(),
             WorkflowId = entity.WorkflowId,
             StepId = entity.StepId,
+            ExecutionPointerId = entity.ExecutionPointerId,
             EventName = entity.EventName,
             EventKey = entity.EventKey,
             SubscribeAsOf = entity.SubscribeAsOf.DateTime,
@@ -347,7 +348,23 @@ public class SqlSugarPersistenceProvider : IPersistenceProvider
             EventName = e.EventName,
             EventKey = e.EventKey,
             SubscribeAsOf = e.SubscribeAsOf.DateTime,
-            SubscriptionData = e.SubscriptionDataJson
+            SubscriptionData = e.SubscriptionDataJson,
+            ExecutionPointerId = e.ExecutionPointerId
         });
+    }
+
+    // IScheduledCommandRepository 实现
+    public bool SupportsScheduledCommands => false;
+
+    public Task ScheduleCommand(ScheduledCommand command)
+    {
+        // 暂不支持计划命令
+        throw new NotSupportedException("当前持久化提供者不支持计划命令");
+    }
+
+    public Task ProcessCommands(DateTimeOffset asOf, Func<ScheduledCommand, Task> action, CancellationToken cancellationToken = default)
+    {
+        // 暂不支持计划命令
+        return Task.CompletedTask;
     }
 }

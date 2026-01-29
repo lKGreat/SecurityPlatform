@@ -2,7 +2,7 @@ using Atlas.WorkflowCore.Models;
 
 namespace Atlas.WorkflowCore.Abstractions.Persistence;
 
-public interface IPersistenceProvider
+public interface IPersistenceProvider : IScheduledCommandRepository
 {
     Task<string> CreateWorkflowAsync(WorkflowInstance workflow, CancellationToken cancellationToken = default);
     Task<WorkflowInstance?> GetWorkflowAsync(string workflowId, CancellationToken cancellationToken = default);

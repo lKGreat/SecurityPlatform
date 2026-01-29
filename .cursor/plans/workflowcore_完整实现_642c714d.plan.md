@@ -34,52 +34,52 @@ todos:
     status: completed
   - id: activity-controller
     content: 实现活动控制器 - IActivityController、ActivityController、ActivityResult、WorkflowActivity（管理外部活动令牌、提交结果）
-    status: pending
+    status: completed
   - id: auxiliary-services
     content: 实现辅助服务 - IScopeProvider、IGreyList、IDateTimeProvider及其实现
     status: completed
   - id: error-handlers
     content: 实现错误处理器 - IWorkflowErrorHandler接口、RetryHandler、SuspendHandler、TerminateHandler、CompensateHandler
-    status: pending
+    status: completed
   - id: middleware-interfaces
     content: 定义中间件接口 - IWorkflowMiddleware、IWorkflowStepMiddleware、IWorkflowMiddlewareRunner、IWorkflowMiddlewareErrorHandler
-    status: pending
+    status: completed
   - id: middleware-runner
     content: 实现中间件运行器 - WorkflowMiddlewareRunner、DefaultWorkflowMiddlewareErrorHandler
-    status: pending
+    status: completed
   - id: builder-api-enhancement-core
     content: 增强IWorkflowBuilder - UseDefaultErrorBehavior、CreateBranch、AttachBranch方法
-    status: pending
+    status: completed
   - id: builder-api-enhancement-step
     content: 增强IStepBuilder - Name、Id、Attach、高级Input/Output映射、OnError、CompensateWith、CancelCondition、Branch方法
-    status: pending
+    status: completed
   - id: builder-api-control-flow
     content: 补全IStepBuilder控制流方法 - WaitFor、Delay、Decide、ForEach、While、If、When、Parallel、Saga、Schedule、Recur、Activity
     status: pending
   - id: container-step-builder
     content: 实现容器步骤构建器 - IContainerStepBuilder、ContainerStepBuilder
-    status: pending
+    status: completed
   - id: primitives-decision
     content: 实现决策和分支原语 - Decide、OutcomeSwitch、When
-    status: pending
+    status: completed
   - id: primitives-scheduling
     content: 实现调度原语 - Recur（循环调度）
-    status: pending
+    status: completed
   - id: primitives-saga
     content: 实现Saga原语 - SagaContainer
-    status: pending
+    status: completed
   - id: primitives-subworkflow
     content: 实现子工作流原语 - SubWorkflowStepBody
-    status: pending
+    status: completed
   - id: primitives-action
     content: 实现操作步骤原语 - ActionStepBody
-    status: pending
+    status: completed
   - id: primitives-activity-enhance
     content: 增强Activity原语 - 支持effectiveDate、cancelCondition、token管理
     status: pending
   - id: scheduled-commands
     content: 实现计划命令支持 - IScheduledCommandRepository、ScheduledCommand、SchedulePersistenceData、更新IPersistenceProvider
-    status: pending
+    status: completed
   - id: search-index
     content: 实现搜索索引 - ISearchIndex、NullSearchIndex、搜索模型（WorkflowSearchResult、SearchFilter、StepInfo、Page）
     status: pending
@@ -88,13 +88,13 @@ todos:
     status: pending
   - id: model-options
     content: 实现工作流选项 - WorkflowOptions、WorkflowExecutorResult
-    status: pending
+    status: completed
   - id: model-expression
     content: 实现表达式结果 - ExpressionOutcome
-    status: pending
+    status: completed
   - id: exceptions
     content: 定义自定义异常 - ActivityFailedException、CorruptPersistenceDataException、WorkflowNotRegisteredException、WorkflowDefinitionLoadException、WorkflowLockedException、NotFoundException
-    status: pending
+    status: completed
   - id: dsl-project
     content: 创建DSL项目 - Atlas.WorkflowCore.DSL.csproj、添加依赖（Newtonsoft.Json、YamlDotNet、System.Linq.Dynamic.Core）
     status: pending
@@ -127,7 +127,7 @@ todos:
     status: completed
   - id: sync-workflow-runner
     content: 实现同步运行器 - ISyncWorkflowRunner、SyncWorkflowRunner（同步等待工作流完成）
-    status: pending
+    status: in_progress
   - id: unit-tests
     content: 创建单元测试 - Atlas.WorkflowCore.Tests项目、测试ExecutionPointerFactory、ExecutionResultProcessor、CancellationProcessor、ErrorHandlers、Primitives
     status: pending

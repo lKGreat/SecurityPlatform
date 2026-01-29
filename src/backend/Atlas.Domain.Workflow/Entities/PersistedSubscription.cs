@@ -9,18 +9,20 @@ public sealed class PersistedSubscription : TenantEntity
         : base(TenantId.Empty)
     {
         WorkflowId = string.Empty;
+        ExecutionPointerId = string.Empty;
         EventName = string.Empty;
         EventKey = string.Empty;
         SubscriptionDataJson = null;
         EventKeySlug = null;
     }
 
-    public PersistedSubscription(TenantId tenantId, string workflowId, int stepId, string eventName, string eventKey, long id, string? subscriptionDataJson = null)
+    public PersistedSubscription(TenantId tenantId, string workflowId, int stepId, string executionPointerId, string eventName, string eventKey, long id, string? subscriptionDataJson = null)
         : base(tenantId)
     {
         Id = id;
         WorkflowId = workflowId;
         StepId = stepId;
+        ExecutionPointerId = executionPointerId;
         EventName = eventName;
         EventKey = eventKey;
         SubscriptionDataJson = subscriptionDataJson;
@@ -31,6 +33,8 @@ public sealed class PersistedSubscription : TenantEntity
     public string WorkflowId { get; private set; }
 
     public int StepId { get; private set; }
+
+    public string ExecutionPointerId { get; private set; }
 
     public string EventName { get; private set; }
 

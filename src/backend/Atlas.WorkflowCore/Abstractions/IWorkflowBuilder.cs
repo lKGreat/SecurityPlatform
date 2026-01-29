@@ -4,6 +4,11 @@ namespace Atlas.WorkflowCore.Abstractions;
 
 public interface IWorkflowBuilder<TData>
 {
+    /// <summary>
+    /// 步骤列表
+    /// </summary>
+    List<WorkflowStep> Steps { get; }
+
     IStepBuilder<TData> StartWith<TStep>(Action<IStepBuilder<TData>>? stepSetup = null)
         where TStep : IStepBody;
 

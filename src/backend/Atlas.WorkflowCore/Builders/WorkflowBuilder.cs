@@ -188,12 +188,19 @@ public class WorkflowBuilder<TData> : IWorkflowBuilder<TData>
         return StartWith(_ => ExecutionResult.Next());
     }
 
-    private WorkflowBuilder<TData> CreateBranch()
+    public IWorkflowBuilder<TData> UseDefaultErrorBehavior(WorkflowErrorHandling behavior, TimeSpan? retryInterval = null)
+    {
+        DefaultErrorBehavior = behavior;
+        DefaultErrorRetryInterval = retryInterval;
+        return this;
+    }
+
+    public IWorkflowBuilder<TData> CreateBranch()
     {
         return new WorkflowBuilder<TData>();
     }
 
-    private void AttachBranch(WorkflowBuilder<TData> branch)
+    public void AttachBranch(IWorkflowBuilder<TData> branch)
     {
         if (branch.Steps.Count == 0)
         {

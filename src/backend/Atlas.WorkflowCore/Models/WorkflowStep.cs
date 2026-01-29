@@ -81,20 +81,3 @@ public enum ExecutionPipelineDirective
     Defer = 1,
     EndWorkflow = 2
 }
-
-public enum WorkflowErrorHandling
-{
-    Retry = 0,
-    Suspend = 1,
-    Terminate = 2,
-    Compensate = 3
-}
-
-public class WorkflowExecutorResult
-{
-    public bool IsComplete { get; set; }
-
-    public List<ExecutionPointer> ExecutionPointers { get; set; } = new();
-
-    public List<ExecutionError> Errors { get; set; } = new();
-}
