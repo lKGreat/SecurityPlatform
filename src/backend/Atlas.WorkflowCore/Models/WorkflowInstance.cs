@@ -1,8 +1,14 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
+using Atlas.WorkflowCore.Abstractions;
 
 namespace Atlas.WorkflowCore.Models;
 
-public class WorkflowInstance
+/// <summary>
+/// 工作流实例
+/// </summary>
+public class WorkflowInstance : ISearchable
 {
     public string Id { get; set; } = string.Empty;
 
@@ -33,6 +39,36 @@ public class WorkflowInstance
         return ExecutionPointers
             .FindByScope(parentId)
             .All(x => x.EndTime != null);
+    }
+
+    /// <summary>
+    /// 获取搜索令牌（用于全文搜索）
+    /// </summary>
+    public IEnumerable<string> GetSearchTokens()
+    {
+        var tokens = new List<string>
+        {
+            Id,
+            WorkflowDefinitionId,
+            Version.ToString(),
+            Status.ToString()
+        };
+
+        if (!string.IsNullOrEmpty(Reference))
+        {
+            tokens.Add(Reference);
+        }
+
+        // 添加执行指针相关的搜索令牌
+        foreach (var pointer in ExecutionPointers)
+        {
+            if (!string.IsNullOrEmpty(pointer.StepName))
+            {
+                tokens.Add(pointer.StepName);
+            }
+        }
+
+        return tokens;
     }
 }
 

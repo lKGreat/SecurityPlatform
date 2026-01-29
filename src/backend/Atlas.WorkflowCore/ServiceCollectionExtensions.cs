@@ -46,6 +46,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddSingleton<IScopeProvider, ScopeProvider>();
         services.AddSingleton<IGreyList, GreyList>();
+        services.AddSingleton<IWorkflowPurger, WorkflowPurger>();
 
         // 取消处理器
         services.AddScoped<ICancellationProcessor, CancellationProcessor>();
