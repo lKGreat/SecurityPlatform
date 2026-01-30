@@ -1,4 +1,11 @@
-import type { TreeNode, ConditionNode } from '@/types/approval-tree';
+import type {
+  TreeNode,
+  ConditionNode,
+  DynamicConditionNode,
+  ParallelConditionNode,
+  ParallelNode,
+  ApproveNode
+} from '@/types/approval-tree';
 
 export class ApprovalTreeValidator {
   /**
@@ -6,12 +13,14 @@ export class ApprovalTreeValidator {
    */
   static checkCompleteness(rootNode: TreeNode): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
+    let hasApproveNode = false;
     
     const checkNode = (node: TreeNode, path: string) => {
       // 检查节点本身配置
       if (node.nodeType === 'approve') {
-        const n = node as any;
-        if (!n.assigneeValue) {
+        const n = node as ApproveNode;
+        hasApproveNode = true;
+        if (!n.assigneeValue && (!n.approverConfig || n.approverConfig.nodeApproveList.length === 0)) {
           errors.push(`${path}: 审批人未配置`);
           n.error = true;
         } else {
@@ -19,12 +28,12 @@ export class ApprovalTreeValidator {
         }
       }
       
-      if (node.nodeType === 'condition') {
-        const n = node as ConditionNode;
+      if (node.nodeType === 'condition' || node.nodeType === 'dynamicCondition' || node.nodeType === 'parallelCondition') {
+        const n = node as ConditionNode | DynamicConditionNode | ParallelConditionNode;
         if (n.conditionNodes.length < 2) {
           errors.push(`${path}: 条件节点至少需要2个分支`);
         }
-        
+
         n.conditionNodes.forEach((branch, idx) => {
           if (!branch.conditionRule && !branch.isDefault) {
             errors.push(`${path}.分支${idx + 1}: 条件规则未配置`);
@@ -34,6 +43,19 @@ export class ApprovalTreeValidator {
           }
         });
       }
+
+      if (node.nodeType === 'parallel') {
+        const n = node as ParallelNode;
+        if (n.parallelNodes.length < 2) {
+          errors.push(`${path}: 并行审批至少需要2个分支`);
+        }
+        n.parallelNodes.forEach((child, idx) => {
+          checkNode(child, `${path}.并行分支${idx + 1}`);
+        });
+        if (!n.childNode) {
+          errors.push(`${path}: 并行审批需要聚合节点`);
+        }
+      }
       
       if ('childNode' in node && (node as any).childNode) {
         checkNode((node as any).childNode, path);
@@ -41,6 +63,9 @@ export class ApprovalTreeValidator {
     };
     
     checkNode(rootNode, '根节点');
+    if (!hasApproveNode) {
+      errors.push('至少配置一个审批节点');
+    }
     
     return {
       valid: errors.length === 0,

@@ -10,6 +10,12 @@
               </div>
               <p>审批人</p>
             </div>
+            <div class="add-node-popover-item" @click="handleSelect('parallel')">
+              <div class="item-wrapper">
+                <UserOutlined class="icon" style="color: #ff943e" />
+              </div>
+              <p>并行审批</p>
+            </div>
             <div class="add-node-popover-item" @click="handleSelect('copy')">
               <div class="item-wrapper">
                 <SendOutlined class="icon" style="color: #3296fa" />
@@ -21,6 +27,18 @@
                 <BranchesOutlined class="icon" style="color: #15bc83" />
               </div>
               <p>条件分支</p>
+            </div>
+            <div class="add-node-popover-item" @click="handleSelect('dynamicCondition')">
+              <div class="item-wrapper">
+                <BranchesOutlined class="icon" style="color: #15bc83" />
+              </div>
+              <p>动态条件</p>
+            </div>
+            <div class="add-node-popover-item" @click="handleSelect('parallelCondition')">
+              <div class="item-wrapper">
+                <BranchesOutlined class="icon" style="color: #15bc83" />
+              </div>
+              <p>条件并行</p>
             </div>
           </div>
         </template>

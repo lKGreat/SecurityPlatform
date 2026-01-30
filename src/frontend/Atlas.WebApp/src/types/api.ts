@@ -67,6 +67,9 @@ export interface ApprovalFlowDefinitionListItem {
   version: number;
   status: ApprovalFlowStatus;
   publishedAt?: string;
+  category?: string;
+  description?: string;
+  isQuickEntry?: boolean;
 }
 
 export interface ApprovalFlowDefinitionResponse {
@@ -77,16 +80,28 @@ export interface ApprovalFlowDefinitionResponse {
   status: ApprovalFlowStatus;
   publishedAt?: string;
   publishedByUserId?: string;
+  category?: string;
+  description?: string;
+  visibilityScopeJson?: string;
+  isQuickEntry?: boolean;
 }
 
 export interface ApprovalFlowDefinitionCreateRequest {
   name: string;
   definitionJson: string;
+  description?: string;
+  category?: string;
+  visibilityScopeJson?: string;
+  isQuickEntry?: boolean;
 }
 
 export interface ApprovalFlowDefinitionUpdateRequest {
   name: string;
   definitionJson: string;
+  description?: string;
+  category?: string;
+  visibilityScopeJson?: string;
+  isQuickEntry?: boolean;
 }
 
 export interface ApprovalFlowPublishRequest {

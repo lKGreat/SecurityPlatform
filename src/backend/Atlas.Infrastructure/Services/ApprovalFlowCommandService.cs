@@ -35,6 +35,7 @@ public sealed class ApprovalFlowCommandService : IApprovalFlowCommandService
         CancellationToken cancellationToken)
     {
         var entity = new ApprovalFlowDefinition(tenantId, request.Name, request.DefinitionJson, _idGenerator.NextId());
+        entity.SetMetadata(request.Description, request.Category, request.VisibilityScopeJson, request.IsQuickEntry);
         await _flowRepository.AddAsync(entity, cancellationToken);
 
         return _mapper.Map<ApprovalFlowDefinitionResponse>(entity);
@@ -56,7 +57,8 @@ public sealed class ApprovalFlowCommandService : IApprovalFlowCommandService
             throw new BusinessException("FLOW_NOT_DRAFT", "仅可编辑草稿状态的流程定义");
         }
 
-        entity.Update(request.Name, request.DefinitionJson);
+        entity.Update(request.Name, request.DefinitionJson, request.Description, request.Category, request.VisibilityScopeJson);
+        entity.SetQuickEntry(request.IsQuickEntry);
         await _flowRepository.UpdateAsync(entity, cancellationToken);
 
         return _mapper.Map<ApprovalFlowDefinitionResponse>(entity);

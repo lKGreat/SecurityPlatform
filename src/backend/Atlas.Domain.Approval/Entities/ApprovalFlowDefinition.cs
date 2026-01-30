@@ -90,6 +90,26 @@ public sealed class ApprovalFlowDefinition : TenantEntity
         }
     }
 
+    public void SetMetadata(string? description, string? category, string? visibilityScopeJson, bool? isQuickEntry = null)
+    {
+        if (description != null)
+        {
+            Description = description;
+        }
+        if (category != null)
+        {
+            Category = category;
+        }
+        if (visibilityScopeJson != null)
+        {
+            VisibilityScopeJson = visibilityScopeJson;
+        }
+        if (isQuickEntry.HasValue)
+        {
+            IsQuickEntry = isQuickEntry.Value;
+        }
+    }
+
     public void SetQuickEntry(bool isQuickEntry)
     {
         IsQuickEntry = isQuickEntry;

@@ -12,12 +12,12 @@
     </div>
 
     <!-- 2. 加号按钮（非条件节点，且非结束节点） -->
-    <div v-if="canAddChild(node) && node.nodeType !== 'condition'" class="add-node-wrapper">
+    <div v-if="canAddChild(node) && !isConditionLike" class="add-node-wrapper">
       <AddNodeButton @select="handleAddNode" />
     </div>
 
     <!-- 3. 条件节点的分支处理 -->
-    <div v-if="node.nodeType === 'condition'" class="condition-branches-wrapper">
+    <div v-if="isConditionLike" class="condition-branches-wrapper">
        <div class="condition-branches">
         <div
             v-for="(branch, index) in (node as ConditionNode).conditionNodes"
@@ -54,6 +54,28 @@
        <div class="add-node-wrapper">
           <AddNodeButton @select="handleAddNode" />
        </div>
+    </div>
+
+    <!-- 3.1 并行节点分支处理 -->
+    <div v-if="isParallel" class="condition-branches-wrapper">
+      <div class="condition-branches">
+        <div
+          v-for="(branch, index) in (node as any).parallelNodes"
+          :key="branch.id"
+          class="condition-branch"
+        >
+          <div class="branch-lines">
+            <div class="line-vertical-top" v-if="index === 0 || index === (node as any).parallelNodes.length - 1"></div>
+            <div class="line-horizontal-top" v-if="index > 0 && index < (node as any).parallelNodes.length - 1"></div>
+            <div class="line-horizontal-left" v-if="index === 0 && (node as any).parallelNodes.length > 1"></div>
+            <div class="line-horizontal-right" v-if="index === (node as any).parallelNodes.length - 1 && (node as any).parallelNodes.length > 1"></div>
+          </div>
+          <TreeNodeRenderer :node="branch" />
+        </div>
+      </div>
+      <div class="add-node-wrapper">
+        <AddNodeButton @select="handleAddNode" />
+      </div>
     </div>
 
     <!-- 4. 递归渲染子节点 (非条件节点) -->
@@ -103,10 +125,21 @@ const nodeComponent = computed(() => {
     approve: ApproveNodeWidget,
     copy: CopyNodeWidget,
     condition: ConditionNodeWidget,
+    dynamicCondition: ConditionNodeWidget,
+    parallelCondition: ConditionNodeWidget,
+    parallel: ApproveNodeWidget,
     end: EndNodeWidget,
   };
   return map[props.node.nodeType];
 });
+
+const isConditionLike = computed(() =>
+  props.node.nodeType === 'condition' ||
+  props.node.nodeType === 'dynamicCondition' ||
+  props.node.nodeType === 'parallelCondition'
+);
+
+const isParallel = computed(() => props.node.nodeType === 'parallel');
 
 const canAddChild = (node: TreeNode) => {
   return node.nodeType !== 'end';

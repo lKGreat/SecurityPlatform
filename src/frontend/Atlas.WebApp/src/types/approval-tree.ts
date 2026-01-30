@@ -1,4 +1,12 @@
-export type NodeType = 'start' | 'approve' | 'copy' | 'condition' | 'end';
+export type NodeType =
+  | 'start'
+  | 'approve'
+  | 'copy'
+  | 'condition'
+  | 'parallel'
+  | 'dynamicCondition'
+  | 'parallelCondition'
+  | 'end';
 
 export interface TreeNodeBase {
   id: string;
@@ -16,9 +24,13 @@ export interface StartNode extends TreeNodeBase {
 // 审批节点
 export interface ApproveNode extends TreeNodeBase {
   nodeType: 'approve';
-  assigneeType: 0 | 1 | 2;  // 用户/角色/部门负责人
+  assigneeType: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;  // 用户/角色/部门负责人/HRBP/直属领导/层级领导/发起人/发起人自选
   assigneeValue: string;
   approvalMode: 'all' | 'any' | 'sequential';
+  noHeaderAction?: 0 | 1 | 2; // 无审批人策略：不允许/跳过/转管理员
+  buttonPermissionConfig?: ButtonPermissionConfig;
+  formPermissionConfig?: FormPermissionConfig;
+  noticeConfig?: NoticeConfig;
   childNode?: TreeNode;
 }
 
@@ -26,6 +38,7 @@ export interface ApproveNode extends TreeNodeBase {
 export interface CopyNode extends TreeNodeBase {
   nodeType: 'copy';
   copyToUsers: string[];
+  formPermissionConfig?: FormPermissionConfig;
   childNode?: TreeNode;
 }
 
@@ -52,6 +65,24 @@ export interface ConditionNode extends TreeNodeBase {
                         // 让我们给 ConditionNode 加上 childNode 以支持汇聚后的流程。
 }
 
+export interface DynamicConditionNode extends TreeNodeBase {
+  nodeType: 'dynamicCondition';
+  conditionNodes: ConditionBranch[];
+  childNode?: TreeNode;
+}
+
+export interface ParallelConditionNode extends TreeNodeBase {
+  nodeType: 'parallelCondition';
+  conditionNodes: ConditionBranch[];
+  childNode?: TreeNode;
+}
+
+export interface ParallelNode extends TreeNodeBase {
+  nodeType: 'parallel';
+  parallelNodes: TreeNode[];
+  childNode?: TreeNode;
+}
+
 export interface ConditionBranch {
   id: string;
   branchName: string;
@@ -66,12 +97,35 @@ export interface ConditionRule {
   value: any;
 }
 
+export interface ButtonPermissionConfig {
+  startPage?: number[];
+  approvalPage?: number[];
+  viewPage?: number[];
+}
+
+export interface FormPermissionConfig {
+  fields: Array<{ fieldId: string; perm: 'R' | 'E' | 'H' }>;
+}
+
+export interface NoticeConfig {
+  channelIds: number[];
+  templateId?: string;
+}
+
 // 结束节点
 export interface EndNode extends TreeNodeBase {
   nodeType: 'end';
 }
 
-export type TreeNode = StartNode | ApproveNode | CopyNode | ConditionNode | EndNode;
+export type TreeNode =
+  | StartNode
+  | ApproveNode
+  | CopyNode
+  | ConditionNode
+  | DynamicConditionNode
+  | ParallelConditionNode
+  | ParallelNode
+  | EndNode;
 
 // 完整流程定义
 export interface ApprovalFlowTree {

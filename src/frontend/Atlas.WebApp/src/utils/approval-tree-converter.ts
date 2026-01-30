@@ -1,4 +1,23 @@
-import type { ApprovalFlowTree, TreeNode, StartNode, ApproveNode, CopyNode, ConditionNode, EndNode, ConditionBranch } from '@/types/approval-tree';
+import type {
+  ApprovalFlowTree,
+  TreeNode,
+  StartNode,
+  ApproveNode,
+  CopyNode,
+  ConditionNode,
+  EndNode,
+  ConditionBranch,
+  DynamicConditionNode,
+  ParallelConditionNode,
+  ParallelNode
+} from '@/types/approval-tree';
+import type {
+  ApprovalDefinitionJson,
+  ApprovalDefinitionMeta,
+  LfFormPayload,
+  ApprovalNode,
+  ConditionBranch as DefinitionBranch
+} from '@/types/approval-definition';
 import { nanoid } from 'nanoid';
 
 export class ApprovalTreeConverter {
@@ -67,23 +86,67 @@ export class ApprovalTreeConverter {
   /**
    * 树结构 → 后端 definitionJson（nodes + edges 格式）
    */
-  static treeToDefinitionJson(tree: ApprovalFlowTree): string {
-    const graph = this.treeToGraph(tree);
-    return JSON.stringify(graph);
+  static treeToDefinitionJson(
+    tree: ApprovalFlowTree,
+    meta?: ApprovalDefinitionMeta,
+    lfForm?: LfFormPayload
+  ): string {
+    const definition: ApprovalDefinitionJson = {
+      meta: {
+        flowName: meta?.flowName ?? tree.flowName,
+        description: meta?.description,
+        category: meta?.category,
+        visibilityScope: meta?.visibilityScope,
+        isQuickEntry: meta?.isQuickEntry,
+        isLowCodeFlow: meta?.isLowCodeFlow
+      },
+      lfForm,
+      nodes: {
+        rootNode: this.treeNodeToDefinition(tree.rootNode)
+      }
+    };
+    return JSON.stringify(definition);
   }
   
   /**
    * 后端 definitionJson → 树结构
    */
-  static definitionJsonToTree(json: string): ApprovalFlowTree {
-    if (!json || json === '{}') return this.createDefaultTree();
+  static definitionJsonToState(json: string): {
+    tree: ApprovalFlowTree;
+    meta?: ApprovalDefinitionMeta;
+    lfForm?: LfFormPayload;
+  } {
+    if (!json || json === '{}') {
+      return { tree: this.createDefaultTree() };
+    }
+
     try {
-      const graph = JSON.parse(json);
-      return this.graphToTree(graph.nodes || [], graph.edges || []);
+      const parsed = JSON.parse(json);
+      if (parsed?.nodes?.rootNode) {
+        const tree: ApprovalFlowTree = {
+          flowName: parsed.meta?.flowName ?? '',
+          rootNode: this.definitionNodeToTree(parsed.nodes.rootNode)
+        };
+        return {
+          tree,
+          meta: parsed.meta,
+          lfForm: parsed.lfForm
+        };
+      }
+
+      if (parsed?.nodes && parsed?.edges) {
+        const tree = this.graphToTree(parsed.nodes || [], parsed.edges || []);
+        return { tree };
+      }
     } catch (e) {
       console.error('Failed to parse definition json', e);
-      return this.createDefaultTree();
     }
+
+    return { tree: this.createDefaultTree() };
+  }
+
+  static definitionJsonToTree(json: string): ApprovalFlowTree {
+    return this.definitionJsonToState(json).tree;
   }
   
   // 私有辅助方法：遍历树生成图
@@ -138,9 +201,9 @@ export class ApprovalTreeConverter {
     let lastNodeId = node.id;
     let nextY = position.y + 100;
 
-    // 处理条件节点
-    if (node.nodeType === 'condition') {
-      const conditionNode = node as ConditionNode;
+    // 处理条件/动态条件/条件并行节点
+    if (node.nodeType === 'condition' || node.nodeType === 'dynamicCondition' || node.nodeType === 'parallelCondition') {
+      const conditionNode = node as ConditionNode | DynamicConditionNode | ParallelConditionNode;
       // 条件节点本身是一个分流点。
       // 它的 conditionNodes (branches) 是并行的。
       // 每个 branch 的第一个节点连接自 conditionNode。
@@ -239,12 +302,192 @@ export class ApprovalTreeConverter {
       return lastNodeId;
     }
 
+    // 处理并行审批节点
+    if (node.nodeType === 'parallel') {
+      const parallelNode = node as ParallelNode;
+      const branchCount = parallelNode.parallelNodes.length;
+      let startX = position.x - (branchCount - 1) * 100;
+
+      const branchEndIds: string[] = [];
+      parallelNode.parallelNodes.forEach((branch, index) => {
+        const branchLastId = this.traverseTree(branch, null, nodes, edges, { x: startX + index * 200, y: nextY });
+        if (branchLastId) {
+          branchEndIds.push(branchLastId);
+        }
+        edges.push({
+          source: parallelNode.id,
+          target: branch.id,
+          data: {},
+          label: branch.nodeName
+        });
+      });
+
+      if (parallelNode.childNode) {
+        const mergeY = nextY + 200;
+        const childLastId = this.traverseTree(parallelNode.childNode, null, nodes, edges, { x: position.x, y: mergeY });
+        const mergeTargetId = parallelNode.childNode.id;
+        branchEndIds.forEach((endId) => {
+          edges.push({
+            source: endId,
+            target: mergeTargetId,
+            data: {}
+          });
+        });
+        if (childLastId) lastNodeId = childLastId;
+      }
+
+      return lastNodeId;
+    }
+
     // 处理普通节点的后续
     if ('childNode' in node && (node as any).childNode) {
         return this.traverseTree((node as any).childNode, node.id, nodes, edges, { x: position.x, y: nextY });
     }
 
     return lastNodeId;
+  }
+
+  private static treeNodeToDefinition(node: TreeNode): ApprovalNode {
+    const base: ApprovalNode = {
+      nodeId: node.id,
+      nodeType: node.nodeType,
+      nodeName: node.nodeName,
+      childNode: node.childNode ? this.treeNodeToDefinition(node.childNode) : undefined
+    };
+
+    if (node.nodeType === 'approve') {
+      const approveNode = node as ApproveNode;
+      base.approverConfig = approveNode.approverConfig ?? {
+        setType: approveNode.assigneeType ?? 0,
+        signType: approveNode.approvalMode === 'sequential' ? 3 : approveNode.approvalMode === 'any' ? 2 : 1,
+        noHeaderAction: approveNode.noHeaderAction ?? 0,
+        nodeApproveList: approveNode.assigneeValue
+          ? [{ targetId: approveNode.assigneeValue, name: approveNode.assigneeValue }]
+          : []
+      };
+      base.buttonPermissionConfig = approveNode.buttonPermissionConfig;
+      base.formPermissionConfig = approveNode.formPermissionConfig;
+      base.noticeConfig = approveNode.noticeConfig;
+    }
+
+    if (node.nodeType === 'copy') {
+      const copyNode = node as CopyNode;
+      base.copyConfig = {
+        nodeApproveList: (copyNode.copyToUsers || []).map((id) => ({
+          targetId: id,
+          name: id
+        }))
+      };
+      base.formPermissionConfig = copyNode.formPermissionConfig;
+    }
+
+    if (node.nodeType === 'condition' || node.nodeType === 'dynamicCondition' || node.nodeType === 'parallelCondition') {
+      const conditionNode = node as ConditionNode | DynamicConditionNode | ParallelConditionNode;
+      base.conditionNodes = (conditionNode.conditionNodes || []).map((branch) => this.branchToDefinition(branch));
+    }
+
+    if (node.nodeType === 'parallel') {
+      const parallelNode = node as ParallelNode;
+      base.parallelNodes = (parallelNode.parallelNodes || []).map((child) => this.treeNodeToDefinition(child));
+    }
+
+    return base;
+  }
+
+  private static branchToDefinition(branch: ConditionBranch): DefinitionBranch {
+    return {
+      id: branch.id,
+      branchName: branch.branchName,
+      conditionRule: branch.conditionRule,
+      isDefault: branch.isDefault,
+      childNode: branch.childNode ? this.treeNodeToDefinition(branch.childNode) : undefined
+    };
+  }
+
+  private static definitionNodeToTree(node: ApprovalNode): TreeNode {
+    const base = {
+      id: node.nodeId,
+      nodeType: node.nodeType,
+      nodeName: node.nodeName
+    } as TreeNode;
+
+    if (node.nodeType === 'approve') {
+      const config = node.approverConfig;
+      const assigneeValue = config?.nodeApproveList?.[0]?.targetId ?? '';
+      return {
+        ...base,
+        nodeType: 'approve',
+        assigneeType: config?.setType ?? 0,
+        assigneeValue,
+        approvalMode: config?.signType === 3 ? 'sequential' : config?.signType === 2 ? 'any' : 'all',
+        noHeaderAction: config?.noHeaderAction ?? 0,
+        buttonPermissionConfig: node.buttonPermissionConfig,
+        formPermissionConfig: node.formPermissionConfig,
+        noticeConfig: node.noticeConfig,
+        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+      } as ApproveNode;
+    }
+
+    if (node.nodeType === 'copy') {
+      return {
+        ...base,
+        nodeType: 'copy',
+        copyToUsers: (node.copyConfig?.nodeApproveList || []).map((item) => item.targetId),
+        formPermissionConfig: node.formPermissionConfig,
+        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+      } as CopyNode;
+    }
+
+    if (node.nodeType === 'condition') {
+      return {
+        ...base,
+        nodeType: 'condition',
+        conditionNodes: (node.conditionNodes || []).map((branch) => this.definitionBranchToTree(branch)),
+        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+      } as ConditionNode;
+    }
+
+    if (node.nodeType === 'dynamicCondition') {
+      return {
+        ...base,
+        nodeType: 'dynamicCondition',
+        conditionNodes: (node.conditionNodes || []).map((branch) => this.definitionBranchToTree(branch)),
+        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+      } as DynamicConditionNode;
+    }
+
+    if (node.nodeType === 'parallelCondition') {
+      return {
+        ...base,
+        nodeType: 'parallelCondition',
+        conditionNodes: (node.conditionNodes || []).map((branch) => this.definitionBranchToTree(branch)),
+        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+      } as ParallelConditionNode;
+    }
+
+    if (node.nodeType === 'parallel') {
+      return {
+        ...base,
+        nodeType: 'parallel',
+        parallelNodes: (node.parallelNodes || []).map((child) => this.definitionNodeToTree(child)),
+        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+      } as ParallelNode;
+    }
+
+    return {
+      ...base,
+      childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+    } as TreeNode;
+  }
+
+  private static definitionBranchToTree(branch: DefinitionBranch): ConditionBranch {
+    return {
+      id: branch.id,
+      branchName: branch.branchName,
+      conditionRule: branch.conditionRule,
+      isDefault: branch.isDefault,
+      childNode: branch.childNode ? this.definitionNodeToTree(branch.childNode) : undefined
+    };
   }
   
   // 私有辅助方法：从图构建树
@@ -294,15 +537,16 @@ export class ApprovalTreeConverter {
              node.childNode = this.buildTreeFromNode(edges[0].target.cell || edges[0].target, allNodes, outgoing);
         }
         return node;
-    } else if (type === 'condition') {
+    } else if (type === 'condition' || type === 'dynamicCondition' || type === 'parallelCondition') {
         // 这里的逻辑比较复杂。
         // 在 X6 图中，Condition 节点可能有多个出边，每个出边代表一个分支。
         // 我们需要识别这些分支，以及它们是否汇聚。
         
-        const node: ConditionNode = {
+        const node: ConditionNode | DynamicConditionNode | ParallelConditionNode = {
             ...base,
+            nodeType: type,
             conditionNodes: []
-        };
+        } as ConditionNode;
 
         // 收集分支
         // 假设 edges 上的 data.conditionRule 对应分支条件
@@ -335,6 +579,16 @@ export class ApprovalTreeConverter {
         // 这里暂时不实现复杂的图算法，而是假设 graphToTree 主要用于从简单的 definitionJson 恢复。
         // 如果是从复杂的图（允许任意连线）恢复，可能无法完美映射到树。
         
+        return node as TreeNode;
+    } else if (type === 'parallel') {
+        const node: ParallelNode = {
+            ...base,
+            nodeType: 'parallel',
+            parallelNodes: edges.map((edge) => {
+                const targetId = edge.target.cell || edge.target;
+                return this.buildTreeFromNode(targetId, allNodes, outgoing);
+            })
+        };
         return node;
     } else if (type === 'end') {
         return { ...base } as EndNode;

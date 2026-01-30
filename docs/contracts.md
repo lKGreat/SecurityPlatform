@@ -199,6 +199,100 @@
 
 ## 示例：分页响应包装
 
+## 审批流设计器契约
+
+### 审批流定义（ApprovalFlowDefinition）
+
+字段说明（响应）：
+
+- `id`：流程定义 ID
+- `name`：流程名称
+- `definitionJson`：流程定义 JSON（设计器保存结构）
+- `version`：版本号
+- `status`：状态
+- `publishedAt`：发布时间
+- `publishedByUserId`：发布人
+- `category`：流程分类
+- `description`：流程说明
+- `visibilityScopeJson`：可见范围配置 JSON
+- `isQuickEntry`：是否快捷入口
+
+### DefinitionJson 结构（新格式）
+
+```json
+{
+  "meta": {
+    "flowName": "采购申请审批",
+    "description": "采购类流程",
+    "category": "采购",
+    "visibilityScope": {
+      "scopeType": "Department",
+      "departmentIds": [10, 11]
+    },
+    "isQuickEntry": false,
+    "isLowCodeFlow": true
+  },
+  "lfForm": {
+    "formJson": { "widgetList": [], "formConfig": {} },
+    "formFields": [
+      {
+        "fieldId": "input_1",
+        "fieldName": "金额",
+        "fieldType": "input-number",
+        "valueType": "Number",
+        "options": []
+      }
+    ]
+  },
+  "nodes": {
+    "rootNode": {
+      "nodeId": "start_1",
+      "nodeType": "start",
+      "nodeName": "发起人",
+      "childNode": {
+        "nodeId": "approve_1",
+        "nodeType": "approve",
+        "nodeName": "部门负责人",
+        "approverConfig": {
+          "setType": 1,
+          "signType": 1,
+          "noHeaderAction": 0,
+          "nodeApproveList": [
+            { "targetId": "role-manager", "name": "部门经理" }
+          ]
+        },
+        "childNode": {
+          "nodeId": "end_1",
+          "nodeType": "end",
+          "nodeName": "结束"
+        }
+      }
+    }
+  }
+}
+```
+
+### 节点模型说明
+
+- `nodeType` 支持：`start`、`approve`、`copy`、`condition`、`dynamicCondition`、`parallelCondition`、`parallel`、`end`  
+- `conditionNodes`：条件分支数组（每个分支含 `branchName`、`conditionRule`、`childNode`、`isDefault`）  
+- `parallelNodes`：并行审批分支数组  
+- `approverConfig`：审批人设置（setType/signType/noHeaderAction/人员列表）  
+- `buttonPermissionConfig`：按钮权限（发起页/审批页/查看页）  
+- `formPermissionConfig`：表单字段权限（R/E/H）  
+- `noticeConfig`：通知设置（渠道与模板）
+
+### 可见范围（VisibilityScope）
+
+```json
+{
+  "scopeType": "All|Department|Role|User",
+  "departmentIds": [1, 2],
+  "roleCodes": ["Manager", "Admin"],
+  "userIds": [100, 200]
+}
+```
+
 ```json
 {
   "success": true,

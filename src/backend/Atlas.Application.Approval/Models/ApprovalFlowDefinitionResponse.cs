@@ -27,4 +27,16 @@ public record ApprovalFlowDefinitionResponse
 
     /// <summary>发布人 ID</summary>
     public long? PublishedByUserId { get; init; }
+
+    /// <summary>流程描述/说明</summary>
+    public string? Description { get; init; }
+
+    /// <summary>流程分类</summary>
+    public string? Category { get; init; }
+
+    /// <summary>可见范围配置 JSON</summary>
+    public string? VisibilityScopeJson { get; init; }
+
+    /// <summary>是否为快捷入口</summary>
+    public bool IsQuickEntry { get; init; }
 }

@@ -1,5 +1,16 @@
 import { ref } from 'vue';
-import type { ApprovalFlowTree, TreeNode, ConditionNode, ConditionBranch, ApproveNode, CopyNode, StartNode } from '@/types/approval-tree';
+import type {
+  ApprovalFlowTree,
+  TreeNode,
+  ConditionNode,
+  ConditionBranch,
+  ApproveNode,
+  CopyNode,
+  StartNode,
+  DynamicConditionNode,
+  ParallelConditionNode,
+  ParallelNode
+} from '@/types/approval-tree';
 import { nanoid } from 'nanoid';
 import { ApprovalTreeValidator } from '@/utils/approval-tree-validator';
 import { useApprovalTreeHistory } from './useApprovalTreeHistory';
@@ -23,7 +34,9 @@ export function useApprovalTree() {
   const { pushState, undo, redo, canUndo, canRedo } = useApprovalTreeHistory();
   
   // 类型守卫：检查节点是否有 childNode
-  const hasChildNode = (node: TreeNode | ConditionBranch): node is StartNode | ApproveNode | CopyNode | ConditionNode | ConditionBranch => {
+  const hasChildNode = (
+    node: TreeNode | ConditionBranch
+  ): node is StartNode | ApproveNode | CopyNode | ConditionNode | DynamicConditionNode | ParallelConditionNode | ParallelNode | ConditionBranch => {
     if (!('nodeType' in node)) {
       // ConditionBranch 总是有 childNode
       return true;
@@ -51,8 +64,8 @@ export function useApprovalTree() {
     }
 
     // 检查 conditionNodes
-    if (current.nodeType === 'condition') {
-        const conditionNode = current as ConditionNode;
+    if (current.nodeType === 'condition' || current.nodeType === 'dynamicCondition' || current.nodeType === 'parallelCondition') {
+        const conditionNode = current as ConditionNode | DynamicConditionNode | ParallelConditionNode;
         for (const branch of conditionNode.conditionNodes) {
             if (branch.id === targetId) {
                 return { branch, parent: conditionNode };
@@ -94,8 +107,8 @@ export function useApprovalTree() {
     // target.childNode = newNode
     
     if (hasChildNode(target) && hasChildNode(newNode)) {
-        const targetWithChild = target as StartNode | ApproveNode | CopyNode | ConditionNode | ConditionBranch;
-        const newNodeWithChild = newNode as StartNode | ApproveNode | CopyNode | ConditionNode;
+        const targetWithChild = target as StartNode | ApproveNode | CopyNode | ConditionNode | DynamicConditionNode | ParallelConditionNode | ParallelNode | ConditionBranch;
+        const newNodeWithChild = newNode as StartNode | ApproveNode | CopyNode | ConditionNode | DynamicConditionNode | ParallelConditionNode | ParallelNode;
         newNodeWithChild.childNode = targetWithChild.childNode;
         targetWithChild.childNode = newNode;
     }
@@ -203,7 +216,13 @@ export function useApprovalTree() {
                 nodeName: '审批人',
                 assigneeType: 0,
                 assigneeValue: '',
-                approvalMode: 'all'
+                approvalMode: 'all',
+                approverConfig: {
+                    setType: 0,
+                    signType: 1,
+                    noHeaderAction: 0,
+                    nodeApproveList: []
+                }
             } as ApproveNode;
         case 'copy':
             return {
@@ -222,6 +241,50 @@ export function useApprovalTree() {
                     { id: nanoid(), branchName: '条件2', childNode: undefined }
                 ]
             } as ConditionNode;
+        case 'dynamicCondition':
+            return {
+                ...base,
+                nodeType: 'dynamicCondition',
+                nodeName: '动态条件',
+                conditionNodes: [
+                    { id: nanoid(), branchName: '动态条件1', childNode: undefined },
+                    { id: nanoid(), branchName: '动态条件2', childNode: undefined }
+                ]
+            } as DynamicConditionNode;
+        case 'parallelCondition':
+            return {
+                ...base,
+                nodeType: 'parallelCondition',
+                nodeName: '条件并行',
+                conditionNodes: [
+                    { id: nanoid(), branchName: '并行条件1', childNode: undefined },
+                    { id: nanoid(), branchName: '并行条件2', childNode: undefined }
+                ]
+            } as ParallelConditionNode;
+        case 'parallel':
+            return {
+                ...base,
+                nodeType: 'parallel',
+                nodeName: '并行审批',
+                parallelNodes: [
+                    {
+                        id: nanoid(),
+                        nodeType: 'approve',
+                        nodeName: '并行审批人1',
+                        assigneeType: 0,
+                        assigneeValue: '',
+                        approvalMode: 'all'
+                    } as ApproveNode,
+                    {
+                        id: nanoid(),
+                        nodeType: 'approve',
+                        nodeName: '并行审批人2',
+                        assigneeType: 0,
+                        assigneeValue: '',
+                        approvalMode: 'all'
+                    } as ApproveNode
+                ]
+            } as ParallelNode;
         default:
             throw new Error(`Unknown node type: ${nodeType}`);
     }

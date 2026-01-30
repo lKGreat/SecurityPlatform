@@ -21,4 +21,13 @@ public record ApprovalFlowDefinitionListItem
 
     /// <summary>发布时间</summary>
     public DateTimeOffset? PublishedAt { get; init; }
+
+    /// <summary>流程分类</summary>
+    public string? Category { get; init; }
+
+    /// <summary>流程描述/说明</summary>
+    public string? Description { get; init; }
+
+    /// <summary>是否为快捷入口</summary>
+    public bool IsQuickEntry { get; init; }
 }

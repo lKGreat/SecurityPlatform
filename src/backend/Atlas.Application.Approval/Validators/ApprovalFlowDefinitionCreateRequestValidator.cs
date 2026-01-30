@@ -29,107 +29,22 @@ public sealed class ApprovalFlowDefinitionCreateRequestValidator : AbstractValid
         {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
-
-            // 基础结构检查
-            if (!root.TryGetProperty("nodes", out var nodesElement) ||
-                nodesElement.ValueKind != JsonValueKind.Array)
+            if (root.TryGetProperty("nodes", out var nodesElement) &&
+                nodesElement.ValueKind == JsonValueKind.Array)
             {
-                ctx.AddFailure("DefinitionJson", "定义JSON必须包含'nodes'数组");
+                ValidateGraphDefinition(nodesElement, root, ctx);
                 return;
             }
 
-            if (!root.TryGetProperty("edges", out var edgesElement) ||
-                edgesElement.ValueKind != JsonValueKind.Array)
+            if (root.TryGetProperty("nodes", out var treeNodesElement) &&
+                treeNodesElement.ValueKind == JsonValueKind.Object &&
+                treeNodesElement.TryGetProperty("rootNode", out var rootNodeElement))
             {
-                ctx.AddFailure("DefinitionJson", "定义JSON必须包含'edges'数组");
+                ValidateTreeDefinition(rootNodeElement, ctx);
                 return;
             }
 
-            var nodeIds = new HashSet<string>();
-            var startNodeCount = 0;
-            var endNodeCount = 0;
-
-            // 验证节点
-            foreach (var node in nodesElement.EnumerateArray())
-            {
-                if (!node.TryGetProperty("id", out var idProp))
-                {
-                    ctx.AddFailure("DefinitionJson", "每个节点必须有'id'属性");
-                    return;
-                }
-
-                var nodeId = idProp.GetString();
-                if (string.IsNullOrWhiteSpace(nodeId))
-                {
-                    ctx.AddFailure("DefinitionJson", "节点ID不能为空");
-                    return;
-                }
-
-                if (nodeIds.Contains(nodeId))
-                {
-                    ctx.AddFailure("DefinitionJson", $"节点ID'{nodeId}'重复");
-                    return;
-                }
-
-                nodeIds.Add(nodeId);
-
-                // 检查节点类型
-                if (!node.TryGetProperty("type", out var typeProp))
-                {
-                    ctx.AddFailure("DefinitionJson", $"节点'{nodeId}'必须有'type'属性");
-                    return;
-                }
-
-                var nodeType = typeProp.GetString();
-                if (nodeType == "start")
-                    startNodeCount++;
-                else if (nodeType == "end")
-                    endNodeCount++;
-
-                // 如果是条件节点，验证条件规则
-                if (nodeType == "condition")
-                {
-                    if (node.TryGetProperty("conditionRule", out var ruleElement))
-                    {
-                        ValidateConditionRule(ruleElement, ctx);
-                    }
-                }
-            }
-
-            // 验证开始和结束节点数量
-            if (startNodeCount != 1)
-            {
-                ctx.AddFailure("DefinitionJson", "流程必须有且仅有1个开始节点");
-            }
-
-            if (endNodeCount < 1)
-            {
-                ctx.AddFailure("DefinitionJson", "流程必须至少有1个结束节点");
-            }
-
-            // 验证边引用合法的节点
-            foreach (var edge in edgesElement.EnumerateArray())
-            {
-                if (edge.TryGetProperty("source", out var sourceProp))
-                {
-                    var sourceId = sourceProp.GetString();
-                    if (!string.IsNullOrEmpty(sourceId) && !nodeIds.Contains(sourceId))
-                    {
-                        ctx.AddFailure("DefinitionJson", $"边引用的源节点'{sourceId}'不存在");
-                        return;
-                    }
-                }
-
-                if (edge.TryGetProperty("target", out var targetProp))
-                {
-                    var targetId = targetProp.GetString();
-                    if (!string.IsNullOrEmpty(targetId) && !nodeIds.Contains(targetId))
-                    {
-                        ctx.AddFailure("DefinitionJson", $"边引用的目标节点'{targetId}'不存在");
-                        return;
-                    }
-                }
-            }
+            ctx.AddFailure("DefinitionJson", "定义JSON结构不合法");
         }
         catch (JsonException ex)
         {
@@ -164,6 +79,174 @@ public sealed class ApprovalFlowDefinitionCreateRequestValidator : AbstractValid
                 ctx.AddFailure("DefinitionJson", $"条件规则包含不允许的内容：{pattern}");
                 return;
             }
+        }
+    }
+
+    private static void ValidateGraphDefinition(
+        JsonElement nodesElement,
+        JsonElement root,
+        ValidationContext<ApprovalFlowDefinitionCreateRequest> ctx)
+    {
+        if (!root.TryGetProperty("edges", out var edgesElement) ||
+            edgesElement.ValueKind != JsonValueKind.Array)
+        {
+            ctx.AddFailure("DefinitionJson", "定义JSON必须包含'edges'数组");
+            return;
+        }
+
+        var nodeIds = new HashSet<string>();
+        var startNodeCount = 0;
+        var endNodeCount = 0;
+
+        foreach (var node in nodesElement.EnumerateArray())
+        {
+            if (!node.TryGetProperty("id", out var idProp))
+            {
+                ctx.AddFailure("DefinitionJson", "每个节点必须有'id'属性");
+                return;
+            }
+
+            var nodeId = idProp.GetString();
+            if (string.IsNullOrWhiteSpace(nodeId))
+            {
+                ctx.AddFailure("DefinitionJson", "节点ID不能为空");
+                return;
+            }
+
+            if (!nodeIds.Add(nodeId))
+            {
+                ctx.AddFailure("DefinitionJson", $"节点ID'{nodeId}'重复");
+                return;
+            }
+
+            if (!node.TryGetProperty("type", out var typeProp))
+            {
+                ctx.AddFailure("DefinitionJson", $"节点'{nodeId}'必须有'type'属性");
+                return;
+            }
+
+            var nodeType = typeProp.GetString();
+            if (nodeType == "start")
+                startNodeCount++;
+            else if (nodeType == "end")
+                endNodeCount++;
+
+            if (nodeType == "condition" && node.TryGetProperty("conditionRule", out var ruleElement))
+            {
+                ValidateConditionRule(ruleElement, ctx);
+            }
+        }
+
+        if (startNodeCount != 1)
+        {
+            ctx.AddFailure("DefinitionJson", "流程必须有且仅有1个开始节点");
+        }
+
+        if (endNodeCount < 1)
+        {
+            ctx.AddFailure("DefinitionJson", "流程必须至少有1个结束节点");
+        }
+
+        foreach (var edge in edgesElement.EnumerateArray())
+        {
+            if (edge.TryGetProperty("source", out var sourceProp))
+            {
+                var sourceId = sourceProp.GetString();
+                if (!string.IsNullOrEmpty(sourceId) && !nodeIds.Contains(sourceId))
+                {
+                    ctx.AddFailure("DefinitionJson", $"边引用的源节点'{sourceId}'不存在");
+                    return;
+                }
+            }
+
+            if (edge.TryGetProperty("target", out var targetProp))
+            {
+                var targetId = targetProp.GetString();
+                if (!string.IsNullOrEmpty(targetId) && !nodeIds.Contains(targetId))
+                {
+                    ctx.AddFailure("DefinitionJson", $"边引用的目标节点'{targetId}'不存在");
+                    return;
+                }
+            }
+        }
+    }
+
+    private static void ValidateTreeDefinition(JsonElement rootNodeElement, ValidationContext<ApprovalFlowDefinitionCreateRequest> ctx)
+    {
+        if (!rootNodeElement.TryGetProperty("nodeType", out var typeProp) ||
+            typeProp.GetString() != "start")
+        {
+            ctx.AddFailure("DefinitionJson", "根节点必须为start类型");
+            return;
+        }
+
+        var hasEnd = false;
+        var hasApprove = false;
+
+        void Traverse(JsonElement node)
+        {
+            if (!node.TryGetProperty("nodeType", out var nodeTypeProp))
+            {
+                ctx.AddFailure("DefinitionJson", "节点必须包含nodeType");
+                return;
+            }
+
+            var nodeType = nodeTypeProp.GetString();
+            if (nodeType == "approve")
+            {
+                hasApprove = true;
+            }
+
+            if (nodeType == "end")
+            {
+                hasEnd = true;
+            }
+
+            if (nodeType == "condition" || nodeType == "dynamicCondition" || nodeType == "parallelCondition")
+            {
+                if (node.TryGetProperty("conditionNodes", out var branches) &&
+                    branches.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var branch in branches.EnumerateArray())
+                    {
+                        if (branch.TryGetProperty("childNode", out var branchChild) &&
+                            branchChild.ValueKind == JsonValueKind.Object)
+                        {
+                            Traverse(branchChild);
+                        }
+                    }
+                }
+            }
+
+            if (nodeType == "parallel")
+            {
+                if (node.TryGetProperty("parallelNodes", out var parallelNodes) &&
+                    parallelNodes.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var child in parallelNodes.EnumerateArray())
+                    {
+                        Traverse(child);
+                    }
+                }
+            }
+
+            if (node.TryGetProperty("childNode", out var childNode) &&
+                childNode.ValueKind == JsonValueKind.Object)
+            {
+                Traverse(childNode);
+            }
+        }
+
+        Traverse(rootNodeElement);
+
+        if (!hasEnd)
+        {
+            ctx.AddFailure("DefinitionJson", "流程必须至少有1个结束节点");
+        }
+
+        if (!hasApprove)
+        {
+            ctx.AddFailure("DefinitionJson", "流程必须至少有1个审批节点");
         }
     }
 }

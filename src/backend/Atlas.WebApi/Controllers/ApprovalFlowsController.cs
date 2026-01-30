@@ -101,14 +101,18 @@ public sealed class ApprovalFlowsController : ControllerBase
         [FromBody] ApprovalFlowDefinitionCreateRequest request,
         CancellationToken cancellationToken = default)
     {
-        await _createValidator.ValidateAndThrowAsync(request, cancellationToken);
-
         var updateRequest = new ApprovalFlowDefinitionUpdateRequest
         {
             Id = id,
             Name = request.Name,
-            DefinitionJson = request.DefinitionJson
+            DefinitionJson = request.DefinitionJson,
+            Description = request.Description,
+            Category = request.Category,
+            VisibilityScopeJson = request.VisibilityScopeJson,
+            IsQuickEntry = request.IsQuickEntry
         };
+
+        await _updateValidator.ValidateAndThrowAsync(updateRequest, cancellationToken);
 
         var tenantId = _tenantProvider.GetTenantId();
         var result = await _commandService.UpdateAsync(tenantId, updateRequest, cancellationToken);
