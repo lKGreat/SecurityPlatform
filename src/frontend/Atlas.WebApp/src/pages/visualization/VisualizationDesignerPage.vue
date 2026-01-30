@@ -15,7 +15,14 @@
         <a-list size="small" bordered :data-source="nodeLibrary">
           <template #renderItem="{ item }">
             <a-list-item class="node-item">
-              <a-badge :color="item.color" /> <span class="node-label">{{ item.label }}</span>
+              <a-badge :color="item.color" />
+              <span
+                class="node-label"
+                draggable="true"
+                @dragstart="(e) => handleDragStart(e, item)"
+              >
+                {{ item.label }}
+              </span>
             </a-list-item>
           </template>
         </a-list>
@@ -23,7 +30,7 @@
 
       <div class="panel panel-center">
         <div class="panel-title">画布（占位）</div>
-        <div class="canvas-placeholder">拖拽节点到此处，稍后接入 @antv/x6</div>
+        <div ref="canvasRef" class="canvas"></div>
       </div>
 
       <div class="panel panel-right">
@@ -45,8 +52,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { message } from "ant-design-vue";
+import { Graph, Addon } from "@antv/x6";
 import {
   validateVisualizationProcess,
   publishVisualizationProcess
@@ -55,7 +63,10 @@ import {
 const processName = ref("示例流程");
 const version = ref(1);
 const note = ref("");
-const canvasDefinition = reactive({ nodes: [], edges: [] });
+const canvasDefinition = reactive<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
+const canvasRef = ref<HTMLDivElement>();
+const graphRef = ref<Graph>();
+const dndRef = ref<Addon.Dnd>();
 
 const nodeLibrary = [
   { label: "开始", color: "#1890ff" },
@@ -66,7 +77,7 @@ const nodeLibrary = [
 ];
 
 const handleValidate = async () => {
-  const definitionJson = JSON.stringify(canvasDefinition);
+  const definitionJson = JSON.stringify(graphRef.value?.toJSON() ?? canvasDefinition);
   const result = await validateVisualizationProcess({ definitionJson });
   if (result.passed) {
     message.success("校验通过");
@@ -76,7 +87,7 @@ const handleValidate = async () => {
 };
 
 const handlePublish = async () => {
-  const definitionJson = JSON.stringify(canvasDefinition);
+  const definitionJson = JSON.stringify(graphRef.value?.toJSON() ?? canvasDefinition);
   const validateResult = await validateVisualizationProcess({ definitionJson });
   if (!validateResult.passed) {
     message.error("请先修复校验错误再发布");
@@ -94,6 +105,44 @@ const handlePublish = async () => {
 const handleSave = () => {
   message.success("已保存草稿（示例占位）");
 };
+
+const initGraph = () => {
+  if (!canvasRef.value) return;
+  const graph = new Graph({
+    container: canvasRef.value,
+    grid: true,
+    panning: true,
+    mousewheel: true,
+    connecting: {
+      snap: true,
+      allowBlank: false
+    }
+  });
+  graphRef.value = graph;
+  dndRef.value = new Addon.Dnd({ target: graph, scaled: false });
+};
+
+const handleDragStart = (e: DragEvent, item: { label: string; color: string }) => {
+  if (!graphRef.value || !dndRef.value) return;
+  const node = graphRef.value.createNode({
+    width: 120,
+    height: 40,
+    attrs: {
+      body: { stroke: item.color, fill: "#fff" },
+      label: { text: item.label, fill: "#262626" }
+    },
+    data: { type: item.label }
+  });
+  dndRef.value.start(node, e);
+};
+
+onMounted(() => {
+  initGraph();
+});
+
+onBeforeUnmount(() => {
+  graphRef.value?.dispose();
+});
 </script>
 
 <style scoped>
@@ -119,14 +168,15 @@ const handleSave = () => {
 }
 
 .canvas-placeholder {
+  color: #8c8c8c;
+  background: #fafafa;
+}
+
+.canvas {
   flex: 1;
   border: 1px dashed #d9d9d9;
   border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #8c8c8c;
-  background: #fafafa;
+  min-height: 520px;
 }
 
 .node-item {

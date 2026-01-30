@@ -9,6 +9,20 @@
         <a-menu-item key="audit" @click="go('/audit')">审计</a-menu-item>
         <a-menu-item key="alert" @click="go('/alert')">告警</a-menu-item>
         <a-menu-item key="approval" @click="go('/approval/flows')">审批流</a-menu-item>
+        <a-sub-menu key="visualization" title="可视化中心">
+          <a-menu-item key="visualization-center" @click="go('/visualization/center')">
+            总览
+          </a-menu-item>
+          <a-menu-item key="visualization-designer" @click="go('/visualization/designer')">
+            设计器
+          </a-menu-item>
+          <a-menu-item key="visualization-runtime" @click="go('/visualization/runtime')">
+            运行态
+          </a-menu-item>
+          <a-menu-item key="visualization-governance" @click="go('/visualization/governance')">
+            治理中心
+          </a-menu-item>
+        </a-sub-menu>
         <a-sub-menu key="workflow" title="工作流引擎">
           <a-menu-item key="workflow-designer" @click="go('/workflow/designer')">
             工作流设计器
@@ -49,6 +63,12 @@ const selectedKeys = computed(() => {
   if (route.path.startsWith("/audit")) return ["audit"];
   if (route.path.startsWith("/alert")) return ["alert"];
   if (route.path.startsWith("/approval")) return ["approval"];
+  if (route.path.startsWith("/visualization")) {
+    if (route.path.includes("designer")) return ["visualization-designer"];
+    if (route.path.includes("runtime")) return ["visualization-runtime"];
+    if (route.path.includes("governance")) return ["visualization-governance"];
+    return ["visualization-center"];
+  }
   if (route.path === "/workflow/designer") return ["workflow-designer"];
   if (route.path === "/workflow/instances") return ["workflow-instances"];
   return ["home"];
