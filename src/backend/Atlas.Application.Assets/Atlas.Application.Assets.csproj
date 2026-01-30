@@ -15,7 +15,6 @@
     <ProjectReference Include="..\Atlas.Core\Atlas.Core.csproj" />
     <ProjectReference Include="..\Atlas.Domain\Atlas.Domain.csproj" />
     <ProjectReference Include="..\Atlas.Domain.Assets\Atlas.Domain.Assets.csproj" />
-    <ProjectReference Include="..\Atlas.Application\Atlas.Application.csproj" />
   </ItemGroup>
 
 </Project>

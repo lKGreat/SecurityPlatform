@@ -122,12 +122,76 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         return new AuthTokenResult(tokenString, expires);
     }
 
+    public async Task<AuthTokenResult> CreateTokenForUserAsync(
+        long userId,
+        TenantId tenantId,
+        AuthRequestContext context,
+        CancellationToken cancellationToken)
+    {
+        var now = _timeProvider.GetUtcNow();
+        var account = await _userAccountRepository.FindByIdAsync(tenantId, userId, cancellationToken);
+        if (account is null)
+        {
+            await WriteAuditAsync(tenantId, userId.ToString(), "TOKEN_REFRESH", "FAILED", null, context, cancellationToken);
+            throw new BusinessException("账号不存在或已失效", ErrorCodes.Unauthorized);
+        }
+
+        if (!account.IsActive)
+        {
+            await WriteAuditAsync(tenantId, account.Username, "TOKEN_REFRESH", "FAILED", null, context, cancellationToken);
+            throw new BusinessException("账号已停用", ErrorCodes.Forbidden);
+        }
+
+        var locked = IsLocked(account, now, out var lockStateChanged);
+        if (lockStateChanged)
+        {
+            await _userAccountRepository.UpdateAsync(account, cancellationToken);
+        }
+
+        if (locked)
+        {
+            await WriteAuditAsync(tenantId, account.Username, "TOKEN_REFRESH", "LOCKED", null, context, cancellationToken);
+            throw new BusinessException("账号已锁定", ErrorCodes.AccountLocked);
+        }
+
+        var passwordExpiredAt = account.LastPasswordChangeAt.AddDays(_passwordPolicy.ExpirationDays);
+        if (passwordExpiredAt <= now)
+        {
+            await WriteAuditAsync(tenantId, account.Username, "TOKEN_REFRESH", "PASSWORD_EXPIRED", null, context, cancellationToken);
+            throw new BusinessException("密码已过期", ErrorCodes.PasswordExpired);
+        }
+
+        var expires = now.AddMinutes(_jwtOptions.ExpiresMinutes);
+        var roleCodes = await ResolveRoleCodesAsync(account, tenantId, cancellationToken);
+        var claims = BuildClaims(account, tenantId, roleCodes);
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            _jwtOptions.Issuer,
+            _jwtOptions.Audience,
+            claims,
+            notBefore: now.UtcDateTime,
+            expires: expires.UtcDateTime,
+            signingCredentials: credentials);
+
+        var handler = new JwtSecurityTokenHandler();
+        var tokenString = handler.WriteToken(token);
+
+        await WriteAuditAsync(tenantId, account.Username, "TOKEN_REFRESH", "SUCCESS", null, context, cancellationToken);
+        return new AuthTokenResult(tokenString, expires);
+    }
+
     private static List<Claim> BuildClaims(UserAccount account, TenantId tenantId, IReadOnlyList<string> roleCodes)
     {
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, account.Username),
-            new("tenant_id", tenantId.Value.ToString("D"))
+            new("tenant_id", tenantId.Value.ToString("D")),
+            new(ClaimTypes.NameIdentifier, account.Id.ToString()),
+            new(ClaimTypes.Name, account.Username),
+            new("display_name", account.DisplayName)
         };
 
         if (roleCodes.Count > 0)

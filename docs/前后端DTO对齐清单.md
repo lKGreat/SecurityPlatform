@@ -25,6 +25,7 @@
 
 | 模块 | 后端定义 | 前端定义 | 状态 | 备注 |
 | --- | --- | --- | --- | --- |
+| AuthProfile | `src/backend/Atlas.Application/Models/AuthProfileResult.cs` | `src/frontend/Atlas.WebApp/src/types/api.ts` | 已对齐 | `roles/permissions` 为字符串数组 |
 | Users/Roles/Permissions/Menus/Departments | `src/backend/Atlas.Application/Identity/Models` | `src/frontend/Atlas.WebApp/src/types` | 待补充 | 前端缺少 DTO 与枚举定义 |
 
 ## 审批流 DTO

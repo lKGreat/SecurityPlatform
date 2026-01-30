@@ -10,10 +10,7 @@
       <a-form-item label="密码" name="password" :rules="[{ required: true, message: '请输入密码' }]">
         <a-input-password v-model:value="form.password" />
       </a-form-item>
-      <a-space style="width: 100%">
-        <a-button type="primary" html-type="submit" :loading="loading">登录</a-button>
-        <a-button @click="goToWorkflowDesigner">工作流设计器</a-button>
-      </a-space>
+      <a-button type="primary" html-type="submit" :loading="loading">登录</a-button>
     </a-form>
   </a-card>
 </template>
@@ -22,7 +19,7 @@
 import { message } from "ant-design-vue";
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { createToken } from "@/services/api";
+import { createToken, getCurrentUser } from "@/services/api";
 
 const router = useRouter();
 const loading = ref(false);
@@ -39,21 +36,16 @@ const onFinish = async () => {
     const result = await createToken(form.tenantId, form.username, form.password);
     localStorage.setItem("access_token", result.accessToken);
     localStorage.setItem("tenant_id", form.tenantId);
+    const profile = await getCurrentUser();
+    localStorage.setItem("auth_profile", JSON.stringify(profile));
     router.push("/");
   } catch (error) {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("tenant_id");
+    localStorage.removeItem("auth_profile");
     message.error((error as Error).message || "登录失败");
   } finally {
     loading.value = false;
   }
-};
-
-const goToWorkflowDesigner = () => {
-  if (!form.tenantId.trim()) {
-    message.warning("请输入租户ID");
-    return;
-  }
-  // 允许不登录进入工作流页面，但必须先有租户ID（用于后续 API Header）
-  localStorage.setItem("tenant_id", form.tenantId.trim());
-  router.push("/workflow/designer");
 };
 </script>

@@ -4,6 +4,7 @@
 @password = P@ssw0rd!
 
 ### Create Token
+# @name login
 POST {{baseUrl}}/auth/token
 Content-Type: application/json
 X-Tenant-Id: {{tenantId}}
@@ -12,3 +13,21 @@ X-Tenant-Id: {{tenantId}}
   "username": "{{username}}",
   "password": "{{password}}"
 }
+
+###
+@accessToken = {{login.response.body.$.data.accessToken}}
+
+### Refresh Token
+POST {{baseUrl}}/auth/refresh
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Current User
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}

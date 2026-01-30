@@ -7,6 +7,7 @@ public interface IMenuRepository
 {
     Task<Menu?> FindByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken);
     Task<(IReadOnlyList<Menu> Items, int TotalCount)> QueryPageAsync(
+        TenantId tenantId,
         int pageIndex,
         int pageSize,
         string? keyword,

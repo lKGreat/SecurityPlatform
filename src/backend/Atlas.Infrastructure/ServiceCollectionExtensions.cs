@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<DatabaseBackupHostedService>();
 
         services.AddScoped<IAuthTokenService, JwtAuthTokenService>();
+        services.AddScoped<IAuthProfileService, AuthProfileService>();
         services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();

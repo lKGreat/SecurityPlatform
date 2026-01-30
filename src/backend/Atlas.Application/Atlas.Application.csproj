@@ -18,6 +18,7 @@
     <ProjectReference Include="..\Atlas.Domain\Atlas.Domain.csproj" />
     <ProjectReference Include="..\Atlas.Application.Audit\Atlas.Application.Audit.csproj" />
     <ProjectReference Include="..\Atlas.Application.Workflow\Atlas.Application.Workflow.csproj" />
+    <ProjectReference Include="..\Atlas.Domain.Approval\Atlas.Domain.Approval.csproj" />
   </ItemGroup>
 
 </Project>

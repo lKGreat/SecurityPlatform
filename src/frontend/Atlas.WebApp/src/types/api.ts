@@ -6,6 +6,15 @@ export interface ApiResponse<T> {
   data?: T;
 }
 
+export interface AuthProfile {
+  id: string;
+  username: string;
+  displayName: string;
+  tenantId: string;
+  roles: string[];
+  permissions: string[];
+}
+
 export interface PagedRequest {
   pageIndex: number;
   pageSize: number;

@@ -10,4 +10,10 @@ public interface IAuthTokenService
         TenantId tenantId,
         AuthRequestContext context,
         CancellationToken cancellationToken);
+
+    Task<AuthTokenResult> CreateTokenForUserAsync(
+        long userId,
+        TenantId tenantId,
+        AuthRequestContext context,
+        CancellationToken cancellationToken);
 }

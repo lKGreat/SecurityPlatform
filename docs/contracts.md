@@ -64,73 +64,46 @@
 
 ### 登录
 
-`POST /api/auth/login`
+`POST /auth/token`
 
-请求：
+请求（需同时携带 `X-Tenant-Id` 请求头）：
 
 ```json
 {
-  "tenantId": "00000000-0000-0000-0000-000000000001",
   "username": "admin",
-  "password": "P@ssw0rd!",
-  "captcha": "123456"
+  "password": "P@ssw0rd!"
 }
 ```
 
-响应：
+响应（`ApiResponse` 包装）：
 
 ```json
 {
   "accessToken": "jwt-access-token",
-  "refreshToken": "jwt-refresh-token",
-  "expiresIn": 3600,
-  "tokenType": "Bearer",
-  "user": {
-    "id": "1001",
-    "username": "admin",
-    "displayName": "系统管理员",
-    "tenantId": "00000000-0000-0000-0000-000000000001",
-    "roles": ["Admin"]
-  }
+  "expiresAt": "2026-01-30T10:00:00Z"
 }
 ```
 
-### 刷新令牌
+### 刷新令牌（使用当前登录态）
 
-`POST /api/auth/refresh`
+`POST /auth/refresh`
 
-请求：
+请求：无（需携带 `Authorization` 与 `X-Tenant-Id`）
 
-```json
-{
-  "refreshToken": "jwt-refresh-token"
-}
-```
-
-响应：
+响应（`ApiResponse` 包装）：
 
 ```json
 {
   "accessToken": "new-jwt-access-token",
-  "refreshToken": "new-jwt-refresh-token",
-  "expiresIn": 3600,
-  "tokenType": "Bearer"
+  "expiresAt": "2026-01-30T11:00:00Z"
 }
 ```
 
-### 注销
-
-`POST /api/auth/logout`
-
-请求：无
-
-响应：通用 `ApiResponse`
-
 ### 当前用户
 
-`GET /api/auth/me`
+`GET /auth/me`
 
-响应：
+响应（`ApiResponse` 包装）：
 
 ```json
 {
@@ -139,9 +112,17 @@
   "displayName": "系统管理员",
   "tenantId": "00000000-0000-0000-0000-000000000001",
   "roles": ["Admin"],
-  "permissions": ["Workflow.Design", "System.Manage"]
+  "permissions": ["workflow:design", "system:admin"]
 }
 ```
+
+### 注销
+
+`POST /auth/logout`
+
+请求：无（需携带 `Authorization` 与 `X-Tenant-Id`）
+
+响应：通用 `ApiResponse`
 
 ## 菜单与权限契约
 
@@ -166,7 +147,7 @@
         "path": "/workflow/designer",
         "icon": "workflow",
         "order": 10,
-        "permissionCode": "Workflow.Design"
+        "permissionCode": "workflow:design"
       }
     ]
   }
@@ -183,7 +164,7 @@
 [
   {
     "id": "perm-200",
-    "code": "Workflow.Design",
+    "code": "workflow:design",
     "name": "工作流设计",
     "module": "Workflow"
   }

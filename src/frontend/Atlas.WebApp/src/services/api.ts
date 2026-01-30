@@ -1,5 +1,6 @@
 import type {
   ApiResponse,
+  AuthProfile,
   PagedRequest,
   PagedResult,
   ApprovalFlowDefinitionListItem,
@@ -67,6 +68,35 @@ export async function createToken(tenantId: string, username: string, password: 
   }
 
   return response.data;
+}
+
+export async function refreshToken(): Promise<TokenResult> {
+  const response = await requestApi<ApiResponse<TokenResult>>("/auth/refresh", {
+    method: "POST"
+  });
+  if (!response.data) {
+    throw new Error(response.message || "刷新失败");
+  }
+
+  return response.data;
+}
+
+export async function getCurrentUser(): Promise<AuthProfile> {
+  const response = await requestApi<ApiResponse<AuthProfile>>("/auth/me");
+  if (!response.data) {
+    throw new Error(response.message || "获取用户信息失败");
+  }
+
+  return response.data;
+}
+
+export async function logout(): Promise<void> {
+  const response = await requestApi<ApiResponse<{ success: boolean }>>("/auth/logout", {
+    method: "POST"
+  });
+  if (!response.success) {
+    throw new Error(response.message || "退出失败");
+  }
 }
 
 export async function getAssetsPaged(pagedRequest: PagedRequest) {

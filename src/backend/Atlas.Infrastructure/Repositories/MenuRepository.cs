@@ -22,12 +22,14 @@ public sealed class MenuRepository : IMenuRepository
     }
 
     public async Task<(IReadOnlyList<Menu> Items, int TotalCount)> QueryPageAsync(
+        TenantId tenantId,
         int pageIndex,
         int pageSize,
         string? keyword,
         CancellationToken cancellationToken)
     {
-        var query = _db.Queryable<Menu>();
+        var query = _db.Queryable<Menu>()
+            .Where(x => x.TenantIdValue == tenantId.Value);
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             query = query.Where(x => x.Name.Contains(keyword) || x.Path.Contains(keyword));

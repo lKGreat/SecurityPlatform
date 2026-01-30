@@ -27,6 +27,7 @@ public sealed class MenuQueryService : IMenuQueryService
         var pageSize = request.PageSize < 1 ? 10 : request.PageSize;
 
         var (items, total) = await _menuRepository.QueryPageAsync(
+            tenantId,
             pageIndex,
             pageSize,
             request.Keyword,

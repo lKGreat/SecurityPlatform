@@ -183,6 +183,53 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             await db.Insertable(adminMenu).ExecuteCommandAsync(cancellationToken);
         }
 
+        var workflowPermission = await db.Queryable<Permission>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Code == "workflow:design")
+            .FirstAsync(cancellationToken);
+        if (workflowPermission is null)
+        {
+            workflowPermission = new Permission(tenantId, "Workflow Designer", "workflow:design", "Menu", idGenerator.NextId());
+            await db.Insertable(workflowPermission).ExecuteCommandAsync(cancellationToken);
+        }
+
+        var workflowRootMenu = await db.Queryable<Menu>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Path == "/workflow")
+            .FirstAsync(cancellationToken);
+        if (workflowRootMenu is null)
+        {
+            workflowRootMenu = new Menu(
+                tenantId,
+                "Workflow",
+                "/workflow",
+                idGenerator.NextId(),
+                null,
+                10,
+                "Layout",
+                "workflow",
+                null,
+                false);
+            await db.Insertable(workflowRootMenu).ExecuteCommandAsync(cancellationToken);
+        }
+
+        var workflowDesignerMenu = await db.Queryable<Menu>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Path == "/workflow/designer")
+            .FirstAsync(cancellationToken);
+        if (workflowDesignerMenu is null)
+        {
+            workflowDesignerMenu = new Menu(
+                tenantId,
+                "Workflow Designer",
+                "/workflow/designer",
+                idGenerator.NextId(),
+                workflowRootMenu.Id,
+                20,
+                "workflow/designer",
+                "workflow",
+                workflowPermission.Code,
+                false);
+            await db.Insertable(workflowDesignerMenu).ExecuteCommandAsync(cancellationToken);
+        }
+
         foreach (var roleId in roleIds)
         {
             var existsPermission = await db.Queryable<RolePermission>()
@@ -195,6 +242,16 @@ public sealed class DatabaseInitializerHostedService : IHostedService
                     cancellationToken);
             }
 
+            var existsWorkflowPermission = await db.Queryable<RolePermission>()
+                .Where(x => x.TenantIdValue == tenantId.Value && x.RoleId == roleId && x.PermissionId == workflowPermission.Id)
+                .AnyAsync();
+            if (!existsWorkflowPermission)
+            {
+                await rolePermissionRepository.AddRangeAsync(
+                    new[] { new RolePermission(tenantId, roleId, workflowPermission.Id, idGenerator.NextId()) },
+                    cancellationToken);
+            }
+
             var existsMenu = await db.Queryable<RoleMenu>()
                 .Where(x => x.TenantIdValue == tenantId.Value && x.RoleId == roleId && x.MenuId == adminMenu.Id)
                 .AnyAsync();
@@ -202,6 +259,26 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             {
                 await roleMenuRepository.AddRangeAsync(
                     new[] { new RoleMenu(tenantId, roleId, adminMenu.Id, idGenerator.NextId()) },
+                    cancellationToken);
+            }
+
+            var existsWorkflowRootMenu = await db.Queryable<RoleMenu>()
+                .Where(x => x.TenantIdValue == tenantId.Value && x.RoleId == roleId && x.MenuId == workflowRootMenu.Id)
+                .AnyAsync();
+            if (!existsWorkflowRootMenu)
+            {
+                await roleMenuRepository.AddRangeAsync(
+                    new[] { new RoleMenu(tenantId, roleId, workflowRootMenu.Id, idGenerator.NextId()) },
+                    cancellationToken);
+            }
+
+            var existsWorkflowDesignerMenu = await db.Queryable<RoleMenu>()
+                .Where(x => x.TenantIdValue == tenantId.Value && x.RoleId == roleId && x.MenuId == workflowDesignerMenu.Id)
+                .AnyAsync();
+            if (!existsWorkflowDesignerMenu)
+            {
+                await roleMenuRepository.AddRangeAsync(
+                    new[] { new RoleMenu(tenantId, roleId, workflowDesignerMenu.Id, idGenerator.NextId()) },
                     cancellationToken);
             }
         }

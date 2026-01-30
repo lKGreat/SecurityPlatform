@@ -23,7 +23,7 @@
             治理中心
           </a-menu-item>
         </a-sub-menu>
-        <a-sub-menu key="workflow" title="工作流引擎">
+        <a-sub-menu v-if="showWorkflowMenu" key="workflow" title="工作流引擎">
           <a-menu-item key="workflow-designer" @click="go('/workflow/designer')">
             工作流设计器
           </a-menu-item>
@@ -49,12 +49,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { message } from "ant-design-vue";
+import { getCurrentUser, logout as apiLogout } from "@/services/api";
+import type { AuthProfile } from "@/types/api";
 
 const collapsed = ref(false);
 const router = useRouter();
 const route = useRoute();
+const profile = ref<AuthProfile | null>(null);
 
 const isLogin = computed(() => route.name === "login");
 
@@ -82,8 +86,51 @@ const go = (path: string) => {
   router.push(path);
 };
 
-const logout = () => {
-  localStorage.removeItem("access_token");
-  router.push("/login");
+const hasPermission = (code: string) => {
+  if (!profile.value) return false;
+  const hasAdminRole = profile.value.roles.some((role) => role.toLowerCase() === "admin");
+  if (hasAdminRole) return true;
+  return profile.value.permissions.includes(code);
 };
+
+const showWorkflowMenu = computed(() => hasPermission("workflow:design"));
+
+const loadProfile = async () => {
+  const cached = localStorage.getItem("auth_profile");
+  if (cached) {
+    try {
+      profile.value = JSON.parse(cached) as AuthProfile;
+      return;
+    } catch {
+      localStorage.removeItem("auth_profile");
+    }
+  }
+
+  if (!localStorage.getItem("access_token")) {
+    return;
+  }
+
+  try {
+    const result = await getCurrentUser();
+    profile.value = result;
+    localStorage.setItem("auth_profile", JSON.stringify(result));
+  } catch (error) {
+    message.error((error as Error).message || "获取用户信息失败");
+  }
+};
+
+const logout = async () => {
+  try {
+    await apiLogout();
+  } catch (error) {
+    message.error((error as Error).message || "退出失败");
+  } finally {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("tenant_id");
+    localStorage.removeItem("auth_profile");
+    router.push("/login");
+  }
+};
+
+onMounted(loadProfile);
 </script>

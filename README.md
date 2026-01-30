@@ -20,6 +20,7 @@
 - `docs/审批流功能说明.md`
 - `docs/contracts.md`
 - `docs/前后端DTO对齐清单.md`
+- `docs/联调验收清单.md`
 - `等保2.0要求清单.md`
 
 ## 目录结构
@@ -37,3 +38,19 @@
 ## 构建与运行
 
 当前未固化构建与运行命令，待补充后在此更新。
+
+## 初始化管理员账号
+
+为满足真实登录场景，启动服务前需通过环境变量或安全配置提供 Bootstrap 管理员账号信息，避免在仓库中保存明文密码。
+
+示例（PowerShell）：
+
+```powershell
+$env:Security__BootstrapAdmin__Enabled="true"
+$env:Security__BootstrapAdmin__TenantId="00000000-0000-0000-0000-000000000001"
+$env:Security__BootstrapAdmin__Username="admin"
+$env:Security__BootstrapAdmin__Password="P@ssw0rd!"
+$env:Security__BootstrapAdmin__Roles="Admin"
+```
+
+默认启动时会创建/更新管理员账号、角色、权限与菜单，并保持幂等。
