@@ -36,6 +36,28 @@ public sealed record VisualizationInstanceSummary
     public int DurationMinutes { get; init; }
 }
 
+public sealed record VisualizationInstanceDetail
+{
+    public string Id { get; init; } = default!;
+    public string FlowName { get; init; } = default!;
+    public string Status { get; init; } = "Running";
+    public string CurrentNode { get; init; } = default!;
+    public DateTimeOffset StartedAt { get; init; }
+    public DateTimeOffset? FinishedAt { get; init; }
+    public IReadOnlyList<NodeTrace> Trace { get; init; } = Array.Empty<NodeTrace>();
+    public IReadOnlyList<string> RiskHints { get; init; } = Array.Empty<string>();
+}
+
+public sealed record NodeTrace
+{
+    public string NodeId { get; init; } = default!;
+    public string Name { get; init; } = default!;
+    public string Status { get; init; } = "Completed";
+    public int DurationMinutes { get; init; }
+    public DateTimeOffset StartedAt { get; init; }
+    public DateTimeOffset? EndedAt { get; init; }
+}
+
 public sealed record ValidateVisualizationRequest
 {
     public string DefinitionJson { get; init; } = "{}";
@@ -56,3 +78,34 @@ public sealed record VisualizationPublishResponse(
     string ProcessId,
     int Version,
     string Status);
+
+#region X6 画布定义（强类型约束）
+
+public sealed record CanvasDefinition
+{
+    public List<CanvasCell> Cells { get; init; } = new();
+}
+
+public sealed record CanvasCell
+{
+    public string Id { get; init; } = default!;
+    public string Shape { get; init; } = default!;
+    public CanvasData Data { get; init; } = new();
+    public CanvasEdge? Source { get; init; }
+    public CanvasEdge? Target { get; init; }
+}
+
+public sealed record CanvasData
+{
+    public string? Type { get; init; }
+    public string? Name { get; init; }
+    public string? Assignee { get; init; }
+    public int? TimeoutMinutes { get; init; }
+}
+
+public sealed record CanvasEdge
+{
+    public string? Cell { get; init; }
+}
+
+#endregion

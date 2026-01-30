@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@antv/x6": "^2.18.1",
+    "@antv/x6-plugin-dnd": "^2.1.1",
     "@antv/x6-vue-shape": "^2.0.8",
     "ant-design-vue": "^4.2.6",
     "vue": "^3.5.27",

@@ -32,18 +32,16 @@
     </a-row>
 
     <a-card title="风险提示" size="small" style="margin-top: 16px">
-      <a-list
-        :data-source="overview?.riskHints || []"
-        bordered
-        :renderItem="(item) => (
+      <a-list :data-source="overview?.riskHints || []" bordered>
+        <template #renderItem="{ item }">
           <a-list-item>
             <a-space>
-              <a-badge status='warning' />
+              <a-badge status="warning" />
               <span>{{ item }}</span>
             </a-space>
           </a-list-item>
-        )"
-      />
+        </template>
+      </a-list>
     </a-card>
   </a-card>
 </template>

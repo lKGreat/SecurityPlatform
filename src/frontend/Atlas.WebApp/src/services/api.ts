@@ -21,6 +21,7 @@ import type {
   VisualizationOverview,
   VisualizationProcessSummary,
   VisualizationInstanceSummary,
+  VisualizationInstanceDetail,
   PublishVisualizationRequest,
   ValidateVisualizationRequest,
   VisualizationValidationResult,
@@ -382,7 +383,14 @@ export async function getVisualizationOverview(params?: {
   from?: string;
   to?: string;
 }): Promise<VisualizationOverview> {
-  const query = params ? toQuery(params) : "";
+  const query = params
+    ? new URLSearchParams(
+        Object.entries(params).reduce((acc, [k, v]) => {
+          if (v) acc[k] = v;
+          return acc;
+        }, {} as Record<string, string>)
+      ).toString()
+    : "";
   const response = await requestApi<ApiResponse<VisualizationOverview>>(
     `/visualization/overview${query ? `?${query}` : ""}`
   );
@@ -448,6 +456,18 @@ export async function publishVisualizationProcess(
   );
   if (!response.data) {
     throw new Error(response.message || "发布失败");
+  }
+  return response.data;
+}
+
+export async function getVisualizationInstanceDetail(
+  id: string
+): Promise<VisualizationInstanceDetail> {
+  const response = await requestApi<ApiResponse<VisualizationInstanceDetail>>(
+    `/visualization/instances/${id}`
+  );
+  if (!response.data) {
+    throw new Error(response.message || "获取实例详情失败");
   }
   return response.data;
 }

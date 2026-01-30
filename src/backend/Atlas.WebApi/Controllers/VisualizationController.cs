@@ -59,6 +59,20 @@ public sealed class VisualizationController : ControllerBase
         return Ok(ApiResponse<PagedResult<VisualizationInstanceSummary>>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("instances/{id}")]
+    public async Task<ActionResult<ApiResponse<VisualizationInstanceDetail>>> GetInstance(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        var detail = await _queryService.GetInstanceAsync(id, cancellationToken);
+        if (detail == null)
+        {
+            return NotFound(ApiResponse<VisualizationInstanceDetail>.Fail("NOT_FOUND", $"实例不存在: {id}", HttpContext.TraceIdentifier));
+        }
+
+        return Ok(ApiResponse<VisualizationInstanceDetail>.Ok(detail, HttpContext.TraceIdentifier));
+    }
+
     [HttpPost("processes/validate")]
     public async Task<ActionResult<ApiResponse<VisualizationValidationResponse>>> ValidateProcess(
         [FromBody] ValidateVisualizationRequest request,

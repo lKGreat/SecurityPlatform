@@ -13,6 +13,11 @@ GET http://localhost:5000/visualization/instances?pageIndex=1&pageSize=10
 Authorization: Bearer {{access_token}}
 X-Tenant-Id: {{tenant_id}}
 
+### 可视化实例详情
+GET http://localhost:5000/visualization/instances/inst-1-1
+Authorization: Bearer {{access_token}}
+X-Tenant-Id: {{tenant_id}}
+
 ### 校验流程定义
 POST http://localhost:5000/visualization/processes/validate
 Authorization: Bearer {{access_token}}

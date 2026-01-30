@@ -17,4 +17,6 @@ public interface IVisualizationQueryService
     Task<VisualizationValidationResponse> ValidateAsync(ValidateVisualizationRequest request, CancellationToken cancellationToken);
 
     Task<VisualizationPublishResponse> PublishAsync(PublishVisualizationRequest request, CancellationToken cancellationToken);
+
+    Task<VisualizationInstanceDetail?> GetInstanceAsync(string id, CancellationToken cancellationToken);
 }

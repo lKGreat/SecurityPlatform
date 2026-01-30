@@ -228,6 +228,26 @@ export interface VisualizationInstanceSummary {
   durationMinutes: number;
 }
 
+export interface NodeTrace {
+  nodeId: string;
+  name: string;
+  status: string;
+  durationMinutes: number;
+  startedAt: string;
+  endedAt?: string;
+}
+
+export interface VisualizationInstanceDetail {
+  id: string;
+  flowName: string;
+  status: string;
+  currentNode: string;
+  startedAt: string;
+  finishedAt?: string;
+  trace: NodeTrace[];
+  riskHints: string[];
+}
+
 export interface ValidateVisualizationRequest {
   definitionJson: string;
 }
