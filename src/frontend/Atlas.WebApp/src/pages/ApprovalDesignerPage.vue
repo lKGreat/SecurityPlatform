@@ -101,7 +101,8 @@ import X6PreviewCanvas from '@/components/approval/X6PreviewCanvas.vue';
 import LfFormDesigner from '@/components/approval/LfFormDesigner.vue';
 import { useApprovalTree } from '@/composables/useApprovalTree';
 import { ApprovalTreeConverter } from '@/utils/approval-tree-converter';
-import type { ApprovalDefinitionMeta, LfFormPayload } from '@/types/approval-definition';
+import type { ApprovalDefinitionMeta, LfFormPayload, FormJson, VisibilityScope } from '@/types/approval-definition';
+import type { TreeNode, ConditionBranch } from '@/types/approval-tree';
 import {
   getApprovalFlowById,
   createApprovalFlow,
@@ -139,14 +140,14 @@ const definitionMeta = ref<ApprovalDefinitionMeta>({
   isLowCodeFlow: true
 });
 const lfFormPayload = ref<LfFormPayload | undefined>(undefined);
-const lfFormModel = ref<unknown>(undefined);
+const lfFormModel = ref<FormJson | undefined>(undefined);
 const visibilityScopeText = ref('');
 
 watch(selectedNode, (node) => {
   drawerVisible.value = !!node;
 });
 
-const handleNodeUpdate = (updatedNode: any) => {
+const handleNodeUpdate = (updatedNode: TreeNode | ConditionBranch) => {
     updateNode(updatedNode);
 };
 
@@ -168,7 +169,7 @@ const prevStep = () => {
 
 const handleLfFormFields = (fields: LfFormPayload['formFields']) => {
   lfFormPayload.value = {
-    formJson: lfFormModel.value,
+    formJson: lfFormModel.value ?? { widgetList: [] },
     formFields: fields
   };
 };
@@ -189,11 +190,8 @@ const loadFlow = async () => {
     definitionMeta.value.isQuickEntry = flow.isQuickEntry;
     if (flow.visibilityScopeJson && !definitionMeta.value.visibilityScope) {
       visibilityScopeText.value = flow.visibilityScopeJson;
-      try {
-        definitionMeta.value.visibilityScope = JSON.parse(flow.visibilityScopeJson);
-      } catch {
-        definitionMeta.value.visibilityScope = undefined;
-      }
+      const parsedScope = parseVisibilityScope(flow.visibilityScopeJson);
+      definitionMeta.value.visibilityScope = parsedScope ?? undefined;
     }
     
     if (flow.definitionJson) {
@@ -231,19 +229,19 @@ const handleSave = async () => {
   
   definitionMeta.value.flowName = flowName.value;
   if (visibilityScopeText.value.trim()) {
-    try {
-      definitionMeta.value.visibilityScope = JSON.parse(visibilityScopeText.value);
-    } catch {
+    const parsedScope = parseVisibilityScope(visibilityScopeText.value);
+    if (!parsedScope) {
       message.error('可见范围JSON格式不正确');
       return;
     }
+    definitionMeta.value.visibilityScope = parsedScope;
   } else {
     definitionMeta.value.visibilityScope = undefined;
   }
 
   if (definitionMeta.value.isLowCodeFlow) {
     lfFormPayload.value = {
-      formJson: lfFormModel.value,
+      formJson: lfFormModel.value ?? { widgetList: [] },
       formFields: lfFormPayload.value?.formFields ?? []
     };
   } else {
@@ -295,6 +293,17 @@ const handlePublish = async () => {
     router.push('/approval/flows');
   } catch (err) {
     message.error(err instanceof Error ? err.message : '发布失败');
+  }
+};
+
+const parseVisibilityScope = (value: string): VisibilityScope | null => {
+  try {
+    const parsed = JSON.parse(value) as VisibilityScope;
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!parsed.scopeType) return null;
+    return parsed;
+  } catch {
+    return null;
   }
 };
 

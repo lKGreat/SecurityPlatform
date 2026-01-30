@@ -16,7 +16,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { FlowNode } from "@/types/workflow";
-import { createNode } from "./NodePalette";
 
 interface Props {
   nodes: FlowNode[];
@@ -42,7 +41,13 @@ const onAddStart = () => {
   }
 };
 
-function nodesToTree(nodes: FlowNode[]): any[] {
+type TreeItem = {
+  key: string;
+  title: string;
+  children?: TreeItem[];
+};
+
+function nodesToTree(nodes: FlowNode[]): TreeItem[] {
   return nodes.map((n) => ({
     key: n.id,
     title: `${n.name} (${n.type})`,

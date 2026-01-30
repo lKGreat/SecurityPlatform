@@ -1,3 +1,12 @@
+import type {
+  JsonValue,
+  ApproverConfig,
+  ButtonPermissionConfig,
+  FormPermissionConfig,
+  NoticeConfig,
+  ConditionOperator
+} from './approval-definition';
+
 export type NodeType =
   | 'start'
   | 'approve'
@@ -28,6 +37,7 @@ export interface ApproveNode extends TreeNodeBase {
   assigneeValue: string;
   approvalMode: 'all' | 'any' | 'sequential';
   noHeaderAction?: 0 | 1 | 2; // 无审批人策略：不允许/跳过/转管理员
+  approverConfig?: ApproverConfig;
   buttonPermissionConfig?: ButtonPermissionConfig;
   formPermissionConfig?: FormPermissionConfig;
   noticeConfig?: NoticeConfig;
@@ -93,23 +103,8 @@ export interface ConditionBranch {
 
 export interface ConditionRule {
   field: string;
-  operator: 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'greaterThanOrEqual' | 'lessThanOrEqual' | 'in' | 'contains' | 'startsWith' | 'endsWith';
-  value: any;
-}
-
-export interface ButtonPermissionConfig {
-  startPage?: number[];
-  approvalPage?: number[];
-  viewPage?: number[];
-}
-
-export interface FormPermissionConfig {
-  fields: Array<{ fieldId: string; perm: 'R' | 'E' | 'H' }>;
-}
-
-export interface NoticeConfig {
-  channelIds: number[];
-  templateId?: string;
+  operator: ConditionOperator;
+  value: JsonValue;
 }
 
 // 结束节点

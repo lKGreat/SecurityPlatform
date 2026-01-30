@@ -8,6 +8,26 @@ export type ApprovalNodeType =
   | 'parallelCondition'
   | 'end';
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+export type ConditionOperator =
+  | 'equals'
+  | 'notEquals'
+  | 'greaterThan'
+  | 'lessThan'
+  | 'greaterThanOrEqual'
+  | 'lessThanOrEqual'
+  | 'in'
+  | 'contains'
+  | 'startsWith'
+  | 'endsWith';
+
 export interface VisibilityScope {
   scopeType: 'All' | 'Department' | 'Role' | 'User';
   departmentIds?: number[];
@@ -32,8 +52,28 @@ export interface LfFormField {
   options?: Array<{ key: string; value: string }>;
 }
 
+export interface FormWidgetOptions {
+  name?: string;
+  label?: string;
+  fieldType?: string;
+  options?: Array<{ key: string; value: string }>;
+}
+
+export interface FormWidget {
+  id?: string;
+  type?: string;
+  label?: string;
+  options?: FormWidgetOptions;
+  widgetList?: FormWidget[];
+}
+
+export interface FormJson {
+  widgetList?: FormWidget[];
+  formConfig?: { [key: string]: JsonValue };
+}
+
 export interface LfFormPayload {
-  formJson: unknown;
+  formJson: FormJson;
   formFields: LfFormField[];
 }
 
@@ -103,8 +143,8 @@ export interface ApprovalNode {
 
 export interface ConditionRule {
   field: string;
-  operator: string;
-  value: string | number | boolean | string[];
+  operator: ConditionOperator;
+  value: JsonValue;
 }
 
 export interface ConditionBranch {

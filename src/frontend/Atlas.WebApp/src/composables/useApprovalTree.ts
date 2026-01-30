@@ -273,7 +273,13 @@ export function useApprovalTree() {
                         nodeName: '并行审批人1',
                         assigneeType: 0,
                         assigneeValue: '',
-                        approvalMode: 'all'
+                        approvalMode: 'all',
+                        approverConfig: {
+                            setType: 0,
+                            signType: 1,
+                            noHeaderAction: 0,
+                            nodeApproveList: []
+                        }
                     } as ApproveNode,
                     {
                         id: nanoid(),
@@ -281,9 +287,29 @@ export function useApprovalTree() {
                         nodeName: '并行审批人2',
                         assigneeType: 0,
                         assigneeValue: '',
-                        approvalMode: 'all'
+                        approvalMode: 'all',
+                        approverConfig: {
+                            setType: 0,
+                            signType: 1,
+                            noHeaderAction: 0,
+                            nodeApproveList: []
+                        }
                     } as ApproveNode
-                ]
+                ],
+                childNode: {
+                    id: nanoid(),
+                    nodeType: 'approve',
+                    nodeName: '并行聚合审批人',
+                    assigneeType: 0,
+                    assigneeValue: '',
+                    approvalMode: 'all',
+                    approverConfig: {
+                        setType: 0,
+                        signType: 1,
+                        noHeaderAction: 0,
+                        nodeApproveList: []
+                    }
+                } as ApproveNode
             } as ParallelNode;
         default:
             throw new Error(`Unknown node type: ${nodeType}`);

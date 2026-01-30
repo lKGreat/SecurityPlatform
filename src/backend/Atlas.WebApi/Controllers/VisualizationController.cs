@@ -2,10 +2,10 @@ using Atlas.Application.Audit.Abstractions;
 using Atlas.Application.Audit.Models;
 using Atlas.Application.Visualization.Abstractions;
 using Atlas.Application.Visualization.Models;
+using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Domain.Audit.Entities;
 using Atlas.Domain.Approval.Enums;
-using Atlas.Core.Tenancy;
 using Atlas.WebApi.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,16 +22,16 @@ public sealed class VisualizationController : ControllerBase
 {
     private readonly IVisualizationQueryService _queryService;
     private readonly IAuditWriter _auditWriter;
-    private readonly ITenantProvider _tenantProvider;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
 
     public VisualizationController(
         IVisualizationQueryService queryService,
         IAuditWriter auditWriter,
-        ITenantProvider tenantProvider)
+        ICurrentUserAccessor currentUserAccessor)
     {
         _queryService = queryService;
         _auditWriter = auditWriter;
-        _tenantProvider = tenantProvider;
+        _currentUserAccessor = currentUserAccessor;
     }
 
     [HttpGet("overview")]
@@ -119,11 +119,10 @@ public sealed class VisualizationController : ControllerBase
     {
         var result = await _queryService.SaveProcessAsync(request, cancellationToken);
 
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
-        var tenantId = _tenantProvider.GetTenantId();
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
         var auditRecord = new AuditRecord(
-            tenantId: tenantId,
-            actor: userId.ToString(),
+            tenantId: currentUser.TenantId,
+            actor: currentUser.UserId.ToString(),
             action: "可视化流程-保存",
             result: "成功",
             target: $"流程ID: {result.ProcessId}",
@@ -143,11 +142,10 @@ public sealed class VisualizationController : ControllerBase
     {
         var result = await _queryService.SaveProcessAsync(request with { ProcessId = id }, cancellationToken);
 
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
-        var tenantId = _tenantProvider.GetTenantId();
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
         var auditRecord = new AuditRecord(
-            tenantId: tenantId,
-            actor: userId.ToString(),
+            tenantId: currentUser.TenantId,
+            actor: currentUser.UserId.ToString(),
             action: "可视化流程-更新",
             result: "成功",
             target: $"流程ID: {result.ProcessId}",
@@ -164,13 +162,12 @@ public sealed class VisualizationController : ControllerBase
         [FromBody] PublishVisualizationRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
-        var result = await _queryService.PublishAsync(request, userId, cancellationToken);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
+        var result = await _queryService.PublishAsync(request, currentUser.UserId, cancellationToken);
 
-        var tenantId = _tenantProvider.GetTenantId();
         var auditRecord = new AuditRecord(
-            tenantId: tenantId,
-            actor: userId.ToString(),
+            tenantId: currentUser.TenantId,
+            actor: currentUser.UserId.ToString(),
             action: "可视化流程-发布",
             result: "成功",
             target: $"流程ID: {request.ProcessId}",

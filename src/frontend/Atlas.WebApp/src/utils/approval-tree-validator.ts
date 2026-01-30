@@ -57,8 +57,8 @@ export class ApprovalTreeValidator {
         }
       }
       
-      if ('childNode' in node && (node as any).childNode) {
-        checkNode((node as any).childNode, path);
+      if ('childNode' in node && node.childNode) {
+        checkNode(node.childNode, path);
       }
     };
     

@@ -71,7 +71,8 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from "vue";
 import { message, Modal } from "ant-design-vue";
-import type { FlowDefinition, FlowValidationResult } from "@/types/workflow";
+import type { FlowDefinition, FlowNode, FlowValidationResult, NodeType } from "@/types/workflow";
+import { createNode } from "@/components/designer/NodePalette";
 import {
   loadFlowDefinition,
   saveFlowDefinition,
@@ -94,6 +95,8 @@ const definition = reactive<FlowDefinition>({
 });
 const validation = ref<FlowValidationResult | null>(null);
 const currentId = ref<string | null>(null);
+const selectedNodeId = ref<string | null>(null);
+const selectedNode = ref<FlowNode | null>(null);
 
 onMounted(async () => {
   const id = (route.params.id as string) ?? null;
@@ -131,6 +134,33 @@ const onSave = async () => {
   }
 };
 
+const onAddNode = (type: NodeType) => {
+  const node = createNode(type);
+  definition.nodes.push(node);
+  selectedNodeId.value = node.id;
+  selectedNode.value = node;
+};
+
+const onSelectNode = (id: string | undefined) => {
+  if (!id) {
+    selectedNodeId.value = null;
+    selectedNode.value = null;
+    return;
+  }
+  selectedNodeId.value = id;
+  selectedNode.value = findNodeById(definition.nodes, id);
+};
+
+const addDefaultStartEnd = () => {
+  if (definition.nodes.length > 0) return;
+  const start = createNode("start");
+  const end = createNode("end");
+  start.children = [end];
+  definition.nodes.push(start);
+  selectedNodeId.value = start.id;
+  selectedNode.value = start;
+};
+
 const onValidate = async () => {
   loading.value = true;
   try {
@@ -157,13 +187,8 @@ const onPublish = async () => {
       return;
     }
     if (!validation.value?.isValid) {
-      const proceed = await Modal.confirm({
-        title: "尚未校验或存在错误",
-        content: "确认继续发布？",
-        okText: "继续发布",
-        cancelText: "取消"
-      }).catch(() => false);
-      if (proceed === false) {
+      const proceed = await confirmProceed();
+      if (!proceed) {
         return;
       }
     }
@@ -172,6 +197,30 @@ const onPublish = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const confirmProceed = () => {
+  return new Promise<boolean>((resolve) => {
+    Modal.confirm({
+      title: "尚未校验或存在错误",
+      content: "确认继续发布？",
+      okText: "继续发布",
+      cancelText: "取消",
+      onOk: () => resolve(true),
+      onCancel: () => resolve(false)
+    });
+  });
+};
+
+const findNodeById = (nodes: FlowNode[], id: string): FlowNode | null => {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    if (node.children && node.children.length > 0) {
+      const found = findNodeById(node.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
 };
 </script>
 

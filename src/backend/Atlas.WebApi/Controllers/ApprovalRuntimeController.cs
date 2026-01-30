@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Atlas.Application.Approval.Abstractions;
 using Atlas.Application.Approval.Models;
 using Atlas.Application.Audit.Abstractions;
+using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.Approval.Enums;
@@ -24,6 +25,7 @@ public sealed class ApprovalRuntimeController : ControllerBase
     private readonly IApprovalRuntimeQueryService _queryService;
     private readonly IApprovalRuntimeCommandService _commandService;
     private readonly ITenantProvider _tenantProvider;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IValidator<ApprovalStartRequest> _startValidator;
     private readonly IAuditWriter _auditWriter;
 
@@ -31,12 +33,14 @@ public sealed class ApprovalRuntimeController : ControllerBase
         IApprovalRuntimeQueryService queryService,
         IApprovalRuntimeCommandService commandService,
         ITenantProvider tenantProvider,
+        ICurrentUserAccessor currentUserAccessor,
         IValidator<ApprovalStartRequest> startValidator,
         IAuditWriter auditWriter)
     {
         _queryService = queryService;
         _commandService = commandService;
         _tenantProvider = tenantProvider;
+        _currentUserAccessor = currentUserAccessor;
         _startValidator = startValidator;
         _auditWriter = auditWriter;
     }
@@ -51,15 +55,18 @@ public sealed class ApprovalRuntimeController : ControllerBase
     {
         await _startValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
 
-        var result = await _commandService.StartAsync(tenantId, request, userId, cancellationToken);
+        var result = await _commandService.StartAsync(
+            currentUser.TenantId,
+            request,
+            currentUser.UserId,
+            cancellationToken);
 
         // 记录审计日志
         var auditRecord = new AuditRecord(
-            tenantId,
-            userId.ToString(),
+            currentUser.TenantId,
+            currentUser.UserId.ToString(),
             "审批流程-发起",
             "成功",
             $"流程实例ID: {result.Id}, 流程定义ID: {request.DefinitionId}",
@@ -80,11 +87,15 @@ public sealed class ApprovalRuntimeController : ControllerBase
         [FromQuery] ApprovalInstanceStatus? status = null,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
 
         var request = new PagedRequest(pageIndex, pageSize, null, null, false);
-        var result = await _queryService.GetInstancesByInitiatorAsync(tenantId, userId, request, status, cancellationToken);
+        var result = await _queryService.GetInstancesByInitiatorAsync(
+            currentUser.TenantId,
+            currentUser.UserId,
+            request,
+            status,
+            cancellationToken);
         return ApiResponse<PagedResult<ApprovalInstanceListItem>>.Ok(result, HttpContext.TraceIdentifier);
     }
 
@@ -133,15 +144,18 @@ public sealed class ApprovalRuntimeController : ControllerBase
         long id,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
 
-        await _commandService.CancelInstanceAsync(tenantId, id, userId, cancellationToken);
+        await _commandService.CancelInstanceAsync(
+            currentUser.TenantId,
+            id,
+            currentUser.UserId,
+            cancellationToken);
 
         // 记录审计日志
         var auditRecord = new AuditRecord(
-            tenantId,
-            userId.ToString(),
+            currentUser.TenantId,
+            currentUser.UserId.ToString(),
             "审批流程-取消",
             "成功",
             $"流程实例ID: {id}",
@@ -162,11 +176,16 @@ public sealed class ApprovalRuntimeController : ControllerBase
         [FromQuery] long? taskId = null,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
 
         var operationService = HttpContext.RequestServices.GetRequiredService<Atlas.Application.Approval.Abstractions.IApprovalOperationService>();
-        await operationService.ExecuteOperationAsync(tenantId, instanceId, taskId, userId, request, cancellationToken);
+        await operationService.ExecuteOperationAsync(
+            currentUser.TenantId,
+            instanceId,
+            taskId,
+            currentUser.UserId,
+            request,
+            cancellationToken);
 
         var operationName = request.OperationType switch
         {
@@ -181,8 +200,8 @@ public sealed class ApprovalRuntimeController : ControllerBase
 
         // 记录审计日志
         var auditRecord = new AuditRecord(
-            tenantId,
-            userId.ToString(),
+            currentUser.TenantId,
+            currentUser.UserId.ToString(),
             $"审批流程-{operationName}",
             "成功",
             $"流程实例ID: {instanceId}, 任务ID: {taskId}",
@@ -201,11 +220,10 @@ public sealed class ApprovalRuntimeController : ControllerBase
         long id,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
 
         // 获取实例详情（包含权限校验）
-        var instance = await _queryService.GetInstanceByIdAsync(tenantId, id, cancellationToken);
+        var instance = await _queryService.GetInstanceByIdAsync(currentUser.TenantId, id, cancellationToken);
         if (instance == null)
         {
             return ApiResponse<ApprovalInstanceResponse>.Fail(
@@ -219,20 +237,25 @@ public sealed class ApprovalRuntimeController : ControllerBase
         // 2. 审批人（有任务）
         // 3. 抄送人
         // 4. 管理员
-        var hasPermission = instance.InitiatorUserId == userId;
-        var isAdmin = ControllerHelper.IsInRole(User, "Admin");
+        var hasPermission = instance.InitiatorUserId == currentUser.UserId;
+        var isAdmin = currentUser.Roles.Contains("Admin", StringComparer.OrdinalIgnoreCase);
         if (!hasPermission)
         {
             // 检查是否是审批人（AssigneeType为User时，AssigneeValue是用户ID字符串）
-            var tasks = await _queryService.GetTasksByInstanceAsync(tenantId, id, new PagedRequest(1, 100, null, null, false), cancellationToken);
+            var tasks = await _queryService.GetTasksByInstanceAsync(currentUser.TenantId, id, new PagedRequest(1, 100, null, null, false), cancellationToken);
             hasPermission = tasks.Items.Any(t => 
                 t.AssigneeType == Atlas.Domain.Approval.Enums.AssigneeType.User && 
-                t.AssigneeValue == userId.ToString());
+                t.AssigneeValue == currentUser.UserId.ToString());
 
             // 检查是否是抄送人
             if (!hasPermission)
             {
-                var copyRecords = await _queryService.GetMyCopyRecordsAsync(tenantId, userId, new PagedRequest(1, 100, null, null, false), null, cancellationToken);
+                var copyRecords = await _queryService.GetMyCopyRecordsAsync(
+                    currentUser.TenantId,
+                    currentUser.UserId,
+                    new PagedRequest(1, 100, null, null, false),
+                    null,
+                    cancellationToken);
                 hasPermission = copyRecords.Items.Any(c => c.InstanceId == id);
             }
         }
@@ -254,10 +277,10 @@ public sealed class ApprovalRuntimeController : ControllerBase
         // 记录审计日志
         var operationService = HttpContext.RequestServices.GetRequiredService<Atlas.Application.Approval.Abstractions.IApprovalOperationService>();
         await operationService.RecordUiOperationAsync(
-            tenantId,
+            currentUser.TenantId,
             id,
             null,
-            userId,
+            currentUser.UserId,
             Atlas.Domain.Approval.Enums.ApprovalOperationType.Preview,
             cancellationToken);
 
@@ -272,11 +295,10 @@ public sealed class ApprovalRuntimeController : ControllerBase
         long id,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
 
         // 获取实例详情（包含权限校验）
-        var instance = await _queryService.GetInstanceByIdAsync(tenantId, id, cancellationToken);
+        var instance = await _queryService.GetInstanceByIdAsync(currentUser.TenantId, id, cancellationToken);
         if (instance == null)
         {
             return ApiResponse<ApprovalInstanceResponse>.Fail(
@@ -286,18 +308,23 @@ public sealed class ApprovalRuntimeController : ControllerBase
         }
 
         // 权限校验：检查用户是否有权限查看该实例（与预览相同）
-        var hasPermission = instance.InitiatorUserId == userId;
-        var isAdmin = ControllerHelper.IsInRole(User, "Admin");
+        var hasPermission = instance.InitiatorUserId == currentUser.UserId;
+        var isAdmin = currentUser.Roles.Contains("Admin", StringComparer.OrdinalIgnoreCase);
         if (!hasPermission)
         {
-            var tasks = await _queryService.GetTasksByInstanceAsync(tenantId, id, new PagedRequest(1, 100, null, null, false), cancellationToken);
+            var tasks = await _queryService.GetTasksByInstanceAsync(currentUser.TenantId, id, new PagedRequest(1, 100, null, null, false), cancellationToken);
             hasPermission = tasks.Items.Any(t => 
                 t.AssigneeType == Atlas.Domain.Approval.Enums.AssigneeType.User && 
-                t.AssigneeValue == userId.ToString());
+                t.AssigneeValue == currentUser.UserId.ToString());
 
             if (!hasPermission)
             {
-                var copyRecords = await _queryService.GetMyCopyRecordsAsync(tenantId, userId, new PagedRequest(1, 100, null, null, false), null, cancellationToken);
+                var copyRecords = await _queryService.GetMyCopyRecordsAsync(
+                    currentUser.TenantId,
+                    currentUser.UserId,
+                    new PagedRequest(1, 100, null, null, false),
+                    null,
+                    cancellationToken);
                 hasPermission = copyRecords.Items.Any(c => c.InstanceId == id);
             }
         }
@@ -319,10 +346,10 @@ public sealed class ApprovalRuntimeController : ControllerBase
         // 记录审计日志
         var operationService = HttpContext.RequestServices.GetRequiredService<Atlas.Application.Approval.Abstractions.IApprovalOperationService>();
         await operationService.RecordUiOperationAsync(
-            tenantId,
+            currentUser.TenantId,
             id,
             null,
-            userId,
+            currentUser.UserId,
             Atlas.Domain.Approval.Enums.ApprovalOperationType.Print,
             cancellationToken);
 

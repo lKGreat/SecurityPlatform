@@ -60,15 +60,15 @@
     <div v-if="isParallel" class="condition-branches-wrapper">
       <div class="condition-branches">
         <div
-          v-for="(branch, index) in (node as any).parallelNodes"
+          v-for="(branch, index) in parallelNode?.parallelNodes ?? []"
           :key="branch.id"
           class="condition-branch"
         >
           <div class="branch-lines">
-            <div class="line-vertical-top" v-if="index === 0 || index === (node as any).parallelNodes.length - 1"></div>
-            <div class="line-horizontal-top" v-if="index > 0 && index < (node as any).parallelNodes.length - 1"></div>
-            <div class="line-horizontal-left" v-if="index === 0 && (node as any).parallelNodes.length > 1"></div>
-            <div class="line-horizontal-right" v-if="index === (node as any).parallelNodes.length - 1 && (node as any).parallelNodes.length > 1"></div>
+            <div class="line-vertical-top" v-if="index === 0 || index === (parallelNode?.parallelNodes.length ?? 0) - 1"></div>
+            <div class="line-horizontal-top" v-if="index > 0 && index < (parallelNode?.parallelNodes.length ?? 0) - 1"></div>
+            <div class="line-horizontal-left" v-if="index === 0 && (parallelNode?.parallelNodes.length ?? 0) > 1"></div>
+            <div class="line-horizontal-right" v-if="index === (parallelNode?.parallelNodes.length ?? 0) - 1 && (parallelNode?.parallelNodes.length ?? 0) > 1"></div>
           </div>
           <TreeNodeRenderer :node="branch" />
         </div>
@@ -88,7 +88,8 @@
 
 <script setup lang="ts">
 import { inject, computed } from 'vue';
-import type { TreeNode, ConditionNode, ConditionBranch } from '@/types/approval-tree';
+import type { Component } from 'vue';
+import type { TreeNode, ConditionNode, ConditionBranch, ParallelNode } from '@/types/approval-tree';
 import StartNodeWidget from './nodes/StartNodeWidget.vue';
 import ApproveNodeWidget from './nodes/ApproveNodeWidget.vue';
 import CopyNodeWidget from './nodes/CopyNodeWidget.vue';
@@ -119,8 +120,8 @@ const selectNode = inject(SelectNodeKey)!;
 const addConditionBranch = inject(AddConditionBranchKey)!;
 const deleteConditionBranch = inject(DeleteConditionBranchKey)!;
 
-const nodeComponent = computed(() => {
-  const map: Record<string, any> = {
+const nodeComponent = computed<Component | undefined>(() => {
+  const map: Record<string, Component> = {
     start: StartNodeWidget,
     approve: ApproveNodeWidget,
     copy: CopyNodeWidget,
@@ -140,6 +141,7 @@ const isConditionLike = computed(() =>
 );
 
 const isParallel = computed(() => props.node.nodeType === 'parallel');
+const parallelNode = computed(() => (props.node.nodeType === 'parallel' ? (props.node as ParallelNode) : undefined));
 
 const canAddChild = (node: TreeNode) => {
   return node.nodeType !== 'end';

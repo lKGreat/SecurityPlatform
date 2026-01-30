@@ -4,6 +4,7 @@ using Atlas.Application.Abstractions;
 using Atlas.Application.Audit.Abstractions;
 using Atlas.Application.Models;
 using Atlas.Core.Exceptions;
+using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.Audit.Entities;
@@ -21,6 +22,7 @@ public sealed class AuthController : ControllerBase
     private readonly IAuthTokenService _authTokenService;
     private readonly IAuthProfileService _authProfileService;
     private readonly ITenantProvider _tenantProvider;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IMapper _mapper;
     private readonly IValidator<AuthTokenRequest> _validator;
     private readonly IAuditWriter _auditWriter;
@@ -29,6 +31,7 @@ public sealed class AuthController : ControllerBase
         IAuthTokenService authTokenService,
         IAuthProfileService authProfileService,
         ITenantProvider tenantProvider,
+        ICurrentUserAccessor currentUserAccessor,
         IMapper mapper,
         IValidator<AuthTokenRequest> validator,
         IAuditWriter auditWriter)
@@ -36,6 +39,7 @@ public sealed class AuthController : ControllerBase
         _authTokenService = authTokenService;
         _authProfileService = authProfileService;
         _tenantProvider = tenantProvider;
+        _currentUserAccessor = currentUserAccessor;
         _mapper = mapper;
         _validator = validator;
         _auditWriter = auditWriter;
@@ -66,10 +70,13 @@ public sealed class AuthController : ControllerBase
     [Authorize]
     public async Task<ActionResult<ApiResponse<AuthTokenResult>>> RefreshToken(CancellationToken cancellationToken)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
         var context = new AuthRequestContext(HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString());
-        var result = await _authTokenService.CreateTokenForUserAsync(userId, tenantId, context, cancellationToken);
+        var result = await _authTokenService.CreateTokenForUserAsync(
+            currentUser.UserId,
+            currentUser.TenantId,
+            context,
+            cancellationToken);
         return Ok(ApiResponse<AuthTokenResult>.Ok(result, HttpContext.TraceIdentifier));
     }
 
@@ -77,9 +84,11 @@ public sealed class AuthController : ControllerBase
     [Authorize]
     public async Task<ActionResult<ApiResponse<AuthProfileResult>>> Me(CancellationToken cancellationToken)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
-        var profile = await _authProfileService.GetProfileAsync(userId, tenantId, cancellationToken);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
+        var profile = await _authProfileService.GetProfileAsync(
+            currentUser.UserId,
+            currentUser.TenantId,
+            cancellationToken);
         if (profile is null)
         {
             return NotFound(ApiResponse<AuthProfileResult>.Fail(ErrorCodes.NotFound, "用户不存在", HttpContext.TraceIdentifier));
@@ -92,12 +101,11 @@ public sealed class AuthController : ControllerBase
     [Authorize]
     public async Task<ActionResult<ApiResponse<object>>> Logout(CancellationToken cancellationToken)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = ControllerHelper.GetUserIdOrThrow(User);
-        var actor = User.Identity?.Name ?? userId.ToString();
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
+        var actor = string.IsNullOrWhiteSpace(currentUser.Username) ? currentUser.UserId.ToString() : currentUser.Username;
 
         var auditRecord = new AuditRecord(
-            tenantId: tenantId,
+            tenantId: currentUser.TenantId,
             actor: actor,
             action: "LOGOUT",
             result: "SUCCESS",

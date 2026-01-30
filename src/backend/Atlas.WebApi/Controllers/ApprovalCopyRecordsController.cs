@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Atlas.Application.Approval.Abstractions;
 using Atlas.Application.Approval.Models;
+using Atlas.Core.Identity;
 using Atlas.Core.Models;
-using Atlas.Core.Tenancy;
 
 namespace Atlas.WebApi.Controllers;
 
@@ -17,16 +17,16 @@ public sealed class ApprovalCopyRecordsController : ControllerBase
 {
     private readonly IApprovalRuntimeQueryService _queryService;
     private readonly IApprovalRuntimeCommandService _commandService;
-    private readonly ITenantProvider _tenantProvider;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
 
     public ApprovalCopyRecordsController(
         IApprovalRuntimeQueryService queryService,
         IApprovalRuntimeCommandService commandService,
-        ITenantProvider tenantProvider)
+        ICurrentUserAccessor currentUserAccessor)
     {
         _queryService = queryService;
         _commandService = commandService;
-        _tenantProvider = tenantProvider;
+        _currentUserAccessor = currentUserAccessor;
     }
 
     /// <summary>
@@ -39,11 +39,15 @@ public sealed class ApprovalCopyRecordsController : ControllerBase
         [FromQuery] bool? isRead = null,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = long.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
 
         var request = new PagedRequest(pageIndex, pageSize, null, null, false);
-        var result = await _queryService.GetMyCopyRecordsAsync(tenantId, userId, request, isRead, cancellationToken);
+        var result = await _queryService.GetMyCopyRecordsAsync(
+            currentUser.TenantId,
+            currentUser.UserId,
+            request,
+            isRead,
+            cancellationToken);
         return ApiResponse<PagedResult<ApprovalCopyRecordResponse>>.Ok(result, HttpContext.TraceIdentifier);
     }
 
@@ -55,10 +59,13 @@ public sealed class ApprovalCopyRecordsController : ControllerBase
         long copyRecordId,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = long.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
 
-        await _commandService.MarkCopyRecordAsReadAsync(tenantId, copyRecordId, userId, cancellationToken);
+        await _commandService.MarkCopyRecordAsReadAsync(
+            currentUser.TenantId,
+            copyRecordId,
+            currentUser.UserId,
+            cancellationToken);
         return ApiResponse<string>.Ok("已标记为已读", HttpContext.TraceIdentifier);
     }
 }

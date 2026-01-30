@@ -12,11 +12,11 @@
       </a-form-item>
       
       <!-- 审批节点属性 -->
-      <template v-if="formData.nodeType === 'approve'">
+      <template v-if="approveNode && approverConfig">
         <a-tabs>
           <a-tab-pane key="approver" tab="审批设置">
             <a-form-item label="审批人类型">
-              <a-select v-model:value="formData.approverConfig.setType">
+              <a-select v-model:value="approverConfig.setType">
                 <a-select-option :value="0">指定人员</a-select-option>
                 <a-select-option :value="1">指定角色</a-select-option>
                 <a-select-option :value="2">部门负责人</a-select-option>
@@ -36,14 +36,14 @@
               />
             </a-form-item>
             <a-form-item label="审批方式">
-              <a-select v-model:value="formData.approverConfig.signType">
+              <a-select v-model:value="approverConfig.signType">
                 <a-select-option :value="1">会签</a-select-option>
                 <a-select-option :value="2">或签</a-select-option>
                 <a-select-option :value="3">顺序会签</a-select-option>
               </a-select>
             </a-form-item>
             <a-form-item label="无审批人策略">
-              <a-select v-model:value="formData.approverConfig.noHeaderAction">
+              <a-select v-model:value="approverConfig.noHeaderAction">
                 <a-select-option :value="0">不允许发起</a-select-option>
                 <a-select-option :value="1">跳过</a-select-option>
                 <a-select-option :value="2">转交管理员</a-select-option>
@@ -63,17 +63,17 @@
           </a-tab-pane>
           <a-tab-pane key="legacy" tab="兼容字段">
             <a-form-item label="审批人类型(旧)">
-              <a-select v-model:value="formData.assigneeType">
+              <a-select v-model:value="approveNode.assigneeType">
                 <a-select-option :value="0">指定用户</a-select-option>
                 <a-select-option :value="1">按角色</a-select-option>
                 <a-select-option :value="2">部门负责人</a-select-option>
               </a-select>
             </a-form-item>
             <a-form-item label="审批人值(旧)">
-              <a-input v-model:value="formData.assigneeValue" placeholder="用户ID/角色代码/部门ID" />
+              <a-input v-model:value="approveNode.assigneeValue" placeholder="用户ID/角色代码/部门ID" />
             </a-form-item>
             <a-form-item label="审批模式(旧)">
-              <a-select v-model:value="formData.approvalMode">
+              <a-select v-model:value="approveNode.approvalMode">
                 <a-select-option value="all">会签（全部通过）</a-select-option>
                 <a-select-option value="any">或签（任一通过）</a-select-option>
                 <a-select-option value="sequential">顺序会签</a-select-option>
@@ -84,31 +84,31 @@
       </template>
 
       <!-- 抄送节点属性 -->
-      <template v-if="formData.nodeType === 'copy'">
+      <template v-if="copyNode">
         <a-form-item label="抄送人">
-           <a-select mode="tags" v-model:value="formData.copyToUsers" placeholder="输入用户ID" />
+           <a-select mode="tags" v-model:value="copyNode.copyToUsers" placeholder="输入用户ID" />
         </a-form-item>
       </template>
 
       <!-- 条件分支属性 -->
-      <template v-if="'branchName' in formData">
+      <template v-if="branchNode">
          <a-form-item label="分支名称">
-            <a-input v-model:value="formData.branchName" />
+            <a-input v-model:value="branchNode.branchName" />
          </a-form-item>
          <a-form-item label="默认分支">
-            <a-switch v-model:checked="formData.isDefault" />
+            <a-switch v-model:checked="branchNode.isDefault" />
          </a-form-item>
-         <template v-if="!formData.isDefault">
+         <template v-if="!branchNode.isDefault">
              <a-divider>条件规则</a-divider>
-             <div v-if="!formData.conditionRule">
+             <div v-if="!branchNode.conditionRule">
                  <a-button type="dashed" block @click="initConditionRule">添加规则</a-button>
              </div>
              <div v-else>
                  <a-form-item label="字段">
-                    <a-input v-model:value="formData.conditionRule.field" />
+                    <a-input v-model:value="branchNode.conditionRule.field" />
                  </a-form-item>
                  <a-form-item label="运算符">
-                    <a-select v-model:value="formData.conditionRule.operator">
+                    <a-select v-model:value="branchNode.conditionRule.operator">
                         <a-select-option value="equals">等于</a-select-option>
                         <a-select-option value="notEquals">不等于</a-select-option>
                         <a-select-option value="greaterThan">大于</a-select-option>
@@ -117,7 +117,7 @@
                     </a-select>
                  </a-form-item>
                  <a-form-item label="值">
-                    <a-input v-model:value="formData.conditionRule.value" />
+                    <a-input v-model:value="branchNode.conditionRule.value" />
                  </a-form-item>
                  <a-button type="link" danger @click="removeConditionRule">删除规则</a-button>
              </div>
@@ -132,9 +132,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { message } from 'ant-design-vue';
-import type { TreeNode, ConditionBranch } from '@/types/approval-tree';
+import type { TreeNode, ConditionBranch, ApproveNode, CopyNode } from '@/types/approval-tree';
+import type { ButtonPermissionConfig, FormPermissionConfig, NoticeConfig } from '@/types/approval-definition';
 
 const props = defineProps<{
   open: boolean;
@@ -146,30 +147,36 @@ const emit = defineEmits<{
   'update': [node: TreeNode | ConditionBranch];
 }>();
 
-const formData = ref<any>(null);
+const formData = ref<TreeNode | ConditionBranch | null>(null);
 const approverTargets = ref<string[]>([]);
 const buttonPermissionText = ref('');
 const formPermissionText = ref('');
 const noticeConfigText = ref('');
+const approveNode = ref<ApproveNode | null>(null);
+const copyNode = ref<CopyNode | null>(null);
+const branchNode = ref<ConditionBranch | null>(null);
+const approverConfig = computed(() => approveNode.value?.approverConfig ?? null);
 
 watch(() => props.node, (newNode) => {
   if (newNode) {
-    formData.value = JSON.parse(JSON.stringify(newNode));
-    if (formData.value?.nodeType === 'approve') {
+    formData.value = structuredClone(newNode);
+    syncNodeRefs();
+    if (approveNode.value) {
       ensureApproverConfig();
-      approverTargets.value = (formData.value.approverConfig.nodeApproveList || []).map((item: any) => item.targetId);
-      buttonPermissionText.value = formData.value.buttonPermissionConfig
-        ? JSON.stringify(formData.value.buttonPermissionConfig, null, 2)
+      approverTargets.value = (approveNode.value.approverConfig?.nodeApproveList ?? []).map((item) => item.targetId);
+      buttonPermissionText.value = approveNode.value.buttonPermissionConfig
+        ? JSON.stringify(approveNode.value.buttonPermissionConfig, null, 2)
         : '';
-      formPermissionText.value = formData.value.formPermissionConfig
-        ? JSON.stringify(formData.value.formPermissionConfig, null, 2)
+      formPermissionText.value = approveNode.value.formPermissionConfig
+        ? JSON.stringify(approveNode.value.formPermissionConfig, null, 2)
         : '';
-      noticeConfigText.value = formData.value.noticeConfig
-        ? JSON.stringify(formData.value.noticeConfig, null, 2)
+      noticeConfigText.value = approveNode.value.noticeConfig
+        ? JSON.stringify(approveNode.value.noticeConfig, null, 2)
         : '';
     }
   } else {
     formData.value = null;
+    syncNodeRefs();
   }
 }, { immediate: true });
 
@@ -179,7 +186,7 @@ const handleClose = () => {
 
 const handleSave = () => {
   if (formData.value) {
-    if (formData.value.nodeType === 'approve') {
+    if (isApproveNode(formData.value)) {
       syncApproverTargets();
       if (!applyExtraConfigs()) {
         return;
@@ -191,58 +198,88 @@ const handleSave = () => {
 };
 
 const ensureApproverConfig = () => {
-  if (!formData.value.approverConfig) {
-    formData.value.approverConfig = {
-      setType: formData.value.assigneeType ?? 0,
-      signType: formData.value.approvalMode === 'sequential' ? 3 : formData.value.approvalMode === 'any' ? 2 : 1,
+  const current = formData.value;
+  if (!current || !isApproveNode(current)) return;
+  if (!current.approverConfig) {
+    current.approverConfig = {
+      setType: current.assigneeType ?? 0,
+      signType: current.approvalMode === 'sequential' ? 3 : current.approvalMode === 'any' ? 2 : 1,
       noHeaderAction: 0,
-      nodeApproveList: formData.value.assigneeValue
-        ? [{ targetId: formData.value.assigneeValue, name: formData.value.assigneeValue }]
+      nodeApproveList: current.assigneeValue
+        ? [{ targetId: current.assigneeValue, name: current.assigneeValue }]
         : []
     };
   }
 };
 
 const syncApproverTargets = () => {
-  if (!formData.value?.approverConfig) return;
-  formData.value.approverConfig.nodeApproveList = approverTargets.value.map((targetId) => ({
+  const current = formData.value;
+  if (!current || !isApproveNode(current)) return;
+  if (!current.approverConfig) return;
+  current.approverConfig.nodeApproveList = approverTargets.value.map((targetId) => ({
     targetId,
     name: targetId
   }));
 };
 
 const applyExtraConfigs = () => {
-  const parseJson = (text: string, label: string) => {
-    if (!text.trim()) return undefined;
+  const current = formData.value;
+  if (!current || !isApproveNode(current)) return false;
+
+  const parseJson = <T>(text: string, label: string): T | null => {
+    if (!text.trim()) return null;
     try {
-      return JSON.parse(text);
+      return JSON.parse(text) as T;
     } catch {
       message.error(`${label}JSON格式不正确`);
       return null;
     }
   };
 
-  const buttonConfig = parseJson(buttonPermissionText.value, '按钮权限');
+  const buttonConfig = parseJson<ButtonPermissionConfig>(buttonPermissionText.value, '按钮权限');
   if (buttonConfig === null) return false;
-  const formPermConfig = parseJson(formPermissionText.value, '表单权限');
+  const formPermConfig = parseJson<FormPermissionConfig>(formPermissionText.value, '表单权限');
   if (formPermConfig === null) return false;
-  const noticeConfig = parseJson(noticeConfigText.value, '通知配置');
+  const noticeConfig = parseJson<NoticeConfig>(noticeConfigText.value, '通知配置');
   if (noticeConfig === null) return false;
 
-  formData.value.buttonPermissionConfig = buttonConfig;
-  formData.value.formPermissionConfig = formPermConfig;
-  formData.value.noticeConfig = noticeConfig;
+  current.buttonPermissionConfig = buttonConfig;
+  current.formPermissionConfig = formPermConfig;
+  current.noticeConfig = noticeConfig;
   return true;
 };
+
+const isApproveNode = (node: TreeNode | ConditionBranch): node is ApproveNode => {
+  return 'nodeType' in node && node.nodeType === 'approve';
+};
+
+const isCopyNode = (node: TreeNode | ConditionBranch): node is CopyNode => {
+  return 'nodeType' in node && node.nodeType === 'copy';
+};
+
+const isConditionBranch = (node: TreeNode | ConditionBranch): node is ConditionBranch => {
+  return 'branchName' in node;
+};
+
+const syncNodeRefs = () => {
+  const current = formData.value;
+  approveNode.value = current && isApproveNode(current) ? current : null;
+  copyNode.value = current && isCopyNode(current) ? current : null;
+  branchNode.value = current && isConditionBranch(current) ? current : null;
+};
 const initConditionRule = () => {
-    formData.value.conditionRule = {
-        field: '',
-        operator: 'equals',
-        value: ''
-    };
+  const current = formData.value;
+  if (!current || !isConditionBranch(current)) return;
+  current.conditionRule = {
+    field: '',
+    operator: 'equals',
+    value: ''
+  };
 };
 
 const removeConditionRule = () => {
-    formData.value.conditionRule = undefined;
+  const current = formData.value;
+  if (!current || !isConditionBranch(current)) return;
+  current.conditionRule = undefined;
 };
 </script>

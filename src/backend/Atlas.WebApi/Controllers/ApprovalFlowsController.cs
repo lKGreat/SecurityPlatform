@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Atlas.Application.Approval.Abstractions;
 using Atlas.Application.Approval.Models;
+using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.Approval.Enums;
@@ -20,6 +21,7 @@ public sealed class ApprovalFlowsController : ControllerBase
     private readonly IApprovalFlowQueryService _queryService;
     private readonly IApprovalFlowCommandService _commandService;
     private readonly ITenantProvider _tenantProvider;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IValidator<ApprovalFlowDefinitionCreateRequest> _createValidator;
     private readonly IValidator<ApprovalFlowDefinitionUpdateRequest> _updateValidator;
 
@@ -27,12 +29,14 @@ public sealed class ApprovalFlowsController : ControllerBase
         IApprovalFlowQueryService queryService,
         IApprovalFlowCommandService commandService,
         ITenantProvider tenantProvider,
+        ICurrentUserAccessor currentUserAccessor,
         IValidator<ApprovalFlowDefinitionCreateRequest> createValidator,
         IValidator<ApprovalFlowDefinitionUpdateRequest> updateValidator)
     {
         _queryService = queryService;
         _commandService = commandService;
         _tenantProvider = tenantProvider;
+        _currentUserAccessor = currentUserAccessor;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
@@ -128,10 +132,13 @@ public sealed class ApprovalFlowsController : ControllerBase
         long id,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantProvider.GetTenantId();
-        var userId = Atlas.WebApi.Helpers.ControllerHelper.GetUserIdOrThrow(User);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
 
-        await _commandService.PublishAsync(tenantId, id, userId, cancellationToken);
+        await _commandService.PublishAsync(
+            currentUser.TenantId,
+            id,
+            currentUser.UserId,
+            cancellationToken);
         return ApiResponse<string>.Ok("已发布", HttpContext.TraceIdentifier);
     }
 

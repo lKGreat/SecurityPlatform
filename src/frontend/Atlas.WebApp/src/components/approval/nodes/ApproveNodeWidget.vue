@@ -36,7 +36,16 @@ const handleDelete = () => {
 };
 
 const getAssigneeLabel = (node: ApproveNode) => {
-  const typeMap = { 0: '指定用户', 1: '角色', 2: '部门负责人' };
+  const typeMap: Record<ApproveNode['assigneeType'], string> = {
+    0: '指定用户',
+    1: '角色',
+    2: '部门负责人',
+    3: 'HRBP',
+    4: '直属领导',
+    5: '层级领导',
+    6: '发起人',
+    7: '发起人自选'
+  };
   return `${typeMap[node.assigneeType]}: ${node.assigneeValue}`;
 };
 </script>

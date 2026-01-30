@@ -9,24 +9,27 @@ import type {
   ConditionBranch,
   DynamicConditionNode,
   ParallelConditionNode,
-  ParallelNode
+  ParallelNode,
+  NodeType
 } from '@/types/approval-tree';
 import type {
   ApprovalDefinitionJson,
   ApprovalDefinitionMeta,
   LfFormPayload,
   ApprovalNode,
-  ConditionBranch as DefinitionBranch
+  ConditionBranch as DefinitionBranch,
+  JsonValue
 } from '@/types/approval-definition';
+import type { Node, Edge } from '@antv/x6';
 import { nanoid } from 'nanoid';
 
 export class ApprovalTreeConverter {
   /**
    * 树结构 → X6 图结构（用于渲染或保存）
    */
-  static treeToGraph(tree: ApprovalFlowTree): { nodes: any[], edges: any[] } {
-    const nodes: any[] = [];
-    const edges: any[] = [];
+  static treeToGraph(tree: ApprovalFlowTree): { nodes: Node.Metadata[], edges: Edge.Metadata[] } {
+    const nodes: Node.Metadata[] = [];
+    const edges: Edge.Metadata[] = [];
     
     // 递归遍历树节点，生成 X6 节点和边
     this.traverseTree(tree.rootNode, null, nodes, edges, { x: 100, y: 100 });
@@ -37,7 +40,7 @@ export class ApprovalTreeConverter {
   /**
    * X6 图结构 → 树结构（从图反推树，用于编辑现有流程）
    */
-  static graphToTree(nodes: any[], edges: any[]): ApprovalFlowTree {
+  static graphToTree(nodes: GraphNode[], edges: GraphEdge[]): ApprovalFlowTree {
     if (!nodes || nodes.length === 0) {
       // 返回默认空树
       return this.createDefaultTree();
@@ -51,19 +54,29 @@ export class ApprovalTreeConverter {
     }
     
     // 构建邻接表方便查找
-    const outgoing = new Map<string, any[]>();
+    const outgoing = new Map<string, GraphEdge[]>();
     edges.forEach(edge => {
-      const source = edge.source?.cell || edge.source;
+      const source = getTerminalCellId(edge.source);
+      if (!source) return;
       if (!outgoing.has(source)) outgoing.set(source, []);
       outgoing.get(source)?.push(edge);
     });
 
     // 递归构建树
-    const rootNode = this.buildTreeFromNode(startNodeData.id, nodes, outgoing);
-    
+    const startNodeId = startNodeData.id;
+    if (!startNodeId) {
+      console.warn('开始节点缺少ID, 返回默认树');
+      return this.createDefaultTree();
+    }
+    const rootNode = this.buildTreeFromNode(startNodeId, nodes, outgoing);
+    if (rootNode.nodeType !== 'start') {
+      console.warn('开始节点类型异常, 返回默认树');
+      return this.createDefaultTree();
+    }
+
     return {
       flowName: '',
-      rootNode: rootNode as StartNode
+      rootNode
     };
   }
 
@@ -123,9 +136,13 @@ export class ApprovalTreeConverter {
     try {
       const parsed = JSON.parse(json);
       if (parsed?.nodes?.rootNode) {
+        const rootNode = this.definitionNodeToTree(parsed.nodes.rootNode);
+        if (rootNode.nodeType !== 'start') {
+          return { tree: this.createDefaultTree(), meta: parsed.meta, lfForm: parsed.lfForm };
+        }
         const tree: ApprovalFlowTree = {
           flowName: parsed.meta?.flowName ?? '',
-          rootNode: this.definitionNodeToTree(parsed.nodes.rootNode)
+          rootNode
         };
         return {
           tree,
@@ -153,14 +170,14 @@ export class ApprovalTreeConverter {
   private static traverseTree(
     node: TreeNode | undefined,
     parentId: string | null,
-    nodes: any[],
-    edges: any[],
+    nodes: GraphNode[],
+    edges: GraphEdge[],
     position: { x: number, y: number }
   ): string | null {
     if (!node) return null;
 
     // 添加节点
-    const nodeData = {
+    const nodeData: GraphNodeData = {
         id: node.id,
         type: node.nodeType,
         label: node.nodeName,
@@ -238,12 +255,14 @@ export class ApprovalTreeConverter {
             }
 
             // 添加带条件的连线
+            const branchEdgeData: GraphEdgeData = {};
+            if (branch.conditionRule) {
+                branchEdgeData.conditionRule = branch.conditionRule;
+            }
             edges.push({
                 source: conditionNode.id,
                 target: branchFirstNodeId,
-                data: {
-                    conditionRule: branch.conditionRule
-                },
+                data: branchEdgeData,
                 label: branch.branchName // 可选：在线上显示分支名
             });
          } else {
@@ -270,15 +289,17 @@ export class ApprovalTreeConverter {
           
           branchEndIds.forEach((endId, index) => {
               const branch = conditionNode.conditionNodes[index];
+              const mergeEdgeData: GraphEdgeData = {};
+              if (branch.conditionRule) {
+                  mergeEdgeData.conditionRule = branch.conditionRule;
+              }
               
               if (endId === conditionNode.id) {
                   // 空分支，直接从 conditionNode 连到 mergeTargetId
                   edges.push({
                       source: conditionNode.id,
                       target: mergeTargetId,
-                      data: {
-                          conditionRule: branch.conditionRule
-                      },
+                      data: mergeEdgeData,
                       label: branch.branchName
                   });
               } else {
@@ -340,19 +361,20 @@ export class ApprovalTreeConverter {
     }
 
     // 处理普通节点的后续
-    if ('childNode' in node && (node as any).childNode) {
-        return this.traverseTree((node as any).childNode, node.id, nodes, edges, { x: position.x, y: nextY });
+    if ('childNode' in node && node.childNode) {
+        return this.traverseTree(node.childNode, node.id, nodes, edges, { x: position.x, y: nextY });
     }
 
     return lastNodeId;
   }
 
   private static treeNodeToDefinition(node: TreeNode): ApprovalNode {
+    const childNode = 'childNode' in node ? node.childNode : undefined;
     const base: ApprovalNode = {
       nodeId: node.id,
       nodeType: node.nodeType,
       nodeName: node.nodeName,
-      childNode: node.childNode ? this.treeNodeToDefinition(node.childNode) : undefined
+      childNode: childNode ? this.treeNodeToDefinition(childNode) : undefined
     };
 
     if (node.nodeType === 'approve') {
@@ -409,75 +431,73 @@ export class ApprovalTreeConverter {
       id: node.nodeId,
       nodeType: node.nodeType,
       nodeName: node.nodeName
-    } as TreeNode;
+    };
 
-    if (node.nodeType === 'approve') {
-      const config = node.approverConfig;
-      const assigneeValue = config?.nodeApproveList?.[0]?.targetId ?? '';
-      return {
-        ...base,
-        nodeType: 'approve',
-        assigneeType: config?.setType ?? 0,
-        assigneeValue,
-        approvalMode: config?.signType === 3 ? 'sequential' : config?.signType === 2 ? 'any' : 'all',
-        noHeaderAction: config?.noHeaderAction ?? 0,
-        buttonPermissionConfig: node.buttonPermissionConfig,
-        formPermissionConfig: node.formPermissionConfig,
-        noticeConfig: node.noticeConfig,
-        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
-      } as ApproveNode;
+    switch (node.nodeType) {
+      case 'approve': {
+        const config = node.approverConfig;
+        const assigneeValue = config?.nodeApproveList?.[0]?.targetId ?? '';
+        return {
+          ...base,
+          nodeType: 'approve',
+          assigneeType: config?.setType ?? 0,
+          assigneeValue,
+          approvalMode: config?.signType === 3 ? 'sequential' : config?.signType === 2 ? 'any' : 'all',
+          noHeaderAction: config?.noHeaderAction ?? 0,
+          approverConfig: config ?? undefined,
+          buttonPermissionConfig: node.buttonPermissionConfig,
+          formPermissionConfig: node.formPermissionConfig,
+          noticeConfig: node.noticeConfig,
+          childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+        } as ApproveNode;
+      }
+      case 'copy':
+        return {
+          ...base,
+          nodeType: 'copy',
+          copyToUsers: (node.copyConfig?.nodeApproveList || []).map((item) => item.targetId),
+          formPermissionConfig: node.formPermissionConfig,
+          childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+        } as CopyNode;
+      case 'condition':
+        return {
+          ...base,
+          nodeType: 'condition',
+          conditionNodes: (node.conditionNodes || []).map((branch) => this.definitionBranchToTree(branch)),
+          childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+        } as ConditionNode;
+      case 'dynamicCondition':
+        return {
+          ...base,
+          nodeType: 'dynamicCondition',
+          conditionNodes: (node.conditionNodes || []).map((branch) => this.definitionBranchToTree(branch)),
+          childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+        } as DynamicConditionNode;
+      case 'parallelCondition':
+        return {
+          ...base,
+          nodeType: 'parallelCondition',
+          conditionNodes: (node.conditionNodes || []).map((branch) => this.definitionBranchToTree(branch)),
+          childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+        } as ParallelConditionNode;
+      case 'parallel':
+        return {
+          ...base,
+          nodeType: 'parallel',
+          parallelNodes: (node.parallelNodes || []).map((child) => this.definitionNodeToTree(child)),
+          childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+        } as ParallelNode;
+      case 'start':
+        return {
+          ...base,
+          nodeType: 'start',
+          childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+        } as StartNode;
+      case 'end':
+        return { ...base, nodeType: 'end' } as EndNode;
+      default:
+        return { ...base, nodeType: 'end' } as EndNode;
     }
-
-    if (node.nodeType === 'copy') {
-      return {
-        ...base,
-        nodeType: 'copy',
-        copyToUsers: (node.copyConfig?.nodeApproveList || []).map((item) => item.targetId),
-        formPermissionConfig: node.formPermissionConfig,
-        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
-      } as CopyNode;
-    }
-
-    if (node.nodeType === 'condition') {
-      return {
-        ...base,
-        nodeType: 'condition',
-        conditionNodes: (node.conditionNodes || []).map((branch) => this.definitionBranchToTree(branch)),
-        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
-      } as ConditionNode;
-    }
-
-    if (node.nodeType === 'dynamicCondition') {
-      return {
-        ...base,
-        nodeType: 'dynamicCondition',
-        conditionNodes: (node.conditionNodes || []).map((branch) => this.definitionBranchToTree(branch)),
-        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
-      } as DynamicConditionNode;
-    }
-
-    if (node.nodeType === 'parallelCondition') {
-      return {
-        ...base,
-        nodeType: 'parallelCondition',
-        conditionNodes: (node.conditionNodes || []).map((branch) => this.definitionBranchToTree(branch)),
-        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
-      } as ParallelConditionNode;
-    }
-
-    if (node.nodeType === 'parallel') {
-      return {
-        ...base,
-        nodeType: 'parallel',
-        parallelNodes: (node.parallelNodes || []).map((child) => this.definitionNodeToTree(child)),
-        childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
-      } as ParallelNode;
-    }
-
-    return {
-      ...base,
-      childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
-    } as TreeNode;
   }
 
   private static definitionBranchToTree(branch: DefinitionBranch): ConditionBranch {
@@ -493,65 +513,79 @@ export class ApprovalTreeConverter {
   // 私有辅助方法：从图构建树
   private static buildTreeFromNode(
     nodeId: string,
-    allNodes: any[],
-    outgoing: Map<string, any[]>
+    allNodes: GraphNode[],
+    outgoing: Map<string, GraphEdge[]>
   ): TreeNode {
     const nodeData = allNodes.find(n => n.id === nodeId);
     if (!nodeData) throw new Error(`Node ${nodeId} not found`);
 
-    const type = nodeData.data?.type || nodeData.type;
-    const base: any = {
-        id: nodeData.id,
-        nodeType: type,
-        nodeName: nodeData.data?.label || nodeData.label || '未命名',
+    const data = (nodeData.data ?? {}) as GraphNodeData;
+    const type = data.type || nodeData.type;
+    const normalizedType = normalizeNodeType(type);
+    const resolvedNodeId = nodeData.id ?? nanoid();
+    const base = {
+        id: resolvedNodeId,
+        nodeType: normalizedType,
+        nodeName: data.label || nodeData.label || '未命名',
     };
 
     // 获取出边
-    const edges = outgoing.get(nodeId) || [];
+    const edges = outgoing.get(resolvedNodeId) || [];
 
-    if (type === 'start') {
-        const node: StartNode = { ...base };
+    if (normalizedType === 'start') {
+        const node: StartNode = { ...base, nodeType: 'start' };
         if (edges.length > 0) {
             // 假设 Start 只有一个后续
-            node.childNode = this.buildTreeFromNode(edges[0].target.cell || edges[0].target, allNodes, outgoing);
+            const targetId = getEdgeTarget(edges[0].target);
+            if (targetId) {
+              node.childNode = this.buildTreeFromNode(targetId, allNodes, outgoing);
+            }
         }
         return node;
-    } else if (type === 'approve') {
+    } else if (normalizedType === 'approve') {
         const node: ApproveNode = {
             ...base,
-            assigneeType: nodeData.data?.assigneeType,
-            assigneeValue: nodeData.data?.assigneeValue,
-            approvalMode: nodeData.data?.approvalMode
+            nodeType: 'approve',
+            assigneeType: normalizeAssigneeType(data.assigneeType),
+            assigneeValue: data.assigneeValue ?? '',
+            approvalMode: normalizeApprovalMode(data.approvalMode)
         };
         if (edges.length > 0) {
             // 假设 Approve 只有一个后续（除非接了条件节点，但条件节点也是一个节点）
-             node.childNode = this.buildTreeFromNode(edges[0].target.cell || edges[0].target, allNodes, outgoing);
+             const targetId = getEdgeTarget(edges[0].target);
+             if (targetId) {
+               node.childNode = this.buildTreeFromNode(targetId, allNodes, outgoing);
+             }
         }
         return node;
-    } else if (type === 'copy') {
+    } else if (normalizedType === 'copy') {
         const node: CopyNode = {
             ...base,
-            copyToUsers: nodeData.data?.copyToUsers || []
+            nodeType: 'copy',
+            copyToUsers: data.copyToUsers || []
         };
         if (edges.length > 0) {
-             node.childNode = this.buildTreeFromNode(edges[0].target.cell || edges[0].target, allNodes, outgoing);
+             const targetId = getEdgeTarget(edges[0].target);
+             if (targetId) {
+               node.childNode = this.buildTreeFromNode(targetId, allNodes, outgoing);
+             }
         }
         return node;
-    } else if (type === 'condition' || type === 'dynamicCondition' || type === 'parallelCondition') {
+    } else if (normalizedType === 'condition' || normalizedType === 'dynamicCondition' || normalizedType === 'parallelCondition') {
         // 这里的逻辑比较复杂。
         // 在 X6 图中，Condition 节点可能有多个出边，每个出边代表一个分支。
         // 我们需要识别这些分支，以及它们是否汇聚。
         
         const node: ConditionNode | DynamicConditionNode | ParallelConditionNode = {
             ...base,
-            nodeType: type,
+            nodeType: normalizedType,
             conditionNodes: []
         } as ConditionNode;
 
         // 收集分支
         // 假设 edges 上的 data.conditionRule 对应分支条件
         const branches: ConditionBranch[] = edges.map((edge, index) => {
-            const targetId = edge.target.cell || edge.target;
+            const targetId = getEdgeTarget(edge.target);
             const branchRoot = this.buildTreeFromNode(targetId, allNodes, outgoing);
             
             return {
@@ -580,20 +614,92 @@ export class ApprovalTreeConverter {
         // 如果是从复杂的图（允许任意连线）恢复，可能无法完美映射到树。
         
         return node as TreeNode;
-    } else if (type === 'parallel') {
+    } else if (normalizedType === 'parallel') {
         const node: ParallelNode = {
             ...base,
             nodeType: 'parallel',
             parallelNodes: edges.map((edge) => {
-                const targetId = edge.target.cell || edge.target;
-                return this.buildTreeFromNode(targetId, allNodes, outgoing);
+                const targetId = getEdgeTarget(edge.target);
+                return targetId ? this.buildTreeFromNode(targetId, allNodes, outgoing) : this.createDefaultTree().rootNode;
             })
         };
         return node;
-    } else if (type === 'end') {
-        return { ...base } as EndNode;
+    } else if (normalizedType === 'end') {
+        return { ...base, nodeType: 'end' } as EndNode;
     }
 
-    return base as TreeNode;
+    return { ...base, nodeType: 'end' } as EndNode;
   }
 }
+
+type GraphNodeData = {
+  id: string;
+  type: NodeType;
+  label?: string;
+  x?: number;
+  y?: number;
+  assigneeType?: ApproveNode['assigneeType'];
+  assigneeValue?: string;
+  approvalMode?: ApproveNode['approvalMode'];
+  copyToUsers?: string[];
+  [key: string]: JsonValue | undefined;
+};
+
+type GraphNode = Node.Metadata;
+type GraphEdge = Edge.Metadata;
+type GraphEdgeData = {
+  conditionRule?: ConditionBranch['conditionRule'];
+} & Record<string, JsonValue>;
+
+const getEdgeTarget = (target: Edge.Metadata['target']): string => {
+  const cellId = getTerminalCellId(target);
+  return cellId ?? '';
+};
+
+const getTerminalCellId = (terminal: Edge.Metadata['source'] | Edge.Metadata['target']): string | null => {
+  if (!terminal) return null;
+  if (typeof terminal === 'string') return terminal;
+  if (typeof terminal === 'object' && 'cell' in terminal) {
+    if (typeof terminal.cell === 'string') return terminal.cell;
+    return terminal.cell?.id ?? null;
+  }
+  return null;
+};
+
+const isAssigneeType = (value: number | undefined): value is ApproveNode['assigneeType'] => {
+  return value === 0
+    || value === 1
+    || value === 2
+    || value === 3
+    || value === 4
+    || value === 5
+    || value === 6
+    || value === 7;
+};
+
+const normalizeAssigneeType = (value: number | undefined): ApproveNode['assigneeType'] => {
+  return isAssigneeType(value) ? value : 0;
+};
+
+const isApprovalMode = (value: string | undefined): value is ApproveNode['approvalMode'] => {
+  return value === 'all' || value === 'any' || value === 'sequential';
+};
+
+const normalizeApprovalMode = (value: string | undefined): ApproveNode['approvalMode'] => {
+  return isApprovalMode(value) ? value : 'all';
+};
+
+const isNodeType = (value: string | undefined): value is NodeType => {
+  return value === 'start'
+    || value === 'approve'
+    || value === 'copy'
+    || value === 'condition'
+    || value === 'parallel'
+    || value === 'dynamicCondition'
+    || value === 'parallelCondition'
+    || value === 'end';
+};
+
+const normalizeNodeType = (value: string | undefined): NodeType => {
+  return isNodeType(value) ? value : 'end';
+};
