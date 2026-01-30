@@ -351,3 +351,34 @@
   "pageSize": 10
 }
 ```
+
+## Workflow Designer APIs (草案)
+- POST `/approval/flows` : 保存流程定义
+  - body: { tenantId: string, definition: FlowDefinition }
+  - resp: { id: string, version?: number }
+- GET `/approval/flows/{id}` : 加载流程定义
+  - resp: { definition: FlowDefinition }
+- PUT `/approval/flows/{id}` : 更新流程定义
+  - body 同保存
+  - resp: { success: boolean }
+- POST `/approval/flows/{id}/publish` : 发布流程
+  - resp: { success: boolean, version: number }
+- POST `/approval/flows/validate` : 前/后端联合校验
+  - body: { tenantId: string, definition: FlowDefinition }
+  - resp: { isValid: boolean, errors: string[], warnings?: string[] }
+- POST `/approval/flows/{id}/preview` : 预览（返回节点线性/树形展开视图数据）
+  - resp: { definition: FlowDefinition, preview: any }
+
+### FlowDefinition / FlowNode (见前端 types/workflow.ts)
+- 节点类型：start/end/approve/condition/parallel/parallel-join/copy/task
+- 审批人规则：fixedUser/role/departmentLeader/selfSelect/hrbp/formField/outsideApi
+- 条件：ConditionGroup{ relation AND/OR, items: [{ field, op, value, group }] }
+- 按钮：NodeButton { pageType, buttonType, name, remark }
+
+### 约束与校验（后端应补充验证）
+- 必须存在唯一 start 与 end 节点
+- 并行节点必须有聚合节点 parallel-join
+- condition 节点需有默认分支或全覆盖
+- 审批节点必须配置 approverRule
+- 节点 name/code 长度与特殊字符校验
+- 发布前需要通过 validate

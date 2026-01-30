@@ -33,6 +33,14 @@ import type {
   VisualizationMetricsResponse,
   AuditListItem
 } from "@/types/api";
+import type {
+  FlowDefinition,
+  FlowSaveRequest,
+  FlowSaveResponse,
+  FlowLoadResponse,
+  FlowPublishResponse,
+  FlowValidationResult
+} from "@/types/workflow";
 import { message } from "ant-design-vue";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
@@ -562,6 +570,70 @@ export async function getVisualizationAudit(
     throw new Error(response.message || "获取审计记录失败");
   }
   return response.data;
+}
+
+// ---------- Workflow Designer (Visualization) ----------
+export async function loadFlowDefinition(id: string): Promise<FlowDefinition> {
+  const response = await requestApi<ApiResponse<FlowLoadResponse>>(`/approval/flows/${id}`);
+  if (!response.data?.definition) {
+    throw new Error(response.message || "加载流程失败");
+  }
+  return response.data.definition;
+}
+
+export async function saveFlowDefinition(req: FlowSaveRequest): Promise<FlowSaveResponse> {
+  const response = await requestApi<ApiResponse<FlowSaveResponse>>("/approval/flows", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req)
+  });
+  if (!response.data) {
+    throw new Error(response.message || "保存流程失败");
+  }
+  return response.data;
+}
+
+export async function updateFlowDefinition(id: string, req: FlowSaveRequest): Promise<void> {
+  const response = await requestApi<ApiResponse<{ success: boolean }>>(`/approval/flows/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req)
+  });
+  if (!response.success) {
+    throw new Error(response.message || "更新流程失败");
+  }
+}
+
+export async function publishFlowDefinition(id: string): Promise<FlowPublishResponse> {
+  const response = await requestApi<ApiResponse<FlowPublishResponse>>(`/approval/flows/${id}/publish`, {
+    method: "POST"
+  });
+  if (!response.data) {
+    throw new Error(response.message || "发布流程失败");
+  }
+  return response.data;
+}
+
+export async function validateFlowDefinition(req: FlowSaveRequest): Promise<FlowValidationResult> {
+  const response = await requestApi<ApiResponse<FlowValidationResult>>("/approval/flows/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req)
+  });
+  if (!response.data) {
+    throw new Error(response.message || "校验失败");
+  }
+  return response.data;
+}
+
+export async function previewFlowDefinition(id: string): Promise<FlowDefinition> {
+  const response = await requestApi<ApiResponse<FlowLoadResponse>>(`/approval/flows/${id}/preview`, {
+    method: "POST"
+  });
+  if (!response.data?.definition) {
+    throw new Error(response.message || "预览失败");
+  }
+  return response.data.definition;
 }
 
 async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
