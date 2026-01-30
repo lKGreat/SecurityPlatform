@@ -35,6 +35,13 @@ public interface IUserCommandService
         IReadOnlyList<long> positionIds,
         CancellationToken cancellationToken);
 
+    Task ChangePasswordAsync(
+        TenantId tenantId,
+        long userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken);
+
     Task DeleteAsync(
         TenantId tenantId,
         long userId,

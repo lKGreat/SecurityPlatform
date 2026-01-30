@@ -28,6 +28,20 @@ export interface AuthProfile {
   clientContext?: ClientContext;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface AuthTokenResult {
+  accessToken: string;
+  expiresAt: string;
+  refreshToken: string;
+  refreshExpiresAt: string;
+  sessionId: number;
+}
+
 export interface PagedRequest {
   pageIndex: number;
   pageSize: number;

@@ -9,6 +9,7 @@ namespace Atlas.WebApi.Identity;
 public sealed class HttpContextCurrentUserAccessor : ICurrentUserAccessor
 {
     private const string DisplayNameClaimType = "display_name";
+    private const string SessionIdClaimType = "sid";
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ITenantProvider _tenantProvider;
 
@@ -45,7 +46,14 @@ public sealed class HttpContextCurrentUserAccessor : ICurrentUserAccessor
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        return new CurrentUserInfo(userId.Value, username, displayName, tenantId, roles);
+        var sessionId = 0L;
+        var sessionRaw = user.FindFirstValue(SessionIdClaimType);
+        if (!string.IsNullOrWhiteSpace(sessionRaw) && long.TryParse(sessionRaw, out var parsed))
+        {
+            sessionId = parsed;
+        }
+
+        return new CurrentUserInfo(userId.Value, username, displayName, tenantId, roles, sessionId);
     }
 
     public CurrentUserInfo GetCurrentUserOrThrow()

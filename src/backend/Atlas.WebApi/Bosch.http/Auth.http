@@ -9,7 +9,7 @@
 
 ### Create Token
 # @name login
-POST {{baseUrl}}/auth/token
+POST {{baseUrl}}/api/v1/auth/token
 Content-Type: application/json
 X-Tenant-Id: {{tenantId}}
 X-Client-Type: {{clientType}}
@@ -24,18 +24,23 @@ X-Client-Agent: {{clientAgent}}
 
 ###
 @accessToken = {{login.response.body.$.data.accessToken}}
+@refreshToken = {{login.response.body.$.data.refreshToken}}
 
 ### Refresh Token
-POST {{baseUrl}}/auth/refresh
-Authorization: Bearer {{accessToken}}
+POST {{baseUrl}}/api/v1/auth/refresh
+Content-Type: application/json
 X-Tenant-Id: {{tenantId}}
 X-Client-Type: {{clientType}}
 X-Client-Platform: {{clientPlatform}}
 X-Client-Channel: {{clientChannel}}
 X-Client-Agent: {{clientAgent}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
 
 ### Current User
-GET {{baseUrl}}/auth/me
+GET {{baseUrl}}/api/v1/auth/me
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 X-Client-Type: {{clientType}}
@@ -43,8 +48,24 @@ X-Client-Platform: {{clientPlatform}}
 X-Client-Channel: {{clientChannel}}
 X-Client-Agent: {{clientAgent}}
 
+### Change Password
+PUT {{baseUrl}}/api/v1/auth/password
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+X-Client-Type: {{clientType}}
+X-Client-Platform: {{clientPlatform}}
+X-Client-Channel: {{clientChannel}}
+X-Client-Agent: {{clientAgent}}
+
+{
+  "currentPassword": "{{password}}",
+  "newPassword": "P@ssw0rd!2026",
+  "confirmPassword": "P@ssw0rd!2026"
+}
+
 ### Logout
-POST {{baseUrl}}/auth/logout
+POST {{baseUrl}}/api/v1/auth/logout
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 X-Client-Type: {{clientType}}

@@ -16,6 +16,8 @@ namespace Atlas.Infrastructure.Services;
 
 public sealed class UserCommandService : IUserCommandService
 {
+    private const int PasswordHistoryRetention = 3;
+
     private readonly IUserAccountRepository _userRepository;
     private readonly IUserRoleRepository _userRoleRepository;
     private readonly IUserDepartmentRepository _userDepartmentRepository;
@@ -23,6 +25,7 @@ public sealed class UserCommandService : IUserCommandService
     private readonly IRoleRepository _roleRepository;
     private readonly IDepartmentRepository _departmentRepository;
     private readonly IPositionRepository _positionRepository;
+    private readonly IPasswordHistoryRepository _passwordHistoryRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IIdGenerator _idGenerator;
     private readonly ISqlSugarClient _db;
@@ -36,6 +39,7 @@ public sealed class UserCommandService : IUserCommandService
         IRoleRepository roleRepository,
         IDepartmentRepository departmentRepository,
         IPositionRepository positionRepository,
+        IPasswordHistoryRepository passwordHistoryRepository,
         IPasswordHasher passwordHasher,
         IIdGenerator idGenerator,
         ISqlSugarClient db,
@@ -48,6 +52,7 @@ public sealed class UserCommandService : IUserCommandService
         _roleRepository = roleRepository;
         _departmentRepository = departmentRepository;
         _positionRepository = positionRepository;
+        _passwordHistoryRepository = passwordHistoryRepository;
         _passwordHasher = passwordHasher;
         _idGenerator = idGenerator;
         _db = db;
@@ -204,6 +209,65 @@ public sealed class UserCommandService : IUserCommandService
                 positionIds.Distinct()
                     .Select(posId => new UserPosition(tenantId, userId, posId, _idGenerator.NextId(), false))
                     .ToArray(),
+                cancellationToken);
+        });
+    }
+
+    public async Task ChangePasswordAsync(
+        TenantId tenantId,
+        long userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userRepository.FindByIdAsync(tenantId, userId, cancellationToken);
+        if (user is null)
+        {
+            throw new BusinessException("User not found.", ErrorCodes.NotFound);
+        }
+
+        if (!_passwordHasher.VerifyHashedPassword(user.PasswordHash, currentPassword))
+        {
+            throw new BusinessException("Current password is incorrect.", ErrorCodes.Unauthorized);
+        }
+
+        if (_passwordHasher.VerifyHashedPassword(user.PasswordHash, newPassword))
+        {
+            throw new BusinessException("New password must be different from current password.", ErrorCodes.ValidationError);
+        }
+
+        var recentHistories = await _passwordHistoryRepository.GetRecentAsync(
+            tenantId,
+            userId,
+            PasswordHistoryRetention,
+            cancellationToken);
+        foreach (var history in recentHistories)
+        {
+            if (_passwordHasher.VerifyHashedPassword(history.PasswordHash, newPassword))
+            {
+                throw new BusinessException("New password cannot reuse recently used passwords.", ErrorCodes.ValidationError);
+            }
+        }
+
+        if (!PasswordPolicy.IsCompliant(newPassword, _passwordPolicy, out var message))
+        {
+            throw new BusinessException(message, ErrorCodes.ValidationError);
+        }
+
+        var oldPasswordHash = user.PasswordHash;
+        var now = DateTimeOffset.UtcNow;
+        var passwordHash = _passwordHasher.HashPassword(newPassword);
+        user.UpdatePassword(passwordHash, now);
+
+        var historyEntry = new PasswordHistory(tenantId, userId, oldPasswordHash, _idGenerator.NextId(), now);
+        await _db.Ado.UseTranAsync(async () =>
+        {
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            await _passwordHistoryRepository.AddAsync(historyEntry, cancellationToken);
+            await _passwordHistoryRepository.DeleteExceptRecentAsync(
+                tenantId,
+                userId,
+                PasswordHistoryRetention,
                 cancellationToken);
         });
     }

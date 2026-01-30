@@ -29,6 +29,8 @@
 | 模块 | 后端定义 | 前端定义 | 状态 | 备注 |
 | --- | --- | --- | --- | --- |
 | AuthProfile | `src/backend/Atlas.Application/Models/AuthProfileResult.cs` | `src/frontend/Atlas.WebApp/src/types/api.ts` | 已对齐 | `roles/permissions` 为字符串数组 |
+| AuthTokenResult | `src/backend/Atlas.Application/Models/AuthTokenResult.cs` | `src/frontend/Atlas.WebApp/src/types/api.ts` | 已对齐 | 含 refreshToken/refreshExpiresAt/sessionId |
+| ChangePassword | `src/backend/Atlas.Application/Models/ChangePasswordRequest.cs` | `src/frontend/Atlas.WebApp/src/types/api.ts` | 已对齐 | 前端包含 confirmPassword |
 | Users/Roles/Permissions/Menus/Departments | `src/backend/Atlas.Application/Identity/Models` | `src/frontend/Atlas.WebApp/src/types` | 待补充 | 前端缺少 DTO 与枚举定义 |
 
 ## 审批流 DTO
@@ -73,7 +75,7 @@
 | `/api/assets` | `/assets` | 需确认 | 如无网关前缀需统一 |
 | `/api/alert` | `/alert` | 需确认 | 如无网关前缀需统一 |
 | `/api/audit` | `/audit` | 需确认 | 如无网关前缀需统一 |
-| `/api/auth/token` | `/auth/token` | 需确认 | 如无网关前缀需统一 |
+| `/api/v1/auth/token` | `/auth/token` | 需确认 | 如无网关前缀需统一 |
 
 ## 建议修复顺序
 

@@ -15,6 +15,7 @@ const VisualizationCenterPage = () => import("@/pages/visualization/Visualizatio
 const VisualizationDesignerPage = () => import("@/pages/visualization/VisualizationDesignerPage.vue");
 const VisualizationRuntimePage = () => import("@/pages/visualization/VisualizationRuntimePage.vue");
 const VisualizationGovernancePage = () => import("@/pages/visualization/VisualizationGovernancePage.vue");
+const ProfilePage = () => import("@/pages/ProfilePage.vue");
 const UsersPage = () => import("@/pages/system/UsersPage.vue");
 const DepartmentsPage = () => import("@/pages/system/DepartmentsPage.vue");
 const PositionsPage = () => import("@/pages/system/PositionsPage.vue");
@@ -24,6 +25,7 @@ const router = createRouter({
   routes: [
     { path: "/login", name: "login", component: LoginPage },
     { path: "/", name: "home", component: HomePage, meta: { requiresAuth: true } },
+    { path: "/profile", name: "profile", component: ProfilePage, meta: { requiresAuth: true } },
     { path: "/assets", name: "assets", component: AssetsPage, meta: { requiresAuth: true } },
     { path: "/audit", name: "audit", component: AuditPage, meta: { requiresAuth: true } },
     { path: "/alert", name: "alert", component: AlertPage, meta: { requiresAuth: true } },

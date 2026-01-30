@@ -55,20 +55,23 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
         db.CodeFirst.InitTables(
-            typeof(UserAccount),
-            typeof(Role),
-            typeof(Permission),
-            typeof(UserRole),
-            typeof(RolePermission),
-            typeof(Department),
-            typeof(Position),
-            typeof(UserDepartment),
-            typeof(UserPosition),
+        typeof(UserAccount),
+        typeof(Role),
+        typeof(Permission),
+        typeof(UserRole),
+        typeof(RolePermission),
+        typeof(Department),
+        typeof(Position),
+        typeof(UserDepartment),
+        typeof(UserPosition),
+        typeof(PasswordHistory),
             typeof(Menu),
             typeof(RoleMenu),
             typeof(AuditRecord),
             typeof(Asset),
             typeof(AlertRecord),
+            typeof(AuthSession),
+            typeof(RefreshToken),
             typeof(ApprovalFlowDefinition),
             typeof(ApprovalProcessInstance),
             typeof(ApprovalTask),
@@ -136,18 +139,36 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         var roleMenuRepository = scope.ServiceProvider.GetRequiredService<IRoleMenuRepository>();
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
 
+        var roleSeedDefinitions = new (string Code, string Name, string Description, bool IsSystem)[]
+        {
+            ("SuperAdmin", "超级管理员", "平台超级管理员（全量权限）", true),
+            ("Admin", "系统管理员", "系统运维与平台配置管理员", true),
+            ("SecurityAdmin", "安全管理员", "安全策略与告警管理员", false),
+            ("AuditAdmin", "审计管理员", "审计日志与合规管理员", false),
+            ("AssetAdmin", "资产管理员", "资产台账管理员", false),
+            ("ApprovalAdmin", "流程管理员", "审批流配置管理员", false)
+        };
+
+        var roleSeedMap = roleSeedDefinitions.ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
         var roleCodes = _bootstrapOptions.Roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            .ToList();
+        if (!roleCodes.Contains("SuperAdmin", StringComparer.OrdinalIgnoreCase))
+        {
+            roleCodes.Add("SuperAdmin");
+        }
+        var roleCodesArray = roleCodes.ToArray();
 
         var roleIds = new List<long>();
-        foreach (var roleCode in roleCodes)
+        foreach (var roleCode in roleCodesArray)
         {
             var existingRole = await roleRepository.FindByCodeAsync(tenantId, roleCode, cancellationToken);
             if (existingRole is null)
             {
-                var role = new Role(tenantId, roleCode, roleCode, idGenerator.NextId());
-                role.Update(roleCode, roleCode);
+                var displayName = roleSeedMap.TryGetValue(roleCode, out var seed) ? seed.Name : roleCode;
+                var description = roleSeedMap.TryGetValue(roleCode, out seed) ? seed.Description : roleCode;
+                var role = new Role(tenantId, displayName, roleCode, idGenerator.NextId());
+                role.Update(displayName, description);
                 role.MarkSystemRole();
                 await roleRepository.AddAsync(role, cancellationToken);
                 roleIds.Add(role.Id);
@@ -156,6 +177,29 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             {
                 roleIds.Add(existingRole.Id);
             }
+        }
+
+        foreach (var seed in roleSeedDefinitions)
+        {
+            if (roleCodesArray.Contains(seed.Code, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var existingRole = await roleRepository.FindByCodeAsync(tenantId, seed.Code, cancellationToken);
+            if (existingRole is not null)
+            {
+                continue;
+            }
+
+            var role = new Role(tenantId, seed.Name, seed.Code, idGenerator.NextId());
+            role.Update(seed.Name, seed.Description);
+            if (seed.IsSystem)
+            {
+                role.MarkSystemRole();
+            }
+
+            await roleRepository.AddAsync(role, cancellationToken);
         }
 
         var permissionSeeds = new (string Code, string Name, string Type)[]
@@ -480,6 +524,75 @@ public sealed class DatabaseInitializerHostedService : IHostedService
                 adminPermission.Code,
                 false);
             await db.Insertable(visualizationGovernanceMenu).ExecuteCommandAsync(cancellationToken);
+        }
+
+        var departmentSeeds = new (string Name, string? ParentName, int SortOrder)[]
+        {
+            ("总部", null, 0),
+            ("研发部", "总部", 10),
+            ("安全运营部", "总部", 20),
+            ("运维部", "总部", 30),
+            ("人力资源部", "总部", 40),
+            ("财务部", "总部", 50)
+        };
+
+        var departmentNameList = departmentSeeds.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var existingDepartments = await db.Queryable<Department>()
+            .Where(x => x.TenantIdValue == tenantId.Value && departmentNameList.Contains(x.Name))
+            .ToListAsync(cancellationToken);
+        var departmentIdMap = existingDepartments.ToDictionary(x => x.Name, x => x.Id, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var seed in departmentSeeds)
+        {
+            if (departmentIdMap.ContainsKey(seed.Name))
+            {
+                continue;
+            }
+
+            var parentId = 0L;
+            if (!string.IsNullOrWhiteSpace(seed.ParentName) &&
+                departmentIdMap.TryGetValue(seed.ParentName, out var resolvedParentId))
+            {
+                parentId = resolvedParentId;
+            }
+
+            var department = new Department(tenantId, seed.Name, idGenerator.NextId(), parentId, seed.SortOrder);
+            await db.Insertable(department).ExecuteCommandAsync(cancellationToken);
+            departmentIdMap[seed.Name] = department.Id;
+        }
+
+        var positionSeeds = new (string Name, string Code, string Description, bool IsSystem, int SortOrder)[]
+        {
+            ("安全负责人", "SEC_LEAD", "安全策略与风险管理负责人", true, 10),
+            ("安全工程师", "SEC_ENG", "安全工程与检测响应", false, 20),
+            ("审计专员", "AUDITOR", "审计与合规执行", false, 30),
+            ("资产管理员", "ASSET_ADMIN", "资产台账与生命周期管理", false, 40),
+            ("系统管理员", "SYS_ADMIN", "系统配置与运维管理", true, 50),
+            ("运维工程师", "OPS_ENG", "平台运维与监控", false, 60)
+        };
+
+        var positionCodeList = positionSeeds.Select(x => x.Code).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var existingPositions = await db.Queryable<Position>()
+            .Where(x => x.TenantIdValue == tenantId.Value && positionCodeList.Contains(x.Code))
+            .ToListAsync(cancellationToken);
+        var positionCodeMap = existingPositions.ToDictionary(x => x.Code, x => x.Id, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var seed in positionSeeds)
+        {
+            if (positionCodeMap.ContainsKey(seed.Code))
+            {
+                continue;
+            }
+
+            var position = new Position(tenantId, seed.Name, seed.Code, idGenerator.NextId());
+            position.Update(seed.Name, seed.Description, true, seed.SortOrder);
+            if (seed.IsSystem)
+            {
+                position.MarkSystem();
+            }
+
+            await db.Insertable(position).ExecuteCommandAsync(cancellationToken);
+            positionCodeMap[seed.Code] = position.Id;
         }
 
         foreach (var roleId in roleIds)

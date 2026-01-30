@@ -10,4 +10,5 @@ public static class ErrorCodes
     public const string ServerError = "SERVER_ERROR";
     public const string AccountLocked = "ACCOUNT_LOCKED";
     public const string PasswordExpired = "PASSWORD_EXPIRED";
+    public const string TokenExpired = "TOKEN_EXPIRED";
 }

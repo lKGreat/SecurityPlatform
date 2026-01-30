@@ -20,7 +20,7 @@ import { message } from "ant-design-vue";
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { createToken, getCurrentUser } from "@/services/api";
-import { clearAuthStorage, getTenantId, setAccessToken, setAuthProfile, setTenantId } from "@/utils/auth";
+import { clearAuthStorage, getTenantId, setAccessToken, setAuthProfile, setRefreshToken, setTenantId } from "@/utils/auth";
 
 const router = useRouter();
 const loading = ref(false);
@@ -37,6 +37,7 @@ const onFinish = async () => {
   try {
     const result = await createToken(form.tenantId, form.username, form.password);
     setAccessToken(result.accessToken);
+    setRefreshToken(result.refreshToken);
     setTenantId(form.tenantId);
     const profile = await getCurrentUser();
     setAuthProfile(profile);

@@ -11,9 +11,16 @@ public interface IAuthTokenService
         AuthRequestContext context,
         CancellationToken cancellationToken);
 
-    Task<AuthTokenResult> CreateTokenForUserAsync(
+    Task<AuthTokenResult> RefreshTokenAsync(
+        AuthRefreshRequest request,
+        TenantId tenantId,
+        AuthRequestContext context,
+        CancellationToken cancellationToken);
+
+    Task RevokeSessionAsync(
         long userId,
         TenantId tenantId,
+        long sessionId,
         AuthRequestContext context,
         CancellationToken cancellationToken);
 }

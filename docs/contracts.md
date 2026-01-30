@@ -68,7 +68,7 @@
 
 ### 登录
 
-`POST /auth/token`
+`POST /api/v1/auth/token`
 
 请求（需同时携带 `X-Tenant-Id` 请求头）：
 
@@ -84,11 +84,16 @@
 ```json
 {
   "accessToken": "jwt-access-token",
-  "expiresAt": "2026-01-30T10:00:00Z"
+  "expiresAt": "2026-01-30T10:00:00Z",
+  "refreshToken": "refresh-token",
+  "refreshExpiresAt": "2026-01-30T22:00:00Z",
+  "sessionId": 10010001
 }
 
 JWT Claims（新增）：
 
+- `sid`：会话 ID
+- `jti`：访问令牌唯一标识
 - `client_type`：客户端类型（`WebH5`/`Mobile`/`Backend`）
 - `client_platform`：客户端平台（`Web`/`Android`/`iOS`）
 - `client_channel`：客户端通道（`Browser`/`App`）
@@ -97,22 +102,31 @@ JWT Claims（新增）：
 
 ### 刷新令牌（使用当前登录态）
 
-`POST /auth/refresh`
+`POST /api/v1/auth/refresh`
 
-请求：无（需携带 `Authorization` 与 `X-Tenant-Id`）
+请求（需携带 `X-Tenant-Id`）：
+
+```json
+{
+  "refreshToken": "refresh-token"
+}
+```
 
 响应（`ApiResponse` 包装）：
 
 ```json
 {
   "accessToken": "new-jwt-access-token",
-  "expiresAt": "2026-01-30T11:00:00Z"
+  "expiresAt": "2026-01-30T11:00:00Z",
+  "refreshToken": "new-refresh-token",
+  "refreshExpiresAt": "2026-01-30T23:00:00Z",
+  "sessionId": 10010001
 }
 ```
 
 ### 当前用户
 
-`GET /auth/me`
+`GET /api/v1/auth/me`
 
 响应（`ApiResponse` 包装）：
 
@@ -133,9 +147,25 @@ JWT Claims（新增）：
 }
 ```
 
+### 修改密码
+
+`PUT /api/v1/auth/password`
+
+请求（需携带 `Authorization` 与 `X-Tenant-Id`）：
+
+```json
+{
+  "currentPassword": "OldP@ssw0rd!",
+  "newPassword": "NewP@ssw0rd!2026",
+  "confirmPassword": "NewP@ssw0rd!2026"
+}
+```
+
+响应：通用 `ApiResponse`
+
 ### 注销
 
-`POST /auth/logout`
+`POST /api/v1/auth/logout`
 
 请求：无（需携带 `Authorization` 与 `X-Tenant-Id`）
 

@@ -7,4 +7,5 @@ public sealed record CurrentUserInfo(
     string Username,
     string DisplayName,
     TenantId TenantId,
-    IReadOnlyList<string> Roles);
+    IReadOnlyList<string> Roles,
+    long SessionId = 0);

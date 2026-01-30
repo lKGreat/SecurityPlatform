@@ -1,6 +1,8 @@
 import type {
   ApiResponse,
+  AuthTokenResult,
   AuthProfile,
+  ChangePasswordRequest,
   PagedRequest,
   PagedResult,
   ApprovalFlowDefinitionListItem,
@@ -62,15 +64,24 @@ import type {
   FlowValidationResult
 } from "@/types/workflow";
 import { message } from "ant-design-vue";
-import { getAccessToken, getTenantId } from "@/utils/auth";
+import {
+  clearAuthStorage,
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+  setRefreshToken,
+  getTenantId
+} from "@/utils/auth";
 import { getClientContextHeaders } from "@/utils/clientContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
-interface TokenResult {
-  accessToken: string;
-  expiresAt: string;
+interface RequestOptions {
+  disableAutoRefresh?: boolean;
+  isRetry?: boolean;
 }
+
+let refreshPromise: Promise<boolean> | null = null;
 
 export interface AssetListItem {
   id: string;
@@ -84,7 +95,7 @@ export interface AlertListItem {
 }
 
 export async function createToken(tenantId: string, username: string, password: string) {
-  const response = await requestApi<ApiResponse<TokenResult>>("/auth/token", {
+  const response = await requestApi<ApiResponse<AuthTokenResult>>("/auth/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -100,14 +111,24 @@ export async function createToken(tenantId: string, username: string, password: 
   return response.data;
 }
 
-export async function refreshToken(): Promise<TokenResult> {
-  const response = await requestApi<ApiResponse<TokenResult>>("/auth/refresh", {
-    method: "POST"
-  });
+export async function refreshToken(): Promise<AuthTokenResult> {
+  const refreshTokenValue = getRefreshToken();
+  if (!refreshTokenValue) {
+    throw new Error("缺少刷新令牌");
+  }
+
+  const response = await requestApi<ApiResponse<AuthTokenResult>>("/auth/refresh", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ refreshToken: refreshTokenValue })
+  }, { disableAutoRefresh: true });
   if (!response.data) {
     throw new Error(response.message || "刷新失败");
   }
 
+  persistTokenResult(response.data);
   return response.data;
 }
 
@@ -126,6 +147,17 @@ export async function logout(): Promise<void> {
   });
   if (!response.success) {
     throw new Error(response.message || "退出失败");
+  }
+}
+
+export async function changePassword(request: ChangePasswordRequest): Promise<void> {
+  const response = await requestApi<ApiResponse<{ success: boolean }>>("/auth/password", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.success) {
+    throw new Error(response.message || "修改密码失败");
   }
 }
 
@@ -922,7 +954,7 @@ export async function previewFlowDefinition(id: string): Promise<FlowDefinition>
   return response.data.definition;
 }
 
-async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
+async function requestApi<T>(path: string, init?: RequestInit, options?: RequestOptions): Promise<T> {
   const headers = new Headers(init?.headers ?? {});
   const token = getAccessToken();
   const tenantId = getTenantId();
@@ -947,6 +979,14 @@ async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
     headers
   });
 
+  const shouldAttemptRefresh = !options?.disableAutoRefresh && !options?.isRetry;
+  if (response.status === 401 && shouldAttemptRefresh) {
+    const refreshed = await ensureFreshTokens();
+    if (refreshed) {
+      return requestApi(path, init, { ...(options ?? {}), isRetry: true });
+    }
+  }
+
   if (!response.ok) {
     const text = await response.text();
     message.error(text || "网络请求失败");
@@ -954,4 +994,33 @@ async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+async function ensureFreshTokens(): Promise<boolean> {
+  if (!getRefreshToken()) {
+    return false;
+  }
+
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      await refreshToken();
+      return true;
+    } catch (error) {
+      clearAuthStorage();
+      throw error;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+function persistTokenResult(result: AuthTokenResult) {
+  setAccessToken(result.accessToken);
+  setRefreshToken(result.refreshToken);
 }

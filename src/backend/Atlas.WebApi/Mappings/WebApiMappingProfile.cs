@@ -9,5 +9,7 @@ public sealed class WebApiMappingProfile : Profile
     public WebApiMappingProfile()
     {
         CreateMap<AuthTokenViewModel, AuthTokenRequest>();
+        CreateMap<AuthRefreshViewModel, AuthRefreshRequest>();
+        CreateMap<ChangePasswordViewModel, ChangePasswordRequest>();
     }
 }

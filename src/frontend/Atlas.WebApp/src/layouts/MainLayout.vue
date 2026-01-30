@@ -49,7 +49,23 @@
       <a-layout-header class="app-header">
         <div class="header-left">多租户安全支撑平台</div>
         <div class="header-right">
-          <a-button type="text" @click="logout">退出</a-button>
+          <a-dropdown trigger="click">
+            <a-button type="text">
+              <a-space>
+                <a-avatar size="small">
+                  {{ profileInitials }}
+                </a-avatar>
+                <span>{{ profileDisplayName }}</span>
+              </a-space>
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item key="profile" @click="openProfile">个人中心</a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="logout" @click="logout">退出登录</a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
         </div>
       </a-layout-header>
       <a-layout-content class="app-content">
@@ -73,6 +89,11 @@ const route = useRoute();
 const profile = ref<AuthProfile | null>(null);
 
 const isLogin = computed(() => route.name === "login");
+const profileDisplayName = computed(() => profile.value?.displayName || profile.value?.username || "个人中心");
+const profileInitials = computed(() => {
+  const name = profile.value?.displayName || profile.value?.username || "";
+  return name.trim().slice(0, 2) || "我";
+});
 
 const selectedKeys = computed(() => {
   if (route.path.startsWith("/assets")) return ["assets"];
@@ -127,6 +148,10 @@ const loadProfile = async () => {
   } catch (error) {
     message.error((error as Error).message || "获取用户信息失败");
   }
+};
+
+const openProfile = () => {
+  router.push("/profile");
 };
 
 const logout = async () => {

@@ -1,6 +1,7 @@
 import type { AuthProfile } from "@/types/api";
 
 const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
 const TENANT_ID_KEY = "tenant_id";
 const PROFILE_KEY = "auth_profile";
 
@@ -8,6 +9,12 @@ export const getAccessToken = () => localStorage.getItem(ACCESS_TOKEN_KEY);
 
 export const setAccessToken = (token: string) => {
   localStorage.setItem(ACCESS_TOKEN_KEY, token);
+};
+
+export const getRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_KEY);
+
+export const setRefreshToken = (token: string) => {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token);
 };
 
 export const getTenantId = () => localStorage.getItem(TENANT_ID_KEY);
@@ -33,6 +40,7 @@ export const setAuthProfile = (profile: AuthProfile) => {
 
 export const clearAuthStorage = () => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(TENANT_ID_KEY);
   localStorage.removeItem(PROFILE_KEY);
 };

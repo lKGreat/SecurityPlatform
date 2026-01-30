@@ -44,6 +44,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthProfileService, AuthProfileService>();
         services.AddScoped<IRbacResolver, RbacResolver>();
         services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddScoped<IAuthSessionRepository, AuthSessionRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IPositionRepository, PositionRepository>();
@@ -55,6 +57,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRoleMenuRepository, RoleMenuRepository>();
         services.AddScoped<IUserDepartmentRepository, UserDepartmentRepository>();
         services.AddScoped<IUserPositionRepository, UserPositionRepository>();
+        services.AddScoped<IPasswordHistoryRepository, PasswordHistoryRepository>();
         services.AddScoped<IAssetRepository, AssetRepository>();
         services.AddScoped<IAssetQueryService, AssetQueryService>();
         services.AddScoped<IAssetCommandService, AssetCommandService>();

@@ -1,10 +1,10 @@
 using Atlas.Application.Abstractions;
-using Atlas.Application.Identity.Repositories;
 using Atlas.Application.Identity.Abstractions;
 using Atlas.Application.Audit.Abstractions;
 using Atlas.Application.Audit.Models;
 using Atlas.Application.Models;
 using Atlas.Application.Options;
+using Atlas.Core.Abstractions;
 using Atlas.Core.Identity;
 using Atlas.Core.Exceptions;
 using Atlas.Core.Models;
@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Atlas.Infrastructure.Services;
@@ -26,6 +27,9 @@ public sealed class JwtAuthTokenService : IAuthTokenService
     private readonly IUserAccountRepository _userAccountRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAuditRecorder _auditRecorder;
+    private readonly IAuthSessionRepository _authSessionRepository;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IIdGenerator _idGenerator;
     private readonly TimeProvider _timeProvider;
     private readonly IRbacResolver _rbacResolver;
 
@@ -36,6 +40,9 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         IUserAccountRepository userAccountRepository,
         IPasswordHasher passwordHasher,
         IAuditRecorder auditRecorder,
+        IAuthSessionRepository authSessionRepository,
+        IRefreshTokenRepository refreshTokenRepository,
+        IIdGenerator idGenerator,
         TimeProvider timeProvider,
         IRbacResolver rbacResolver)
     {
@@ -45,6 +52,9 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         _userAccountRepository = userAccountRepository;
         _passwordHasher = passwordHasher;
         _auditRecorder = auditRecorder;
+        _authSessionRepository = authSessionRepository;
+        _refreshTokenRepository = refreshTokenRepository;
+        _idGenerator = idGenerator;
         _timeProvider = timeProvider;
         _rbacResolver = rbacResolver;
     }
@@ -101,37 +111,70 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         await _userAccountRepository.UpdateAsync(account, cancellationToken);
         await WriteAuditAsync(tenantId, request.Username, "LOGIN", "SUCCESS", null, context, cancellationToken);
 
-        var expires = now.AddMinutes(_jwtOptions.ExpiresMinutes);
-        var roleCodes = await _rbacResolver.GetRoleCodesAsync(account, tenantId, cancellationToken);
-        var claims = BuildClaims(account, tenantId, roleCodes, context.ClientContext);
+        var sessionId = _idGenerator.NextId();
+        var sessionExpiresAt = now.AddMinutes(_jwtOptions.SessionExpiresMinutes);
+        var clientContext = context.ClientContext;
+        var session = new AuthSession(
+            tenantId,
+            account.Id,
+            clientContext.ClientType.ToString(),
+            clientContext.ClientPlatform.ToString(),
+            clientContext.ClientChannel.ToString(),
+            clientContext.ClientAgent.ToString(),
+            context.IpAddress,
+            context.UserAgent,
+            now,
+            sessionExpiresAt,
+            sessionId);
+        await _authSessionRepository.AddAsync(session, cancellationToken);
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var (refreshToken, refreshExpiresAt, refreshEntity) = CreateRefreshToken(account.Id, tenantId, sessionId, now);
+        await _refreshTokenRepository.AddAsync(refreshEntity, cancellationToken);
 
-        var token = new JwtSecurityToken(
-            _jwtOptions.Issuer,
-            _jwtOptions.Audience,
-            claims,
-            notBefore: now.UtcDateTime,
-            expires: expires.UtcDateTime,
-            signingCredentials: credentials);
-
-        var handler = new JwtSecurityTokenHandler();
-        var tokenString = handler.WriteToken(token);
-        return new AuthTokenResult(tokenString, expires);
+        var accessTokenResult = CreateAccessToken(account, tenantId, clientContext, sessionId, now, cancellationToken);
+        var accessToken = await accessTokenResult;
+        return new AuthTokenResult(accessToken.Token, accessToken.ExpiresAt, refreshToken, refreshExpiresAt, sessionId);
     }
 
-    public async Task<AuthTokenResult> CreateTokenForUserAsync(
-        long userId,
+    public async Task<AuthTokenResult> RefreshTokenAsync(
+        AuthRefreshRequest request,
         TenantId tenantId,
         AuthRequestContext context,
         CancellationToken cancellationToken)
     {
         var now = _timeProvider.GetUtcNow();
-        var account = await _userAccountRepository.FindByIdAsync(tenantId, userId, cancellationToken);
+        var tokenHash = ComputeTokenHash(request.RefreshToken);
+        var storedToken = await _refreshTokenRepository.FindByHashAsync(tenantId, tokenHash, cancellationToken);
+        if (storedToken is null)
+        {
+            await WriteAuditAsync(tenantId, "UNKNOWN", "TOKEN_REFRESH", "FAILED", null, context, cancellationToken);
+            throw new BusinessException("刷新令牌无效或已过期", ErrorCodes.Unauthorized);
+        }
+
+        if (storedToken.RevokedAt.HasValue)
+        {
+            await HandleTokenReuseAsync(tenantId, storedToken, context, cancellationToken);
+            throw new BusinessException("刷新令牌已失效", ErrorCodes.Unauthorized);
+        }
+
+        if (storedToken.ExpiresAt <= now)
+        {
+            await WriteAuditAsync(tenantId, storedToken.UserId.ToString(), "TOKEN_REFRESH", "EXPIRED", null, context, cancellationToken);
+            throw new BusinessException("刷新令牌已过期", ErrorCodes.TokenExpired);
+        }
+
+        var session = await _authSessionRepository.FindByIdAsync(tenantId, storedToken.SessionId, cancellationToken);
+        if (session is null || session.RevokedAt.HasValue || session.ExpiresAt <= now)
+        {
+            await _refreshTokenRepository.RevokeBySessionAsync(tenantId, storedToken.SessionId, now, cancellationToken);
+            await WriteAuditAsync(tenantId, storedToken.UserId.ToString(), "TOKEN_REFRESH", "SESSION_INVALID", null, context, cancellationToken);
+            throw new BusinessException("会话已失效", ErrorCodes.Unauthorized);
+        }
+
+        var account = await _userAccountRepository.FindByIdAsync(tenantId, storedToken.UserId, cancellationToken);
         if (account is null)
         {
-            await WriteAuditAsync(tenantId, userId.ToString(), "TOKEN_REFRESH", "FAILED", null, context, cancellationToken);
+            await WriteAuditAsync(tenantId, storedToken.UserId.ToString(), "TOKEN_REFRESH", "FAILED", null, context, cancellationToken);
             throw new BusinessException("账号不存在或已失效", ErrorCodes.Unauthorized);
         }
 
@@ -160,38 +203,46 @@ public sealed class JwtAuthTokenService : IAuthTokenService
             throw new BusinessException("密码已过期", ErrorCodes.PasswordExpired);
         }
 
-        var expires = now.AddMinutes(_jwtOptions.ExpiresMinutes);
-        var roleCodes = await _rbacResolver.GetRoleCodesAsync(account, tenantId, cancellationToken);
-        var claims = BuildClaims(account, tenantId, roleCodes, context.ClientContext);
+        session.MarkSeen(now);
+        await _authSessionRepository.UpdateAsync(session, cancellationToken);
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var (refreshToken, refreshExpiresAt, refreshEntity) = CreateRefreshToken(account.Id, tenantId, session.Id, now);
+        storedToken.Revoke(now, refreshEntity.Id);
+        await _refreshTokenRepository.UpdateAsync(storedToken, cancellationToken);
+        await _refreshTokenRepository.AddAsync(refreshEntity, cancellationToken);
 
-        var token = new JwtSecurityToken(
-            _jwtOptions.Issuer,
-            _jwtOptions.Audience,
-            claims,
-            notBefore: now.UtcDateTime,
-            expires: expires.UtcDateTime,
-            signingCredentials: credentials);
-
-        var handler = new JwtSecurityTokenHandler();
-        var tokenString = handler.WriteToken(token);
-
+        var accessTokenResult = CreateAccessToken(account, tenantId, context.ClientContext, session.Id, now, cancellationToken);
+        var accessToken = await accessTokenResult;
         await WriteAuditAsync(tenantId, account.Username, "TOKEN_REFRESH", "SUCCESS", null, context, cancellationToken);
-        return new AuthTokenResult(tokenString, expires);
+        return new AuthTokenResult(accessToken.Token, accessToken.ExpiresAt, refreshToken, refreshExpiresAt, session.Id);
+    }
+
+    public async Task RevokeSessionAsync(
+        long userId,
+        TenantId tenantId,
+        long sessionId,
+        AuthRequestContext context,
+        CancellationToken cancellationToken)
+    {
+        var now = _timeProvider.GetUtcNow();
+        await _authSessionRepository.RevokeAsync(tenantId, sessionId, now, cancellationToken);
+        await _refreshTokenRepository.RevokeBySessionAsync(tenantId, sessionId, now, cancellationToken);
+        await WriteAuditAsync(tenantId, userId.ToString(), "TOKEN_REVOKE", "SUCCESS", null, context, cancellationToken);
     }
 
     private static List<Claim> BuildClaims(
         UserAccount account,
         TenantId tenantId,
         IReadOnlyList<string> roleCodes,
-        ClientContext clientContext)
+        ClientContext clientContext,
+        long sessionId)
     {
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, account.Username),
             new("tenant_id", tenantId.Value.ToString("D")),
+            new("sid", sessionId.ToString()),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
             new(ClaimTypes.NameIdentifier, account.Id.ToString()),
             new(ClaimTypes.Name, account.Username),
             new("display_name", account.DisplayName),
@@ -207,6 +258,80 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         }
 
         return claims;
+    }
+
+    private async Task<(string Token, DateTimeOffset ExpiresAt)> CreateAccessToken(
+        UserAccount account,
+        TenantId tenantId,
+        ClientContext clientContext,
+        long sessionId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var expires = now.AddMinutes(_jwtOptions.ExpiresMinutes);
+        var roleCodes = await _rbacResolver.GetRoleCodesAsync(account, tenantId, cancellationToken);
+        var claims = BuildClaims(account, tenantId, roleCodes, clientContext, sessionId);
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            _jwtOptions.Issuer,
+            _jwtOptions.Audience,
+            claims,
+            notBefore: now.UtcDateTime,
+            expires: expires.UtcDateTime,
+            signingCredentials: credentials);
+
+        var handler = new JwtSecurityTokenHandler();
+        var tokenString = handler.WriteToken(token);
+        return (tokenString, expires);
+    }
+
+    private (string Token, DateTimeOffset ExpiresAt, RefreshToken Entity) CreateRefreshToken(
+        long userId,
+        TenantId tenantId,
+        long sessionId,
+        DateTimeOffset now)
+    {
+        var refreshExpiresAt = now.AddMinutes(_jwtOptions.RefreshExpiresMinutes);
+        var tokenBytes = RandomNumberGenerator.GetBytes(64);
+        var token = Base64UrlEncoder.Encode(tokenBytes);
+        var hash = ComputeTokenHash(token);
+        var entity = new RefreshToken(
+            tenantId,
+            userId,
+            sessionId,
+            hash,
+            now,
+            refreshExpiresAt,
+            _idGenerator.NextId());
+        return (token, refreshExpiresAt, entity);
+    }
+
+    private static string ComputeTokenHash(string token)
+    {
+        var bytes = Encoding.UTF8.GetBytes(token);
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash);
+    }
+
+    private async Task HandleTokenReuseAsync(
+        TenantId tenantId,
+        RefreshToken storedToken,
+        AuthRequestContext context,
+        CancellationToken cancellationToken)
+    {
+        if (storedToken.ReplacedById.HasValue)
+        {
+            var now = _timeProvider.GetUtcNow();
+            await _authSessionRepository.RevokeAsync(tenantId, storedToken.SessionId, now, cancellationToken);
+            await _refreshTokenRepository.RevokeBySessionAsync(tenantId, storedToken.SessionId, now, cancellationToken);
+            await WriteAuditAsync(tenantId, storedToken.UserId.ToString(), "TOKEN_REFRESH", "REUSE_DETECTED", null, context, cancellationToken);
+            return;
+        }
+
+        await WriteAuditAsync(tenantId, storedToken.UserId.ToString(), "TOKEN_REFRESH", "REVOKED", null, context, cancellationToken);
     }
 
     private bool IsLocked(UserAccount account, DateTimeOffset now, out bool stateChanged)
