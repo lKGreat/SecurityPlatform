@@ -1,19 +1,19 @@
 import { createRouter, createWebHistory } from "vue-router";
-import HomePage from "@/pages/HomePage.vue";
-import LoginPage from "@/pages/LoginPage.vue";
-import AssetsPage from "@/pages/AssetsPage.vue";
-import AuditPage from "@/pages/AuditPage.vue";
-import AlertPage from "@/pages/AlertPage.vue";
-import ApprovalFlowsPage from "@/pages/ApprovalFlowsPage.vue";
-import ApprovalDesignerPage from "@/pages/ApprovalDesignerPage.vue";
-import ApprovalTasksPage from "@/pages/ApprovalTasksPage.vue";
-import ApprovalInstancesPage from "@/pages/ApprovalInstancesPage.vue";
-import WorkflowDesignerPage from "@/pages/WorkflowDesignerPage.vue";
-import WorkflowInstancesPage from "@/pages/WorkflowInstancesPage.vue";
-import VisualizationCenterPage from "@/pages/visualization/VisualizationCenterPage.vue";
-import VisualizationDesignerPage from "@/pages/visualization/VisualizationDesignerPage.vue";
-import VisualizationRuntimePage from "@/pages/visualization/VisualizationRuntimePage.vue";
-import VisualizationGovernancePage from "@/pages/visualization/VisualizationGovernancePage.vue";
+const HomePage = () => import("@/pages/HomePage.vue");
+const LoginPage = () => import("@/pages/LoginPage.vue");
+const AssetsPage = () => import("@/pages/AssetsPage.vue");
+const AuditPage = () => import("@/pages/AuditPage.vue");
+const AlertPage = () => import("@/pages/AlertPage.vue");
+const ApprovalFlowsPage = () => import("@/pages/ApprovalFlowsPage.vue");
+const ApprovalDesignerPage = () => import("@/pages/ApprovalDesignerPage.vue");
+const ApprovalTasksPage = () => import("@/pages/ApprovalTasksPage.vue");
+const ApprovalInstancesPage = () => import("@/pages/ApprovalInstancesPage.vue");
+const WorkflowDesignerPage = () => import("@/pages/WorkflowDesignerPage.vue");
+const WorkflowInstancesPage = () => import("@/pages/WorkflowInstancesPage.vue");
+const VisualizationCenterPage = () => import("@/pages/visualization/VisualizationCenterPage.vue");
+const VisualizationDesignerPage = () => import("@/pages/visualization/VisualizationDesignerPage.vue");
+const VisualizationRuntimePage = () => import("@/pages/visualization/VisualizationRuntimePage.vue");
+const VisualizationGovernancePage = () => import("@/pages/visualization/VisualizationGovernancePage.vue");
 
 const router = createRouter({
   history: createWebHistory(),

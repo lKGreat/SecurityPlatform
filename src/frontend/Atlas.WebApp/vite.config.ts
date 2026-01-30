@@ -24,6 +24,22 @@ export default defineConfig({
     }
   },
   build: {
-    chunkSizeWarningLimit: 2000
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return undefined;
+          }
+          if (id.includes("ant-design-vue") || id.includes("@ant-design")) {
+            return "vendor-antd";
+          }
+          if (id.includes("/vue/") || id.includes("vue-router")) {
+            return "vendor-vue";
+          }
+          return "vendor";
+        }
+      }
+    }
   }
 });
