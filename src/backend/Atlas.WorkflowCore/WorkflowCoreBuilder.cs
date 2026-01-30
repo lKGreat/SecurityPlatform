@@ -3,6 +3,7 @@ using Atlas.WorkflowCore.Abstractions.Persistence;
 using Atlas.WorkflowCore.Models;
 using Atlas.WorkflowCore.Services.DefaultProviders;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.ObjectPool;
 
 namespace Atlas.WorkflowCore;
@@ -82,7 +83,7 @@ public class WorkflowCoreBuilder
         // 3. 注册默认租户提供者（如果未自定义）
         if (!_hasCustomTenant)
         {
-            _services.AddSingleton<ITenantProvider, DefaultTenantProvider>();
+            _services.TryAddSingleton<ITenantProvider, DefaultTenantProvider>();
         }
 
         // 4. 注册 WorkflowOptions 配置

@@ -205,6 +205,14 @@ public static class ServiceCollectionExtensions
                         {
                             column.IsIgnore = true;
                         }
+
+                        if (property.DeclaringType == typeof(Atlas.Domain.Identity.Entities.UserAccount))
+                        {
+                            if (property.PropertyType == typeof(DateTimeOffset))
+                            {
+                                column.IsIgnore = true;
+                            }
+                        }
                     }
                 }
             };

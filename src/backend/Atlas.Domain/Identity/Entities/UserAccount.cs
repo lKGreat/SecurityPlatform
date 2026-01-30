@@ -17,10 +17,10 @@ public class UserAccount : TenantEntity
         IsActive = false;
         IsSystem = false;
         FailedLoginCount = 0;
-        LockoutEndAt = DateTimeOffset.MinValue;
-        ManualLockAt = DateTimeOffset.MinValue;
-        LastPasswordChangeAt = DateTimeOffset.UtcNow;
-        LastLoginAt = DateTimeOffset.MinValue;
+        LockoutEndAtUtc = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
+        ManualLockAtUtc = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
+        LastPasswordChangeAtUtc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+        LastLoginAtUtc = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
     }
 
     public UserAccount(TenantId tenantId, string username, string passwordHash, string roles)
@@ -35,10 +35,10 @@ public class UserAccount : TenantEntity
         IsActive = true;
         IsSystem = false;
         FailedLoginCount = 0;
-        LockoutEndAt = DateTimeOffset.MinValue;
-        ManualLockAt = DateTimeOffset.MinValue;
-        LastPasswordChangeAt = DateTimeOffset.UtcNow;
-        LastLoginAt = DateTimeOffset.MinValue;
+        LockoutEndAtUtc = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
+        ManualLockAtUtc = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
+        LastPasswordChangeAtUtc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+        LastLoginAtUtc = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
     }
 
     public UserAccount(TenantId tenantId, string username, string displayName, string passwordHash, long id)
@@ -54,10 +54,10 @@ public class UserAccount : TenantEntity
         IsActive = true;
         IsSystem = false;
         FailedLoginCount = 0;
-        LockoutEndAt = DateTimeOffset.MinValue;
-        ManualLockAt = DateTimeOffset.MinValue;
-        LastPasswordChangeAt = DateTimeOffset.UtcNow;
-        LastLoginAt = DateTimeOffset.MinValue;
+        LockoutEndAtUtc = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
+        ManualLockAtUtc = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
+        LastPasswordChangeAtUtc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+        LastLoginAtUtc = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
     }
 
     public string Username { get; private set; }
@@ -69,11 +69,33 @@ public class UserAccount : TenantEntity
     public bool IsActive { get; private set; }
     public bool IsSystem { get; private set; }
     public int FailedLoginCount { get; private set; }
-    public DateTimeOffset LockoutEndAt { get; private set; }
+    public DateTime LockoutEndAtUtc { get; private set; }
+    public DateTimeOffset LockoutEndAt
+    {
+        get => new DateTimeOffset(DateTime.SpecifyKind(LockoutEndAtUtc, DateTimeKind.Utc));
+        private set => LockoutEndAtUtc = value.UtcDateTime;
+    }
     public bool IsManualLocked { get; private set; }
-    public DateTimeOffset ManualLockAt { get; private set; }
-    public DateTimeOffset LastPasswordChangeAt { get; private set; }
-    public DateTimeOffset LastLoginAt { get; private set; }
+    public DateTime ManualLockAtUtc { get; private set; }
+    public DateTimeOffset ManualLockAt
+    {
+        get => new DateTimeOffset(DateTime.SpecifyKind(ManualLockAtUtc, DateTimeKind.Utc));
+        private set => ManualLockAtUtc = value.UtcDateTime;
+    }
+
+    public DateTime LastPasswordChangeAtUtc { get; private set; }
+    public DateTimeOffset LastPasswordChangeAt
+    {
+        get => new DateTimeOffset(DateTime.SpecifyKind(LastPasswordChangeAtUtc, DateTimeKind.Utc));
+        private set => LastPasswordChangeAtUtc = value.UtcDateTime;
+    }
+
+    public DateTime LastLoginAtUtc { get; private set; }
+    public DateTimeOffset LastLoginAt
+    {
+        get => new DateTimeOffset(DateTime.SpecifyKind(LastLoginAtUtc, DateTimeKind.Utc));
+        private set => LastLoginAtUtc = value.UtcDateTime;
+    }
 
     public void UpdatePassword(string passwordHash, DateTimeOffset now)
     {

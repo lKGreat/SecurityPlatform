@@ -21,7 +21,9 @@ public sealed class UserAccountRepository : IUserAccountRepository
 
     public Task UpdateAsync(UserAccount account, CancellationToken cancellationToken)
     {
-        return _db.Updateable(account).ExecuteCommandAsync(cancellationToken);
+        return _db.Updateable(account)
+            .Where(x => x.Id == account.Id && x.TenantIdValue == account.TenantIdValue)
+            .ExecuteCommandAsync(cancellationToken);
     }
 
     public async Task<UserAccount?> FindByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
@@ -34,6 +36,13 @@ public sealed class UserAccountRepository : IUserAccountRepository
     public async Task<UserAccount?> FindByUsernameAsync(TenantId tenantId, string username, CancellationToken cancellationToken)
     {
         var query = _db.Queryable<UserAccount>()
+            .IgnoreColumns(x => new
+            {
+                x.LockoutEndAt,
+                x.ManualLockAt,
+                x.LastPasswordChangeAt,
+                x.LastLoginAt
+            })
             .Where(x => x.TenantIdValue == tenantId.Value && x.Username == username);
         var result = await query.FirstAsync(cancellationToken);
         return result;

@@ -24,8 +24,9 @@ import { createToken, getCurrentUser } from "@/services/api";
 const router = useRouter();
 const loading = ref(false);
 
+const defaultTenantId = "00000000-0000-0000-0000-000000000001";
 const form = reactive({
-  tenantId: localStorage.getItem("tenant_id") ?? "",
+  tenantId: localStorage.getItem("tenant_id") ?? defaultTenantId,
   username: "",
   password: ""
 });
