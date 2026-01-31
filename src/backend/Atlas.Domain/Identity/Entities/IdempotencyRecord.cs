@@ -23,6 +23,7 @@ public sealed class IdempotencyRecord : TenantEntity
         CreatedAt = DateTimeOffset.MinValue;
         ExpiresAt = DateTimeOffset.MinValue;
         Status = IdempotencyStatus.Pending;
+        CompletedAt = DateTimeOffset.MinValue;
     }
 
     public IdempotencyRecord(
@@ -47,6 +48,7 @@ public sealed class IdempotencyRecord : TenantEntity
         ResponseBody = string.Empty;
         ResponseContentType = "application/json";
         ResourceId = string.Empty;
+        CompletedAt = DateTimeOffset.MinValue;
     }
 
     public long UserId { get; private set; }

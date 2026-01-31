@@ -100,3 +100,7 @@ All design and implementation must comply with 等保2.0 requirements. Treat sec
 - 视图只绑定当前登录用户（后台以 `tenant_id + user_id` 识别，前端不可传递用户标识），对每个 `tableKey` 仅保存用户自己的视图与默认映射。
 - `TableViewConfig` 支持列配置、密度、分页等项，所有写接口（POST/PUT/PATCH/DELETE 等）要求 `Idempotency-Key` + `X-CSRF-TOKEN`，相关 HTTP 测试存在于 `src/backend/Atlas.WebApi/Bosch.http/TableViews.http`。
 - 默认配置由 `TableViewDefaultOptions`（`appsettings.json` 的 `TableViewDefaults` 节）定义，需要调整请同步更新后端配置与 `docs/contracts.md` 的描述。
+
+## 登录页 UX 规范
+
+- 登录页的详细结构与状态控制在 `docs/login-prd.md` 中记录，包含控件尺寸、校验规则、状态图、错误文案与多租户/组织切换行为，可直接给前端落地。

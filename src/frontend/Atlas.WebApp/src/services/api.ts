@@ -108,12 +108,13 @@ import router from "@/router";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api/v1";
 
-interface RequestOptions {
+export interface RequestOptions {
   disableAutoRefresh?: boolean;
   isRetry?: boolean;
   idempotencyKey?: string;
   antiforgeryToken?: string;
   antiforgeryRetry?: boolean;
+  suppressErrorMessage?: boolean;
 }
 
 let refreshPromise: Promise<boolean> | null = null;
@@ -129,7 +130,10 @@ interface ApiErrorPayload {
   success?: boolean;
   code?: string;
   message?: string;
+  title?: string;
+  type?: string;
   traceId?: string;
+  errors?: Record<string, string[] | string>;
 }
 
 export interface AssetListItem {
@@ -143,7 +147,12 @@ export interface AlertListItem {
   createdAt: string;
 }
 
-export async function createToken(tenantId: string, username: string, password: string) {
+export async function createToken(
+  tenantId: string,
+  username: string,
+  password: string,
+  requestOptions?: RequestOptions
+) {
   const response = await requestApi<ApiResponse<AuthTokenResult>>("/auth/token", {
     method: "POST",
     headers: {
@@ -151,7 +160,7 @@ export async function createToken(tenantId: string, username: string, password: 
       "X-Tenant-Id": tenantId
     },
     body: JSON.stringify({ username, password })
-  });
+  }, { ...requestOptions, disableAutoRefresh: true });
 
   if (!response.data) {
     throw new Error(response.message || "登录失败");
@@ -1396,7 +1405,7 @@ async function requestApi<T>(path: string, init?: RequestInit, options?: Request
     const errorText = await response.text();
     const errorPayload = tryParseErrorPayload(errorText);
     const errorCode = errorPayload?.code ?? "";
-    const errorMessage = (errorPayload?.message ?? errorText) || "没有权限访问";
+    const errorMessage = formatErrorMessage(errorPayload, errorText || "没有权限访问");
 
     if (errorCode === ErrorCodes.AntiforgeryTokenInvalid && !options?.antiforgeryRetry) {
       clearAntiforgeryToken();
@@ -1412,18 +1421,22 @@ async function requestApi<T>(path: string, init?: RequestInit, options?: Request
 
     if (shouldForceLogout(errorCode)) {
       forceLogout(errorMessage);
-      throw new Error(errorMessage || "登录状态已失效");
+      throw new Error("登录状态已失效");
     }
 
-    message.error(errorMessage || "没有权限访问");
-    throw new Error(errorMessage || "没有权限访问");
+    if (!options?.suppressErrorMessage) {
+      showError(errorMessage);
+    }
+    throw new Error(errorMessage);
   }
 
   if (!response.ok) {
     const errorText = await response.text();
     const errorPayload = tryParseErrorPayload(errorText);
-    const errorMessage = (errorPayload?.message ?? errorText) || "网络请求失败";
-    message.error(errorMessage);
+    const errorMessage = formatErrorMessage(errorPayload, errorText || "网络请求失败");
+    if (!options?.suppressErrorMessage) {
+      showError(errorMessage);
+    }
     throw new Error(errorMessage);
   }
 
@@ -1515,6 +1528,47 @@ function tryParseErrorPayload(text: string): ApiErrorPayload | null {
   }
 
   return null;
+}
+
+const GLOBAL_ERROR_KEY = "global-error";
+
+function showError(content: string) {
+  message.open({
+    key: GLOBAL_ERROR_KEY,
+    type: "error",
+    content,
+    duration: 4
+  });
+}
+
+function formatErrorMessage(payload: ApiErrorPayload | null, fallback: string): string {
+  if (!payload) {
+    return fallback;
+  }
+
+  const fragments: string[] = [];
+  if (payload.title) {
+    fragments.push(payload.title);
+  }
+  if (payload.message) {
+    fragments.push(payload.message);
+  }
+  if (payload.errors) {
+    for (const [field, value] of Object.entries(payload.errors)) {
+      if (!value) {
+        continue;
+      }
+      const items = Array.isArray(value) ? value : [value];
+      const prefix = field ? `${field}: ` : "";
+      fragments.push(`${prefix}${items.join("，")}`);
+    }
+  }
+
+  if (fragments.length === 0) {
+    return fallback;
+  }
+
+  return fragments.join("；");
 }
 
 async function tryRefreshTokens(): Promise<boolean> {
