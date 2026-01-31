@@ -29,7 +29,6 @@ public sealed class DatabaseInitializerHostedService : IHostedService
     private readonly DatabaseEncryptionOptions _encryptionOptions;
     private readonly IHostEnvironment _environment;
     private readonly ILogger<DatabaseInitializerHostedService> _logger;
-    private readonly IAppContextAccessor _appContextAccessor;
 
     public DatabaseInitializerHostedService(
         IServiceScopeFactory scopeFactory,
@@ -37,8 +36,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         IOptions<PasswordPolicyOptions> passwordPolicy,
         IOptions<DatabaseEncryptionOptions> encryptionOptions,
         IHostEnvironment environment,
-        ILogger<DatabaseInitializerHostedService> logger,
-        IAppContextAccessor appContextAccessor)
+        ILogger<DatabaseInitializerHostedService> logger)
     {
         _scopeFactory = scopeFactory;
         _bootstrapOptions = bootstrapOptions.Value;
@@ -46,7 +44,6 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         _encryptionOptions = encryptionOptions.Value;
         _environment = environment;
         _logger = logger;
-        _appContextAccessor = appContextAccessor;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -57,6 +54,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         }
 
         using var scope = _scopeFactory.CreateScope();
+        var appContextAccessor = scope.ServiceProvider.GetRequiredService<IAppContextAccessor>();
         var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
         db.CodeFirst.InitTables(
         typeof(UserAccount),
@@ -135,7 +133,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         }
 
         var tenantId = new TenantId(tenantGuid);
-        using var appContextScope = _appContextAccessor.BeginScope(CreateSystemContext(tenantId));
+        using var appContextScope = appContextAccessor.BeginScope(CreateSystemContext(appContextAccessor, tenantId));
         var userRepository = scope.ServiceProvider.GetRequiredService<IUserAccountRepository>();
         var idGeneratorAccessor = scope.ServiceProvider.GetRequiredService<IIdGeneratorAccessor>();
         var userRoleRepository = scope.ServiceProvider.GetRequiredService<IUserRoleRepository>();
@@ -695,9 +693,9 @@ public sealed class DatabaseInitializerHostedService : IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    private IAppContext CreateSystemContext(TenantId tenantId)
+    private static IAppContext CreateSystemContext(IAppContextAccessor appContextAccessor, TenantId tenantId)
     {
-        var appId = _appContextAccessor.GetAppId();
+        var appId = appContextAccessor.GetAppId();
         var clientContext = new ClientContext(
             ClientType.Backend,
             ClientPlatform.Web,
