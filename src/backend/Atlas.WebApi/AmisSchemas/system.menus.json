@@ -1,0 +1,154 @@
+{
+  "key": "system.menus",
+  "title": "菜单管理",
+  "description": "通过 AMIS 编辑菜单树、授权码及层级",
+  "tableKey": "system.menus",
+  "schema": {
+    "type": "page",
+    "title": "菜单管理",
+    "body": [
+      {
+        "type": "crud",
+        "name": "menus-crud",
+        "syncLocation": false,
+        "perPage": 20,
+        "api": {
+          "url": "/menus?pageIndex=${page}&pageSize=${perPage}&keyword=${keyword}&isHidden=${isHidden}",
+          "method": "get",
+          "adaptor": "const payloadData = payload?.data ?? { items: [], total: 0 }; return { status: 0, msg: payload?.message ?? 'OK', data: payloadData };"
+        },
+        "filter": [
+          { "type": "input-text", "name": "keyword", "label": "关键字", "placeholder": "名称/路径", "clearable": true },
+          {
+            "type": "select",
+            "name": "isHidden",
+            "label": "是否隐藏",
+            "options": [
+              { "label": "全部", "value": "" },
+              { "label": "显示", "value": "false" },
+              { "label": "隐藏", "value": "true" }
+            ]
+          }
+        ],
+        "headerToolbar": [
+          {
+            "type": "button",
+            "label": "新增菜单",
+            "level": "primary",
+            "actionType": "dialog",
+            "dialog": {
+              "title": "新增菜单",
+              "size": "lg",
+              "body": [
+                { "type": "input-text", "name": "name", "label": "名称", "required": true },
+                { "type": "input-text", "name": "path", "label": "路径" },
+                {
+                  "type": "select",
+                  "name": "parentId",
+                  "label": "上级菜单",
+                  "searchable": true,
+                  "source": {
+                    "url": "/menus/all",
+                    "method": "get",
+                    "adaptor": "const list = payload?.data ?? []; return { status: 0, msg: payload?.message ?? 'OK', data: list };"
+                  },
+                  "valueField": "id",
+                  "labelField": "name"
+                },
+                { "type": "input-text", "name": "component", "label": "组件" },
+                { "type": "input-text", "name": "icon", "label": "图标" },
+                { "type": "input-text", "name": "permissionCode", "label": "权限码" },
+                { "type": "switch", "name": "isHidden", "label": "隐藏", "trueValue": true, "falseValue": false },
+                { "type": "input-number", "name": "sortOrder", "label": "排序", "value": 0 }
+              ],
+              "actions": [
+                {
+                  "type": "button",
+                  "label": "保存",
+                  "level": "primary",
+                  "actionType": "ajax",
+                  "api": {
+                    "url": "/menus",
+                    "method": "post",
+                    "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '保存完成', data: payload?.data };"
+                  }
+                }
+              ]
+            }
+          },
+          "reload"
+        ],
+        "columns": [
+          { "name": "name", "label": "名称" },
+          { "name": "path", "label": "路径" },
+          { "name": "permissionCode", "label": "权限码" },
+          {
+            "name": "isHidden",
+            "label": "隐藏",
+            "type": "tpl",
+            "tpl": "<span>${isHidden ? '是' : '否'}</span>"
+          },
+          { "name": "sortOrder", "label": "顺序" },
+          {
+            "type": "operation",
+            "label": "操作",
+            "buttons": [
+              {
+                "label": "编辑",
+                "level": "link",
+                "actionType": "dialog",
+                "dialog": {
+                  "title": "编辑菜单",
+                  "body": [
+                    { "type": "input-text", "name": "name", "label": "名称", "required": true },
+                    { "type": "input-text", "name": "path", "label": "路径" },
+                    {
+                      "type": "select",
+                      "name": "parentId",
+                      "label": "上级菜单",
+                      "searchable": true,
+                      "source": {
+                        "url": "/menus/all",
+                        "method": "get",
+                        "adaptor": "const list = payload?.data ?? []; return { status: 0, msg: payload?.message ?? 'OK', data: list };"
+                      },
+                      "valueField": "id",
+                      "labelField": "name"
+                    },
+                    { "type": "input-text", "name": "component", "label": "组件" },
+                    { "type": "input-text", "name": "icon", "label": "图标" },
+                    { "type": "input-text", "name": "permissionCode", "label": "权限码" },
+                    { "type": "switch", "name": "isHidden", "label": "隐藏", "trueValue": true, "falseValue": false },
+                    { "type": "input-number", "name": "sortOrder", "label": "排序", "value": 0 }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "label": "保存",
+                      "level": "primary",
+                      "actionType": "ajax",
+                      "api": {
+                        "url": "/menus/${id}",
+                        "method": "put",
+                        "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '更新完成' };"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "label": "提示",
+                "level": "link",
+                "actionType": "dialog",
+                "dialog": {
+                  "title": "说明",
+                  "body": "当前版本未开放菜单删除接口，如需删除请走配置流程。"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

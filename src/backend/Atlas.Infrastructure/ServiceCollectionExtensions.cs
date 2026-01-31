@@ -1,4 +1,5 @@
 using Atlas.Application.Abstractions;
+using Atlas.Application.Amis.Abstractions;
 using Atlas.Application.Alert.Abstractions;
 using Atlas.Application.Assets.Abstractions;
 using Atlas.Application.Assets.Repositories;
@@ -97,6 +98,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IProjectCommandService, ProjectCommandService>();
         services.AddScoped<ITableViewQueryService, TableViewQueryService>();
         services.AddScoped<ITableViewCommandService, TableViewCommandService>();
+        services.AddSingleton<IAmisSchemaProvider, Atlas.Infrastructure.Services.Amis.FileSystemAmisSchemaProvider>();
         
         // Approval Workflow Services
         services.AddScoped<Atlas.Application.Approval.Repositories.IApprovalFlowRepository, ApprovalFlowRepository>();

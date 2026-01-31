@@ -755,6 +755,55 @@ JWT Claims（新增）：
 }
 ```
 
+## AMIS 低代码页面契约
+
+  - **Schema 入口**：每个管理页面（员工/角色/权限/菜单/部门/职位/项目/应用）统一通过 `GET /api/v1/amis/pages/{key}` 拉取 Baidu AMIS 模式 JSON。
+    - 请求必须带 `Authorization`、`X-Tenant-Id`（GET 请求无需 `Idempotency-Key`），写接口由前端 fetcher 自动附带 `Idempotency-Key` 与 `X-CSRF-TOKEN`。
+    - 响应遵循通用 `ApiResponse<AmisPageDefinition>`，`data` 包含 `{ key, title, description, tableKey, schema }`，其中 `schema` 为完整的 AMIS JSON，即 `type: "page"` 的配置体。
+    - 前端按模块加载 schema；schema 变更必须同步更新 `docs/contracts.md`。
+- **tableKey 一览与模块映射**：
+  - `system.users`：员工管理
+  - `system.roles`：角色列表
+  - `system.permissions`：权限列表
+  - `system.menus`：菜单树
+  - `system.departments`：部门
+  - `system.positions`：职位
+  - `system.projects`：项目
+  - `system.apps`：应用配置
+  这些 `tableKey` 同时用于表格视图存储与后端 `TableView` API。
+  - **Schema 要求**：
+  1. 所有列表型组件须默认分页 `pageSize=20`，并支持关键字（`keyword`）远程搜索，搜索字段归前端自由组合，但必须把 `keyword` 参数传给后端接口。
+  2. 所有 `select`/`autocomplete` 组件必须使用远程接口（如 `/roles`, `/departments/all`）并通过 `pageSize=20` 限制，预设 `adaptor` 将 `ApiResponse` 转为 AMIS 可识别的 `{ status: 0, msg, data }`。
+  3. 通过 `headerToolbar`/`toolbar` 按钮的 `dialog`/`ajax` 操作调用后端的写接口（`POST/PUT/DELETE`），在 schema 中可复用 `saveApi`/`deleteApi`，写操作由前端 fetcher 自动附带 `Idempotency-Key` + `X-CSRF-TOKEN`，后端统一返回 `ApiResponse`。
+    4. 所有 schema 均包含 `tableKey` 字段，用于与个人视图（`TableView`）联动，具体联动策略以前端实现为准。
+    5. schema 文件存放于后端 `src/backend/Atlas.WebApi/AmisSchemas/{key}.json`，由后端直接读取并返回。
+
+- **示例响应**：
+
+```json
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "OK",
+  "traceId": "00-abc123...",
+  "data": {
+    "key": "system.users",
+    "title": "员工管理",
+    "description": "基于 AMIS 的员工列表与表单",
+    "tableKey": "system.users",
+    "schema": {
+      "type": "page",
+      "title": "员工管理",
+      "body": [ ... ]
+    }
+  }
+}
+```
+
+前端 `AmisRenderer` 组件会把 `schema` 直接传给 `render` 并依赖 `env.fetcher` 将请求透传到后端 `ApiResponse`，还会用 `notify`/`alert` 显示提示。
+
+## 用户/部门/职位管理契约
+
 ## 用户/部门/职位管理契约
 
 ### 用户
@@ -789,11 +838,11 @@ JWT Claims（新增）：
 
 ### 项目
 
-- `GET /api/v1/projects?appId=app-100`：分页查询项目（`appId` 为应用维度，必填）
+- `GET /api/v1/projects?pageIndex=1&pageSize=10&keyword=核心`：分页查询项目
 - `GET /api/v1/projects/{id}`：项目详情
 - `POST /api/v1/projects`：新增项目
 - `PUT /api/v1/projects/{id}`：更新项目
-- `DELETE /api/v1/projects/{id}`：删除项目
+- `DELETE /api/v1/projects/{id}`：停用项目（逻辑删除）
 - `PUT /api/v1/projects/{id}/users`：项目分配人员
 - `PUT /api/v1/projects/{id}/departments`：项目分配部门
 - `PUT /api/v1/projects/{id}/positions`：项目分配职位
@@ -801,7 +850,43 @@ JWT Claims（新增）：
 
 说明：
 
-- 项目标识唯一性按 `appId + projectCode` 约束。
+- 项目编码 `code` 建议在租户范围内保持唯一。
+
+### ProjectListItem
+
+```json
+{
+  "id": "1001",
+  "code": "ops-core",
+  "name": "运维核心项目",
+  "isActive": true,
+  "description": "运维平台核心业务线",
+  "sortOrder": 0
+}
+```
+
+### ProjectCreateRequest
+
+```json
+{
+  "code": "ops-core",
+  "name": "运维核心项目",
+  "isActive": true,
+  "description": "运维平台核心业务线",
+  "sortOrder": 0
+}
+```
+
+### ProjectUpdateRequest
+
+```json
+{
+  "name": "运维核心项目",
+  "isActive": true,
+  "description": "运维平台核心业务线",
+  "sortOrder": 0
+}
+```
 
 ## 应用配置契约
 
@@ -816,16 +901,12 @@ JWT Claims（新增）：
 
 ```json
 {
-  "id": "app-100",
-  "appCode": "security-platform",
+  "id": "1",
+  "appId": "security-platform",
   "name": "SecurityPlatform",
-  "description": "默认应用配置",
-  "apiVersion": "v1",
   "isActive": true,
-  "isTenantSubscribable": true,
-  "enableProjectMode": true,
-  "allowTenantAdminManageDataSource": true,
-  "auditLevel": "Required",
+  "enableProjectScope": true,
+  "description": "默认应用配置",
   "sortOrder": 0
 }
 ```
@@ -836,11 +917,7 @@ JWT Claims（新增）：
 {
   "name": "SecurityPlatform",
   "isActive": true,
-  "enableProjectMode": false,
-  "apiVersion": "v1",
-  "isTenantSubscribable": true,
-  "allowTenantAdminManageDataSource": true,
-  "auditLevel": "Required",
+  "enableProjectScope": false,
   "description": "默认应用配置",
   "sortOrder": 0
 }
@@ -848,62 +925,7 @@ JWT Claims（新增）：
 
 字段说明：
 
-- `enableProjectMode`：是否启用项目模式（应用级开关，启用后业务数据必须带 `project_id`）。
-- `isTenantSubscribable`：是否允许租户开通该应用。
-- `allowTenantAdminManageDataSource`：是否允许租户管理员管理该应用的数据源。
-- `auditLevel`：审计级别（`Required`/`Optional`/`None`）。
-
-## 项目管理契约
-
-项目为业务实体，启用项目模式后，所有业务数据必须以 `project_id` 作为数据范围隔离维度，项目编码在应用维度唯一（`appId + projectCode`）。
-
-### 项目
-
-- `GET /api/v1/projects?appId=app-100`：分页查询项目（`appId` 为应用维度，必填）
-- `GET /api/v1/projects/{id}`：项目详情
-- `POST /api/v1/projects`：新增项目
-- `PUT /api/v1/projects/{id}`：更新项目
-- `DELETE /api/v1/projects/{id}`：停用项目（逻辑删除）
-
-### ProjectResponse
-
-```json
-{
-  "id": "project-100",
-  "appId": "app-100",
-  "projectCode": "ops-core",
-  "name": "运维核心项目",
-  "description": "运维平台核心业务线",
-  "isActive": true,
-  "createdAt": "2026-01-31T10:00:00Z",
-  "updatedAt": "2026-01-31T10:00:00Z"
-}
-```
-
-### ProjectCreateRequest
-
-```json
-{
-  "appId": "app-100",
-  "projectCode": "ops-core",
-  "name": "运维核心项目",
-  "description": "运维平台核心业务线"
-}
-```
-
-### ProjectUpdateRequest
-
-```json
-{
-  "name": "运维核心项目",
-  "description": "运维平台核心业务线",
-  "isActive": true
-}
-```
-
-字段说明：
-
-- `appId`：所属应用标识（项目维度唯一性按 `appId + projectCode`）。
+- `enableProjectScope`：是否启用项目模式（应用级开关，启用后业务数据必须带 `project_id`）。
 
 ## Workflow Designer APIs (草案)
 - POST `/api/v1/approval/flows` : 保存流程定义

@@ -24,6 +24,7 @@ const DepartmentsPage = () => import("@/pages/system/DepartmentsPage.vue");
 const PositionsPage = () => import("@/pages/system/PositionsPage.vue");
 const AppsPage = () => import("@/pages/system/AppsPage.vue");
 const ProjectsPage = () => import("@/pages/system/ProjectsPage.vue");
+const AmisSystemPage = () => import("@/pages/system/AmisSystemPage.vue");
 
 const router = createRouter({
   history: createWebHistory(),
@@ -45,10 +46,22 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPermission: "users:view" }
     },
     {
+      path: "/amis/system/users",
+      name: "amis-system-users",
+      component: AmisSystemPage,
+      meta: { requiresAuth: true, requiresPermission: "users:view", amisKey: "system.users" }
+    },
+    {
       path: "/system/roles",
       name: "system-roles",
       component: RolesPage,
       meta: { requiresAuth: true, requiresPermission: "roles:view" }
+    },
+    {
+      path: "/amis/system/roles",
+      name: "amis-system-roles",
+      component: AmisSystemPage,
+      meta: { requiresAuth: true, requiresPermission: "roles:view", amisKey: "system.roles" }
     },
     {
       path: "/system/permissions",
@@ -57,10 +70,22 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPermission: "permissions:view" }
     },
     {
+      path: "/amis/system/permissions",
+      name: "amis-system-permissions",
+      component: AmisSystemPage,
+      meta: { requiresAuth: true, requiresPermission: "permissions:view", amisKey: "system.permissions" }
+    },
+    {
       path: "/system/menus",
       name: "system-menus",
       component: MenusPage,
       meta: { requiresAuth: true, requiresPermission: "menus:view" }
+    },
+    {
+      path: "/amis/system/menus",
+      name: "amis-system-menus",
+      component: AmisSystemPage,
+      meta: { requiresAuth: true, requiresPermission: "menus:view", amisKey: "system.menus" }
     },
     {
       path: "/system/departments",
@@ -69,10 +94,22 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPermission: "departments:view" }
     },
     {
+      path: "/amis/system/departments",
+      name: "amis-system-departments",
+      component: AmisSystemPage,
+      meta: { requiresAuth: true, requiresPermission: "departments:view", amisKey: "system.departments" }
+    },
+    {
       path: "/system/positions",
       name: "system-positions",
       component: PositionsPage,
       meta: { requiresAuth: true, requiresPermission: "positions:view" }
+    },
+    {
+      path: "/amis/system/positions",
+      name: "amis-system-positions",
+      component: AmisSystemPage,
+      meta: { requiresAuth: true, requiresPermission: "positions:view", amisKey: "system.positions" }
     },
     {
       path: "/system/apps",
@@ -81,10 +118,22 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPermission: "apps:view" }
     },
     {
+      path: "/amis/system/apps",
+      name: "amis-system-apps",
+      component: AmisSystemPage,
+      meta: { requiresAuth: true, requiresPermission: "apps:view", amisKey: "system.apps" }
+    },
+    {
       path: "/system/projects",
       name: "system-projects",
       component: ProjectsPage,
       meta: { requiresAuth: true, requiresPermission: "projects:view" }
+    },
+    {
+      path: "/amis/system/projects",
+      name: "amis-system-projects",
+      component: AmisSystemPage,
+      meta: { requiresAuth: true, requiresPermission: "projects:view", amisKey: "system.projects" }
     },
     {
       path: "/workflow/designer",

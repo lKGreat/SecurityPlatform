@@ -28,10 +28,20 @@
     "@antv/x6": "^2.18.1",
     "@antv/x6-plugin-dnd": "^2.1.1",
     "@antv/x6-vue-shape": "^2.0.8",
+    "amis": "^6.0.0",
     "ant-design-vue": "^4.2.6",
     "element-plus": "^2.13.2",
+    "mobx-react-lite": "^4.0.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "vform3-builds": "^3.0.10",
     "vue": "^3.5.27",
     "vue-router": "^4.6.4"
+  },
+  "overrides": {
+    "@popperjs/core": "2.11.8",
+    "element-plus": {
+      "@popperjs/core": "2.11.8"
+    }
   }
 }

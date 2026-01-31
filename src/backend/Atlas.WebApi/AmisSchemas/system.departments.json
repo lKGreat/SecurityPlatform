@@ -1,0 +1,128 @@
+{
+  "key": "system.departments",
+  "title": "部门管理",
+  "description": "AMIS 表单管理部门结构与排序",
+  "tableKey": "system.departments",
+  "schema": {
+    "type": "page",
+    "title": "部门管理",
+    "body": [
+      {
+        "type": "crud",
+        "name": "departments-crud",
+        "syncLocation": false,
+        "perPage": 20,
+        "api": {
+          "url": "/departments?pageIndex=${page}&pageSize=${perPage}&keyword=${keyword}",
+          "method": "get",
+          "adaptor": "const payloadData = payload?.data ?? { items: [], total: 0 }; return { status: 0, msg: payload?.message ?? 'OK', data: payloadData };"
+        },
+        "filter": [
+          { "type": "input-text", "name": "keyword", "label": "关键字", "placeholder": "名称", "clearable": true }
+        ],
+        "headerToolbar": [
+          {
+            "type": "button",
+            "label": "新增部门",
+            "level": "primary",
+            "actionType": "dialog",
+            "dialog": {
+              "title": "新增部门",
+              "body": [
+                { "type": "input-text", "name": "name", "label": "名称", "required": true },
+                {
+                  "type": "select",
+                  "name": "parentId",
+                  "label": "上级部门",
+                  "searchable": true,
+                  "source": {
+                    "url": "/departments/all",
+                    "method": "get",
+                    "adaptor": "const list = payload?.data ?? []; return { status: 0, msg: payload?.message ?? 'OK', data: list };"
+                  },
+                  "valueField": "id",
+                  "labelField": "name"
+                },
+                { "type": "input-number", "name": "sortOrder", "label": "排序", "value": 0 }
+              ],
+              "actions": [
+                {
+                  "type": "button",
+                  "label": "保存",
+                  "level": "primary",
+                  "actionType": "ajax",
+                  "api": {
+                    "url": "/departments",
+                    "method": "post",
+                    "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '保存完成', data: payload?.data };"
+                  }
+                }
+              ]
+            }
+          },
+          "reload"
+        ],
+        "columns": [
+          { "name": "name", "label": "名称" },
+          { "name": "parentId", "label": "上级部门", "tpl": "<span>${parentId || '根级'}</span>" },
+          { "name": "sortOrder", "label": "排序" },
+          {
+            "type": "operation",
+            "label": "操作",
+            "buttons": [
+              {
+                "label": "编辑",
+                "level": "link",
+                "actionType": "dialog",
+                "dialog": {
+                  "title": "编辑部门",
+                  "body": [
+                    { "type": "input-text", "name": "name", "label": "名称", "required": true },
+                    {
+                      "type": "select",
+                      "name": "parentId",
+                      "label": "上级部门",
+                      "searchable": true,
+                      "source": {
+                        "url": "/departments/all",
+                        "method": "get",
+                        "adaptor": "const list = payload?.data ?? []; return { status: 0, msg: payload?.message ?? 'OK', data: list };"
+                      },
+                      "valueField": "id",
+                      "labelField": "name"
+                    },
+                    { "type": "input-number", "name": "sortOrder", "label": "排序", "value": 0 }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "label": "保存",
+                      "level": "primary",
+                      "actionType": "ajax",
+                      "api": {
+                        "url": "/departments/${id}",
+                        "method": "put",
+                        "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '更新完成' };"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "label": "删除",
+                "level": "link",
+                "actionType": "ajax",
+                "confirmText": "确认删除该部门？",
+                "api": {
+                  "url": "/departments/${id}",
+                  "method": "delete",
+                  "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '删除完成' };"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

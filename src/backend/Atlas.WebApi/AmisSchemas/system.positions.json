@@ -1,0 +1,116 @@
+{
+  "key": "system.positions",
+  "title": "职位管理",
+  "description": "AMIS CRUD 管理职位、排序与状态",
+  "tableKey": "system.positions",
+  "schema": {
+    "type": "page",
+    "title": "职位管理",
+    "body": [
+      {
+        "type": "crud",
+        "name": "positions-crud",
+        "syncLocation": false,
+        "perPage": 20,
+        "api": {
+          "url": "/positions?pageIndex=${page}&pageSize=${perPage}&keyword=${keyword}",
+          "method": "get",
+          "adaptor": "const payloadData = payload?.data ?? { items: [], total: 0 }; return { status: 0, msg: payload?.message ?? 'OK', data: payloadData };"
+        },
+        "filter": [
+          { "type": "input-text", "name": "keyword", "label": "关键字", "placeholder": "名称/编码", "clearable": true }
+        ],
+        "headerToolbar": [
+          {
+            "type": "button",
+            "label": "新增职位",
+            "level": "primary",
+            "actionType": "dialog",
+            "dialog": {
+              "title": "新增职位",
+              "body": [
+                { "type": "input-text", "name": "name", "label": "名称", "required": true },
+                { "type": "input-text", "name": "code", "label": "编码", "required": true },
+                { "type": "textarea", "name": "description", "label": "描述", "rows": 3 },
+                { "type": "switch", "name": "isActive", "label": "启用", "trueValue": true, "falseValue": false },
+                { "type": "input-number", "name": "sortOrder", "label": "排序", "value": 0 }
+              ],
+              "actions": [
+                {
+                  "type": "button",
+                  "label": "保存",
+                  "level": "primary",
+                  "actionType": "ajax",
+                  "api": {
+                    "url": "/positions",
+                    "method": "post",
+                    "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '保存完成', data: payload?.data };"
+                  }
+                }
+              ]
+            }
+          },
+          "reload"
+        ],
+        "columns": [
+          { "name": "name", "label": "名称" },
+          { "name": "code", "label": "编码" },
+          { "name": "description", "label": "描述", "tpl": "<span>${description || '-'}</span>" },
+          {
+            "name": "isActive",
+            "label": "状态",
+            "type": "tpl",
+            "tpl": "<span>${isActive ? '启用' : '停用'}</span>"
+          },
+          { "name": "sortOrder", "label": "排序" },
+          {
+            "type": "operation",
+            "label": "操作",
+            "buttons": [
+              {
+                "label": "编辑",
+                "level": "link",
+                "actionType": "dialog",
+                "dialog": {
+                  "title": "编辑职位",
+                  "initApi": "/positions/${id}",
+                  "body": [
+                    { "type": "input-text", "name": "name", "label": "名称", "required": true },
+                    { "type": "input-text", "name": "code", "label": "编码", "required": true },
+                    { "type": "textarea", "name": "description", "label": "描述", "rows": 3 },
+                    { "type": "switch", "name": "isActive", "label": "启用", "trueValue": true, "falseValue": false },
+                    { "type": "input-number", "name": "sortOrder", "label": "排序", "value": 0 }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "label": "保存",
+                      "level": "primary",
+                      "actionType": "ajax",
+                      "api": {
+                        "url": "/positions/${id}",
+                        "method": "put",
+                        "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '更新完成' };"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "label": "删除",
+                "level": "link",
+                "actionType": "ajax",
+                "confirmText": "确认删除该职位？",
+                "api": {
+                  "url": "/positions/${id}",
+                  "method": "delete",
+                  "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '删除完成' };"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

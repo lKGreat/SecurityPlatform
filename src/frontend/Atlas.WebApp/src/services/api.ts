@@ -79,7 +79,8 @@ import type {
   TableViewCreateRequest,
   TableViewUpdateRequest,
   TableViewConfigUpdateRequest,
-  TableViewDuplicateRequest
+  TableViewDuplicateRequest,
+  AmisPageDefinition
 } from "@/types/api";
 import type {
   FlowDefinition,
@@ -1148,6 +1149,14 @@ export async function getCurrentAppConfig(): Promise<AppConfigDetail | null> {
   return response.data ?? null;
 }
 
+export async function getAmisPageDefinition(key: string): Promise<AmisPageDefinition> {
+  const response = await requestApi<ApiResponse<AmisPageDefinition>>(`/amis/pages/${encodeURIComponent(key)}`);
+  if (!response.data) {
+    throw new Error(response.message || "获取 AMIS 页面失败");
+  }
+  return response.data;
+}
+
 export async function getProjectsPaged(pagedRequest: PagedRequest) {
   const query = toQuery(pagedRequest);
   const response = await requestApi<ApiResponse<PagedResult<ProjectListItem>>>(`/projects?${query}`);
@@ -1334,7 +1343,7 @@ export async function deleteTableView(id: string): Promise<void> {
   }
 }
 
-async function requestApi<T>(path: string, init?: RequestInit, options?: RequestOptions): Promise<T> {
+export async function requestApi<T>(path: string, init?: RequestInit, options?: RequestOptions): Promise<T> {
   const headers = new Headers(init?.headers ?? {});
   const token = getAccessToken();
   const tenantId = getTenantId();

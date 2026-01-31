@@ -6,7 +6,29 @@ export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src")
+      "@": path.resolve(__dirname, "src"),
+      "@popperjs/core/lib/modifiers/arrow": path.resolve(__dirname, "src/compat/popper/modifiers/arrow.ts"),
+      "@popperjs/core/lib/modifiers/computeStyles": path.resolve(
+        __dirname,
+        "src/compat/popper/modifiers/computeStyles.ts"
+      ),
+      "@popperjs/core/lib/modifiers/eventListeners": path.resolve(
+        __dirname,
+        "src/compat/popper/modifiers/eventListeners.ts"
+      ),
+      "@popperjs/core/lib/modifiers/flip": path.resolve(__dirname, "src/compat/popper/modifiers/flip.ts"),
+      "@popperjs/core/lib/modifiers/hide": path.resolve(__dirname, "src/compat/popper/modifiers/hide.ts"),
+      "@popperjs/core/lib/modifiers/offset": path.resolve(__dirname, "src/compat/popper/modifiers/offset.ts"),
+      "@popperjs/core/lib/modifiers/popperOffsets": path.resolve(
+        __dirname,
+        "src/compat/popper/modifiers/popperOffsets.ts"
+      ),
+      "@popperjs/core/lib/modifiers/preventOverflow": path.resolve(
+        __dirname,
+        "src/compat/popper/modifiers/preventOverflow.ts"
+      ),
+      "@popperjs/core/lib/enums": path.resolve(__dirname, "src/compat/popper/enums.ts"),
+      "@popperjs/core/lib/popper-base": path.resolve(__dirname, "src/compat/popper/popper-base.ts")
     }
   },
   server: {

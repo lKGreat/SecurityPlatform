@@ -1,3 +1,9 @@
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export interface JsonObject {
+  [key: string]: JsonValue;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   code: string;
@@ -16,6 +22,14 @@ export interface ClientContext {
   clientPlatform: ClientPlatform;
   clientChannel: ClientChannel;
   clientAgent: ClientAgent;
+}
+
+export interface AmisPageDefinition {
+  key: string;
+  title: string;
+  description?: string;
+  tableKey: string;
+  schema: JsonValue;
 }
 
 export interface AuthProfile {

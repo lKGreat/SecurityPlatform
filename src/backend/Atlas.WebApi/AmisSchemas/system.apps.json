@@ -1,0 +1,83 @@
+{
+  "key": "system.apps",
+  "title": "应用配置",
+  "description": "AMIS 页面展示当前应用列表与可配置参数",
+  "tableKey": "system.apps",
+  "schema": {
+    "type": "page",
+    "title": "应用配置",
+    "body": [
+      {
+        "type": "crud",
+        "name": "apps-crud",
+        "syncLocation": false,
+        "perPage": 20,
+        "api": {
+          "url": "/apps?pageIndex=${page}&pageSize=${perPage}&keyword=${keyword}",
+          "method": "get",
+          "adaptor": "const payloadData = payload?.data ?? { items: [], total: 0 }; return { status: 0, msg: payload?.message ?? 'OK', data: payloadData };"
+        },
+        "filter": [
+          { "type": "input-text", "name": "keyword", "label": "关键字", "placeholder": "名称/标识", "clearable": true }
+        ],
+        "headerToolbar": [
+          "reload"
+        ],
+        "columns": [
+          { "name": "appId", "label": "应用标识" },
+          { "name": "name", "label": "名称" },
+          {
+            "name": "isActive",
+            "label": "启用",
+            "type": "tpl",
+            "tpl": "<span>${isActive ? '是' : '否'}</span>"
+          },
+          {
+            "name": "enableProjectScope",
+            "label": "项目模式",
+            "type": "tpl",
+            "tpl": "<span>${enableProjectScope ? '开启' : '关闭'}</span>"
+          },
+          { "name": "description", "label": "描述", "tpl": "<span>${description || '-'}</span>" },
+          { "name": "sortOrder", "label": "排序" },
+          {
+            "type": "operation",
+            "label": "操作",
+            "buttons": [
+              {
+                "label": "编辑",
+                "level": "link",
+                "actionType": "dialog",
+                "dialog": {
+                  "title": "编辑应用",
+                  "initApi": "/apps/${id}",
+                  "body": [
+                    { "type": "input-text", "name": "appId", "label": "应用标识", "disabled": true },
+                    { "type": "input-text", "name": "name", "label": "名称", "required": true },
+                    { "type": "textarea", "name": "description", "label": "描述", "rows": 3 },
+                    { "type": "switch", "name": "isActive", "label": "启用", "trueValue": true, "falseValue": false },
+                    { "type": "switch", "name": "enableProjectScope", "label": "项目模式", "trueValue": true, "falseValue": false },
+                    { "type": "input-number", "name": "sortOrder", "label": "排序", "value": 0 }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "label": "保存",
+                      "level": "primary",
+                      "actionType": "ajax",
+                      "api": {
+                        "url": "/apps/${id}",
+                        "method": "put",
+                        "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '更新完成', data: payload?.data };"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

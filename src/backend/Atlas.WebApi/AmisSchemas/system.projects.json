@@ -1,0 +1,115 @@
+{
+  "key": "system.projects",
+  "title": "项目管理",
+  "description": "AMIS 页面提供项目的分组、状态与多租户可见性",
+  "tableKey": "system.projects",
+  "schema": {
+    "type": "page",
+    "title": "项目管理",
+    "body": [
+      {
+        "type": "crud",
+        "name": "projects-crud",
+        "syncLocation": false,
+        "perPage": 20,
+        "api": {
+          "url": "/projects?pageIndex=${page}&pageSize=${perPage}&keyword=${keyword}",
+          "method": "get",
+          "adaptor": "const payloadData = payload?.data ?? { items: [], total: 0 }; return { status: 0, msg: payload?.message ?? 'OK', data: payloadData };"
+        },
+        "filter": [
+          { "type": "input-text", "name": "keyword", "label": "关键字", "placeholder": "名称/编码", "clearable": true }
+        ],
+        "headerToolbar": [
+          {
+            "type": "button",
+            "label": "新增项目",
+            "level": "primary",
+            "actionType": "dialog",
+            "dialog": {
+              "title": "新增项目",
+              "body": [
+                { "type": "input-text", "name": "code", "label": "项目编码", "required": true },
+                { "type": "input-text", "name": "name", "label": "项目名称", "required": true },
+                { "type": "textarea", "name": "description", "label": "描述", "rows": 3 },
+                { "type": "switch", "name": "isActive", "label": "启用", "trueValue": true, "falseValue": false },
+                { "type": "input-number", "name": "sortOrder", "label": "排序", "value": 0 }
+              ],
+              "actions": [
+                {
+                  "type": "button",
+                  "label": "保存",
+                  "level": "primary",
+                  "actionType": "ajax",
+                  "api": {
+                    "url": "/projects",
+                    "method": "post",
+                    "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '保存完成', data: payload?.data };"
+                  }
+                }
+              ]
+            }
+          },
+          "reload"
+        ],
+        "columns": [
+          { "name": "code", "label": "编码" },
+          { "name": "name", "label": "名称" },
+          { "name": "description", "label": "描述", "tpl": "<span>${description || '-'}</span>" },
+          {
+            "name": "isActive",
+            "label": "状态",
+            "type": "tpl",
+            "tpl": "<span>${isActive ? '启用' : '停用'}</span>"
+          },
+          { "name": "sortOrder", "label": "排序" },
+          {
+            "type": "operation",
+            "label": "操作",
+            "buttons": [
+              {
+                "label": "编辑",
+                "level": "link",
+                "actionType": "dialog",
+                "dialog": {
+                  "title": "编辑项目",
+                  "initApi": "/projects/${id}",
+                  "body": [
+                    { "type": "input-text", "name": "name", "label": "名称", "required": true },
+                    { "type": "textarea", "name": "description", "label": "描述", "rows": 3 },
+                    { "type": "switch", "name": "isActive", "label": "启用", "trueValue": true, "falseValue": false },
+                    { "type": "input-number", "name": "sortOrder", "label": "排序", "value": 0 }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "label": "保存",
+                      "level": "primary",
+                      "actionType": "ajax",
+                      "api": {
+                        "url": "/projects/${id}",
+                        "method": "put",
+                        "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '更新完成' };"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "label": "删除",
+                "level": "link",
+                "actionType": "ajax",
+                "confirmText": "确认停用该项目？",
+                "api": {
+                  "url": "/projects/${id}",
+                  "method": "delete",
+                  "adaptor": "return { status: payload?.success ? 0 : 1, msg: payload?.message ?? '停用完成' };"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
