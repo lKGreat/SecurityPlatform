@@ -1,13 +1,15 @@
 <template>
   <a-card title="部门管理" class="page-card">
-    <div class="toolbar">
-      <a-space>
+    <div class="crud-toolbar">
+      <a-space wrap>
         <a-input
           v-model:value="keyword"
           placeholder="搜索部门名称"
           allow-clear
           @press-enter="handleSearch"
         />
+        <a-button @click="handleSearch">查询</a-button>
+        <a-button @click="handleReset">重置</a-button>
         <a-button v-if="canCreate" type="primary" @click="openCreate">新增部门</a-button>
       </a-space>
       <TableViewToolbar :controller="tableViewController" />
@@ -56,7 +58,7 @@
                   title="确认删除该部门？"
                   ok-text="删除"
                   cancel-text="取消"
-                  @confirm="handleDelete(record.id)"
+                  @confirm="handleDeleteDept(record.id)"
                 >
                   <a-button type="link" danger>删除</a-button>
                 </a-popconfirm>
@@ -89,7 +91,7 @@
               title="确认删除该部门？"
               ok-text="删除"
               cancel-text="取消"
-              @confirm="handleDelete(record.id)"
+              @confirm="handleDeleteDept(record.id)"
             >
               <a-button type="link" danger>删除</a-button>
             </a-popconfirm>
@@ -102,7 +104,7 @@
       v-model:open="formVisible"
       :title="formMode === 'create' ? '新增部门' : '编辑部门'"
       placement="right"
-      width="520"
+      :width="520"
       @close="closeForm"
       destroy-on-close
     >
@@ -120,7 +122,7 @@
             :filter-option="false"
             :loading="parentLoading"
             @search="handleParentSearch"
-            @focus="loadParentOptions"
+            @focus="() => loadParentOptions()"
           />
         </a-form-item>
         <a-form-item label="排序" name="sortOrder">
@@ -147,13 +149,7 @@ import { useTableView } from "@/composables/useTableView";
 import { createDepartment, deleteDepartment, getDepartmentsAll, getDepartmentsPaged, updateDepartment } from "@/services/api";
 import type { DepartmentCreateRequest, DepartmentListItem, DepartmentUpdateRequest } from "@/types/api";
 import { getAuthProfile, hasPermission } from "@/utils/auth";
-
-type FormMode = "create" | "edit";
-
-interface SelectOption {
-  label: string;
-  value: number;
-}
+import { debounce, type FormMode, type SelectOption } from "@/utils/common";
 
 const baseColumns = [
   { title: "部门名称", dataIndex: "name", key: "name" },
@@ -210,11 +206,7 @@ const buildTree = (items: DepartmentListItem[]) => {
   const rootNodes: TreeNode[] = [];
 
   items.forEach((item) => {
-    nodeMap.set(item.id, {
-      key: item.id,
-      title: item.name,
-      children: []
-    });
+    nodeMap.set(item.id, { key: item.id, title: item.name, children: [] });
   });
 
   items.forEach((item) => {
@@ -266,9 +258,7 @@ const expandedTreeKeys = computed(() => {
 });
 
 const fetchData = async () => {
-  if (showTreeLayout.value) {
-    return;
-  }
+  if (showTreeLayout.value) return;
   loading.value = true;
   try {
     const result = await getDepartmentsPaged({
@@ -292,13 +282,13 @@ const { controller: tableViewController, tableColumns, tableSize } = useTableVie
   onRefresh: fetchData
 });
 
-const loadParentOptions = async (keyword?: string) => {
+const loadParentOptions = async (kw?: string) => {
   parentLoading.value = true;
   try {
     const result = await getDepartmentsPaged({
       pageIndex: 1,
       pageSize: 20,
-      keyword: keyword?.trim() || undefined
+      keyword: kw?.trim() || undefined
     });
     parentOptions.value = result.items.map((item) => ({
       label: item.name,
@@ -319,24 +309,22 @@ const ensureParentOption = (parentId?: number) => {
   }
 };
 
-const debounce = (handler: (value: string) => void, delay = 300) => {
-  let timer: number | undefined;
-  return (value: string) => {
-    if (timer) window.clearTimeout(timer);
-    timer = window.setTimeout(() => handler(value), delay);
-  };
-};
-
 const handleParentSearch = debounce((value: string) => {
   void loadParentOptions(value);
 });
 
 const handleSearch = () => {
   if (!showTreeLayout.value) {
+    pagination.current = 1;
     fetchData();
     return;
   }
   pagination.current = 1;
+};
+
+const handleReset = () => {
+  keyword.value = "";
+  handleSearch();
 };
 
 const loadAllDepartments = async () => {
@@ -373,9 +361,7 @@ const getParentName = (parentId?: number | null) => {
 };
 
 const filteredDepartments = computed(() => {
-  if (!showTreeLayout.value) {
-    return dataSource.value;
-  }
+  if (!showTreeLayout.value) return dataSource.value;
   const currentParent = selectedParentId.value;
   const source = currentParent === null
     ? allDepartments.value.filter((item) => !item.parentId)
@@ -460,7 +446,7 @@ const submitForm = async () => {
   }
 };
 
-const handleDelete = async (id: string) => {
+const handleDeleteDept = async (id: string) => {
   try {
     await deleteDepartment(id);
     message.success("删除成功");
@@ -492,9 +478,10 @@ watch(
 </script>
 
 <style scoped>
-.toolbar {
-  margin-bottom: 16px;
+.crud-toolbar {
+  margin-bottom: 12px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;

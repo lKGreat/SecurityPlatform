@@ -1,83 +1,84 @@
 <template>
-  <a-card title="角色管理" class="page-card">
-    <div class="toolbar">
-      <a-space wrap>
-        <a-input
-          v-model:value="keyword"
-          placeholder="搜索角色名称/编码"
-          allow-clear
-          @press-enter="handleSearch"
-        />
-        <a-button @click="handleSearch">查询</a-button>
-        <a-button @click="resetFilters">重置</a-button>
-        <a-button v-if="canCreate" type="primary" @click="openCreate">新增角色</a-button>
-      </a-space>
-      <a-space wrap>
-        <TableViewToolbar :controller="tableViewController" />
-        <a-popconfirm
-          v-if="canDelete"
-          title="确认批量删除所选角色？"
-          ok-text="删除"
-          cancel-text="取消"
-          @confirm="handleBatchDelete"
-        >
-          <a-button danger :disabled="!selectedRowKeys.length">批量删除</a-button>
-        </a-popconfirm>
-      </a-space>
-    </div>
+  <CrudPageLayout
+    title="角色管理"
+    v-model:keyword="keyword"
+    search-placeholder="搜索角色名称/编码"
+    :drawer-open="formVisible"
+    :drawer-title="formMode === 'create' ? '新增角色' : '编辑角色'"
+    :drawer-width="520"
+    @update:drawer-open="formVisible = $event"
+    @search="handleSearch"
+    @reset="handleReset"
+    @close-form="closeForm"
+    @submit="submitForm"
+  >
+    <template #toolbar-actions>
+      <a-button v-if="canCreate" type="primary" @click="openCreate">新增角色</a-button>
+    </template>
+    <template #toolbar-right>
+      <TableViewToolbar :controller="tableViewController" />
+      <a-popconfirm
+        v-if="canDelete"
+        title="确认批量删除所选角色？"
+        ok-text="删除"
+        cancel-text="取消"
+        @confirm="handleBatchDelete"
+      >
+        <a-button danger :disabled="!selectedRowKeys.length">批量删除</a-button>
+      </a-popconfirm>
+    </template>
 
-    <div class="filter-bar">
-      <a-space wrap>
-        <span class="filter-label">高级筛选</span>
-        <a-select
-          v-model:value="systemFilter"
-          :options="systemOptions"
-          style="width: 160px"
-          @change="handleSearch"
-        />
-      </a-space>
-    </div>
+    <template #filter>
+      <a-select
+        v-model:value="systemFilter"
+        :options="systemOptions"
+        style="width: 160px"
+        @change="handleSearch"
+      />
+    </template>
 
-    <a-table
-      :columns="tableColumns"
-      :data-source="dataSource"
-      :pagination="pagination"
-      :loading="loading"
-      :row-selection="rowSelection"
-      :size="tableSize"
-      row-key="id"
-      @change="onTableChange"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'isSystem'">
-          <a-tag v-if="record.isSystem" color="blue">系统</a-tag>
-          <span v-else>-</span>
+    <template #table>
+      <a-table
+        :columns="tableColumns"
+        :data-source="dataSource"
+        :pagination="pagination"
+        :loading="loading"
+        :row-selection="rowSelection"
+        :size="tableSize"
+        row-key="id"
+        @change="onTableChange"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'isSystem'">
+            <a-tag v-if="record.isSystem" color="blue">系统</a-tag>
+            <span v-else>-</span>
+          </template>
+          <template v-if="column.key === 'actions'">
+            <a-space>
+              <a-button v-if="canUpdate" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-button
+                v-if="canAssignPermissions || canAssignMenus"
+                type="link"
+                @click="openAssign(record)"
+              >
+                权限
+              </a-button>
+              <a-popconfirm
+                v-if="canDelete"
+                title="确认删除该角色？"
+                ok-text="删除"
+                cancel-text="取消"
+                @confirm="handleDelete(record.id)"
+              >
+                <a-button type="link" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-        <template v-if="column.key === 'actions'">
-          <a-space>
-            <a-button v-if="canUpdate" type="link" @click="openEdit(record)">编辑</a-button>
-            <a-popconfirm
-              v-if="canDelete"
-              title="确认删除该角色？"
-              ok-text="删除"
-              cancel-text="取消"
-              @confirm="handleDelete(record.id)"
-            >
-              <a-button type="link" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
+      </a-table>
+    </template>
 
-    <a-drawer
-      v-model:open="formVisible"
-      :title="formMode === 'create' ? '新增角色' : '编辑角色'"
-      placement="right"
-      width="520"
-      @close="closeForm"
-      destroy-on-close
-    >
+    <template #form>
       <a-form ref="formRef" :model="formModel" :rules="formRules" layout="vertical">
         <a-form-item label="角色名称" name="name">
           <a-input v-model:value="formModel.name" />
@@ -89,76 +90,90 @@
           <a-input v-model:value="formModel.description" />
         </a-form-item>
       </a-form>
-      <template #footer>
-        <a-space>
-          <a-button @click="closeForm">取消</a-button>
-          <a-button type="primary" @click="submitForm">保存</a-button>
-        </a-space>
-      </template>
-    </a-drawer>
-  </a-card>
+    </template>
+
+    <template #extra-drawers>
+      <a-drawer
+        v-model:open="assignVisible"
+        title="角色权限配置"
+        placement="right"
+        :width="640"
+        @close="closeAssign"
+        destroy-on-close
+      >
+        <a-tabs v-model:activeKey="assignTab">
+          <a-tab-pane v-if="canAssignPermissions" key="permissions" tab="权限分配">
+            <a-select
+              v-model:value="assignModel.permissionIds"
+              mode="multiple"
+              style="width: 100%"
+              placeholder="选择权限"
+              :options="permissionOptions"
+              :loading="permissionLoading"
+              :filter-option="false"
+              show-search
+              @search="handlePermissionSearch"
+              @focus="() => loadPermissionOptions()"
+            />
+          </a-tab-pane>
+          <a-tab-pane v-if="canAssignMenus" key="menus" tab="菜单分配">
+            <a-select
+              v-model:value="assignModel.menuIds"
+              mode="multiple"
+              style="width: 100%"
+              placeholder="选择菜单"
+              :options="menuOptions"
+              :loading="menuLoading"
+              :filter-option="false"
+              show-search
+              @search="handleMenuSearch"
+              @focus="() => loadMenuOptions()"
+            />
+          </a-tab-pane>
+        </a-tabs>
+        <template #footer>
+          <a-space>
+            <a-button @click="closeAssign">取消</a-button>
+            <a-button type="primary" @click="submitAssign">保存</a-button>
+          </a-space>
+        </template>
+      </a-drawer>
+    </template>
+  </CrudPageLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
-import type { TablePaginationConfig, FormInstance } from "ant-design-vue";
-import type { Rule } from "ant-design-vue/es/form";
+import { computed, reactive, ref } from "vue";
+import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
+import CrudPageLayout from "@/components/crud/CrudPageLayout.vue";
 import TableViewToolbar from "@/components/table/table-view-toolbar.vue";
-import { useTableView } from "@/composables/useTableView";
-import { createRole, deleteRole, getRolesPaged, updateRole } from "@/services/api";
-import type { RoleCreateRequest, RoleListItem, RoleUpdateRequest } from "@/types/api";
-import { getAuthProfile, hasPermission } from "@/utils/auth";
+import { useCrudPage } from "@/composables/useCrudPage";
+import {
+  createRole,
+  deleteRole,
+  getRoleDetail,
+  getRolesPaged,
+  updateRole,
+  updateRolePermissions,
+  updateRoleMenus,
+  getPermissionsPaged,
+  getMenusPaged
+} from "@/services/api";
+import type { RoleListItem, RoleDetail, RoleCreateRequest, RoleUpdateRequest } from "@/types/api";
+import { debounce, type SelectOption } from "@/utils/common";
 
-type FormMode = "create" | "edit";
-
-const baseColumns = [
-  { title: "角色名称", dataIndex: "name", key: "name" },
-  { title: "角色编码", dataIndex: "code", key: "code" },
-  { title: "描述", dataIndex: "description", key: "description" },
-  { title: "系统内置", dataIndex: "isSystem", key: "isSystem" },
-  { title: "操作", key: "actions", view: { canHide: false } }
-];
-
-const dataSource = ref<RoleListItem[]>([]);
-const loading = ref(false);
-const keyword = ref("");
 const systemFilter = ref<"all" | "system" | "custom">("all");
 const systemOptions = [
   { label: "全部角色", value: "all" },
   { label: "系统内置", value: "system" },
   { label: "自定义", value: "custom" }
 ];
-const pagination = reactive<TablePaginationConfig>({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showTotal: (total) => `共 ${total} 条`
-});
 
-const formVisible = ref(false);
-const formMode = ref<FormMode>("create");
-const formRef = ref<FormInstance>();
-const formModel = reactive<RoleCreateRequest & RoleUpdateRequest>({
-  name: "",
-  code: "",
-  description: ""
-});
-
-const formRules: Record<string, Rule[]> = {
-  name: [{ required: true, message: "请输入角色名称" }],
-  code: [{ required: true, message: "请输入角色编码" }]
-};
-
-const selectedId = ref<string | null>(null);
-const profile = getAuthProfile();
-const canCreate = hasPermission(profile, "roles:create");
-const canUpdate = hasPermission(profile, "roles:update");
-const canDelete = hasPermission(profile, "roles:delete");
 const selectedRowKeys = ref<string[]>([]);
 
 const rowSelection = computed(() => {
-  if (!canDelete) return undefined;
+  if (!crud.canDelete) return undefined;
   return {
     selectedRowKeys: selectedRowKeys.value,
     onChange: (keys: (string | number)[]) => {
@@ -167,112 +182,182 @@ const rowSelection = computed(() => {
   };
 });
 
-const fetchData = async () => {
-  loading.value = true;
-  try {
-    const isSystem = systemFilter.value === "all"
-      ? undefined
-      : systemFilter.value === "system";
-    const result = await getRolesPaged({
-      pageIndex: pagination.current ?? 1,
-      pageSize: pagination.pageSize ?? 10,
-      keyword: keyword.value || undefined,
-      isSystem
-    });
-    dataSource.value = result.items;
-    pagination.total = result.total;
-    selectedRowKeys.value = [];
-  } catch (error) {
-    message.error((error as Error).message || "查询失败");
-  } finally {
-    loading.value = false;
-  }
-};
+const formRef = ref<FormInstance>();
 
-const { controller: tableViewController, tableColumns, tableSize } = useTableView<RoleListItem>({
+const crud = useCrudPage<RoleListItem, RoleDetail, RoleCreateRequest, RoleUpdateRequest>({
   tableKey: "system.roles",
-  columns: baseColumns,
-  pagination,
-  onRefresh: fetchData
+  columns: [
+    { title: "角色名称", dataIndex: "name", key: "name" },
+    { title: "角色编码", dataIndex: "code", key: "code" },
+    { title: "描述", dataIndex: "description", key: "description" },
+    { title: "系统内置", dataIndex: "isSystem", key: "isSystem" },
+    { title: "操作", key: "actions", view: { canHide: false } }
+  ],
+  permissions: {
+    create: "roles:create",
+    update: "roles:update",
+    delete: "roles:delete",
+    assignPermissions: "roles:assign-permissions",
+    assignMenus: "roles:assign-menus"
+  },
+  api: {
+    list: getRolesPaged,
+    detail: getRoleDetail,
+    create: createRole,
+    update: updateRole,
+    delete: deleteRole
+  },
+  formRef,
+  defaultFormModel: () => ({
+    name: "",
+    code: "",
+    description: ""
+  }),
+  formRules: {
+    name: [{ required: true, message: "请输入角色名称" }],
+    code: [{ required: true, message: "请输入角色编码" }]
+  },
+  buildListParams: (base) => ({
+    ...base,
+    isSystem: systemFilter.value === "all" ? undefined : systemFilter.value === "system"
+  }),
+  buildCreatePayload: (model) => ({
+    name: model.name,
+    code: model.code,
+    description: model.description || undefined
+  }),
+  buildUpdatePayload: (model) => ({
+    name: model.name,
+    description: model.description || undefined
+  }),
+  mapRecordToForm: (record, model) => {
+    model.name = record.name;
+    model.code = record.code;
+    model.description = record.description ?? "";
+  }
 });
 
-const onTableChange = (pager: TablePaginationConfig) => {
-  pagination.current = pager.current;
-  pagination.pageSize = pager.pageSize;
-  fetchData();
+const {
+  dataSource, loading, keyword, pagination,
+  formVisible, formMode, formModel, formRules,
+  tableViewController, tableColumns, tableSize,
+  canCreate, canUpdate, canDelete,
+  onTableChange, openCreate, openEdit, closeForm, submitForm, handleDelete
+} = crud;
+
+const canAssignPermissions = crud.hasPermissionFor("assignPermissions");
+const canAssignMenus = crud.hasPermissionFor("assignMenus");
+
+// --- Assignment Drawer ---
+const assignVisible = ref(false);
+const assignTab = ref("permissions");
+const assignRoleId = ref<string | null>(null);
+const assignModel = reactive({
+  permissionIds: [] as number[],
+  menuIds: [] as number[]
+});
+
+const permissionOptions = ref<SelectOption[]>([]);
+const menuOptions = ref<SelectOption[]>([]);
+const permissionLoading = ref(false);
+const menuLoading = ref(false);
+
+const loadPermissionOptions = async (keyword?: string) => {
+  permissionLoading.value = true;
+  try {
+    const result = await getPermissionsPaged({
+      pageIndex: 1,
+      pageSize: 50,
+      keyword: keyword?.trim() || undefined
+    });
+    permissionOptions.value = result.items.map((item) => ({
+      label: `${item.name} (${item.code})`,
+      value: Number(item.id)
+    }));
+  } catch (error) {
+    message.error((error as Error).message || "加载权限失败");
+  } finally {
+    permissionLoading.value = false;
+  }
 };
 
-const handleSearch = () => {
-  pagination.current = 1;
-  fetchData();
+const loadMenuOptions = async (keyword?: string) => {
+  menuLoading.value = true;
+  try {
+    const result = await getMenusPaged({
+      pageIndex: 1,
+      pageSize: 50,
+      keyword: keyword?.trim() || undefined
+    });
+    menuOptions.value = result.items.map((item) => ({
+      label: `${item.name} (${item.path})`,
+      value: Number(item.id)
+    }));
+  } catch (error) {
+    message.error((error as Error).message || "加载菜单失败");
+  } finally {
+    menuLoading.value = false;
+  }
 };
 
-const resetFilters = () => {
-  keyword.value = "";
-  systemFilter.value = "all";
-  handleSearch();
-};
+const handlePermissionSearch = debounce((value: string) => {
+  void loadPermissionOptions(value);
+});
 
-const resetForm = () => {
-  formModel.name = "";
-  formModel.code = "";
-  formModel.description = "";
-};
+const handleMenuSearch = debounce((value: string) => {
+  void loadMenuOptions(value);
+});
 
-const openCreate = () => {
-  formMode.value = "create";
-  selectedId.value = null;
-  resetForm();
-  formVisible.value = true;
-};
+const openAssign = async (record: RoleListItem) => {
+  assignRoleId.value = record.id;
+  assignTab.value = canAssignPermissions ? "permissions" : "menus";
+  assignVisible.value = true;
 
-const openEdit = (record: RoleListItem) => {
-  formMode.value = "edit";
-  selectedId.value = record.id;
-  formModel.name = record.name;
-  formModel.code = record.code;
-  formModel.description = record.description ?? "";
-  formVisible.value = true;
-};
-
-const closeForm = () => {
-  formVisible.value = false;
-};
-
-const submitForm = async () => {
-  const valid = await formRef.value?.validate().catch(() => false);
-  if (!valid) return;
+  await Promise.all([
+    canAssignPermissions ? loadPermissionOptions() : Promise.resolve(),
+    canAssignMenus ? loadMenuOptions() : Promise.resolve()
+  ]);
 
   try {
-    if (formMode.value === "create") {
-      await createRole({
-        name: formModel.name,
-        code: formModel.code,
-        description: formModel.description || undefined
-      });
-      message.success("创建成功");
-    } else if (selectedId.value) {
-      await updateRole(selectedId.value, {
-        name: formModel.name,
-        description: formModel.description || undefined
-      });
-      message.success("更新成功");
+    const detail = await getRoleDetail(record.id);
+    assignModel.permissionIds = detail.permissionIds?.slice() ?? [];
+    assignModel.menuIds = detail.menuIds?.slice() ?? [];
+  } catch (error) {
+    message.error((error as Error).message || "加载角色详情失败");
+  }
+};
+
+const closeAssign = () => {
+  assignVisible.value = false;
+};
+
+const submitAssign = async () => {
+  if (!assignRoleId.value) return;
+  try {
+    if (canAssignPermissions) {
+      await updateRolePermissions(assignRoleId.value, { permissionIds: assignModel.permissionIds });
     }
-    formVisible.value = false;
-    fetchData();
+    if (canAssignMenus) {
+      await updateRoleMenus(assignRoleId.value, { menuIds: assignModel.menuIds });
+    }
+    message.success("权限配置已更新");
+    assignVisible.value = false;
   } catch (error) {
-    message.error((error as Error).message || "提交失败");
+    message.error((error as Error).message || "更新权限配置失败");
   }
 };
 
-const handleDelete = async (id: string) => {
-  try {
-    await deleteRole(id);
-    message.success("删除成功");
-    fetchData();
-  } catch (error) {
-    message.error((error as Error).message || "删除失败");
-  }
+// --- Search/Reset ---
+const handleSearch = () => {
+  selectedRowKeys.value = [];
+  crud.handleSearch();
+};
+
+const handleReset = () => {
+  systemFilter.value = "all";
+  selectedRowKeys.value = [];
+  crud.keyword.value = "";
+  crud.handleSearch();
 };
 
 const handleBatchDelete = async () => {
@@ -280,39 +365,13 @@ const handleBatchDelete = async () => {
     message.warning("请先选择角色");
     return;
   }
-
   try {
     await Promise.all(selectedRowKeys.value.map((id) => deleteRole(id)));
     message.success(`已删除 ${selectedRowKeys.value.length} 个角色`);
-    fetchData();
+    selectedRowKeys.value = [];
+    crud.fetchData();
   } catch (error) {
     message.error((error as Error).message || "批量删除失败");
   }
 };
-
-onMounted(fetchData);
 </script>
-
-<style scoped>
-.toolbar {
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.filter-bar {
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.filter-label {
-  color: #8c8c8c;
-}
-</style>

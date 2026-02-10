@@ -1,6 +1,6 @@
 <template>
   <a-card title="菜单管理" class="page-card">
-    <div class="toolbar">
+    <div class="crud-toolbar">
       <a-space wrap>
         <a-input
           v-model:value="keyword"
@@ -9,7 +9,7 @@
           @press-enter="handleSearch"
         />
         <a-button @click="handleSearch">查询</a-button>
-        <a-button @click="resetFilters">重置</a-button>
+        <a-button @click="handleReset">重置</a-button>
         <a-button v-if="canCreate" type="primary" @click="openCreate">新增菜单</a-button>
       </a-space>
       <a-space wrap>
@@ -23,9 +23,9 @@
       </a-space>
     </div>
 
-    <div class="filter-bar">
+    <div class="crud-filter-bar">
       <a-space wrap>
-        <span class="filter-label">高级筛选</span>
+        <span class="crud-filter-label">高级筛选</span>
         <a-select
           v-model:value="hiddenFilter"
           :options="hiddenOptions"
@@ -116,7 +116,7 @@
       v-model:open="formVisible"
       :title="formMode === 'create' ? '新增菜单' : '编辑菜单'"
       placement="right"
-      width="560"
+      :width="560"
       @close="closeForm"
       destroy-on-close
     >
@@ -137,7 +137,7 @@
             :filter-option="false"
             :loading="parentLoading"
             @search="handleParentSearch"
-            @focus="loadParentOptions"
+            @focus="() => loadParentOptions()"
           />
         </a-form-item>
         <a-form-item label="排序" name="sortOrder">
@@ -176,13 +176,7 @@ import { useTableView } from "@/composables/useTableView";
 import { createMenu, getMenusAll, getMenusPaged, updateMenu } from "@/services/api";
 import type { MenuCreateRequest, MenuListItem, MenuUpdateRequest } from "@/types/api";
 import { getAuthProfile, hasPermission } from "@/utils/auth";
-
-type FormMode = "create" | "edit";
-
-interface SelectOption {
-  label: string;
-  value: number;
-}
+import { debounce, type FormMode, type SelectOption } from "@/utils/common";
 
 const baseColumns = [
   { title: "菜单名称", dataIndex: "name", key: "name" },
@@ -320,9 +314,7 @@ const expandedTreeKeys = computed(() => {
 });
 
 const fetchData = async () => {
-  if (showTreeLayout.value) {
-    return;
-  }
+  if (showTreeLayout.value) return;
   loading.value = true;
   try {
     const isHidden = hiddenFilter.value === "all"
@@ -352,13 +344,13 @@ const { controller: tableViewController, tableColumns, tableSize } = useTableVie
   onRefresh: fetchData
 });
 
-const loadParentOptions = async (keyword?: string) => {
+const loadParentOptions = async (kw?: string) => {
   parentLoading.value = true;
   try {
     const result = await getMenusPaged({
       pageIndex: 1,
       pageSize: 20,
-      keyword: keyword?.trim() || undefined
+      keyword: kw?.trim() || undefined
     });
     parentOptions.value = result.items.map((item) => ({
       label: item.name,
@@ -379,14 +371,6 @@ const ensureParentOption = (parentId?: number) => {
   }
 };
 
-const debounce = (handler: (value: string) => void, delay = 300) => {
-  let timer: number | undefined;
-  return (value: string) => {
-    if (timer) window.clearTimeout(timer);
-    timer = window.setTimeout(() => handler(value), delay);
-  };
-};
-
 const handleParentSearch = debounce((value: string) => {
   void loadParentOptions(value);
 });
@@ -395,13 +379,14 @@ const handleSearch = () => {
   selectedRowKeys.value = [];
   selectedRows.value = [];
   if (!showTreeLayout.value) {
+    pagination.current = 1;
     fetchData();
     return;
   }
   pagination.current = 1;
 };
 
-const resetFilters = () => {
+const handleReset = () => {
   keyword.value = "";
   hiddenFilter.value = "all";
   handleSearch();
@@ -602,7 +587,7 @@ watch(
 </script>
 
 <style scoped>
-.toolbar {
+.crud-toolbar {
   margin-bottom: 12px;
   display: flex;
   align-items: center;
@@ -611,7 +596,7 @@ watch(
   flex-wrap: wrap;
 }
 
-.filter-bar {
+.crud-filter-bar {
   margin-bottom: 16px;
   display: flex;
   align-items: center;
@@ -620,7 +605,7 @@ watch(
   flex-wrap: wrap;
 }
 
-.filter-label {
+.crud-filter-label {
   color: #8c8c8c;
 }
 </style>
