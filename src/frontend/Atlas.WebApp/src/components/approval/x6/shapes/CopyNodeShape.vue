@@ -1,5 +1,9 @@
 <template>
-  <div class="dd-node dd-node--copy" @click="handleClick">
+  <div
+    class="dd-node dd-node--copy"
+    :class="{ 'is-error': data.error }"
+    @click="handleClick"
+  >
     <div class="dd-node__header dd-node__header--copy">
       <SendOutlined class="dd-node__icon" />
       <span class="dd-node__title">{{ data.nodeName || '抄送人' }}</span>

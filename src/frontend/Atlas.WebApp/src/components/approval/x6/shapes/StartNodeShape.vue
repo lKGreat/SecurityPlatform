@@ -1,5 +1,9 @@
 <template>
-  <div class="dd-node dd-node--start" @click="handleClick">
+  <div
+    class="dd-node dd-node--start"
+    :class="{ 'is-error': data.error }"
+    @click="handleClick"
+  >
     <div class="dd-node__header dd-node__header--start">
       <span class="dd-node__title">{{ data.nodeName || '发起人' }}</span>
     </div>

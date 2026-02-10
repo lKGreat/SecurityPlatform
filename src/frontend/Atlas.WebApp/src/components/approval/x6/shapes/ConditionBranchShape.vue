@@ -1,5 +1,9 @@
 <template>
-  <div class="dd-node dd-node--condition-branch" @click="handleClick">
+  <div
+    class="dd-node dd-node--condition-branch"
+    :class="{ 'is-error': data.error }"
+    @click="handleClick"
+  >
     <div class="dd-node__header dd-node__header--condition">
       <span class="dd-node__title">{{ data.branchName || '条件' }}</span>
       <span class="dd-node__priority" v-if="!data.isDefault">优先级{{ branchIndex }}</span>
@@ -36,6 +40,14 @@ const branchIndex = computed(() => {
 });
 
 const conditionLabel = computed(() => {
+  // 新版条件组
+  const groups = data.value.conditionGroups as Array<{ conditions: Array<any> }> | undefined;
+  if (groups && groups.length > 0) {
+    const count = groups.reduce((acc, g) => acc + (g.conditions?.length || 0), 0);
+    return `${groups.length}个条件组, 共${count}个条件`;
+  }
+
+  // 旧版兼容
   const rule = data.value.conditionRule as
     | { field: string; operator: string; value: unknown }
     | undefined;

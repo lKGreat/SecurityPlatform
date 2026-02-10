@@ -42,6 +42,17 @@ export interface ApproveNode extends TreeNodeBase {
   formPermissionConfig?: FormPermissionConfig;
   noticeConfig?: NoticeConfig;
   childNode?: TreeNode;
+
+  // 高级设置
+  timeoutEnabled?: boolean;
+  timeoutHours?: number;
+  timeoutMinutes?: number;
+  timeoutAction?: 'none' | 'autoApprove' | 'autoReject' | 'autoSkip';
+  reminderIntervalHours?: number;
+  maxReminderCount?: number;
+  deduplicationType?: 'none' | 'skipSame' | 'global';
+  excludeUserIds?: string[];
+  excludeRoleCodes?: string[];
 }
 
 // 抄送节点
@@ -96,9 +107,22 @@ export interface ParallelNode extends TreeNodeBase {
 export interface ConditionBranch {
   id: string;
   branchName: string;
-  conditionRule?: ConditionRule;
+  conditionRule?: ConditionRule; // 兼容旧版
+  conditionGroups?: ConditionGroup[]; // 新版条件组（OR关系）
+  priority?: number; // 优先级
   childNode?: TreeNode;
   isDefault?: boolean;  // 默认分支（兜底）
+}
+
+export interface ConditionGroup {
+  conditions: ConditionExpression[]; // 组内条件（AND关系）
+}
+
+export interface ConditionExpression {
+  field: string;
+  operator: ConditionOperator;
+  value: JsonValue;
+  fieldType?: string; // 字段类型，用于UI渲染
 }
 
 export interface ConditionRule {

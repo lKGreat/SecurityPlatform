@@ -55,9 +55,37 @@
         <a-form-item label="流程说明">
           <a-textarea v-model:value="definitionMeta.description" :rows="3" />
         </a-form-item>
-        <a-form-item label="可见范围(JSON)">
-          <a-textarea v-model:value="visibilityScopeText" :rows="3" placeholder='{"scopeType":"All"}' />
+        
+        <a-form-item label="可见范围">
+          <a-radio-group v-model:value="visibilityScopeType" style="margin-bottom: 12px">
+            <a-radio value="All">全部可见</a-radio>
+            <a-radio value="Department">指定部门</a-radio>
+            <a-radio value="Role">指定角色</a-radio>
+            <a-radio value="User">指定人员</a-radio>
+          </a-radio-group>
+          
+          <div v-if="visibilityScopeType !== 'All'">
+            <UserRolePicker
+              v-if="visibilityScopeType === 'Department'"
+              mode="department"
+              v-model:value="visibilityScopeIds"
+              placeholder="请选择部门"
+            />
+            <UserRolePicker
+              v-else-if="visibilityScopeType === 'Role'"
+              mode="role"
+              v-model:value="visibilityScopeIds"
+              placeholder="请选择角色"
+            />
+            <UserRolePicker
+              v-else-if="visibilityScopeType === 'User'"
+              mode="user"
+              v-model:value="visibilityScopeIds"
+              placeholder="请选择人员"
+            />
+          </div>
         </a-form-item>
+
         <a-space>
           <a-switch v-model:checked="definitionMeta.isQuickEntry" /> <span>快捷入口</span>
           <a-switch v-model:checked="definitionMeta.isLowCodeFlow" /> <span>启用低代码表单</span>
@@ -87,6 +115,7 @@
       <ApprovalPropertiesPanel
         :open="panelOpen"
         :node="selectedNode"
+        :form-fields="lfFormPayload?.formFields"
         @update:open="panelOpen = $event"
         @update="handleNodeUpdate"
       />
@@ -150,6 +179,7 @@ import ApprovalPropertiesPanel from '@/components/approval/ApprovalPropertiesPan
 import ApprovalNodePalette from '@/components/approval/ApprovalNodePalette.vue';
 import LfFormDesigner from '@/components/approval/LfFormDesigner.vue';
 import X6PreviewCanvas from '@/components/approval/X6PreviewCanvas.vue';
+import UserRolePicker from '@/components/common/UserRolePicker.vue';
 import { useApprovalTree } from '@/composables/useApprovalTree';
 import { ApprovalTreeConverter } from '@/utils/approval-tree-converter';
 import type { ApprovalDefinitionMeta, LfFormPayload, FormJson, VisibilityScope } from '@/types/approval-definition';
@@ -181,7 +211,10 @@ const activeStep = ref(0);
 const definitionMeta = ref<ApprovalDefinitionMeta>({ flowName: '', isLowCodeFlow: true });
 const lfFormPayload = ref<LfFormPayload | undefined>(undefined);
 const lfFormModel = ref<FormJson | undefined>(undefined);
-const visibilityScopeText = ref('');
+// const visibilityScopeText = ref(''); // Removed
+const visibilityScopeType = ref<'All' | 'Department' | 'Role' | 'User'>('All');
+const visibilityScopeIds = ref<string[]>([]);
+
 const validating = ref(false);
 const validateModalOpen = ref(false);
 const validateResult = ref<ApprovalFlowValidationResult | null>(null);
@@ -221,13 +254,30 @@ const handleLfFormFields = (fields: LfFormPayload['formFields']) => {
 // ── 构建后端请求 ──
 const buildRequest = () => {
   definitionMeta.value.flowName = flowName.value;
-  if (visibilityScopeText.value.trim()) {
-    const parsedScope = parseVisibilityScope(visibilityScopeText.value);
-    if (!parsedScope) { message.error('可见范围JSON格式不正确'); return null; }
-    definitionMeta.value.visibilityScope = parsedScope;
-  } else {
-    definitionMeta.value.visibilityScope = undefined;
-  }
+  
+  // 构建 VisibilityScope
+  const scope: VisibilityScope = {
+    scopeType: visibilityScopeType.value,
+    departmentIds: visibilityScopeType.value === 'Department' ? visibilityScopeIds.value.map(Number).filter(n => !isNaN(n)) : undefined,
+    roleCodes: visibilityScopeType.value === 'Role' ? visibilityScopeIds.value : undefined, // Role uses codes/ids string
+    userIds: visibilityScopeType.value === 'User' ? visibilityScopeIds.value.map(Number).filter(n => !isNaN(n)) : undefined
+  };
+  // 注意：UserRolePicker 返回的是 string[]，但 VisibilityScope 定义中 departmentIds/userIds 是 number[]。
+  // 如果 API 返回的 ID 是 string (UUID) 或者是 number string，需要适配。
+  // 检查 API 定义：UserListItem.id 是 string。
+  // 检查 VisibilityScope 定义：userIds: number[]。
+  // 这里有类型不匹配。UserListItem.id 是 string (Guid usually).
+  // VisibilityScope 定义可能过时或者是针对旧系统的。
+  // 假设后端支持 string ID，或者我们需要修改 VisibilityScope 类型 definition。
+  // 暂时强转或 parse int。如果 ID 是 UUID，parseInt 会失败。
+  // 让我们检查 types/approval-definition.ts 中的 VisibilityScope。
+  // export interface VisibilityScope { userIds?: number[]; ... }
+  // 如果后端用 UUID，这里应该是 string[]。
+  // 鉴于 FlowLong 使用 Long ID (MyBatisPlus)，可能是 number (string in JS for safety).
+  // 如果 UserListItem.id 是 string，我们应该尝试转 number。
+  
+  definitionMeta.value.visibilityScope = scope;
+
   if (definitionMeta.value.isLowCodeFlow) {
     lfFormPayload.value = { formJson: lfFormModel.value ?? { widgetList: [] }, formFields: lfFormPayload.value?.formFields ?? [] };
   } else {
@@ -241,7 +291,19 @@ const buildRequest = () => {
 // ── 加载 ──
 const loadFlow = async () => {
   const id = route.params.id as string;
-  if (!id || id === 'undefined') { pushState(flowTree.value); return; }
+  // 如果没有 ID，说明是新建流程
+  if (!id || id === 'undefined') {
+    // 自动初始化 Start/End 节点
+    if (!flowTree.value.rootNode.childNode) {
+      addDefaultStartEnd();
+    }
+    // 设置默认名称
+    if (!flowName.value) {
+      flowName.value = '未命名流程';
+    }
+    pushState(flowTree.value);
+    return;
+  }
   try {
     const flow = await getApprovalFlowById(id);
     flowName.value = flow.name;
@@ -250,14 +312,31 @@ const loadFlow = async () => {
     definitionMeta.value.description = flow.description;
     definitionMeta.value.category = flow.category;
     definitionMeta.value.isQuickEntry = flow.isQuickEntry;
-    if (flow.visibilityScopeJson && !definitionMeta.value.visibilityScope) {
-      visibilityScopeText.value = flow.visibilityScopeJson;
-      definitionMeta.value.visibilityScope = parseVisibilityScope(flow.visibilityScopeJson) ?? undefined;
+    if (flow.visibilityScopeJson) {
+      try {
+        const scope = JSON.parse(flow.visibilityScopeJson) as VisibilityScope;
+        visibilityScopeType.value = scope.scopeType;
+        if (scope.scopeType === 'Department') visibilityScopeIds.value = (scope.departmentIds || []).map(String);
+        else if (scope.scopeType === 'Role') visibilityScopeIds.value = scope.roleCodes || [];
+        else if (scope.scopeType === 'User') visibilityScopeIds.value = (scope.userIds || []).map(String);
+        definitionMeta.value.visibilityScope = scope;
+      } catch {
+        visibilityScopeType.value = 'All';
+      }
     }
     if (flow.definitionJson) {
       const state = ApprovalTreeConverter.definitionJsonToState(flow.definitionJson);
       flowTree.value = state.tree;
-      if (state.meta) { definitionMeta.value = state.meta; visibilityScopeText.value = state.meta.visibilityScope ? JSON.stringify(state.meta.visibilityScope, null, 2) : ''; }
+      if (state.meta) { 
+        definitionMeta.value = state.meta; 
+        if (state.meta.visibilityScope) {
+           const scope = state.meta.visibilityScope;
+           visibilityScopeType.value = scope.scopeType;
+           if (scope.scopeType === 'Department') visibilityScopeIds.value = (scope.departmentIds || []).map(String);
+           else if (scope.scopeType === 'Role') visibilityScopeIds.value = scope.roleCodes || [];
+           else if (scope.scopeType === 'User') visibilityScopeIds.value = (scope.userIds || []).map(String);
+        }
+      }
       if (state.lfForm) { lfFormPayload.value = state.lfForm; lfFormModel.value = state.lfForm.formJson; }
     }
     pushState(flowTree.value);

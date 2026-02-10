@@ -30,11 +30,12 @@
     <div class="dd-props-body" v-if="formData">
       <!-- ═══ 审批节点 ═══ -->
       <template v-if="approveForm">
-        <a-tabs v-model:activeKey="activeTab" size="small">
+        <a-tabs v-model:activeKey="activeTab" size="small" class="dd-props-tabs">
+          <!-- Tab 1: 审批设置 -->
           <a-tab-pane key="approver" tab="审批设置">
             <a-form layout="vertical" class="dd-props-form">
               <a-form-item label="审批人类型">
-                <a-select v-model:value="approverConfig.setType" @change="onApproverTypeChange">
+                <a-select v-model:value="approveForm.assigneeType" @change="onApproverTypeChange">
                   <a-select-option :value="0">指定人员</a-select-option>
                   <a-select-option :value="1">指定角色</a-select-option>
                   <a-select-option :value="2">部门负责人</a-select-option>
@@ -47,37 +48,54 @@
               </a-form-item>
 
               <a-form-item
-                label="审批人"
-                v-if="approverConfig.setType <= 1"
+                label="选择审批人"
+                v-if="approveForm.assigneeType <= 1"
               >
-                <a-select
-                  mode="tags"
+                <UserRolePicker
+                  v-if="approveForm.assigneeType === 0"
+                  mode="user"
                   v-model:value="approverTargets"
-                  :placeholder="approverConfig.setType === 0 ? '输入人员ID' : '输入角色代码'"
-                  :token-separators="[',', ' ']"
-                >
-                </a-select>
+                  placeholder="请选择审批人"
+                />
+                <UserRolePicker
+                  v-else
+                  mode="role"
+                  v-model:value="approverTargets"
+                  placeholder="请选择角色"
+                />
               </a-form-item>
 
               <a-form-item label="多人审批方式">
-                <a-radio-group v-model:value="approverConfig.signType">
-                  <a-radio :value="1">
-                    <span class="dd-radio-label">会签</span>
-                    <span class="dd-radio-desc">需所有审批人同意</span>
-                  </a-radio>
-                  <a-radio :value="2">
-                    <span class="dd-radio-label">或签</span>
-                    <span class="dd-radio-desc">一人同意即可</span>
-                  </a-radio>
-                  <a-radio :value="3">
-                    <span class="dd-radio-label">顺序签</span>
-                    <span class="dd-radio-desc">按顺序依次审批</span>
-                  </a-radio>
-                </a-radio-group>
+                <div class="dd-radio-cards">
+                  <div
+                    class="dd-radio-card"
+                    :class="{ active: approveForm.approvalMode === 'all' }"
+                    @click="approveForm.approvalMode = 'all'"
+                  >
+                    <div class="dd-radio-card__title">会签</div>
+                    <div class="dd-radio-card__desc">需所有审批人同意</div>
+                  </div>
+                  <div
+                    class="dd-radio-card"
+                    :class="{ active: approveForm.approvalMode === 'any' }"
+                    @click="approveForm.approvalMode = 'any'"
+                  >
+                    <div class="dd-radio-card__title">或签</div>
+                    <div class="dd-radio-card__desc">一人同意即可</div>
+                  </div>
+                  <div
+                    class="dd-radio-card"
+                    :class="{ active: approveForm.approvalMode === 'sequential' }"
+                    @click="approveForm.approvalMode = 'sequential'"
+                  >
+                    <div class="dd-radio-card__title">顺序签</div>
+                    <div class="dd-radio-card__desc">按顺序依次审批</div>
+                  </div>
+                </div>
               </a-form-item>
 
               <a-form-item label="审批人为空时">
-                <a-select v-model:value="approverConfig.noHeaderAction">
+                <a-select v-model:value="approveForm.noHeaderAction">
                   <a-select-option :value="0">不允许发起</a-select-option>
                   <a-select-option :value="1">自动跳过</a-select-option>
                   <a-select-option :value="2">转交管理员</a-select-option>
@@ -86,38 +104,92 @@
             </a-form>
           </a-tab-pane>
 
+          <!-- Tab 2: 高级设置 -->
+          <a-tab-pane key="advanced" tab="高级设置">
+            <a-form layout="vertical" class="dd-props-form">
+              <a-form-item label="超时处理">
+                <a-switch v-model:checked="approveForm.timeoutEnabled" />
+                <span class="dd-switch-label">开启超时自动处理</span>
+              </a-form-item>
+              
+              <template v-if="approveForm.timeoutEnabled">
+                <a-form-item label="超时时间">
+                  <a-input-group compact>
+                    <a-input-number v-model:value="approveForm.timeoutHours" :min="0" style="width: 80px" />
+                    <span class="dd-input-addon">小时</span>
+                    <a-input-number v-model:value="approveForm.timeoutMinutes" :min="0" :max="59" style="width: 80px" />
+                    <span class="dd-input-addon">分钟</span>
+                  </a-input-group>
+                </a-form-item>
+                
+                <a-form-item label="超时策略">
+                  <a-select v-model:value="approveForm.timeoutAction">
+                    <a-select-option value="none">仅提醒</a-select-option>
+                    <a-select-option value="autoApprove">自动通过</a-select-option>
+                    <a-select-option value="autoReject">自动驳回</a-select-option>
+                    <a-select-option value="autoSkip">自动跳过</a-select-option>
+                  </a-select>
+                </a-form-item>
+              </template>
+
+              <a-divider />
+
+              <a-form-item label="去重策略">
+                <a-select v-model:value="approveForm.deduplicationType">
+                  <a-select-option value="none">不去重</a-select-option>
+                  <a-select-option value="skipSame">连续审批人相同时自动跳过</a-select-option>
+                  <a-select-option value="global">流程内自动去重</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-form>
+          </a-tab-pane>
+
+          <!-- Tab 3: 表单权限 -->
           <a-tab-pane key="form-perm" tab="表单权限">
-            <a-form layout="vertical" class="dd-props-form">
-              <a-form-item label="表单权限 (JSON)">
-                <a-textarea
-                  v-model:value="formPermissionText"
-                  :rows="6"
-                  placeholder='{"fields": [{"fieldId": "xxx", "perm": "R"}]}'
-                />
-              </a-form-item>
-            </a-form>
+            <div v-if="!formFields || formFields.length === 0" class="dd-empty-state">
+              请先在表单设计步骤添加字段
+            </div>
+            <div v-else class="dd-perm-table">
+              <div class="dd-perm-header">
+                <div class="dd-perm-col name">字段名称</div>
+                <div class="dd-perm-col perm">权限</div>
+              </div>
+              <div v-for="field in formFields" :key="field.id" class="dd-perm-row">
+                <div class="dd-perm-col name">{{ field.label }}</div>
+                <div class="dd-perm-col perm">
+                  <a-radio-group 
+                    v-model:value="formPermMap[field.id]" 
+                    size="small"
+                    button-style="solid"
+                  >
+                    <a-radio-button value="E">编辑</a-radio-button>
+                    <a-radio-button value="R">只读</a-radio-button>
+                    <a-radio-button value="H">隐藏</a-radio-button>
+                  </a-radio-group>
+                </div>
+              </div>
+            </div>
           </a-tab-pane>
 
-          <a-tab-pane key="btn-perm" tab="操作权限">
-            <a-form layout="vertical" class="dd-props-form">
-              <a-form-item label="按钮权限 (JSON)">
-                <a-textarea
-                  v-model:value="buttonPermissionText"
-                  :rows="6"
-                  placeholder='{"startPage": [1,2], "approvalPage": [1,2,3]}'
-                />
-              </a-form-item>
-            </a-form>
-          </a-tab-pane>
-
+          <!-- Tab 4: 通知设置 -->
           <a-tab-pane key="notice" tab="通知设置">
-            <a-form layout="vertical" class="dd-props-form">
-              <a-form-item label="通知配置 (JSON)">
-                <a-textarea
-                  v-model:value="noticeConfigText"
-                  :rows="4"
-                  placeholder='{"channelIds": [1], "templateId": "tpl-001"}'
-                />
+             <a-form layout="vertical" class="dd-props-form">
+              <a-form-item label="通知渠道">
+                <a-checkbox-group v-model:value="noticeChannels">
+                  <a-row>
+                    <a-col :span="12"><a-checkbox :value="1">站内信</a-checkbox></a-col>
+                    <a-col :span="12"><a-checkbox :value="2">邮件</a-checkbox></a-col>
+                    <a-col :span="12"><a-checkbox :value="3">短信</a-checkbox></a-col>
+                    <a-col :span="12"><a-checkbox :value="4">企业微信</a-checkbox></a-col>
+                    <a-col :span="12"><a-checkbox :value="5">钉钉</a-checkbox></a-col>
+                  </a-row>
+                </a-checkbox-group>
+              </a-form-item>
+              <a-form-item label="通知模板">
+                <a-select v-model:value="noticeTemplateId" placeholder="请选择模板">
+                  <a-select-option value="default">默认模板</a-select-option>
+                  <a-select-option value="urgent">加急模板</a-select-option>
+                </a-select>
               </a-form-item>
             </a-form>
           </a-tab-pane>
@@ -128,20 +200,36 @@
       <template v-else-if="copyForm">
         <a-form layout="vertical" class="dd-props-form">
           <a-form-item label="抄送人">
-            <a-select
-              mode="tags"
+            <UserRolePicker
+              mode="user"
               v-model:value="copyForm.copyToUsers"
-              placeholder="输入用户ID"
-              :token-separators="[',', ' ']"
+              placeholder="请选择抄送人"
             />
           </a-form-item>
-          <a-form-item label="表单权限 (JSON)">
-            <a-textarea
-              v-model:value="formPermissionText"
-              :rows="4"
-              placeholder='{"fields": [{"fieldId": "xxx", "perm": "R"}]}'
-            />
-          </a-form-item>
+          <a-divider />
+          <div class="dd-section-title">表单权限</div>
+          <div v-if="!formFields || formFields.length === 0" class="dd-empty-state">
+            请先在表单设计步骤添加字段
+          </div>
+          <div v-else class="dd-perm-table">
+             <div class="dd-perm-header">
+                <div class="dd-perm-col name">字段名称</div>
+                <div class="dd-perm-col perm">权限</div>
+              </div>
+              <div v-for="field in formFields" :key="field.id" class="dd-perm-row">
+                <div class="dd-perm-col name">{{ field.label }}</div>
+                <div class="dd-perm-col perm">
+                  <a-radio-group 
+                    v-model:value="formPermMap[field.id]" 
+                    size="small"
+                    button-style="solid"
+                  >
+                    <a-radio-button value="R">只读</a-radio-button>
+                    <a-radio-button value="H">隐藏</a-radio-button>
+                  </a-radio-group>
+                </div>
+              </div>
+          </div>
         </a-form>
       </template>
 
@@ -157,42 +245,10 @@
 
           <template v-if="!branchForm.isDefault">
             <a-divider>条件规则</a-divider>
-            <div v-if="!branchForm.conditionRule" class="dd-empty-rule">
-              <a-button type="dashed" block @click="initConditionRule">
-                <PlusOutlined /> 添加条件规则
-              </a-button>
-            </div>
-            <template v-else>
-              <a-form-item label="字段名称">
-                <a-input
-                  v-model:value="branchForm.conditionRule.field"
-                  placeholder="如 amount, department"
-                />
-              </a-form-item>
-              <a-form-item label="运算符">
-                <a-select v-model:value="branchForm.conditionRule.operator">
-                  <a-select-option value="equals">等于</a-select-option>
-                  <a-select-option value="notEquals">不等于</a-select-option>
-                  <a-select-option value="greaterThan">大于</a-select-option>
-                  <a-select-option value="lessThan">小于</a-select-option>
-                  <a-select-option value="greaterThanOrEqual">大于等于</a-select-option>
-                  <a-select-option value="lessThanOrEqual">小于等于</a-select-option>
-                  <a-select-option value="contains">包含</a-select-option>
-                  <a-select-option value="in">在列表中</a-select-option>
-                  <a-select-option value="startsWith">开头是</a-select-option>
-                  <a-select-option value="endsWith">结尾是</a-select-option>
-                </a-select>
-              </a-form-item>
-              <a-form-item label="比较值">
-                <a-input
-                  v-model:value="branchForm.conditionRule.value"
-                  placeholder="请输入比较值"
-                />
-              </a-form-item>
-              <a-button type="link" danger size="small" @click="removeConditionRule">
-                <DeleteOutlined /> 删除规则
-              </a-button>
-            </template>
+            <ConditionGroupEditor 
+              v-model="branchForm.conditionGroups" 
+              :form-fields="formFields" 
+            />
           </template>
         </a-form>
       </template>
@@ -226,8 +282,10 @@ import {
   PlayCircleOutlined,
 } from '@ant-design/icons-vue';
 import { message } from 'ant-design-vue';
-import type { TreeNode, ConditionBranch, ApproveNode, CopyNode, StartNode } from '@/types/approval-tree';
-import type { ApproverConfig } from '@/types/approval-definition';
+import UserRolePicker from '@/components/common/UserRolePicker.vue';
+import ConditionGroupEditor from './ConditionGroupEditor.vue';
+import type { TreeNode, ConditionBranch, ApproveNode, CopyNode, StartNode, ConditionGroup } from '@/types/approval-tree';
+import type { LfFormField } from '@/types/approval-definition';
 
 // ── 内部类型 ──
 interface BranchForm {
@@ -239,12 +297,14 @@ interface BranchForm {
     operator: string;
     value: unknown;
   };
+  conditionGroups?: ConditionGroup[];
 }
 
 // ── Props / Emits ──
 const props = defineProps<{
   open: boolean;
   node: TreeNode | ConditionBranch | null;
+  formFields?: LfFormField[];
 }>();
 
 const emit = defineEmits<{
@@ -253,8 +313,6 @@ const emit = defineEmits<{
 }>();
 
 // ── 状态 ──
-// Use 'any' for the cloned form data to avoid excessively deep type instantiation
-// caused by the recursive TreeNode union type with structuredClone.
 const formData = ref<any>(null);
 const approveForm = ref<any>(null);
 const copyForm = ref<any>(null);
@@ -262,16 +320,11 @@ const branchForm = ref<any>(null);
 const startForm = ref<any>(null);
 const activeTab = ref('approver');
 
-const approverConfig = ref<ApproverConfig>({
-  setType: 0,
-  signType: 1,
-  noHeaderAction: 0,
-  nodeApproveList: [],
-});
 const approverTargets = ref<string[]>([]);
-const buttonPermissionText = ref('');
-const formPermissionText = ref('');
-const noticeConfigText = ref('');
+// const noticeConfigText = ref('');
+const noticeChannels = ref<number[]>([]);
+const noticeTemplateId = ref<string | undefined>(undefined);
+const formPermMap = ref<Record<string, string>>({});
 
 // ── 计算属性 ──
 const iconClass = computed(() => {
@@ -312,25 +365,58 @@ function syncNodeRefs() {
   if (isApproveNode(current)) {
     const node = current as ApproveNode;
     approveForm.value = node;
-    ensureApproverConfig();
-    const list = approveForm.value?.approverConfig?.nodeApproveList as Array<{ targetId: string; name: string }> | undefined;
-    approverTargets.value = (list ?? []).map((item) => item.targetId);
-    buttonPermissionText.value = node.buttonPermissionConfig
-      ? JSON.stringify(node.buttonPermissionConfig, null, 2)
-      : '';
-    formPermissionText.value = node.formPermissionConfig
-      ? JSON.stringify(node.formPermissionConfig, null, 2)
-      : '';
-    noticeConfigText.value = node.noticeConfig
-      ? JSON.stringify(node.noticeConfig, null, 2)
-      : '';
+    
+    // 初始化审批人列表
+    if (node.assigneeValue) {
+       approverTargets.value = node.assigneeValue.split(',').filter(Boolean);
+    } else {
+       approverTargets.value = [];
+    }
+
+    // 初始化表单权限
+    formPermMap.value = {};
+    if (props.formFields) {
+      props.formFields.forEach(f => {
+        const perm = node.formPermissionConfig?.fields?.find(p => p.fieldId === f.id)?.perm;
+        formPermMap.value[f.id] = perm || 'E'; // 默认可编辑
+      });
+    }
+
+    // 初始化通知配置
+    if (node.noticeConfig) {
+      noticeChannels.value = node.noticeConfig.channelIds || [];
+      noticeTemplateId.value = node.noticeConfig.templateId;
+    } else {
+      noticeChannels.value = [1]; // 默认站内信
+      noticeTemplateId.value = undefined;
+    }
+      
   } else if (isCopyNode(current)) {
     const node = current as CopyNode;
     copyForm.value = node;
-    formPermissionText.value = node.formPermissionConfig
-      ? JSON.stringify(node.formPermissionConfig, null, 2)
-      : '';
+    
+    // 初始化表单权限
+    formPermMap.value = {};
+    if (props.formFields) {
+      props.formFields.forEach(f => {
+        const perm = node.formPermissionConfig?.fields?.find(p => p.fieldId === f.id)?.perm;
+        formPermMap.value[f.id] = perm || 'R'; // 默认只读
+      });
+    }
+
   } else if (isConditionBranch(current)) {
+    // 迁移旧版 conditionRule 到 conditionGroups
+    let groups = current.conditionGroups ? structuredClone(current.conditionGroups) : [];
+    if (groups.length === 0 && current.conditionRule) {
+      groups = [{
+        conditions: [{
+          field: current.conditionRule.field,
+          operator: current.conditionRule.operator,
+          value: current.conditionRule.value as any
+        }]
+      }];
+    }
+
     branchForm.value = {
       id: current.id,
       branchName: current.branchName,
@@ -338,6 +424,7 @@ function syncNodeRefs() {
       conditionRule: current.conditionRule
         ? { ...current.conditionRule, value: current.conditionRule.value as unknown }
         : undefined,
+      conditionGroups: groups
     };
   } else if (isStartNode(current)) {
     startForm.value = current;
@@ -350,26 +437,10 @@ function clearRefs() {
   branchForm.value = null;
   startForm.value = null;
   activeTab.value = 'approver';
-}
-
-function ensureApproverConfig() {
-  if (!approveForm.value) return;
-  if (!approveForm.value.approverConfig) {
-    approveForm.value.approverConfig = {
-      setType: approveForm.value.assigneeType ?? 0,
-      signType:
-        approveForm.value.approvalMode === 'sequential'
-          ? 3
-          : approveForm.value.approvalMode === 'any'
-            ? 2
-            : 1,
-      noHeaderAction: 0,
-      nodeApproveList: approveForm.value.assigneeValue
-        ? [{ targetId: approveForm.value.assigneeValue, name: approveForm.value.assigneeValue }]
-        : [],
-    };
-  }
-  approverConfig.value = approveForm.value.approverConfig;
+  approverTargets.value = [];
+  formPermMap.value = {};
+  noticeChannels.value = [];
+  noticeTemplateId.value = undefined;
 }
 
 // ── Event handlers ──
@@ -386,37 +457,24 @@ function handleSave() {
   if (!formData.value) return;
 
   if (approveForm.value) {
-    // 同步 targets
-    approverConfig.value.nodeApproveList = approverTargets.value.map((id) => ({
-      targetId: id,
-      name: id,
-    }));
-    // 同步旧字段
-    approveForm.value.assigneeType = approverConfig.value.setType as ApproveNode['assigneeType'];
-    approveForm.value.assigneeValue = approverTargets.value[0] ?? '';
-    approveForm.value.approvalMode =
-      approverConfig.value.signType === 3
-        ? 'sequential'
-        : approverConfig.value.signType === 2
-          ? 'any'
-          : 'all';
+    // 保存审批人
+    approveForm.value.assigneeValue = approverTargets.value.join(',');
+    
+    // 保存表单权限
+    const fields = Object.entries(formPermMap.value).map(([fieldId, perm]) => ({ fieldId, perm }));
+    approveForm.value.formPermissionConfig = { fields };
 
-    // 解析 JSON 配置
-    if (!applyJsonConfig(buttonPermissionText.value, '按钮权限', (v) => {
-      approveForm.value!.buttonPermissionConfig = v as ApproveNode['buttonPermissionConfig'];
-    })) return;
-    if (!applyJsonConfig(formPermissionText.value, '表单权限', (v) => {
-      approveForm.value!.formPermissionConfig = v as ApproveNode['formPermissionConfig'];
-    })) return;
-    if (!applyJsonConfig(noticeConfigText.value, '通知配置', (v) => {
-      approveForm.value!.noticeConfig = v as ApproveNode['noticeConfig'];
-    })) return;
+    // 保存通知配置
+    approveForm.value.noticeConfig = {
+      channelIds: noticeChannels.value,
+      templateId: noticeTemplateId.value
+    };
   }
 
   if (copyForm.value) {
-    if (!applyJsonConfig(formPermissionText.value, '表单权限', (v) => {
-      copyForm.value!.formPermissionConfig = v as CopyNode['formPermissionConfig'];
-    })) return;
+     // 保存表单权限
+    const fields = Object.entries(formPermMap.value).map(([fieldId, perm]) => ({ fieldId, perm }));
+    copyForm.value.formPermissionConfig = { fields };
   }
 
   // 如果是分支，合并回 formData
@@ -424,7 +482,19 @@ function handleSave() {
     const branch = formData.value as ConditionBranch;
     branch.branchName = branchForm.value.branchName;
     branch.isDefault = branchForm.value.isDefault;
-    branch.conditionRule = branchForm.value.conditionRule as ConditionBranch['conditionRule'];
+    // 保存 conditionGroups
+    branch.conditionGroups = branchForm.value.conditionGroups;
+    // 同时也更新旧版字段以保持兼容（取第一个条件的第一个规则）
+    if (branch.conditionGroups && branch.conditionGroups.length > 0 && branch.conditionGroups[0].conditions.length > 0) {
+      const first = branch.conditionGroups[0].conditions[0];
+      branch.conditionRule = {
+        field: first.field,
+        operator: first.operator,
+        value: first.value
+      };
+    } else {
+      branch.conditionRule = undefined;
+    }
   }
 
   emit('update', formData.value);
@@ -524,18 +594,10 @@ function isConditionBranch(n: TreeNode | ConditionBranch): n is ConditionBranch 
   flex-shrink: 0;
 }
 
-.dd-props-header__icon--approve {
-  background: #ff943e;
-}
-.dd-props-header__icon--copy {
-  background: #3296fa;
-}
-.dd-props-header__icon--condition {
-  background: #15bc83;
-}
-.dd-props-header__icon--start {
-  background: #576a95;
-}
+.dd-props-header__icon--approve { background: #ff943e; }
+.dd-props-header__icon--copy { background: #3296fa; }
+.dd-props-header__icon--condition { background: #15bc83; }
+.dd-props-header__icon--start { background: #576a95; }
 
 .dd-props-header__name {
   font-size: 16px;
@@ -567,30 +629,114 @@ function isConditionBranch(n: TreeNode | ConditionBranch): n is ConditionBranch 
 .dd-props-body {
   flex: 1;
   overflow-y: auto;
+  padding: 0;
+}
+
+.dd-props-tabs {
+  height: 100%;
+}
+.dd-props-tabs :deep(.ant-tabs-content) {
+  height: 100%;
+}
+.dd-props-tabs :deep(.ant-tabs-tabpane) {
   padding: 12px 16px;
+  overflow-y: auto;
 }
 
 .dd-props-form {
   padding: 4px 0;
 }
 
-/* ── 审批方式 radio 样式 ── */
-.dd-props-form :deep(.ant-radio-wrapper) {
+/* ── Radio Cards ── */
+.dd-radio-cards {
   display: flex;
-  align-items: flex-start;
-  padding: 8px 0;
+  gap: 8px;
 }
-
-.dd-radio-label {
+.dd-radio-card {
+  flex: 1;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.dd-radio-card:hover {
+  border-color: #1677ff;
+}
+.dd-radio-card.active {
+  border-color: #1677ff;
+  background: #e6f4ff;
+  color: #1677ff;
+}
+.dd-radio-card__title {
+  font-size: 13px;
   font-weight: 500;
-  display: block;
+  margin-bottom: 2px;
+}
+.dd-radio-card__desc {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+.dd-radio-card.active .dd-radio-card__desc {
+  color: #1677ff;
 }
 
-.dd-radio-desc {
-  display: block;
-  font-size: 12px;
+/* ── Switch & Input Addon ── */
+.dd-switch-label {
+  margin-left: 8px;
+  font-size: 13px;
+}
+.dd-input-addon {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  background: #fafafa;
+  border: 1px solid #d9d9d9;
+  border-left: none;
   color: #8c8c8c;
-  margin-top: 2px;
+  font-size: 12px;
+}
+
+/* ── Permission Table ── */
+.dd-empty-state {
+  text-align: center;
+  color: #8c8c8c;
+  padding: 24px 0;
+  font-size: 13px;
+}
+.dd-perm-table {
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+}
+.dd-perm-header {
+  display: flex;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 8px 12px;
+  font-weight: 500;
+  font-size: 12px;
+  color: #595959;
+}
+.dd-perm-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+.dd-perm-row:last-child {
+  border-bottom: none;
+}
+.dd-perm-col.name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+}
+.dd-perm-col.perm {
+  flex-shrink: 0;
 }
 
 .dd-switch-hint {
@@ -599,9 +745,13 @@ function isConditionBranch(n: TreeNode | ConditionBranch): n is ConditionBranch 
   font-size: 12px;
   color: #8c8c8c;
 }
-
 .dd-empty-rule {
   padding: 8px 0;
+}
+.dd-section-title {
+  font-weight: 500;
+  margin-bottom: 12px;
+  font-size: 14px;
 }
 
 /* ── Footer ── */

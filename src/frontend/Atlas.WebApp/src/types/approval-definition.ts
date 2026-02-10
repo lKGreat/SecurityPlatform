@@ -139,6 +139,17 @@ export interface ApprovalNode {
   noticeConfig?: NoticeConfig;
   formPermissionConfig?: FormPermissionConfig;
   buttonPermissionConfig?: ButtonPermissionConfig;
+  
+  // 高级设置
+  timeoutEnabled?: boolean;
+  timeoutHours?: number;
+  timeoutMinutes?: number;
+  timeoutAction?: 'none' | 'autoApprove' | 'autoReject' | 'autoSkip';
+  reminderIntervalHours?: number;
+  maxReminderCount?: number;
+  deduplicationType?: 'none' | 'skipSame' | 'global';
+  excludeUserIds?: string[];
+  excludeRoleCodes?: string[];
 }
 
 export interface ConditionRule {
@@ -150,7 +161,7 @@ export interface ConditionRule {
 export interface ConditionBranch {
   id: string;
   branchName: string;
-  conditionRule?: ConditionRule;
+  conditionRule?: JsonValue; // 支持简单规则或复杂条件组
   childNode?: ApprovalNode;
   isDefault?: boolean;
 }

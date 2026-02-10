@@ -390,6 +390,17 @@ export class ApprovalTreeConverter {
       base.buttonPermissionConfig = approveNode.buttonPermissionConfig;
       base.formPermissionConfig = approveNode.formPermissionConfig;
       base.noticeConfig = approveNode.noticeConfig;
+      
+      // 高级设置
+      base.timeoutEnabled = approveNode.timeoutEnabled;
+      base.timeoutHours = approveNode.timeoutHours;
+      base.timeoutMinutes = approveNode.timeoutMinutes;
+      base.timeoutAction = approveNode.timeoutAction;
+      base.reminderIntervalHours = approveNode.reminderIntervalHours;
+      base.maxReminderCount = approveNode.maxReminderCount;
+      base.deduplicationType = approveNode.deduplicationType;
+      base.excludeUserIds = approveNode.excludeUserIds;
+      base.excludeRoleCodes = approveNode.excludeRoleCodes;
     }
 
     if (node.nodeType === 'copy') {
@@ -417,10 +428,28 @@ export class ApprovalTreeConverter {
   }
 
   private static branchToDefinition(branch: ConditionBranch): DefinitionBranch {
+    let conditionRule: JsonValue | undefined = branch.conditionRule;
+
+    // 如果有 conditionGroups，转换为后端格式
+    if (branch.conditionGroups && branch.conditionGroups.length > 0) {
+      conditionRule = {
+        relationship: 'OR',
+        conditions: branch.conditionGroups.map(group => ({
+          relationship: 'AND',
+          conditions: group.conditions.map(cond => ({
+            field: cond.field,
+            operator: cond.operator,
+            value: cond.value,
+            type: cond.fieldType // 传递类型给后端可能有用
+          }))
+        }))
+      };
+    }
+
     return {
       id: branch.id,
       branchName: branch.branchName,
-      conditionRule: branch.conditionRule,
+      conditionRule,
       isDefault: branch.isDefault,
       childNode: branch.childNode ? this.treeNodeToDefinition(branch.childNode) : undefined
     };
@@ -448,7 +477,18 @@ export class ApprovalTreeConverter {
           buttonPermissionConfig: node.buttonPermissionConfig,
           formPermissionConfig: node.formPermissionConfig,
           noticeConfig: node.noticeConfig,
-          childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined
+          childNode: node.childNode ? this.definitionNodeToTree(node.childNode) : undefined,
+          
+          // 高级设置
+          timeoutEnabled: node.timeoutEnabled,
+          timeoutHours: node.timeoutHours,
+          timeoutMinutes: node.timeoutMinutes,
+          timeoutAction: node.timeoutAction,
+          reminderIntervalHours: node.reminderIntervalHours,
+          maxReminderCount: node.maxReminderCount,
+          deduplicationType: node.deduplicationType,
+          excludeUserIds: node.excludeUserIds,
+          excludeRoleCodes: node.excludeRoleCodes
         } as ApproveNode;
       }
       case 'copy':
@@ -501,13 +541,45 @@ export class ApprovalTreeConverter {
   }
 
   private static definitionBranchToTree(branch: DefinitionBranch): ConditionBranch {
-    return {
+    const treeBranch: ConditionBranch = {
       id: branch.id,
       branchName: branch.branchName,
-      conditionRule: branch.conditionRule,
       isDefault: branch.isDefault,
       childNode: branch.childNode ? this.definitionNodeToTree(branch.childNode) : undefined
     };
+
+    // 尝试解析 conditionRule 为 conditionGroups
+    if (branch.conditionRule) {
+      const rule = branch.conditionRule as any;
+      // 检查是否为复杂结构
+      if (rule.relationship === 'OR' && Array.isArray(rule.conditions)) {
+        treeBranch.conditionGroups = rule.conditions.map((group: any) => ({
+          conditions: Array.isArray(group.conditions) ? group.conditions.map((cond: any) => ({
+            field: cond.field,
+            operator: cond.operator,
+            value: cond.value,
+            fieldType: cond.type
+          })) : []
+        }));
+      } else if (rule.field && rule.operator) {
+        // 简单结构，兼容旧数据
+        treeBranch.conditionRule = {
+          field: rule.field,
+          operator: rule.operator,
+          value: rule.value
+        };
+        // 同时生成一个默认 group
+        treeBranch.conditionGroups = [{
+          conditions: [{
+            field: rule.field,
+            operator: rule.operator,
+            value: rule.value
+          }]
+        }];
+      }
+    }
+
+    return treeBranch;
   }
   
   // 私有辅助方法：从图构建树
