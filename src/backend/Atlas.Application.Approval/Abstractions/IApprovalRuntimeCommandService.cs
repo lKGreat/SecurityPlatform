@@ -26,7 +26,8 @@ public interface IApprovalRuntimeCommandService
         long taskId,
         long approverUserId,
         string? comment,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string? targetNodeId = null);
 
     Task CancelInstanceAsync(
         TenantId tenantId,

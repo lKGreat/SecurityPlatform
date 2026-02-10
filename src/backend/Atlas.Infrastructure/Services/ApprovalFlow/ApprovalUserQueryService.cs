@@ -72,6 +72,14 @@ public sealed class ApprovalUserQueryService : IApprovalUserQueryService
         return await _userService.GetLevelApproverAsync(tenantId, startUserId, targetLevel, cancellationToken);
     }
 
+    public async Task<long?> GetDepartmentHeadUserIdAsync(
+        TenantId tenantId,
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        return await _departmentService.GetDepartmentHeadUserIdAsync(tenantId, userId, cancellationToken);
+    }
+
     public async Task<long?> GetHrbpUserIdAsync(
         TenantId tenantId,
         long userId,

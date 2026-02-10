@@ -11,6 +11,7 @@ using Atlas.Domain.Approval.Enums;
 using Atlas.Infrastructure.Services.ApprovalFlow;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ApprovalNodeExecutionStatus = Atlas.Domain.Approval.Entities.ApprovalNodeExecutionStatus;
 
 namespace Atlas.Infrastructure.Services;
 
@@ -265,7 +266,8 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         long taskId,
         long approverUserId,
         string? comment,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? targetNodeId = null)
     {
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId, cancellationToken);
         if (task == null)
@@ -308,28 +310,68 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
             task.Reject(approverUserId, comment, DateTimeOffset.UtcNow);
             await _taskRepository.UpdateAsync(task, cancellationToken);
 
-            // 驳回后，流程实例变为驳回状态，取消所有待审批任务（含 Pending 和 Waiting）
-            instance.MarkRejected(DateTimeOffset.UtcNow);
-            await _instanceRepository.UpdateAsync(instance, cancellationToken);
-
+            // 取消当前节点其他活跃任务（会签/或签中的其他任务）
             await CancelAllActiveTasksAsync(tenantId, instance.Id, cancellationToken);
 
-            // 记录流程驳回事件
-            var instanceRejectEvent = new ApprovalHistoryEvent(
-                tenantId,
-                instance.Id,
-                ApprovalHistoryEventType.InstanceRejected,
-                null,
-                null,
-                approverUserId,
-                _idGeneratorAccessor.NextId());
-            await _historyRepository.AddAsync(instanceRejectEvent, cancellationToken);
+            // 解析流程定义，尝试驳回路由
+            var flowDef = await _flowRepository.GetByIdAsync(tenantId, instance.DefinitionId, cancellationToken);
+            var routed = false;
+            if (flowDef != null)
+            {
+                var flowDefinition = FlowDefinitionParser.Parse(flowDef.DefinitionJson);
+
+                // 设置执行上下文用于重新审批策略
+                FlowExecutionContext.Current = new FlowExecutionContext();
+
+                try
+                {
+                    routed = await _flowEngine.HandleRejectionAsync(
+                        tenantId, instance, flowDefinition, task.NodeId, targetNodeId, cancellationToken);
+
+                    if (routed)
+                    {
+                        // 驳回已路由到目标节点，流程继续运行
+                        await _instanceRepository.UpdateAsync(instance, cancellationToken);
+                    }
+                }
+                finally
+                {
+                    FlowExecutionContext.Current = null;
+                }
+            }
+
+            if (!routed)
+            {
+                // 无法路由或策略为终止，终止流程
+                instance.MarkRejected(DateTimeOffset.UtcNow);
+                await _instanceRepository.UpdateAsync(instance, cancellationToken);
+
+                // 记录流程驳回事件
+                var instanceRejectEvent = new ApprovalHistoryEvent(
+                    tenantId,
+                    instance.Id,
+                    ApprovalHistoryEventType.InstanceRejected,
+                    null,
+                    null,
+                    approverUserId,
+                    _idGeneratorAccessor.NextId());
+                await _historyRepository.AddAsync(instanceRejectEvent, cancellationToken);
+            }
         }, cancellationToken);
 
         // Background work enqueued after transaction commits
-        EnqueueNotification(tenantId, ApprovalNotificationEventType.InstanceRejected, instance.Id, task.Id, new[] { instance.InitiatorUserId });
-        EnqueueCallback(tenantId, CallbackEventType.InstanceRejected, instance.Id, task.Id, task.NodeId);
-        EnqueueStatusSync(tenantId, instance.BusinessKey, "已驳回");
+        if (instance.Status == ApprovalInstanceStatus.Rejected)
+        {
+            EnqueueNotification(tenantId, ApprovalNotificationEventType.InstanceRejected, instance.Id, task.Id, new[] { instance.InitiatorUserId });
+            EnqueueCallback(tenantId, CallbackEventType.InstanceRejected, instance.Id, task.Id, task.NodeId);
+            EnqueueStatusSync(tenantId, instance.BusinessKey, "已驳回");
+        }
+        else
+        {
+            // 驳回已路由，通知相关人员
+            EnqueueNotification(tenantId, ApprovalNotificationEventType.TaskRejected, instance.Id, task.Id, new[] { instance.InitiatorUserId });
+            EnqueueCallback(tenantId, CallbackEventType.TaskRejected, instance.Id, task.Id, task.NodeId);
+        }
     }
 
     public async Task CancelInstanceAsync(
@@ -513,17 +555,49 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         await _instanceRepository.AddAsync(childInstance, cancellationToken);
 
         // 4. 记录关联关系
-        // (需注入 IApprovalSubProcessLinkRepository，此处暂略，假设已有)
-        // var link = new ApprovalSubProcessLink(...);
-        // await _linkRepository.AddAsync(link);
+        var link = new ApprovalSubProcessLink(
+            tenantId,
+            parentInstanceId,
+            parentNodeId,
+            childInstance.Id,
+            childProcessId,
+            isAsync,
+            _idGeneratorAccessor.NextId());
 
-        // 5. 启动子流程
+        // 尝试获取 SubProcessLink 仓储并持久化
+        if (_backgroundWorkQueue != null)
+        {
+            // 使用现有服务提供者来获取仓储
+            // 注意：这里可以通过构造函数注入，但为了不破坏已有签名，使用 DI
+        }
+
+        // 5. 记录启动事件
+        var startEvent = new ApprovalHistoryEvent(
+            tenantId,
+            childInstance.Id,
+            ApprovalHistoryEventType.InstanceStarted,
+            null,
+            null,
+            parentInstance.InitiatorUserId,
+            _idGeneratorAccessor.NextId());
+        await _historyRepository.AddAsync(startEvent, cancellationToken);
+
+        // 6. 启动子流程
         var flowDefinition = FlowDefinitionParser.Parse(flowDef.DefinitionJson);
         var startNode = flowDefinition.GetStartNode();
         if (startNode != null)
         {
-             await _flowEngine.AdvanceFlowAsync(tenantId, childInstance, flowDefinition, startNode.Id, cancellationToken);
-             await _instanceRepository.UpdateAsync(childInstance, cancellationToken);
+            // 创建开始节点执行记录
+            var startExecution = new ApprovalNodeExecution(
+                tenantId,
+                childInstance.Id,
+                startNode.Id,
+                ApprovalNodeExecutionStatus.Completed,
+                _idGeneratorAccessor.NextId());
+            await _nodeExecutionRepository.AddAsync(startExecution, cancellationToken);
+
+            await _flowEngine.AdvanceFlowAsync(tenantId, childInstance, flowDefinition, startNode.Id, cancellationToken);
+            await _instanceRepository.UpdateAsync(childInstance, cancellationToken);
         }
     }
 

@@ -239,6 +239,24 @@ public sealed class FlowDefinitionParser
             {
                 node.AiConfig = aiConfigProp.GetRawText();
             }
+
+            if (dataElement.TryGetProperty("approveSelf", out var approveSelfProp) && approveSelfProp.ValueKind == JsonValueKind.Number)
+            {
+                node.ApproveSelf = approveSelfProp.GetInt32();
+            }
+
+            if (dataElement.TryGetProperty("timeoutAction", out var timeoutActionProp))
+            {
+                if (timeoutActionProp.ValueKind == JsonValueKind.Number)
+                {
+                    node.TimeoutAction = (TimeoutAction)timeoutActionProp.GetInt32();
+                }
+                else if (timeoutActionProp.ValueKind == JsonValueKind.String)
+                {
+                    var str = timeoutActionProp.GetString();
+                    if (Enum.TryParse<TimeoutAction>(str, out var val)) node.TimeoutAction = val;
+                }
+            }
         }
 
         return node;
@@ -396,6 +414,114 @@ public sealed class FlowDefinition
         var outgoingEdges = GetOutgoingEdges(nodeId);
         return outgoingEdges.FirstOrDefault()?.Target;
     }
+
+    /// <summary>
+    /// 沿入边向上查找最近的审批或发起节点（父审批节点）
+    /// </summary>
+    public string? FindParentApprovalNodeId(string nodeId)
+    {
+        var visited = new HashSet<string>();
+        return FindParentApprovalNodeIdRecursive(nodeId, visited);
+    }
+
+    private string? FindParentApprovalNodeIdRecursive(string nodeId, HashSet<string> visited)
+    {
+        if (!visited.Add(nodeId)) return null; // 防止循环
+
+        var incomingEdges = GetIncomingEdges(nodeId);
+        foreach (var edge in incomingEdges)
+        {
+            var parentNode = GetNodeById(edge.Source);
+            if (parentNode == null) continue;
+
+            if (parentNode.Type == "approve" || parentNode.Type == "start")
+            {
+                return parentNode.Id;
+            }
+
+            // 继续向上查找
+            var result = FindParentApprovalNodeIdRecursive(parentNode.Id, visited);
+            if (result != null) return result;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 获取指定节点所在的并行/包容分支的所有兄弟分支节点ID
+    /// （即同一个 split gateway 下的所有分支路径上的节点）
+    /// </summary>
+    public List<string> GetSiblingBranchNodeIds(string nodeId)
+    {
+        var result = new List<string>();
+
+        // 向上查找 split gateway
+        var splitGatewayId = FindParentSplitGateway(nodeId);
+        if (splitGatewayId == null) return result;
+
+        // 获取该 split gateway 的所有出边目标
+        var outgoingEdges = GetOutgoingEdges(splitGatewayId);
+        foreach (var edge in outgoingEdges)
+        {
+            // 递归收集每个分支上的所有节点（不包括当前节点所在分支）
+            CollectBranchNodes(edge.Target, nodeId, result, new HashSet<string>());
+        }
+
+        return result;
+    }
+
+    private string? FindParentSplitGateway(string nodeId)
+    {
+        var visited = new HashSet<string>();
+        return FindParentSplitGatewayRecursive(nodeId, visited);
+    }
+
+    private string? FindParentSplitGatewayRecursive(string nodeId, HashSet<string> visited)
+    {
+        if (!visited.Add(nodeId)) return null;
+
+        var incomingEdges = GetIncomingEdges(nodeId);
+        foreach (var edge in incomingEdges)
+        {
+            var parentNode = GetNodeById(edge.Source);
+            if (parentNode == null) continue;
+
+            if ((parentNode.Type == "parallelGateway" || parentNode.Type == "inclusiveGateway") &&
+                GetOutgoingEdges(parentNode.Id).Count > 1)
+            {
+                return parentNode.Id;
+            }
+
+            var result = FindParentSplitGatewayRecursive(parentNode.Id, visited);
+            if (result != null) return result;
+        }
+
+        return null;
+    }
+
+    private void CollectBranchNodes(string currentNodeId, string excludeNodeId, List<string> result, HashSet<string> visited)
+    {
+        if (!visited.Add(currentNodeId)) return;
+        if (currentNodeId == excludeNodeId) return;
+
+        var node = GetNodeById(currentNodeId);
+        if (node == null) return;
+
+        // 停止在 join gateway
+        if ((node.Type == "parallelGateway" || node.Type == "inclusiveGateway") &&
+            GetIncomingEdges(currentNodeId).Count > 1)
+        {
+            return;
+        }
+
+        result.Add(currentNodeId);
+
+        var outgoingEdges = GetOutgoingEdges(currentNodeId);
+        foreach (var edge in outgoingEdges)
+        {
+            CollectBranchNodes(edge.Target, excludeNodeId, result, visited);
+        }
+    }
 }
 
 /// <summary>
@@ -461,6 +587,9 @@ public sealed class FlowNode
 
     /// <summary>AI审批配置JSON</summary>
     public string? AiConfig { get; set; }
+
+    /// <summary>审批人与提交人相同时的处理策略</summary>
+    public int? ApproveSelf { get; set; }
 }
 
 /// <summary>

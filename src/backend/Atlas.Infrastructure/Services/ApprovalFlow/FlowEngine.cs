@@ -11,6 +11,36 @@ using ParallelTokenStatus = Atlas.Domain.Approval.Entities.ParallelTokenStatus;
 namespace Atlas.Infrastructure.Services.ApprovalFlow;
 
 /// <summary>
+/// 流程执行上下文（AsyncLocal，用于在节点间传递运行时数据）
+/// </summary>
+public sealed class FlowExecutionContext
+{
+    private static readonly AsyncLocal<FlowExecutionContext?> _current = new();
+
+    /// <summary>获取或设置当前执行上下文</summary>
+    public static FlowExecutionContext? Current
+    {
+        get => _current.Value;
+        set => _current.Value = value;
+    }
+
+    /// <summary>运行时动态分配审批人（nodeId -> userIds）</summary>
+    public Dictionary<string, List<long>> DynamicAssignees { get; } = new();
+
+    /// <summary>指定条件节点选择（强制走某个条件分支的 nodeKey）</summary>
+    public string? SpecifyConditionNodeKey { get; set; }
+
+    /// <summary>驳回源节点ID（用于 ReApproveStrategy 判断）</summary>
+    public string? RejectSourceNodeId { get; set; }
+
+    /// <summary>当前是否处于驳回重新审批流程</summary>
+    public bool IsReApproveFlow { get; set; }
+
+    /// <summary>重新审批策略</summary>
+    public ReApproveStrategy? ReApproveStrategy { get; set; }
+}
+
+/// <summary>
 /// 流程推进引擎（支持多节点、条件分支、会签/或签、并行网关、抄送节点）
 /// </summary>
 public sealed class FlowEngine
@@ -29,6 +59,7 @@ public sealed class FlowEngine
     private readonly IApprovalAiHandler? _aiHandler;
     private readonly IIdGeneratorAccessor _idGeneratorAccessor;
     private readonly IBackgroundWorkQueue? _backgroundWorkQueue;
+    private readonly IServiceProvider? _serviceProvider;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<FlowEngine>? _logger;
 
@@ -47,6 +78,7 @@ public sealed class FlowEngine
         ExternalCallbackService? callbackService = null,
         IApprovalAiHandler? aiHandler = null,
         IBackgroundWorkQueue? backgroundWorkQueue = null,
+        IServiceProvider? serviceProvider = null,
         TimeProvider? timeProvider = null,
         ILogger<FlowEngine>? logger = null)
     {
@@ -64,6 +96,7 @@ public sealed class FlowEngine
         _aiHandler = aiHandler;
         _idGeneratorAccessor = idGeneratorAccessor;
         _backgroundWorkQueue = backgroundWorkQueue;
+        _serviceProvider = serviceProvider;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _logger = logger;
     }
@@ -89,6 +122,165 @@ public sealed class FlowEngine
 
         // 直接处理目标节点
         await ProcessNextNodeAsync(tenantId, instance, definition, targetNodeId, cancellationToken);
+    }
+
+    /// <summary>
+    /// 处理驳回路由逻辑（根据节点的 RejectStrategy 决定驳回行为）
+    /// </summary>
+    /// <returns>true 表示驳回已路由到目标节点（流程继续），false 表示应终止流程</returns>
+    public async Task<bool> HandleRejectionAsync(
+        TenantId tenantId,
+        ApprovalProcessInstance instance,
+        FlowDefinition definition,
+        string currentNodeId,
+        string? specifiedTargetNodeId,
+        CancellationToken cancellationToken)
+    {
+        var currentNode = definition.GetNodeById(currentNodeId);
+        if (currentNode == null) return false;
+
+        var strategy = currentNode.RejectStrategy ?? RejectStrategy.ToPrevious;
+
+        // 如果指定了目标节点（前端传入），优先使用
+        if (!string.IsNullOrEmpty(specifiedTargetNodeId))
+        {
+            strategy = RejectStrategy.ToAnyNode;
+        }
+
+        // 在并行/包容分支内驳回时，先强制终止兄弟分支的活跃任务
+        await CancelSiblingBranchTasksAsync(tenantId, instance, definition, currentNodeId, cancellationToken);
+
+        switch (strategy)
+        {
+            case RejectStrategy.ToInitiator:
+                // 跳转到发起人节点（开始节点的下一个审批节点）
+                var startNode = definition.GetStartNode();
+                if (startNode != null)
+                {
+                    var firstApprovalNodeId = FindFirstApprovalNodeAfterStart(definition, startNode.Id);
+                    if (firstApprovalNodeId != null)
+                    {
+                        SetupReApproveContext(currentNode, firstApprovalNodeId);
+                        await JumpToNodeAsync(tenantId, instance, definition, firstApprovalNodeId, cancellationToken);
+                        return true;
+                    }
+                }
+                return false;
+
+            case RejectStrategy.ToPrevious:
+                // 退回上一个审批节点
+                var prevNodeId = definition.FindParentApprovalNodeId(currentNodeId);
+                if (prevNodeId != null)
+                {
+                    SetupReApproveContext(currentNode, prevNodeId);
+                    await JumpToNodeAsync(tenantId, instance, definition, prevNodeId, cancellationToken);
+                    return true;
+                }
+                return false;
+
+            case RejectStrategy.ToAnyNode:
+                // 退回到指定节点
+                var targetId = specifiedTargetNodeId;
+                if (!string.IsNullOrEmpty(targetId))
+                {
+                    SetupReApproveContext(currentNode, targetId);
+                    await JumpToNodeAsync(tenantId, instance, definition, targetId, cancellationToken);
+                    return true;
+                }
+                return false;
+
+            case RejectStrategy.TerminateApproval:
+                // 终止流程
+                return false;
+
+            case RejectStrategy.ToParentNode:
+                // 退回到模型父节点（上一个审批节点）
+                var parentApprovalNodeId = definition.FindParentApprovalNodeId(currentNodeId);
+                if (parentApprovalNodeId != null)
+                {
+                    SetupReApproveContext(currentNode, parentApprovalNodeId);
+                    await JumpToNodeAsync(tenantId, instance, definition, parentApprovalNodeId, cancellationToken);
+                    return true;
+                }
+                return false;
+
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// 设置重新审批上下文（用于后续 AdvanceFlowAsync 判断 ReApproveStrategy）
+    /// </summary>
+    private static void SetupReApproveContext(FlowNode rejectSourceNode, string targetNodeId)
+    {
+        var ctx = FlowExecutionContext.Current;
+        if (ctx != null)
+        {
+            ctx.RejectSourceNodeId = rejectSourceNode.Id;
+            ctx.IsReApproveFlow = true;
+            ctx.ReApproveStrategy = rejectSourceNode.ReApproveStrategy;
+        }
+    }
+
+    /// <summary>
+    /// 查找 Start 节点之后的第一个审批节点
+    /// </summary>
+    private static string? FindFirstApprovalNodeAfterStart(FlowDefinition definition, string startNodeId)
+    {
+        var visited = new HashSet<string>();
+        var queue = new Queue<string>();
+        queue.Enqueue(startNodeId);
+
+        while (queue.Count > 0)
+        {
+            var nodeId = queue.Dequeue();
+            if (!visited.Add(nodeId)) continue;
+
+            var outgoingEdges = definition.GetOutgoingEdges(nodeId);
+            foreach (var edge in outgoingEdges)
+            {
+                var nextNode = definition.GetNodeById(edge.Target);
+                if (nextNode == null) continue;
+
+                if (nextNode.Type == "approve")
+                    return nextNode.Id;
+
+                queue.Enqueue(edge.Target);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 取消并行/包容分支内兄弟分支的活跃任务
+    /// </summary>
+    private async Task CancelSiblingBranchTasksAsync(
+        TenantId tenantId,
+        ApprovalProcessInstance instance,
+        FlowDefinition definition,
+        string currentNodeId,
+        CancellationToken cancellationToken)
+    {
+        var siblingNodeIds = definition.GetSiblingBranchNodeIds(currentNodeId);
+        if (siblingNodeIds.Count == 0) return;
+
+        var siblingTasks = await _taskRepository.GetByInstanceAndNodesAsync(
+            tenantId, instance.Id, siblingNodeIds, cancellationToken);
+
+        var tasksToCancel = siblingTasks
+            .Where(t => t.Status == ApprovalTaskStatus.Pending || t.Status == ApprovalTaskStatus.Waiting)
+            .ToList();
+
+        if (tasksToCancel.Count > 0)
+        {
+            foreach (var task in tasksToCancel)
+            {
+                task.Cancel();
+            }
+            await _taskRepository.UpdateRangeAsync(tasksToCancel, cancellationToken);
+        }
     }
 
     /// <summary>
@@ -377,21 +569,35 @@ public sealed class FlowEngine
             await _nodeExecutionRepository.AddAsync(execution, cancellationToken);
             instance.SetCurrentNode(nextNodeId);
             
-            await HandleSubProcessAsync(tenantId, instance, nextNode, cancellationToken);
+            await HandleSubProcessAsync(tenantId, instance, definition, nextNode, cancellationToken);
         }
-        // TODO: Timer and Trigger nodes implementation in later phases
-        else if (nextNode.Type == "timer" || nextNode.Type == "trigger")
+        else if (nextNode.Type == "timer")
         {
-             // 暂时作为自动通过处理，后续阶段完善
+            // 定时器节点：创建 TimerJob 记录，到期后由后台 Job 推进
             var execution = new ApprovalNodeExecution(
                 tenantId,
                 instance.Id,
                 nextNodeId,
-                ApprovalNodeExecutionStatus.Completed,
+                ApprovalNodeExecutionStatus.Running,
                 _idGeneratorAccessor.NextId());
             await _nodeExecutionRepository.AddAsync(execution, cancellationToken);
             instance.SetCurrentNode(nextNodeId);
-            await AdvanceFlowAsync(tenantId, instance, definition, nextNodeId, cancellationToken);
+            
+            await HandleTimerNodeAsync(tenantId, instance, nextNode, cancellationToken);
+        }
+        else if (nextNode.Type == "trigger")
+        {
+            // 触发器节点：创建 TriggerJob 记录
+            var execution = new ApprovalNodeExecution(
+                tenantId,
+                instance.Id,
+                nextNodeId,
+                ApprovalNodeExecutionStatus.Running,
+                _idGeneratorAccessor.NextId());
+            await _nodeExecutionRepository.AddAsync(execution, cancellationToken);
+            instance.SetCurrentNode(nextNodeId);
+            
+            await HandleTriggerNodeAsync(tenantId, instance, definition, nextNode, cancellationToken);
         }
     }
 
@@ -834,6 +1040,56 @@ public sealed class FlowEngine
             }
         }
 
+        // 处理审批人与提交人相同 (NodeApproveSelf) 策略
+        var approveSelf = node.ApproveSelf ?? 0; // 默认 0 = 由发起人对自己审批
+        if (approveSelf != 0 && userIds.Contains(instance.InitiatorUserId))
+        {
+            switch ((NodeApproveSelf)approveSelf)
+            {
+                case NodeApproveSelf.AutoSkip:
+                    // 自动跳过：移除发起人
+                    userIds.Remove(instance.InitiatorUserId);
+                    if (userIds.Count == 0)
+                    {
+                        // 所有审批人都是发起人，直接跳过整个节点
+                        return tasks;
+                    }
+                    break;
+
+                case NodeApproveSelf.TransferDirectSuperior:
+                    // 转交给直接上级
+                    userIds.Remove(instance.InitiatorUserId);
+                    var directLeader = await _userQueryService.GetDirectLeaderUserIdAsync(
+                        tenantId, instance.InitiatorUserId, cancellationToken);
+                    if (directLeader.HasValue && !userIds.Contains(directLeader.Value))
+                    {
+                        userIds.Add(directLeader.Value);
+                    }
+                    break;
+
+                case NodeApproveSelf.TransferDepartmentHead:
+                    // 转交给部门负责人
+                    userIds.Remove(instance.InitiatorUserId);
+                    var deptHead = await _userQueryService.GetDepartmentHeadUserIdAsync(
+                        tenantId, instance.InitiatorUserId, cancellationToken);
+                    if (deptHead.HasValue && !userIds.Contains(deptHead.Value))
+                    {
+                        userIds.Add(deptHead.Value);
+                    }
+                    break;
+            }
+        }
+
+        // 代理人替换：检查是否有生效的代理配置
+        userIds = await ApplyAgentReplacementAsync(tenantId, userIds, cancellationToken);
+
+        // 检查运行时动态分配审批人
+        var ctx = FlowExecutionContext.Current;
+        if (ctx != null && ctx.DynamicAssignees.TryGetValue(node.Id, out var dynamicUserIds))
+        {
+            userIds = dynamicUserIds.Distinct().ToList();
+        }
+
         // 为每个用户创建任务
         int order = 1;
         foreach (var userId in userIds.Distinct())
@@ -853,6 +1109,12 @@ public sealed class FlowEngine
                 _idGeneratorAccessor.NextId(),
                 order: order,
                 initialStatus: initialStatus);
+
+            // 设置票签权重
+            if (approvalMode == ApprovalMode.Vote && node.Weight.HasValue)
+            {
+                task.SetWeight(node.Weight.Value);
+            }
 
             tasks.Add(task);
             order++;
@@ -1095,25 +1357,44 @@ public sealed class FlowEngine
     private async Task HandleSubProcessAsync(
         TenantId tenantId,
         ApprovalProcessInstance instance,
+        FlowDefinition definition,
         FlowNode node,
         CancellationToken cancellationToken)
     {
-        // 这里需要调用 IApprovalRuntimeCommandService 来启动子流程
-        // 由于循环依赖问题，通常建议通过事件或中介服务来处理
-        // 或者将 StartSubProcessAsync 逻辑下沉到更底层的服务
-        // 暂时留空，待 CommandService 完善后再接入
-        // 实际实现中，应该发布一个 StartSubProcessEvent，由 CommandService 监听并处理
-        
-        // 模拟异步完成（如果是同步子流程，应该等待子流程结束）
+        if (!node.CallProcessId.HasValue)
+        {
+            _logger?.LogWarning("CallProcess node {NodeId} has no CallProcessId configured, skipping", node.Id);
+            // 没有配置子流程定义，自动跳过
+            await AdvanceFlowAsync(tenantId, instance, definition, node.Id, cancellationToken);
+            return;
+        }
+
+        // 通过 IServiceProvider 解析 CommandService（避免循环依赖）
+        if (_serviceProvider != null)
+        {
+            var commandService = _serviceProvider.GetService<IApprovalRuntimeCommandService>();
+            if (commandService != null)
+            {
+                await commandService.StartSubProcessAsync(
+                    tenantId,
+                    instance.Id,
+                    node.Id,
+                    node.CallProcessId.Value,
+                    node.CallAsync,
+                    cancellationToken);
+            }
+        }
+
+        // 异步子流程，主流程继续推进
         if (node.CallAsync)
         {
-             // 异步子流程，主流程继续
-             await AdvanceFlowAsync(tenantId, instance, null!, node.Id, cancellationToken);
+            await AdvanceFlowAsync(tenantId, instance, definition, node.Id, cancellationToken);
         }
+        // 同步子流程：等待子流程结束后由 EndSubProcessAsync 回调推进
     }
 
     /// <summary>
-    /// 子流程结束回调
+    /// 子流程结束回调（由 CommandService 或子流程完成时调用）
     /// </summary>
     public async Task EndSubProcessAsync(
         TenantId tenantId,
@@ -1121,9 +1402,165 @@ public sealed class FlowEngine
         string parentNodeId,
         CancellationToken cancellationToken)
     {
-        // 查找父流程实例
-        // 恢复父流程执行
-        // await AdvanceFlowAsync(...)
+        if (_serviceProvider == null) return;
+
+        var instanceRepository = _serviceProvider.GetRequiredService<IApprovalInstanceRepository>();
+        var flowRepository = _serviceProvider.GetRequiredService<IApprovalFlowRepository>();
+
+        var parentInstance = await instanceRepository.GetByIdAsync(tenantId, parentInstanceId, cancellationToken);
+        if (parentInstance == null || parentInstance.Status != ApprovalInstanceStatus.Running) return;
+
+        var flowDef = await flowRepository.GetByIdAsync(tenantId, parentInstance.DefinitionId, cancellationToken);
+        if (flowDef == null) return;
+
+        var definition = FlowDefinitionParser.Parse(flowDef.DefinitionJson);
+
+        // 标记子流程节点为已完成
+        var nodeExecution = await _nodeExecutionRepository.GetByInstanceAndNodeAsync(
+            tenantId, parentInstanceId, parentNodeId, cancellationToken);
+        if (nodeExecution != null)
+        {
+            nodeExecution.MarkCompleted(DateTimeOffset.UtcNow);
+            await _nodeExecutionRepository.UpdateAsync(nodeExecution, cancellationToken);
+        }
+
+        // 继续推进父流程
+        await AdvanceFlowAsync(tenantId, parentInstance, definition, parentNodeId, cancellationToken);
+        await instanceRepository.UpdateAsync(parentInstance, cancellationToken);
+    }
+
+    /// <summary>
+    /// 处理定时器节点：创建 TimerJob 记录
+    /// </summary>
+    private async Task HandleTimerNodeAsync(
+        TenantId tenantId,
+        ApprovalProcessInstance instance,
+        FlowNode node,
+        CancellationToken cancellationToken)
+    {
+        // 解析定时器配置获取延迟时间
+        var scheduledAt = ParseTimerSchedule(node.TimerConfig);
+
+        if (_serviceProvider != null)
+        {
+            var timerJobRepo = _serviceProvider.GetService<IApprovalTimerJobRepository>();
+            if (timerJobRepo != null)
+            {
+                var timerJob = new ApprovalTimerJob(
+                    tenantId,
+                    instance.Id,
+                    node.Id,
+                    scheduledAt,
+                    _idGeneratorAccessor.NextId());
+                await timerJobRepo.AddAsync(timerJob, cancellationToken);
+                return;
+            }
+        }
+
+        // 如果没有 TimerJob 仓储（兜底），直接自动通过
+        _logger?.LogWarning("IApprovalTimerJobRepository not available, auto-completing timer node {NodeId}", node.Id);
+    }
+
+    /// <summary>
+    /// 处理触发器节点：创建 TriggerJob 记录
+    /// </summary>
+    private async Task HandleTriggerNodeAsync(
+        TenantId tenantId,
+        ApprovalProcessInstance instance,
+        FlowDefinition definition,
+        FlowNode node,
+        CancellationToken cancellationToken)
+    {
+        var triggerType = node.TriggerType ?? "immediate";
+
+        if (triggerType == "immediate")
+        {
+            // 立即执行：记录后直接推进
+            if (_serviceProvider != null)
+            {
+                var triggerJobRepo = _serviceProvider.GetService<IApprovalTriggerJobRepository>();
+                if (triggerJobRepo != null)
+                {
+                    var triggerJob = new ApprovalTriggerJob(
+                        tenantId,
+                        instance.Id,
+                        node.Id,
+                        triggerType,
+                        _timeProvider.GetUtcNow(),
+                        _idGeneratorAccessor.NextId());
+                    triggerJob.MarkExecuted(_timeProvider.GetUtcNow());
+                    await triggerJobRepo.AddAsync(triggerJob, cancellationToken);
+                }
+            }
+
+            // 标记执行完成并继续推进
+            var nodeExecution = await _nodeExecutionRepository.GetByInstanceAndNodeAsync(
+                tenantId, instance.Id, node.Id, cancellationToken);
+            if (nodeExecution != null)
+            {
+                nodeExecution.MarkCompleted(DateTimeOffset.UtcNow);
+                await _nodeExecutionRepository.UpdateAsync(nodeExecution, cancellationToken);
+            }
+            await AdvanceFlowAsync(tenantId, instance, definition, node.Id, cancellationToken);
+        }
+        else
+        {
+            // 定时执行：创建 TriggerJob 等待后台 Job 处理
+            var scheduledAt = ParseTimerSchedule(node.TimerConfig);
+            if (_serviceProvider != null)
+            {
+                var triggerJobRepo = _serviceProvider.GetService<IApprovalTriggerJobRepository>();
+                if (triggerJobRepo != null)
+                {
+                    var triggerJob = new ApprovalTriggerJob(
+                        tenantId,
+                        instance.Id,
+                        node.Id,
+                        triggerType,
+                        scheduledAt,
+                        _idGeneratorAccessor.NextId());
+                    await triggerJobRepo.AddAsync(triggerJob, cancellationToken);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 解析定时器配置（JSON）获取计划执行时间
+    /// </summary>
+    private DateTimeOffset ParseTimerSchedule(string? timerConfigJson)
+    {
+        if (string.IsNullOrEmpty(timerConfigJson))
+        {
+            return _timeProvider.GetUtcNow().AddHours(1); // 默认1小时后
+        }
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(timerConfigJson);
+            var root = doc.RootElement;
+
+            var delayHours = 0;
+            var delayMinutes = 0;
+
+            if (root.TryGetProperty("delayHours", out var h) && h.ValueKind == System.Text.Json.JsonValueKind.Number)
+                delayHours = h.GetInt32();
+            if (root.TryGetProperty("delayMinutes", out var m) && m.ValueKind == System.Text.Json.JsonValueKind.Number)
+                delayMinutes = m.GetInt32();
+
+            // 支持绝对时间
+            if (root.TryGetProperty("scheduledAt", out var sa) && sa.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                if (DateTimeOffset.TryParse(sa.GetString(), out var absolute))
+                    return absolute;
+            }
+
+            return _timeProvider.GetUtcNow().AddHours(delayHours).AddMinutes(delayMinutes);
+        }
+        catch
+        {
+            return _timeProvider.GetUtcNow().AddHours(1);
+        }
     }
 
     /// <summary>
@@ -1277,6 +1714,41 @@ public sealed class FlowEngine
         {
             await _copyRecordRepository.AddRangeAsync(copyRecords, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// 代理人替换：如果审批人配置了代理人，替换为代理人
+    /// </summary>
+    private async Task<List<long>> ApplyAgentReplacementAsync(
+        TenantId tenantId,
+        List<long> userIds,
+        CancellationToken cancellationToken)
+    {
+        if (_serviceProvider == null || userIds.Count == 0)
+            return userIds;
+
+        var agentConfigRepo = _serviceProvider.GetService<IApprovalAgentConfigRepository>();
+        if (agentConfigRepo == null)
+            return userIds;
+
+        var now = _timeProvider.GetUtcNow();
+        var result = new List<long>(userIds.Count);
+
+        foreach (var userId in userIds)
+        {
+            var agentConfig = await agentConfigRepo.GetActiveAgentAsync(tenantId, userId, now, cancellationToken);
+            if (agentConfig != null)
+            {
+                // 有生效的代理配置，替换为代理人
+                result.Add(agentConfig.AgentUserId);
+            }
+            else
+            {
+                result.Add(userId);
+            }
+        }
+
+        return result;
     }
 
     /// <summary>

@@ -34,4 +34,20 @@ public interface IApprovalDepartmentService
         TenantId tenantId,
         long departmentId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// 获取用户所在部门的负责人用户ID
+    /// </summary>
+    /// <param name="tenantId">租户ID</param>
+    /// <param name="userId">用户ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>部门负责人用户ID，如果不存在则返回null</returns>
+    Task<long?> GetDepartmentHeadUserIdAsync(
+        TenantId tenantId,
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        // 默认实现返回null，子类可以覆盖
+        return Task.FromResult<long?>(null);
+    }
 }

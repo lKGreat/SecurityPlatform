@@ -81,6 +81,14 @@ public interface IApprovalUserQueryService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 获取用户所在部门的负责人用户ID
+    /// </summary>
+    Task<long?> GetDepartmentHeadUserIdAsync(
+        TenantId tenantId,
+        long userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// 获取用户的HRBP（人力资源业务伙伴）用户ID
     /// </summary>
     Task<long?> GetHrbpUserIdAsync(
