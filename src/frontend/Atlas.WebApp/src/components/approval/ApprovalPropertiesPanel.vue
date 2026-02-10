@@ -115,6 +115,15 @@
                   <a-select-option :value="2">转交管理员</a-select-option>
                 </a-select>
               </a-form-item>
+
+              <a-form-item label="审批人与发起人为同一人时">
+                <a-select v-model:value="approveForm.approveSelf" :default-value="0">
+                  <a-select-option :value="0">由发起人自己审批</a-select-option>
+                  <a-select-option :value="1">自动跳过</a-select-option>
+                  <a-select-option :value="2">转交直属上级</a-select-option>
+                  <a-select-option :value="3">转交部门负责人</a-select-option>
+                </a-select>
+              </a-form-item>
             </a-form>
           </a-tab-pane>
 
@@ -161,6 +170,8 @@
                   <a-select-option value="toPrevious">退回上一步</a-select-option>
                   <a-select-option value="toInitiator">退回发起人</a-select-option>
                   <a-select-option value="toAnyNode">退回任意节点</a-select-option>
+                  <a-select-option value="terminateApproval">终止审批流程</a-select-option>
+                  <a-select-option value="toParentNode">退回父级审批节点</a-select-option>
                 </a-select>
               </a-form-item>
 

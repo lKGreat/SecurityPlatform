@@ -408,6 +408,14 @@ export class ApprovalTreeConverter {
       base.excludeRoleCodes = approveNode.excludeRoleCodes;
       base.callAi = approveNode.callAi;
       base.aiConfig = approveNode.aiConfig;
+
+      // 审批策略
+      base.rejectStrategy = approveNode.rejectStrategy;
+      base.reApproveStrategy = approveNode.reApproveStrategy;
+      base.groupStrategy = approveNode.groupStrategy;
+      base.voteWeight = approveNode.voteWeight;
+      base.votePassRate = approveNode.votePassRate;
+      base.approveSelf = approveNode.approveSelf;
     }
 
     if (node.nodeType === 'copy') {
@@ -527,7 +535,15 @@ export class ApprovalTreeConverter {
           excludeUserIds: node.excludeUserIds,
           excludeRoleCodes: node.excludeRoleCodes,
           callAi: node.callAi,
-          aiConfig: node.aiConfig
+          aiConfig: node.aiConfig,
+
+          // 审批策略
+          rejectStrategy: node.rejectStrategy as ApproveNode['rejectStrategy'],
+          reApproveStrategy: node.reApproveStrategy as ApproveNode['reApproveStrategy'],
+          groupStrategy: node.groupStrategy as ApproveNode['groupStrategy'],
+          voteWeight: node.voteWeight,
+          votePassRate: node.votePassRate,
+          approveSelf: node.approveSelf as ApproveNode['approveSelf']
         } as ApproveNode;
       }
       case 'copy':

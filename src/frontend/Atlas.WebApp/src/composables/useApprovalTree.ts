@@ -87,6 +87,18 @@ export function useApprovalTree() {
         }
     }
 
+    // 检查 parallelNodes
+    if (current.nodeType === 'parallel') {
+        const parallelNode = current as ParallelNode;
+        for (const branch of parallelNode.parallelNodes) {
+            if (branch.id === targetId) {
+                return { node: branch, parent: parallelNode };
+            }
+            const found = findNodeOrBranch(branch, targetId);
+            if (found) return found;
+        }
+    }
+
     return null;
   };
 

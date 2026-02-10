@@ -339,6 +339,33 @@ public sealed class FlowEngine
             await _nodeExecutionRepository.UpdateAsync(nodeExecution, cancellationToken);
         }
 
+        // ── 驳回重新审批策略检查 ──
+        // 如果当前处于驳回重审流程且策略为 BackToRejectNode，
+        // 任务完成后跳转回驳回源节点继续执行，而非沿正常流向推进
+        var ctx = FlowExecutionContext.Current;
+        if (ctx is { IsReApproveFlow: true, ReApproveStrategy: ReApproveStrategy.BackToRejectNode }
+            && !string.IsNullOrEmpty(ctx.RejectSourceNodeId))
+        {
+            var rejectSourceNodeId = ctx.RejectSourceNodeId;
+
+            // 重置重审上下文，避免无限循环
+            ctx.IsReApproveFlow = false;
+            ctx.ReApproveStrategy = null;
+            ctx.RejectSourceNodeId = null;
+
+            // 跳转回驳回源节点，从该节点继续正常推进
+            await ProcessNextNodeAsync(tenantId, instance, definition, rejectSourceNodeId, cancellationToken);
+            return;
+        }
+
+        // 如果是 Continue 策略或非重审流程，清除上下文后继续正常推进
+        if (ctx is { IsReApproveFlow: true })
+        {
+            ctx.IsReApproveFlow = false;
+            ctx.ReApproveStrategy = null;
+            ctx.RejectSourceNodeId = null;
+        }
+
         // 处理并行汇聚：标记当前分支的token为已完成
         if (definition.IsParallelJoinGateway(currentNodeId))
         {

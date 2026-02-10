@@ -66,8 +66,28 @@ public static class TreeToGraphConverter
 
         nodes.Add(flowNode);
 
-        // 处理条件分支节点 (condition / dynamicCondition / parallelCondition)
-        if (nodeType is "condition" or "dynamicCondition" or "parallelCondition")
+        // 解析 approve 节点的高级策略配置
+        if (nodeType == "approve")
+        {
+            ParseApproveAdvancedConfig(nodeEl, flowNode);
+        }
+
+        // 解析 callProcess / timer / trigger 节点特有属性
+        if (nodeType == "callProcess")
+        {
+            ParseCallProcessConfig(nodeEl, flowNode);
+        }
+        else if (nodeType == "timer")
+        {
+            ParseTimerConfig(nodeEl, flowNode);
+        }
+        else if (nodeType == "trigger")
+        {
+            ParseTriggerConfig(nodeEl, flowNode);
+        }
+
+        // 处理条件分支节点 (condition / dynamicCondition / parallelCondition / inclusive)
+        if (nodeType is "condition" or "dynamicCondition" or "parallelCondition" or "inclusive")
         {
             HandleConditionBranches(nodeEl, nodeId, nodes, edges);
         }
@@ -86,7 +106,7 @@ public static class TreeToGraphConverter
             {
                 // 条件/并行节点：childNode 是汇聚后的节点，边从各分支末端连到 childNode
                 // 非条件/并行节点：直接连
-                if (nodeType is not ("condition" or "dynamicCondition" or "parallelCondition" or "parallel"))
+                if (nodeType is not ("condition" or "dynamicCondition" or "parallelCondition" or "inclusive" or "parallel"))
                 {
                     edges.Add(new FlowEdge { Source = nodeId, Target = childId });
                 }
@@ -351,14 +371,181 @@ public static class TreeToGraphConverter
             "dynamicCondition" => "exclusiveGateway",
             "parallelCondition" => "exclusiveGateway",
             "parallel" => "parallelGateway",
+            "inclusive" => "inclusiveGateway",
+            "route" => "routeGateway",
+            "callProcess" => "callProcess",
+            "timer" => "timer",
+            "trigger" => "trigger",
             _ => nodeType
         };
+    }
+
+    /// <summary>
+    /// 解析 approve 节点的高级策略配置（驳回策略、重新审批策略、分组策略、票签、审批人=提交人等）
+    /// </summary>
+    private static void ParseApproveAdvancedConfig(JsonElement nodeEl, FlowNode flowNode)
+    {
+        // rejectStrategy
+        if (nodeEl.TryGetProperty("rejectStrategy", out var rsProp) && rsProp.ValueKind == JsonValueKind.String)
+        {
+            var rsStr = rsProp.GetString();
+            flowNode.RejectStrategy = rsStr switch
+            {
+                "toPrevious" => RejectStrategy.ToPrevious,
+                "toInitiator" => RejectStrategy.ToInitiator,
+                "toAnyNode" => RejectStrategy.ToAnyNode,
+                "terminateApproval" => RejectStrategy.TerminateApproval,
+                "toParentNode" => RejectStrategy.ToParentNode,
+                _ => null
+            };
+        }
+
+        // reApproveStrategy
+        if (nodeEl.TryGetProperty("reApproveStrategy", out var rasProp) && rasProp.ValueKind == JsonValueKind.String)
+        {
+            var rasStr = rasProp.GetString();
+            flowNode.ReApproveStrategy = rasStr switch
+            {
+                "continue" => ReApproveStrategy.Continue,
+                "backToRejectNode" => ReApproveStrategy.BackToRejectNode,
+                _ => null
+            };
+        }
+
+        // groupStrategy
+        if (nodeEl.TryGetProperty("groupStrategy", out var gsProp) && gsProp.ValueKind == JsonValueKind.String)
+        {
+            var gsStr = gsProp.GetString();
+            flowNode.GroupStrategy = gsStr switch
+            {
+                "claim" => 0,
+                "allParticipate" => 1,
+                _ => null
+            };
+        }
+
+        // voteWeight
+        if (nodeEl.TryGetProperty("voteWeight", out var vwProp) && vwProp.ValueKind == JsonValueKind.Number)
+        {
+            flowNode.Weight = vwProp.GetInt32();
+        }
+
+        // votePassRate
+        if (nodeEl.TryGetProperty("votePassRate", out var vprProp) && vprProp.ValueKind == JsonValueKind.Number)
+        {
+            flowNode.VotePassRate = vprProp.GetInt32();
+        }
+
+        // approveSelf
+        if (nodeEl.TryGetProperty("approveSelf", out var asProp) && asProp.ValueKind == JsonValueKind.Number)
+        {
+            flowNode.ApproveSelf = asProp.GetInt32();
+        }
+
+        // timeoutEnabled
+        if (nodeEl.TryGetProperty("timeoutEnabled", out var teProp) && teProp.ValueKind == JsonValueKind.True)
+        {
+            flowNode.TimeoutEnabled = true;
+        }
+
+        // timeoutHours
+        if (nodeEl.TryGetProperty("timeoutHours", out var thProp) && thProp.ValueKind == JsonValueKind.Number)
+        {
+            flowNode.TimeoutHours = thProp.GetInt32();
+        }
+
+        // timeoutMinutes
+        if (nodeEl.TryGetProperty("timeoutMinutes", out var tmProp) && tmProp.ValueKind == JsonValueKind.Number)
+        {
+            flowNode.TimeoutMinutes = tmProp.GetInt32();
+        }
+
+        // timeoutAction
+        if (nodeEl.TryGetProperty("timeoutAction", out var taProp) && taProp.ValueKind == JsonValueKind.String)
+        {
+            flowNode.TimeoutAction = taProp.GetString() switch
+            {
+                "autoApprove" => TimeoutAction.AutoApprove,
+                "autoReject" => TimeoutAction.AutoReject,
+                "autoSkip" => TimeoutAction.AutoSkip,
+                _ => TimeoutAction.None
+            };
+        }
+
+        // reminderIntervalHours
+        if (nodeEl.TryGetProperty("reminderIntervalHours", out var rihProp) && rihProp.ValueKind == JsonValueKind.Number)
+        {
+            flowNode.ReminderIntervalHours = rihProp.GetInt32();
+        }
+
+        // maxReminderCount
+        if (nodeEl.TryGetProperty("maxReminderCount", out var mrcProp) && mrcProp.ValueKind == JsonValueKind.Number)
+        {
+            flowNode.MaxReminderCount = mrcProp.GetInt32();
+        }
+
+        // callAi
+        if (nodeEl.TryGetProperty("callAi", out var caProp) && caProp.ValueKind == JsonValueKind.True)
+        {
+            flowNode.CallAi = true;
+        }
+
+        // aiConfig
+        if (nodeEl.TryGetProperty("aiConfig", out var acProp) && acProp.ValueKind == JsonValueKind.String)
+        {
+            flowNode.AiConfig = acProp.GetString();
+        }
+    }
+
+    /// <summary>
+    /// 解析 callProcess 节点属性
+    /// </summary>
+    private static void ParseCallProcessConfig(JsonElement nodeEl, FlowNode flowNode)
+    {
+        if (nodeEl.TryGetProperty("callProcessId", out var cpIdProp) && cpIdProp.ValueKind == JsonValueKind.Number)
+        {
+            flowNode.CallProcessId = cpIdProp.GetInt64();
+        }
+
+        if (nodeEl.TryGetProperty("callAsync", out var caProp))
+        {
+            flowNode.CallAsync = caProp.ValueKind == JsonValueKind.True;
+        }
+    }
+
+    /// <summary>
+    /// 解析 timer 节点属性
+    /// </summary>
+    private static void ParseTimerConfig(JsonElement nodeEl, FlowNode flowNode)
+    {
+        if (nodeEl.TryGetProperty("timerConfig", out var tcProp) && tcProp.ValueKind == JsonValueKind.String)
+        {
+            flowNode.TimerConfig = tcProp.GetString();
+        }
+    }
+
+    /// <summary>
+    /// 解析 trigger 节点属性
+    /// </summary>
+    private static void ParseTriggerConfig(JsonElement nodeEl, FlowNode flowNode)
+    {
+        if (nodeEl.TryGetProperty("triggerType", out var ttProp) && ttProp.ValueKind == JsonValueKind.String)
+        {
+            flowNode.TriggerType = ttProp.GetString();
+        }
     }
 
     private static string? GetString(JsonElement el, string propertyName)
     {
         return el.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String
             ? prop.GetString()
+            : null;
+    }
+
+    private static int? GetInt(JsonElement el, string propertyName)
+    {
+        return el.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number
+            ? prop.GetInt32()
             : null;
     }
 }

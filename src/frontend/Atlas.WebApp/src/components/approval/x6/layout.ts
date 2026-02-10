@@ -16,6 +16,7 @@ import type {
   DynamicConditionNode,
   ParallelConditionNode,
   ParallelNode,
+  InclusiveNode,
 } from '@/types/approval-tree';
 
 // ── 布局常量 ──────────────────────────────────────────────
@@ -52,7 +53,12 @@ export type LayoutShapeType =
   | 'condition-branch'
   | 'end'
   | 'add-button'
-  | 'parallel';
+  | 'parallel'
+  | 'inclusive'
+  | 'route'
+  | 'callProcess'
+  | 'timer'
+  | 'trigger';
 
 export interface LayoutNode {
   id: string;
@@ -103,11 +109,12 @@ const addBtnId = (parentId: string) => `__add_${parentId}_${++_addBtnCounter}`;
 
 function isConditionLike(
   node: TreeNode,
-): node is ConditionNode | DynamicConditionNode | ParallelConditionNode {
+): node is ConditionNode | DynamicConditionNode | ParallelConditionNode | InclusiveNode {
   return (
     node.nodeType === 'condition' ||
     node.nodeType === 'dynamicCondition' ||
-    node.nodeType === 'parallelCondition'
+    node.nodeType === 'parallelCondition' ||
+    node.nodeType === 'inclusive'
   );
 }
 
@@ -311,7 +318,7 @@ function layoutChain(
 }
 
 function layoutCondition(
-  node: ConditionNode | DynamicConditionNode | ParallelConditionNode,
+  node: ConditionNode | DynamicConditionNode | ParallelConditionNode | InclusiveNode,
   centerX: number,
   startY: number,
   nodes: LayoutNode[],

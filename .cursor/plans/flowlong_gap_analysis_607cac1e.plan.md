@@ -31,7 +31,7 @@ todos:
     status: completed
   - id: misc-p2-items
     content: "P2: 模型节点加签/TaskCreateInterceptor/CC分支处理/顺序审批边缘/父节点关系 (按需实施)"
-    status: in_progress
+    status: completed
 isProject: false
 ---
 

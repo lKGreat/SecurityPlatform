@@ -160,6 +160,14 @@ export interface ApprovalNode {
   excludeUserIds?: string[];
   excludeRoleCodes?: string[];
 
+  // 审批策略属性
+  rejectStrategy?: string;
+  reApproveStrategy?: string;
+  groupStrategy?: string;
+  voteWeight?: number;
+  votePassRate?: number;
+  approveSelf?: number;
+
   // 扩展节点属性
   callAi?: boolean;
   aiConfig?: string;

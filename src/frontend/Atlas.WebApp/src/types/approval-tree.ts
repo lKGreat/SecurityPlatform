@@ -62,9 +62,10 @@ export interface ApproveNode extends TreeNodeBase {
   // 新增属性
   voteWeight?: number;
   votePassRate?: number;
-  rejectStrategy?: 'toPrevious' | 'toInitiator' | 'toAnyNode';
+  rejectStrategy?: 'toPrevious' | 'toInitiator' | 'toAnyNode' | 'terminateApproval' | 'toParentNode';
   reApproveStrategy?: 'continue' | 'backToRejectNode';
   groupStrategy?: 'claim' | 'allParticipate';
+  approveSelf?: 0 | 1 | 2 | 3; // 0=自己审批 1=自动跳过 2=转直属上级 3=转部门负责人
   callAi?: boolean;
   aiConfig?: string;
 }
