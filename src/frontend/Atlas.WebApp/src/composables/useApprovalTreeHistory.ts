@@ -2,10 +2,11 @@ import { ref, computed } from 'vue';
 import type { ApprovalFlowTree } from '@/types/approval-tree';
 
 export function useApprovalTreeHistory() {
-  const history = ref<ApprovalFlowTree[]>([]);
+  // Use any[] to avoid "Type instantiation is excessively deep" error
+  const history = ref<any[]>([]);
   const currentIndex = ref(-1);
   
-  const pushState = (state: ApprovalFlowTree) => {
+  const pushState = (state: any) => {
     // 删除当前索引之后的历史
     if (currentIndex.value < history.value.length - 1) {
         history.value = history.value.slice(0, currentIndex.value + 1);

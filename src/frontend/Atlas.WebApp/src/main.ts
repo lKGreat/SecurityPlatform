@@ -7,6 +7,7 @@ import "amis/lib/themes/default.css";
 import "amis/lib/helper.css";
 import "amis/sdk/iconfont.css";
 import "./styles/index.css";
+import "./styles/approval-x6.css";
 import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
 

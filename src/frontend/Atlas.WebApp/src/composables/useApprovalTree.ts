@@ -46,10 +46,12 @@ export function useApprovalTree() {
   };
   
   // 辅助：递归查找节点或分支
+  type FindResult = { node?: TreeNode; parent?: TreeNode | ConditionBranch; branch?: ConditionBranch };
+  
   const findNodeOrBranch = (
-    current: TreeNode, 
+    current: any, 
     targetId: string
-  ): { node?: TreeNode; parent?: TreeNode | ConditionBranch; branch?: ConditionBranch } | null => {
+  ): FindResult | null => {
     if (current.id === targetId) {
         return { node: current };
     }
@@ -199,7 +201,7 @@ export function useApprovalTree() {
    * 校验流程完整性
    */
   const validateFlow = (): { valid: boolean; errors: string[] } => {
-    return ApprovalTreeValidator.checkCompleteness(flowTree.value.rootNode);
+    return ApprovalTreeValidator.checkCompleteness(flowTree.value.rootNode as any);
   };
   
   const createNode = (nodeType: string): TreeNode => {

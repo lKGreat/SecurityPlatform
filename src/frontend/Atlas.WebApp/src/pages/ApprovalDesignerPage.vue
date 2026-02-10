@@ -10,11 +10,12 @@
     </template>
     <template #extra>
       <a-space>
-        <a-button v-if="activeStep === 2" @click="togglePreview">
-          {{ showPreview ? '隐藏预览' : '显示预览' }}
+        <a-button v-if="activeStep === 2" @click="undo" :disabled="!canUndo">
+          <UndoOutlined /> 撤销
         </a-button>
-        <a-button v-if="activeStep === 2" @click="undo" :disabled="!canUndo">撤销</a-button>
-        <a-button v-if="activeStep === 2" @click="redo" :disabled="!canRedo">重做</a-button>
+        <a-button v-if="activeStep === 2" @click="redo" :disabled="!canRedo">
+          <RedoOutlined /> 重做
+        </a-button>
         <a-button @click="handleSave">保存</a-button>
         <a-button type="primary" @click="handlePublish">发布</a-button>
       </a-space>
@@ -59,25 +60,20 @@
     </div>
     
     <div class="designer-container" v-show="activeStep === 2">
-      <div class="editor-panel" :class="{ 'has-preview': showPreview }">
-        <ApprovalTreeEditor
-            :flow-tree="flowTree"
-            :selected-node="selectedNode"
-            @addNode="addNode"
-            @deleteNode="deleteNode"
-            @update:selectedNode="selectNode"
-            @addConditionBranch="addConditionBranch"
-            @deleteConditionBranch="deleteConditionBranch"
-        />
-      </div>
-      
-      <div v-if="showPreview" class="preview-panel">
-        <X6PreviewCanvas :flow-tree="flowTree" />
-      </div>
-      
-      <NodePropertiesDrawer
-        v-model:open="drawerVisible"
+      <X6ApprovalDesigner
+        :flow-tree="flowTree"
+        :selected-node-id="selectedNode?.id ?? null"
+        @selectNode="handleSelectNode"
+        @addNode="addNode"
+        @deleteNode="deleteNode"
+        @addConditionBranch="addConditionBranch"
+        @deleteConditionBranch="deleteConditionBranch"
+      />
+
+      <ApprovalPropertiesPanel
+        :open="panelOpen"
         :node="selectedNode"
+        @update:open="panelOpen = $event"
         @update="handleNodeUpdate"
       />
     </div>
@@ -95,9 +91,9 @@
 import { ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
-import ApprovalTreeEditor from '@/components/approval/ApprovalTreeEditor.vue';
-import NodePropertiesDrawer from '@/components/approval/NodePropertiesDrawer.vue';
-import X6PreviewCanvas from '@/components/approval/X6PreviewCanvas.vue';
+import { UndoOutlined, RedoOutlined } from '@ant-design/icons-vue';
+import X6ApprovalDesigner from '@/components/approval/x6/X6ApprovalDesigner.vue';
+import ApprovalPropertiesPanel from '@/components/approval/ApprovalPropertiesPanel.vue';
 import LfFormDesigner from '@/components/approval/LfFormDesigner.vue';
 import { useApprovalTree } from '@/composables/useApprovalTree';
 import { ApprovalTreeConverter } from '@/utils/approval-tree-converter';
@@ -132,8 +128,7 @@ const {
 
 const flowName = ref('');
 const flowId = ref<string | null>(null);
-const drawerVisible = ref(false);
-const showPreview = ref(false);
+const panelOpen = ref(false);
 const activeStep = ref(0);
 const definitionMeta = ref<ApprovalDefinitionMeta>({
   flowName: '',
@@ -143,16 +138,17 @@ const lfFormPayload = ref<LfFormPayload | undefined>(undefined);
 const lfFormModel = ref<FormJson | undefined>(undefined);
 const visibilityScopeText = ref('');
 
+// 节点选中时打开面板
 watch(selectedNode, (node) => {
-  drawerVisible.value = !!node;
+  panelOpen.value = !!node;
 });
+
+const handleSelectNode = (node: TreeNode | ConditionBranch | null) => {
+  selectNode(node);
+};
 
 const handleNodeUpdate = (updatedNode: TreeNode | ConditionBranch) => {
     updateNode(updatedNode);
-};
-
-const togglePreview = () => {
-    showPreview.value = !showPreview.value;
 };
 
 const nextStep = () => {
@@ -314,30 +310,12 @@ onMounted(() => {
 
 <style scoped>
 .designer-container {
-  height: calc(100vh - 200px);
-  border: 1px solid #d9d9d9;
+  height: calc(100vh - 260px);
+  min-height: 500px;
+  border: 1px solid #eef0f5;
+  border-radius: 8px;
   position: relative;
   overflow: hidden;
-  display: flex;
-}
-
-.editor-panel {
-    flex: 1;
-    height: 100%;
-    overflow: hidden;
-    transition: all 0.3s;
-}
-
-.editor-panel.has-preview {
-    width: 50%;
-    flex: none;
-    border-right: 1px solid #d9d9d9;
-}
-
-.preview-panel {
-    flex: 1;
-    height: 100%;
-    background: #fafafa;
 }
 
 .designer-steps {
