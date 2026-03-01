@@ -109,11 +109,30 @@ export interface AlertListItem {
   createdAt: string;
 }
 
+export interface CaptchaResult {
+  captchaKey: string;
+  captchaImage: string;
+}
+
+export async function getCaptcha(tenantId: string): Promise<CaptchaResult> {
+  const response = await requestApi<ApiResponse<CaptchaResult>>("/auth/captcha", {
+    headers: { "X-Tenant-Id": tenantId }
+  }, { disableAutoRefresh: true });
+  if (!response.data) throw new Error("获取验证码失败");
+  return response.data;
+}
+
 export async function createToken(
   tenantId: string,
   username: string,
   password: string,
-  requestOptions?: RequestOptions
+  requestOptions?: RequestOptions,
+  extra?: {
+    totpCode?: string;
+    captchaKey?: string;
+    captchaCode?: string;
+    rememberMe?: boolean;
+  }
 ) {
   const response = await requestApi<ApiResponse<AuthTokenResult>>("/auth/token", {
     method: "POST",
@@ -121,7 +140,14 @@ export async function createToken(
       "Content-Type": "application/json",
       "X-Tenant-Id": tenantId
     },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({
+      username,
+      password,
+      totpCode: extra?.totpCode,
+      captchaKey: extra?.captchaKey,
+      captchaCode: extra?.captchaCode,
+      rememberMe: extra?.rememberMe ?? false
+    })
   }, { ...requestOptions, disableAutoRefresh: true });
 
   if (!response.data) {
@@ -405,6 +431,17 @@ export async function updateRoleMenus(id: string, request: RoleAssignMenusReques
   });
   if (!response.success) {
     throw new Error(response.message || "更新菜单失败");
+  }
+}
+
+export async function setRoleDataScope(id: string, dataScope: number) {
+  const response = await requestApi<ApiResponse<{ id: string }>>(`/roles/${id}/data-scope`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataScope })
+  });
+  if (!response.success) {
+    throw new Error(response.message || "更新数据权限失败");
   }
 }
 

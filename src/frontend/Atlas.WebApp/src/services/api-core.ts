@@ -93,7 +93,7 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
   const projectScopeEnabled = getProjectScopeEnabled();
   const projectId = getProjectId();
   const method = (init?.method ?? "GET").toUpperCase();
-  const shouldAttachSecurityHeaders = Boolean(token) && !path.startsWith("/auth");
+  const shouldAttachSecurityHeaders = Boolean(token);
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);

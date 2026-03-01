@@ -5,6 +5,8 @@ using Atlas.Application;
 using Atlas.Application.Options;
 using Atlas.Infrastructure;
 using Atlas.WebApi.Middlewares;
+using Hangfire;
+using Hangfire.Storage.SQLite;
 using Atlas.WebApi.Tenancy;
 using Atlas.WorkflowCore;
 using Atlas.WorkflowCore.DSL;
@@ -44,11 +46,14 @@ builder.Services.AddControllers(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new Atlas.WebApi.Json.FlexibleLongJsonConverter());
     options.JsonSerializerOptions.Converters.Add(new Atlas.WebApi.Json.FlexibleNullableLongJsonConverter());
+    options.JsonSerializerOptions.Converters.Add(new Atlas.WebApi.Json.SensitiveObjectConverterFactory());
 });
 builder.Services.AddOpenApi();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Security"));
+builder.Services.Configure<XssOptions>(builder.Configuration.GetSection("Xss"));
+builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection("FileStorage"));
 builder.Services.Configure<PasswordPolicyOptions>(builder.Configuration.GetSection("Security:PasswordPolicy"));
 builder.Services.Configure<LockoutPolicyOptions>(builder.Configuration.GetSection("Security:LockoutPolicy"));
 builder.Services.Configure<BootstrapAdminOptions>(builder.Configuration.GetSection("Security:BootstrapAdmin"));
@@ -192,8 +197,25 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+builder.Services.AddMemoryCache();
 builder.Services.AddAtlasApplication();
 builder.Services.AddAtlasInfrastructure(builder.Configuration);
+
+// 国际化（i18n）：支持中文和英文
+builder.Services.AddLocalization(opts => opts.ResourcesPath = "");
+builder.Services.Configure<Microsoft.AspNetCore.Builder.RequestLocalizationOptions>(opts =>
+{
+    var supportedCultures = new[] { "zh-CN", "en-US" };
+    opts.SetDefaultCulture("zh-CN")
+        .AddSupportedCultures(supportedCultures)
+        .AddSupportedUICultures(supportedCultures);
+    opts.ApplyCurrentCultureToResponseHeaders = true;
+});
+
+// Hangfire 定时任务（使用 SQLite 存储）
+builder.Services.AddHangfire(config =>
+    config.UseSQLiteStorage("hangfire.db"));
+builder.Services.AddHangfireServer();
 
 // 添加 WorkflowCore 工作流引擎
 builder.Services.AddWorkflowCore();
@@ -235,7 +257,9 @@ if (securityOptions.EnforceHttps)
 }
 
 app.UseHttpLogging();
+app.UseRequestLocalization();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<XssProtectionMiddleware>();
 app.UseRateLimiter();
 app.UseMiddleware<ApiVersionRewriteMiddleware>();
 

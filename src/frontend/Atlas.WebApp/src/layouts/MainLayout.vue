@@ -91,6 +91,8 @@
           </a-menu-item>
         </a-sub-menu>
 
+        <a-menu-item key="system-notifications" @click="go('/system/notifications')">通知中心</a-menu-item>
+
         <a-sub-menu key="visualization" title="可视化中心">
           <a-menu-item key="visualization-center" @click="go('/visualization/center')">
             总览
@@ -131,6 +133,18 @@
             @search="handleGlobalSearch"
           />
           <a-button type="text" class="header-help" @click="openHelp">帮助</a-button>
+          <a-dropdown trigger="click" :overlay-style="{ minWidth: '100px' }">
+            <a-button type="text" class="header-lang">
+              {{ currentLocale === 'zh-CN' ? '中文' : 'English' }}
+            </a-button>
+            <template #overlay>
+              <a-menu @click="handleLocaleChange">
+                <a-menu-item key="zh-CN">中文</a-menu-item>
+                <a-menu-item key="en-US">English</a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+          <NotificationBell />
           <a-dropdown trigger="click">
             <a-button type="text">
               <a-space>
@@ -166,6 +180,8 @@ import { getCurrentUser, logout as apiLogout } from "@/services/api";
 import type { AuthProfile } from "@/types/api";
 import { clearAuthStorage, getAccessToken, getAuthProfile, hasPermission, setAuthProfile } from "@/utils/auth";
 import ProjectSwitcher from "@/components/ProjectSwitcher.vue";
+import NotificationBell from "@/components/layout/NotificationBell.vue";
+import { setLocale, getLocale } from "@/i18n";
 
 const collapsed = ref(false);
 const router = useRouter();
@@ -312,6 +328,12 @@ const handleGlobalSearch = (value: string) => {
 
 const openHelp = () => {
   message.info("帮助中心建设中");
+};
+
+const currentLocale = ref(getLocale());
+const handleLocaleChange = ({ key }: { key: string }) => {
+  setLocale(key as "zh-CN" | "en-US");
+  currentLocale.value = key;
 };
 
 const loadProfile = async () => {

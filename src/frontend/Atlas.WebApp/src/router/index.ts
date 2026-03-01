@@ -28,6 +28,13 @@ const AmisSystemPage = () => import("@/pages/system/AmisSystemPage.vue");
 const DynamicTablesPage = () => import("@/pages/dynamic/DynamicTablesPage.vue");
 const DynamicTableCrudPage = () => import("@/pages/dynamic/DynamicTableCrudPage.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
+const DictTypesPage = () => import("@/pages/system/DictTypesPage.vue");
+const SystemConfigsPage = () => import("@/pages/system/SystemConfigsPage.vue");
+const LoginLogsPage = () => import("@/pages/system/LoginLogsPage.vue");
+const OnlineUsersPage = () => import("@/pages/system/OnlineUsersPage.vue");
+const NotificationsPage = () => import("@/pages/system/NotificationsPage.vue");
+const ServerInfoPage = () => import("@/pages/monitor/ServerInfoPage.vue");
+const ScheduledJobsPage = () => import("@/pages/monitor/ScheduledJobsPage.vue");
 
 const router = createRouter({
   history: createWebHistory(),
@@ -161,6 +168,48 @@ const router = createRouter({
       name: "dynamic-table-crud",
       component: DynamicTableCrudPage,
       meta: { requiresAuth: true, requiresPermission: "system:admin" }
+    },
+    {
+      path: "/system/dict",
+      name: "system-dict",
+      component: DictTypesPage,
+      meta: { requiresAuth: true, requiresPermission: "dict:type:view" }
+    },
+    {
+      path: "/system/configs",
+      name: "system-configs",
+      component: SystemConfigsPage,
+      meta: { requiresAuth: true, requiresPermission: "config:view" }
+    },
+    {
+      path: "/system/login-logs",
+      name: "system-login-logs",
+      component: LoginLogsPage,
+      meta: { requiresAuth: true, requiresPermission: "loginlog:view" }
+    },
+    {
+      path: "/system/online-users",
+      name: "system-online-users",
+      component: OnlineUsersPage,
+      meta: { requiresAuth: true, requiresPermission: "online:view" }
+    },
+    {
+      path: "/system/notifications",
+      name: "system-notifications",
+      component: NotificationsPage,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: "/monitor/server",
+      name: "monitor-server",
+      component: ServerInfoPage,
+      meta: { requiresAuth: true, requiresPermission: "monitor:view" }
+    },
+    {
+      path: "/monitor/jobs",
+      name: "monitor-jobs",
+      component: ScheduledJobsPage,
+      meta: { requiresAuth: true, requiresPermission: "job:view" }
     },
     { path: "/visualization/center", name: "visualization-center", component: VisualizationCenterPage, meta: { requiresAuth: true } },
     { path: "/visualization/designer/:id?", name: "visualization-designer", component: VisualizationDesignerPage, meta: { requiresAuth: true } },
