@@ -13,6 +13,6 @@ public interface IMessageService
     Task DeleteTemplateAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default);
     Task<PagedResult<MessageRecordListItem>> QueryRecordsAsync(PagedRequest request, TenantId tenantId, CancellationToken cancellationToken = default);
     Task SendMessageAsync(TenantId tenantId, SendMessageRequest request, CancellationToken cancellationToken = default);
-    Task<System.Collections.Generic.IReadOnlyList<ChannelConfigItem>> GetChannelConfigsAsync(TenantId tenantId, CancellationToken cancellationToken = default);
+    Task<global::System.Collections.Generic.IReadOnlyList<ChannelConfigItem>> GetChannelConfigsAsync(TenantId tenantId, CancellationToken cancellationToken = default);
     Task UpdateChannelConfigAsync(TenantId tenantId, string channel, ChannelConfigUpdateRequest request, CancellationToken cancellationToken = default);
 }

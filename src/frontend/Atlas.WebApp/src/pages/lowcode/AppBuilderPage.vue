@@ -169,7 +169,7 @@ const generateDefaultSchema = (pageType: string, pageName: string): Record<strin
         title: pageName,
         body: [{
           type: "crud",
-          api: "/api/v1/data",
+          api: "/api/v1/dynamic-tables",
           columns: [
             { name: "id", label: "ID" },
             { name: "name", label: "名称" }
@@ -182,7 +182,7 @@ const generateDefaultSchema = (pageType: string, pageName: string): Record<strin
         title: pageName,
         body: [{
           type: "form",
-          api: "/api/v1/data",
+          api: "/api/v1/dynamic-tables",
           body: [
             { type: "input-text", name: "name", label: "名称", required: true }
           ]
