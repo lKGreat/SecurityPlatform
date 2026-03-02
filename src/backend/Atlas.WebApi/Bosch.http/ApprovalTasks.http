@@ -1,13 +1,20 @@
 @baseUrl = http://localhost:5000
 @token =
 @tenantId =
+@idempotencyKey = {{$guid}}
+@csrfToken =
 
-### 获取我的待办任务
+### 获取我的待办任务（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/tasks/my?pageIndex=1&pageSize=10&status=Pending
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
-### 获取实例内的所有任务
+### 获取任务详情
+GET {{baseUrl}}/api/v1/approval/tasks/{taskId}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### 获取实例内的所有任务（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/tasks?pageIndex=1&pageSize=10
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
@@ -17,8 +24,11 @@ POST {{baseUrl}}/api/v1/approval/tasks/{taskId}/decision
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{idempotencyKey}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
+  "taskId": "{taskId}",
   "approved": true,
   "comment": "同意，符合请假规范"
 }
@@ -28,9 +38,65 @@ POST {{baseUrl}}/api/v1/approval/tasks/{taskId}/decision
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
+  "taskId": "{taskId}",
   "approved": false,
   "comment": "不同意，请假天数过长"
 }
 
+### 委派任务
+POST {{baseUrl}}/api/v1/approval/tasks/{taskId}/delegation?delegateeUserId={userId}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+"委派处理说明"
+
+### 认领任务（任务池）
+POST {{baseUrl}}/api/v1/approval/tasks/{taskId}/claim
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+### 催办任务
+POST {{baseUrl}}/api/v1/approval/tasks/{taskId}/urge
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+"请尽快处理此审批任务"
+
+### 发起沟通
+POST {{baseUrl}}/api/v1/approval/tasks/{taskId}/communication?recipientUserId={recipientUserId}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+"需要和您沟通一下关于这个审批的情况"
+
+### 获取沟通记录
+GET {{baseUrl}}/api/v1/approval/tasks/{taskId}/communications
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### 获取任务池（待认领任务）
+GET {{baseUrl}}/api/v1/approval/tasks/pool?pageIndex=1&pageSize=10
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### 批量转办（管理员操作）
+POST {{baseUrl}}/api/v1/approval/tasks/batch-transfer?fromUserId={fromUserId}&toUserId={toUserId}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}

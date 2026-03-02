@@ -25,6 +25,15 @@
         <CloseOutlined />
       </button>
     </div>
+    <!-- 节点校验错误提示 -->
+    <a-alert
+      v-if="props.node && 'error' in props.node && props.node.error"
+      type="error"
+      show-icon
+      message="该节点存在配置错误，请检查并修复后再发布"
+      style="margin: 0 12px 8px"
+      banner
+    />
 
     <!-- 面板内容 -->
     <div class="dd-props-body" v-if="formData">

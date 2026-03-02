@@ -6,10 +6,15 @@ using Atlas.Application.Audit.Abstractions;
 using Atlas.Application.Audit.Models;
 using Atlas.Application.Models;
 using Atlas.Application.Options;
+using Atlas.Application.Security;
+using Atlas.Application.System.Abstractions;
+using Atlas.Application.Identity.Repositories;
+using Atlas.Core.Abstractions;
 using Atlas.Core.Exceptions;
 using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Domain.Identity.Entities;
 using Atlas.WebApi.Helpers;
 using Atlas.WebApi.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -30,10 +35,16 @@ public sealed class AuthController : ControllerBase
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IClientContextAccessor _clientContextAccessor;
     private readonly ICaptchaService _captchaService;
+    private readonly IMenuQueryService _menuQueryService;
+    private readonly ISystemConfigQueryService _systemConfigQueryService;
+    private readonly IUserAccountRepository _userAccountRepository;
+    private readonly IPasswordHasher _passwordHasher;
+    private readonly IIdGeneratorAccessor _idGeneratorAccessor;
     private readonly IMapper _mapper;
     private readonly IValidator<AuthTokenRequest> _validator;
     private readonly IValidator<AuthRefreshRequest> _refreshValidator;
     private readonly IValidator<ChangePasswordViewModel> _changePasswordValidator;
+    private readonly IValidator<RegisterViewModel> _registerValidator;
     private readonly IAuditRecorder _auditRecorder;
     private readonly SecurityOptions _securityOptions;
 
@@ -45,10 +56,16 @@ public sealed class AuthController : ControllerBase
         ICurrentUserAccessor currentUserAccessor,
         IClientContextAccessor clientContextAccessor,
         ICaptchaService captchaService,
+        IMenuQueryService menuQueryService,
+        ISystemConfigQueryService systemConfigQueryService,
+        IUserAccountRepository userAccountRepository,
+        IPasswordHasher passwordHasher,
+        IIdGeneratorAccessor idGeneratorAccessor,
         IMapper mapper,
         IValidator<AuthTokenRequest> validator,
         IValidator<AuthRefreshRequest> refreshValidator,
         IValidator<ChangePasswordViewModel> changePasswordValidator,
+        IValidator<RegisterViewModel> registerValidator,
         IAuditRecorder auditRecorder,
         IOptions<SecurityOptions> securityOptions)
     {
@@ -59,10 +76,16 @@ public sealed class AuthController : ControllerBase
         _currentUserAccessor = currentUserAccessor;
         _clientContextAccessor = clientContextAccessor;
         _captchaService = captchaService;
+        _menuQueryService = menuQueryService;
+        _systemConfigQueryService = systemConfigQueryService;
+        _userAccountRepository = userAccountRepository;
+        _passwordHasher = passwordHasher;
+        _idGeneratorAccessor = idGeneratorAccessor;
         _mapper = mapper;
         _validator = validator;
         _refreshValidator = refreshValidator;
         _changePasswordValidator = changePasswordValidator;
+        _registerValidator = registerValidator;
         _auditRecorder = auditRecorder;
         _securityOptions = securityOptions.Value;
     }
@@ -107,6 +130,10 @@ public sealed class AuthController : ControllerBase
             ControllerHelper.GetUserAgent(HttpContext),
             ControllerHelper.GetClientContext(HttpContext));
         var result = await _authTokenService.CreateTokenAsync(dto, tenantId, context, cancellationToken);
+
+        // 设置 httpOnly cookie 存储令牌（安全加固）
+        SetAuthCookies(result.AccessToken, result.RefreshToken, result.ExpiresAt, result.RefreshExpiresAt);
+
         var payload = ApiResponse<AuthTokenResult>.Ok(result, HttpContext.TraceIdentifier);
         return Ok(payload);
     }
@@ -132,6 +159,10 @@ public sealed class AuthController : ControllerBase
             ControllerHelper.GetUserAgent(HttpContext),
             ControllerHelper.GetClientContext(HttpContext));
         var result = await _authTokenService.RefreshTokenAsync(dto, tenantId, context, cancellationToken);
+
+        // 刷新令牌时也更新cookie
+        SetAuthCookies(result.AccessToken, result.RefreshToken, result.ExpiresAt, result.RefreshExpiresAt);
+
         return Ok(ApiResponse<AuthTokenResult>.Ok(result, HttpContext.TraceIdentifier));
     }
 
@@ -159,6 +190,70 @@ public sealed class AuthController : ControllerBase
                 clientContext.ClientAgent.ToString())
         };
         return Ok(ApiResponse<AuthProfileResult>.Ok(payloadProfile, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("routers")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<Atlas.Application.Identity.Models.RouterVo>>>> GetRouters(
+        CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
+        var menus = await _menuQueryService.SelectMenuTreeByUserIdAsync(
+            currentUser.TenantId,
+            currentUser.UserId,
+            cancellationToken);
+        var routers = _menuQueryService.BuildMenus(menus);
+        return Ok(ApiResponse<IReadOnlyList<Atlas.Application.Identity.Models.RouterVo>>.Ok(routers, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<ActionResult<ApiResponse<object>>> Register(
+        [FromBody] RegisterViewModel request,
+        CancellationToken cancellationToken)
+    {
+        _registerValidator.ValidateAndThrow(request);
+
+        var tenantId = _tenantProvider.GetTenantId();
+        if (tenantId.IsEmpty)
+        {
+            throw new BusinessException("缺少租户标识", ErrorCodes.ValidationError);
+        }
+
+        var registerSwitch = await _systemConfigQueryService.GetByKeyAsync(
+            tenantId,
+            "sys.account.register",
+            cancellationToken);
+        if (!string.Equals(registerSwitch?.ConfigValue, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new BusinessException("当前系统未开启注册功能", ErrorCodes.Forbidden);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CaptchaKey))
+        {
+            if (string.IsNullOrWhiteSpace(request.CaptchaCode)
+                || !_captchaService.Validate(request.CaptchaKey, request.CaptchaCode))
+            {
+                throw new BusinessException("验证码错误或已过期", ErrorCodes.ValidationError);
+            }
+        }
+
+        var exists = await _userAccountRepository.ExistsByUsernameAsync(tenantId, request.Username, cancellationToken);
+        if (exists)
+        {
+            throw new BusinessException("用户名已存在", ErrorCodes.ValidationError);
+        }
+
+        var user = new UserAccount(
+            tenantId,
+            request.Username.Trim(),
+            request.Username.Trim(),
+            _passwordHasher.HashPassword(request.Password),
+            _idGeneratorAccessor.NextId());
+        await _userAccountRepository.AddAsync(user, cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(new { id = user.Id.ToString() }, HttpContext.TraceIdentifier));
     }
 
     [HttpPut("password")]
@@ -225,7 +320,66 @@ public sealed class AuthController : ControllerBase
             _clientContextAccessor.GetCurrent());
 
         await _auditRecorder.RecordAsync(auditContext, cancellationToken);
+
+        // 清除认证cookie
+        ClearAuthCookies();
+
         return Ok(ApiResponse<object>.Ok(new { Success = true }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 设置认证相关的httpOnly cookie
+    /// </summary>
+    private void SetAuthCookies(string accessToken, string refreshToken, DateTimeOffset accessExpires, DateTimeOffset refreshExpires)
+    {
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true, // 生产环境强制HTTPS
+            SameSite = SameSiteMode.Strict,
+            Path = "/"
+        };
+
+        // 设置 Access Token Cookie
+        var accessCookieOptions = new CookieOptions
+        {
+            HttpOnly = cookieOptions.HttpOnly,
+            Secure = cookieOptions.Secure,
+            SameSite = cookieOptions.SameSite,
+            Path = cookieOptions.Path,
+            Expires = accessExpires
+        };
+        HttpContext.Response.Cookies.Append("access_token", accessToken, accessCookieOptions);
+
+        // 设置 Refresh Token Cookie
+        var refreshCookieOptions = new CookieOptions
+        {
+            HttpOnly = cookieOptions.HttpOnly,
+            Secure = cookieOptions.Secure,
+            SameSite = cookieOptions.SameSite,
+            Path = cookieOptions.Path,
+            Expires = refreshExpires
+        };
+        HttpContext.Response.Cookies.Append("refresh_token", refreshToken, refreshCookieOptions);
+    }
+
+    /// <summary>
+    /// 清除认证cookie
+    /// </summary>
+    private void ClearAuthCookies()
+    {
+        HttpContext.Response.Cookies.Delete("access_token", new CookieOptions
+        {
+            Path = "/",
+            Secure = true,
+            SameSite = SameSiteMode.Strict
+        });
+        HttpContext.Response.Cookies.Delete("refresh_token", new CookieOptions
+        {
+            Path = "/",
+            Secure = true,
+            SameSite = SameSiteMode.Strict
+        });
     }
 }
 

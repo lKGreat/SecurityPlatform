@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Atlas.Application.Models;
 using Atlas.WebApi.Models;
 
@@ -11,5 +11,6 @@ public sealed class WebApiMappingProfile : Profile
         CreateMap<AuthTokenViewModel, AuthTokenRequest>();
         CreateMap<AuthRefreshViewModel, AuthRefreshRequest>();
         CreateMap<ChangePasswordViewModel, ChangePasswordRequest>();
+        CreateMap<RegisterViewModel, RegisterRequest>();
     }
 }

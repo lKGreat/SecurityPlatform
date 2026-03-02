@@ -38,6 +38,7 @@ public sealed class VisualizationController : ControllerBase
     }
 
     [HttpGet("overview")]
+    [Authorize(Policy = PermissionPolicies.VisualizationView)]
     public async Task<ActionResult<ApiResponse<VisualizationOverviewResponse>>> GetOverview(
         [FromQuery] string? department,
         [FromQuery] string? flowType,
@@ -58,6 +59,7 @@ public sealed class VisualizationController : ControllerBase
     }
 
     [HttpGet("processes")]
+    [Authorize(Policy = PermissionPolicies.VisualizationView)]
     public async Task<ActionResult<ApiResponse<PagedResult<VisualizationProcessSummary>>>> GetProcesses(
         [FromQuery] PagedRequest request,
         CancellationToken cancellationToken)
@@ -67,6 +69,7 @@ public sealed class VisualizationController : ControllerBase
     }
 
     [HttpGet("processes/{id}")]
+    [Authorize(Policy = PermissionPolicies.VisualizationView)]
     public async Task<ActionResult<ApiResponse<VisualizationProcessDetail>>> GetProcess(
         string id,
         CancellationToken cancellationToken)
@@ -81,6 +84,7 @@ public sealed class VisualizationController : ControllerBase
     }
 
     [HttpGet("instances")]
+    [Authorize(Policy = PermissionPolicies.VisualizationView)]
     public async Task<ActionResult<ApiResponse<PagedResult<VisualizationInstanceSummary>>>> GetInstances(
         [FromQuery] PagedRequest request,
         [FromQuery] long? processId,
@@ -92,6 +96,7 @@ public sealed class VisualizationController : ControllerBase
     }
 
     [HttpGet("instances/{id}")]
+    [Authorize(Policy = PermissionPolicies.VisualizationView)]
     public async Task<ActionResult<ApiResponse<VisualizationInstanceDetail>>> GetInstance(
         string id,
         CancellationToken cancellationToken)
@@ -187,6 +192,7 @@ public sealed class VisualizationController : ControllerBase
     }
 
     [HttpGet("metrics")]
+    [Authorize(Policy = PermissionPolicies.VisualizationView)]
     public async Task<ActionResult<ApiResponse<VisualizationMetricsResponse>>> GetMetrics(
         [FromQuery] string? department,
         [FromQuery] string? flowType,
@@ -207,6 +213,7 @@ public sealed class VisualizationController : ControllerBase
     }
 
     [HttpGet("audit")]
+    [Authorize(Policy = PermissionPolicies.VisualizationView)]
     public async Task<ActionResult<ApiResponse<PagedResult<AuditListItem>>>> GetAudit(
         [FromQuery] PagedRequest request,
         CancellationToken cancellationToken)

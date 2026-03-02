@@ -17,7 +17,7 @@ X-Tenant-Id: {{tenantId}}
 ###
 @accessToken = {{login.response.body.$.data.accessToken}}
 
-### Get Alerts (Paged)
+### Get Alerts (Paged) - 需要权限: alert:view
 GET {{baseUrl}}/api/v1/alert?pageIndex=1&pageSize=10
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}

@@ -25,6 +25,23 @@ public sealed class UserDepartmentRepository : IUserDepartmentRepository
         return list;
     }
 
+    public async Task<IReadOnlyList<UserDepartment>> QueryByUserIdsAsync(
+        TenantId tenantId,
+        IReadOnlyList<long> userIds,
+        CancellationToken cancellationToken)
+    {
+        if (userIds.Count == 0)
+        {
+            return Array.Empty<UserDepartment>();
+        }
+
+        var ids = userIds.Distinct().ToArray();
+        var list = await _db.Queryable<UserDepartment>()
+            .Where(x => x.TenantIdValue == tenantId.Value && SqlFunc.ContainsArray(ids, x.UserId))
+            .ToListAsync(cancellationToken);
+        return list;
+    }
+
     public Task DeleteByUserIdAsync(TenantId tenantId, long userId, CancellationToken cancellationToken)
     {
         return _db.Deleteable<UserDepartment>()

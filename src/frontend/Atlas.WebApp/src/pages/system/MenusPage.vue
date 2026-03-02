@@ -143,6 +143,17 @@
         <a-form-item label="排序" name="sortOrder">
           <a-input-number v-model:value="formModel.sortOrder" :min="0" style="width: 100%" />
         </a-form-item>
+        <a-form-item label="菜单类型" name="menuType">
+          <a-select
+            v-model:value="formModel.menuType"
+            :options="[
+              { label: '目录(M)', value: 'M' },
+              { label: '菜单(C)', value: 'C' },
+              { label: '按钮(F)', value: 'F' },
+              { label: '链接(L)', value: 'L' }
+            ]"
+          />
+        </a-form-item>
         <a-form-item label="组件" name="component">
           <a-input v-model:value="formModel.component" />
         </a-form-item>
@@ -151,6 +162,24 @@
         </a-form-item>
         <a-form-item label="权限编码" name="permissionCode">
           <a-input v-model:value="formModel.permissionCode" />
+        </a-form-item>
+        <a-form-item label="权限标识(Perms)" name="perms">
+          <a-input v-model:value="formModel.perms" />
+        </a-form-item>
+        <a-form-item label="路由参数(Query)" name="query">
+          <a-input v-model:value="formModel.query" />
+        </a-form-item>
+        <a-form-item label="外链" name="isFrame">
+          <a-switch v-model:checked="formModel.isFrame" />
+        </a-form-item>
+        <a-form-item label="缓存" name="isCache">
+          <a-switch v-model:checked="formModel.isCache" />
+        </a-form-item>
+        <a-form-item label="可见性" name="visible">
+          <a-select v-model:value="formModel.visible" :options="[{ label: '显示', value: '0' }, { label: '隐藏', value: '1' }]" />
+        </a-form-item>
+        <a-form-item label="状态" name="status">
+          <a-select v-model:value="formModel.status" :options="[{ label: '正常', value: '0' }, { label: '停用', value: '1' }]" />
         </a-form-item>
         <a-form-item label="隐藏菜单" name="isHidden">
           <a-switch v-model:checked="formModel.isHidden" />
@@ -218,8 +247,15 @@ const formModel = reactive<MenuCreateRequest & MenuUpdateRequest>({
   path: "",
   parentId: undefined,
   sortOrder: 0,
+  menuType: "C",
   component: "",
   icon: "",
+  perms: "",
+  query: "",
+  isFrame: false,
+  isCache: false,
+  visible: "0",
+  status: "0",
   permissionCode: "",
   isHidden: false
 });
@@ -472,8 +508,15 @@ const batchSetHidden = async (isHidden: boolean) => {
           path: item.path,
           parentId: item.parentId ?? undefined,
           sortOrder: item.sortOrder,
+          menuType: item.menuType ?? "C",
           component: item.component ?? undefined,
           icon: item.icon ?? undefined,
+          perms: item.perms ?? undefined,
+          query: item.query ?? undefined,
+          isFrame: item.isFrame ?? false,
+          isCache: item.isCache ?? false,
+          visible: item.visible ?? (isHidden ? "1" : "0"),
+          status: item.status ?? "0",
           permissionCode: item.permissionCode ?? undefined,
           isHidden
         })
@@ -494,8 +537,15 @@ const resetForm = () => {
   formModel.path = "";
   formModel.parentId = undefined;
   formModel.sortOrder = 0;
+  formModel.menuType = "C";
   formModel.component = "";
   formModel.icon = "";
+  formModel.perms = "";
+  formModel.query = "";
+  formModel.isFrame = false;
+  formModel.isCache = false;
+  formModel.visible = "0";
+  formModel.status = "0";
   formModel.permissionCode = "";
   formModel.isHidden = false;
 };
@@ -515,8 +565,15 @@ const openEdit = async (record: MenuListItem) => {
   formModel.path = record.path;
   formModel.parentId = record.parentId ?? undefined;
   formModel.sortOrder = record.sortOrder;
+  formModel.menuType = record.menuType ?? "C";
   formModel.component = record.component ?? "";
   formModel.icon = record.icon ?? "";
+  formModel.perms = record.perms ?? "";
+  formModel.query = record.query ?? "";
+  formModel.isFrame = record.isFrame ?? false;
+  formModel.isCache = record.isCache ?? false;
+  formModel.visible = record.visible ?? (record.isHidden ? "1" : "0");
+  formModel.status = record.status ?? "0";
   formModel.permissionCode = record.permissionCode ?? "";
   formModel.isHidden = record.isHidden;
   await loadParentOptions();
@@ -539,8 +596,15 @@ const submitForm = async () => {
         path: formModel.path,
         parentId: formModel.parentId ?? undefined,
         sortOrder: formModel.sortOrder,
+        menuType: formModel.menuType,
         component: formModel.component || undefined,
         icon: formModel.icon || undefined,
+        perms: formModel.perms || undefined,
+        query: formModel.query || undefined,
+        isFrame: formModel.isFrame,
+        isCache: formModel.isCache,
+        visible: formModel.visible,
+        status: formModel.status,
         permissionCode: formModel.permissionCode || undefined,
         isHidden: formModel.isHidden
       });
@@ -551,8 +615,15 @@ const submitForm = async () => {
         path: formModel.path,
         parentId: formModel.parentId ?? undefined,
         sortOrder: formModel.sortOrder,
+        menuType: formModel.menuType,
         component: formModel.component || undefined,
         icon: formModel.icon || undefined,
+        perms: formModel.perms || undefined,
+        query: formModel.query || undefined,
+        isFrame: formModel.isFrame,
+        isCache: formModel.isCache,
+        visible: formModel.visible,
+        status: formModel.status,
         permissionCode: formModel.permissionCode || undefined,
         isHidden: formModel.isHidden
       });

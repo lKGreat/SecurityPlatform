@@ -60,6 +60,8 @@ import type {
   MenuCreateRequest,
   MenuUpdateRequest,
   MenuQueryRequest,
+  RouterVo,
+  RegisterRequest,
   PositionListItem,
   PositionDetail,
   PositionCreateRequest,
@@ -80,8 +82,7 @@ import type {
   TableViewCreateRequest,
   TableViewUpdateRequest,
   TableViewConfigUpdateRequest,
-  TableViewDuplicateRequest,
-  AmisPageDefinition
+  TableViewDuplicateRequest
 } from "@/types/api";
 import type {
   FlowDefinition,
@@ -184,6 +185,33 @@ export async function getCurrentUser(): Promise<AuthProfile> {
     throw new Error(response.message || "获取用户信息失败");
   }
 
+  return response.data;
+}
+
+export async function getRouters(): Promise<RouterVo[]> {
+  const response = await requestApi<ApiResponse<RouterVo[]>>("/auth/routers");
+  if (!response.data) {
+    throw new Error(response.message || "获取路由失败");
+  }
+  return response.data;
+}
+
+export async function register(
+  tenantId: string,
+  request: RegisterRequest,
+  requestOptions?: RequestOptions
+): Promise<{ id: string }> {
+  const response = await requestApi<ApiResponse<{ id: string }>>("/auth/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Tenant-Id": tenantId
+    },
+    body: JSON.stringify(request)
+  }, { ...requestOptions, disableAutoRefresh: true });
+  if (!response.data) {
+    throw new Error(response.message || "注册失败");
+  }
   return response.data;
 }
 
@@ -758,6 +786,14 @@ export async function getMyTasksPaged(pagedRequest: PagedRequest, status?: numbe
   return response.data;
 }
 
+export async function getApprovalTaskById(id: string) {
+  const response = await requestApi<ApiResponse<ApprovalTaskResponse>>(`/approval/tasks/${id}`);
+  if (!response.data) {
+    throw new Error(response.message || "任务不存在");
+  }
+  return response.data;
+}
+
 export async function getApprovalTasksByInstance(instanceId: string, pagedRequest: PagedRequest) {
   const query = toQuery(pagedRequest);
   const response = await requestApi<ApiResponse<PagedResult<ApprovalTaskResponse>>>(
@@ -788,6 +824,22 @@ export async function delegateTask(taskId: string, delegateeUserId: string, comm
   });
   if (!response.success) {
     throw new Error(response.message || "委派失败");
+  }
+}
+
+export async function transferTask(instanceId: string, taskId: string, targetAssigneeValue: string, comment?: string) {
+  const request = {
+    operationType: 21, // Transfer
+    targetAssigneeValue,
+    comment
+  };
+  const response = await requestApi<ApiResponse<string>>(`/approval/instances/${instanceId}/operations?taskId=${taskId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.success) {
+    throw new Error(response.message || "转办失败");
   }
 }
 
@@ -1307,14 +1359,6 @@ export async function updateAppConfig(id: string, request: AppConfigUpdateReques
 export async function getCurrentAppConfig(): Promise<AppConfigDetail | null> {
   const response = await requestApi<ApiResponse<AppConfigDetail>>("/apps/current");
   return response.data ?? null;
-}
-
-export async function getAmisPageDefinition(key: string): Promise<AmisPageDefinition> {
-  const response = await requestApi<ApiResponse<AmisPageDefinition>>(`/amis/pages/${encodeURIComponent(key)}`);
-  if (!response.data) {
-    throw new Error(response.message || "获取 AMIS 页面失败");
-  }
-  return response.data;
 }
 
 export async function getProjectsPaged(pagedRequest: PagedRequest) {

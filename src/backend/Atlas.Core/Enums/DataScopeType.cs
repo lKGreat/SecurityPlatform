@@ -5,21 +5,18 @@ namespace Atlas.Core.Enums;
 /// </summary>
 public enum DataScopeType
 {
-    /// <summary>全部数据（超级管理员）</summary>
-    All = 0,
-
-    /// <summary>当前租户全部数据（默认，已由多租户隔离保证）</summary>
-    CurrentTenant = 1,
-
-    /// <summary>仅本人创建/拥有的数据</summary>
-    OnlySelf = 2,
-
-    /// <summary>自定义部门（预留）</summary>
-    CustomDept = 10,
-
-    /// <summary>本部门数据（预留）</summary>
-    CurrentDept = 11,
-
-    /// <summary>本部门及下级（预留）</summary>
-    CurrentDeptAndBelow = 12
+    /// <summary>全部数据权限</summary>
+    All = 1,
+    /// <summary>自定义部门</summary>
+    CustomDept = 2,
+    /// <summary>本部门</summary>
+    CurrentDept = 3,
+    /// <summary>本部门及下级</summary>
+    CurrentDeptAndBelow = 4,
+    /// <summary>仅本人</summary>
+    OnlySelf = 5,
+    /// <summary>项目维度</summary>
+    Project = 6,
+    /// <summary>兼容旧值：当前租户全部数据</summary>
+    CurrentTenant = 1
 }

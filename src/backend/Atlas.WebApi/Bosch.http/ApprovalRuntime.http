@@ -1,12 +1,16 @@
 @baseUrl = http://localhost:5000
 @token =
 @tenantId =
+@idempotencyKey = {{$guid}}
+@csrfToken =
 
 ### 发起流程实例
 POST {{baseUrl}}/api/v1/approval/instances
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{idempotencyKey}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "definitionId": 1,
@@ -14,17 +18,17 @@ Content-Type: application/json
   "dataJson": "{\"leaveType\":\"sick\",\"startDate\":\"2026-02-01\",\"endDate\":\"2026-02-03\",\"reason\":\"感冒\"}"
 }
 
-### 获取我发起的流程实例
+### 获取我发起的流程实例（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/my?pageIndex=1&pageSize=10&status=Running
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
-### 获取流程实例详情
+### 获取流程实例详情（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
-### 获取流程实例历史事件
+### 获取流程实例历史事件（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/history?pageIndex=1&pageSize=20
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
@@ -34,15 +38,17 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/cancellation
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {}
 
-### 预览流程实例
+### 预览流程实例（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/preview
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
-### 打印流程实例
+### 打印流程实例（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/print-view
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
@@ -52,6 +58,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 29,
@@ -63,6 +71,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 21,
@@ -75,6 +85,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 25,
@@ -87,6 +99,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 18,
@@ -98,6 +112,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 23,
@@ -110,9 +126,31 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 32,
   "comment": "撤销之前的同意"
 }
 
+### 提交草稿（激活流程）
+POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/submission
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+### 挂起流程实例
+POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/suspension
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+### 激活（恢复）流程实例
+POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/activation
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}

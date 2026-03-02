@@ -25,8 +25,8 @@
                 style="width: 120px"
                 @change="onFieldChange(cond)"
               >
-                <a-select-option v-for="field in formFields" :key="field.id" :value="field.id">
-                  {{ field.label }}
+                <a-select-option v-for="field in formFields" :key="field.fieldId" :value="field.fieldId">
+                  {{ field.fieldName }}
                 </a-select-option>
               </a-select>
               
@@ -101,7 +101,7 @@ const stringOperators = [
 
 function getOperators(fieldId: string) {
   if (!props.formFields) return commonOperators;
-  const field = props.formFields.find(f => (f.id || f.fieldId) === fieldId);
+  const field = props.formFields.find(f => (f.fieldId || f.id) === fieldId);
   if (!field) return commonOperators;
   
   // 简单根据类型判断

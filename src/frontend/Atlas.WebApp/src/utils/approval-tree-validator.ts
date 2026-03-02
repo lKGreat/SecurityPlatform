@@ -39,7 +39,11 @@ export class ApprovalTreeValidator {
         }
 
         n.conditionNodes.forEach((branch, idx) => {
-          if (!branch.conditionRule && !branch.isDefault) {
+          const hasCondition =
+            branch.isDefault ||
+            (branch.conditionGroups !== undefined && branch.conditionGroups.length > 0) || // 新版条件组
+            (branch.conditionRule !== undefined); // 旧版兼容
+          if (!hasCondition) {
             errors.push(`${path}.分支${idx + 1}: 条件规则未配置`);
           }
           if (branch.childNode) {

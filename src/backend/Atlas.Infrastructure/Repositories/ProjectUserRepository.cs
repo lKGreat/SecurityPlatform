@@ -49,6 +49,23 @@ public sealed class ProjectUserRepository : IProjectUserRepository
         return list;
     }
 
+    public async Task<IReadOnlyList<ProjectUser>> QueryByUserIdsAsync(
+        TenantId tenantId,
+        IReadOnlyList<long> userIds,
+        CancellationToken cancellationToken)
+    {
+        if (userIds.Count == 0)
+        {
+            return Array.Empty<ProjectUser>();
+        }
+
+        var ids = userIds.Distinct().ToArray();
+        var list = await _db.Queryable<ProjectUser>()
+            .Where(x => x.TenantIdValue == tenantId.Value && SqlFunc.ContainsArray(ids, x.UserId))
+            .ToListAsync(cancellationToken);
+        return list;
+    }
+
     public async Task<bool> ExistsAsync(TenantId tenantId, long projectId, long userId, CancellationToken cancellationToken)
     {
         return await _db.Queryable<ProjectUser>()

@@ -1,156 +1,37 @@
 <template>
-  <router-view v-if="isLogin" />
-  <!-- 全屏模式：无 Sider 无 Header，页面自行管理工具栏 -->
-  <div v-else-if="isFullscreen" class="app-fullscreen">
-    <router-view :key="contentKey" />
-  </div>
-  <a-layout v-else class="app-shell">
-    <a-layout-sider collapsible :collapsed="collapsed" @collapse="toggle">
-      <div class="brand">Atlas 安全平台</div>
-      <a-menu
-        theme="dark"
-        mode="inline"
-        :selected-keys="selectedKeys"
-        :open-keys="openKeys"
-        @openChange="handleOpenChange"
-      >
-        <a-menu-item key="home" @click="go('/')">总览</a-menu-item>
+  <router-view v-if="isAuthPage" />
+  <a-layout v-else class="app-shell" :class="{ mobile: isMobile }">
+    <!-- Mobile Mask -->
+    <div v-if="isMobile && !collapsed" class="drawer-bg" @click="collapsed = true" />
 
-        <a-sub-menu key="security" title="安全运营">
-          <a-menu-item key="assets" @click="go('/assets')">资产</a-menu-item>
-          <a-menu-item key="audit" @click="go('/audit')">审计</a-menu-item>
-          <a-menu-item key="alert" @click="go('/alert')">告警</a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="approval" title="审批中心">
-          <a-menu-item key="approval-flows" @click="go('/approval/flows')">审批流</a-menu-item>
-          <a-menu-item key="approval-tasks" @click="go('/approval/tasks')">审批任务</a-menu-item>
-          <a-menu-item key="approval-instances" @click="go('/approval/instances')">流程实例</a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu v-if="showOrganizationMenu" key="organization" title="组织管理">
-          <a-menu-item v-if="showUsersMenu" key="org-users" @click="go('/system/users')">
-            员工管理
-          </a-menu-item>
-          <a-menu-item v-if="showDepartmentsMenu" key="org-departments" @click="go('/system/departments')">
-            部门管理
-          </a-menu-item>
-          <a-menu-item v-if="showPositionsMenu" key="org-positions" @click="go('/system/positions')">
-            职位管理
-          </a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu v-if="showPermissionMenu" key="permission" title="权限管理">
-          <a-menu-item v-if="showRolesMenu" key="permission-roles" @click="go('/system/roles')">
-            角色管理
-          </a-menu-item>
-          <a-menu-item v-if="showPermissionsMenu" key="permission-permissions" @click="go('/system/permissions')">
-            权限管理
-          </a-menu-item>
-          <a-menu-item v-if="showMenusMenu" key="permission-menus" @click="go('/system/menus')">
-            菜单管理
-          </a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu v-if="showBusinessMenu" key="business" title="业务管理">
-          <a-menu-item v-if="showProjectsMenu" key="business-projects" @click="go('/system/projects')">
-            项目管理
-          </a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu v-if="showApplicationMenu" key="application" title="应用管理">
-          <a-menu-item v-if="showAppsMenu" key="application-apps" @click="go('/system/apps')">
-            应用配置
-          </a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="amis" title="AMIS 管理">
-          <a-menu-item key="amis-users" @click="go('/amis/system/users')">
-            员工管理
-          </a-menu-item>
-          <a-menu-item key="amis-departments" @click="go('/amis/system/departments')">
-            部门管理
-          </a-menu-item>
-          <a-menu-item key="amis-positions" @click="go('/amis/system/positions')">
-            职位管理
-          </a-menu-item>
-          <a-menu-item key="amis-roles" @click="go('/amis/system/roles')">
-            角色管理
-          </a-menu-item>
-          <a-menu-item key="amis-permissions" @click="go('/amis/system/permissions')">
-            权限管理
-          </a-menu-item>
-          <a-menu-item key="amis-menus" @click="go('/amis/system/menus')">
-            菜单管理
-          </a-menu-item>
-          <a-menu-item key="amis-projects" @click="go('/amis/system/projects')">
-            项目管理
-          </a-menu-item>
-          <a-menu-item key="amis-apps" @click="go('/amis/system/apps')">
-            应用管理
-          </a-menu-item>
-        </a-sub-menu>
-
-        <a-menu-item key="system-notifications" @click="go('/system/notifications')">通知中心</a-menu-item>
-
-        <a-sub-menu key="visualization" title="可视化中心">
-          <a-menu-item key="visualization-center" @click="go('/visualization/center')">
-            总览
-          </a-menu-item>
-          <a-menu-item key="visualization-designer" @click="go('/visualization/designer')">
-            设计器
-          </a-menu-item>
-          <a-menu-item key="visualization-runtime" @click="go('/visualization/runtime')">
-            运行态
-          </a-menu-item>
-          <a-menu-item key="visualization-governance" @click="go('/visualization/governance')">
-            治理中心
-          </a-menu-item>
-        </a-sub-menu>
-        <a-sub-menu v-if="showWorkflowMenu" key="workflow" title="工作流引擎">
-          <a-menu-item key="workflow-designer" @click="go('/workflow/designer')">
-            工作流设计器
-          </a-menu-item>
-          <a-menu-item key="workflow-instances" @click="go('/workflow/instances')">
-            实例监控
-          </a-menu-item>
-        </a-sub-menu>
-      </a-menu>
+    <a-layout-sider 
+      v-model:collapsed="collapsed" 
+      :trigger="null" 
+      collapsible 
+      class="sidebar-container"
+      :class="{ 'hide-sidebar': isMobile && collapsed, 'open-sidebar': !collapsed }"
+      :width="210"
+    >
+      <SidebarLogo :collapse="collapsed" />
+      <div class="scrollbar-wrapper">
+        <SidebarMenu />
+      </div>
     </a-layout-sider>
-
-    <a-layout>
+    
+    <a-layout :class="{ 'main-container': true, 'mobile-main': isMobile }">
       <a-layout-header class="app-header">
         <div class="header-left">
-          <span class="header-title">多租户安全支撑平台</span>
-          <ProjectSwitcher />
+          <MenuUnfoldOutlined v-if="collapsed" class="trigger" @click="() => (collapsed = !collapsed)" />
+          <MenuFoldOutlined v-else class="trigger" @click="() => (collapsed = !collapsed)" />
+          <BreadcrumbView />
         </div>
         <div class="header-right">
-          <a-input-search
-            v-model:value="globalKeyword"
-            class="global-search"
-            placeholder="搜索员工、角色、项目或功能入口"
-            allow-clear
-            @search="handleGlobalSearch"
-          />
-          <a-button type="text" class="header-help" @click="openHelp">帮助</a-button>
-          <a-dropdown trigger="click" :overlay-style="{ minWidth: '100px' }">
-            <a-button type="text" class="header-lang">
-              {{ currentLocale === 'zh-CN' ? '中文' : 'English' }}
-            </a-button>
-            <template #overlay>
-              <a-menu @click="handleLocaleChange">
-                <a-menu-item key="zh-CN">中文</a-menu-item>
-                <a-menu-item key="en-US">English</a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
+          <Screenfull />
           <NotificationBell />
           <a-dropdown trigger="click">
             <a-button type="text">
               <a-space>
-                <a-avatar size="small">
-                  {{ profileInitials }}
-                </a-avatar>
+                <a-avatar size="small">{{ profileInitials }}</a-avatar>
                 <span>{{ profileDisplayName }}</span>
               </a-space>
             </a-button>
@@ -164,264 +45,219 @@
           </a-dropdown>
         </div>
       </a-layout-header>
+      <div class="tags-container">
+        <TagsView />
+      </div>
       <a-layout-content class="app-content">
-        <router-view :key="contentKey" />
+        <router-view v-slot="{ Component, route }">
+          <transition name="fade-transform" mode="out-in">
+            <keep-alive :include="cachedViews">
+              <component :is="Component" :key="route.path" />
+            </keep-alive>
+          </transition>
+        </router-view>
       </a-layout-content>
     </a-layout>
   </a-layout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { message } from "ant-design-vue";
-import { LeftOutlined } from "@ant-design/icons-vue";
-import { getCurrentUser, logout as apiLogout } from "@/services/api";
-import type { AuthProfile } from "@/types/api";
-import { clearAuthStorage, getAccessToken, getAuthProfile, hasPermission, setAuthProfile } from "@/utils/auth";
-import ProjectSwitcher from "@/components/ProjectSwitcher.vue";
+import { useUserStore } from "@/stores/user";
+import { usePermissionStore } from "@/stores/permission";
+import { useTagsViewStore } from "@/stores/tagsView";
+import { useResize } from "@/composables/useResize";
+import SidebarLogo from "@/components/layout/SidebarLogo.vue";
+import SidebarMenu from "@/components/layout/SidebarMenu.vue";
+import TagsView from "@/components/layout/TagsView.vue";
+import BreadcrumbView from "@/components/layout/BreadcrumbView.vue";
 import NotificationBell from "@/components/layout/NotificationBell.vue";
-import { setLocale, getLocale } from "@/i18n";
+import Screenfull from "@/components/layout/Screenfull.vue";
+import { MenuUnfoldOutlined, MenuFoldOutlined } from "@ant-design/icons-vue";
 
-const collapsed = ref(false);
-const router = useRouter();
 const route = useRoute();
-const profile = ref<AuthProfile | null>(null);
-const contentKey = ref(0);
-const openKeys = ref<string[]>([]);
-const globalKeyword = ref("");
+const router = useRouter();
+const userStore = useUserStore();
+const permissionStore = usePermissionStore();
+const tagsViewStore = useTagsViewStore();
+const { isMobile } = useResize();
+const collapsed = ref(false);
 
-const isLogin = computed(() => route.name === "login");
-const isFullscreen = computed(() => !!route.meta.fullscreen);
-const profileDisplayName = computed(() => profile.value?.displayName || profile.value?.username || "个人中心");
-const profileInitials = computed(() => {
-  const name = profile.value?.displayName || profile.value?.username || "";
-  return name.trim().slice(0, 2) || "我";
-});
-
-const selectedKeys = computed(() => {
-  if (route.path.startsWith("/assets")) return ["assets"];
-  if (route.path.startsWith("/audit")) return ["audit"];
-  if (route.path.startsWith("/alert")) return ["alert"];
-  if (route.path.startsWith("/approval/flows") || route.path.startsWith("/approval/designer")) return ["approval-flows"];
-  if (route.path.startsWith("/approval/tasks")) return ["approval-tasks"];
-  if (route.path.startsWith("/approval/instances")) return ["approval-instances"];
-  if (route.path.startsWith("/system/users")) return ["org-users"];
-  if (route.path.startsWith("/system/departments")) return ["org-departments"];
-  if (route.path.startsWith("/system/positions")) return ["org-positions"];
-  if (route.path.startsWith("/system/roles")) return ["permission-roles"];
-  if (route.path.startsWith("/system/permissions")) return ["permission-permissions"];
-  if (route.path.startsWith("/system/menus")) return ["permission-menus"];
-  if (route.path.startsWith("/system/projects")) return ["business-projects"];
-  if (route.path.startsWith("/system/apps")) return ["application-apps"];
-  if (route.path.startsWith("/amis/system/users")) return ["amis-users"];
-  if (route.path.startsWith("/amis/system/departments")) return ["amis-departments"];
-  if (route.path.startsWith("/amis/system/positions")) return ["amis-positions"];
-  if (route.path.startsWith("/amis/system/roles")) return ["amis-roles"];
-  if (route.path.startsWith("/amis/system/permissions")) return ["amis-permissions"];
-  if (route.path.startsWith("/amis/system/menus")) return ["amis-menus"];
-  if (route.path.startsWith("/amis/system/projects")) return ["amis-projects"];
-  if (route.path.startsWith("/amis/system/apps")) return ["amis-apps"];
-  if (route.path.startsWith("/visualization")) {
-    if (route.path.includes("designer")) return ["visualization-designer"];
-    if (route.path.includes("runtime")) return ["visualization-runtime"];
-    if (route.path.includes("governance")) return ["visualization-governance"];
-    return ["visualization-center"];
+watch(isMobile, (mobile) => {
+  if (mobile) {
+    collapsed.value = true;
   }
-  if (route.path === "/workflow/designer") return ["workflow-designer"];
-  if (route.path === "/workflow/instances") return ["workflow-instances"];
-  return ["home"];
-});
-
-const toggle = (value: boolean) => {
-  collapsed.value = value;
-};
-
-const go = (path: string) => {
-  router.push(path);
-};
-
-const goBack = () => {
-  if (window.history.length > 1) {
-    router.back();
-  } else {
-    router.push('/');
-  }
-};
-
-const showWorkflowMenu = computed(() => hasPermission(profile.value, "workflow:design"));
-const showUsersMenu = computed(() => hasPermission(profile.value, "users:view"));
-const showRolesMenu = computed(() => hasPermission(profile.value, "roles:view"));
-const showPermissionsMenu = computed(() => hasPermission(profile.value, "permissions:view"));
-const showMenusMenu = computed(() => hasPermission(profile.value, "menus:view"));
-const showDepartmentsMenu = computed(() => hasPermission(profile.value, "departments:view"));
-const showPositionsMenu = computed(() => hasPermission(profile.value, "positions:view"));
-const showAppsMenu = computed(() => hasPermission(profile.value, "apps:view"));
-const showProjectsMenu = computed(() => hasPermission(profile.value, "projects:view"));
-const showOrganizationMenu = computed(
-  () => showUsersMenu.value || showDepartmentsMenu.value || showPositionsMenu.value
-);
-const showPermissionMenu = computed(
-  () => showRolesMenu.value || showPermissionsMenu.value || showMenusMenu.value
-);
-const showBusinessMenu = computed(() => showProjectsMenu.value);
-const showApplicationMenu = computed(() => showAppsMenu.value);
-
-const handleOpenChange = (keys: string[]) => {
-  openKeys.value = keys;
-};
-
-const resolveOpenKeys = (path: string) => {
-  if (path.startsWith("/assets") || path.startsWith("/audit") || path.startsWith("/alert")) {
-    return ["security"];
-  }
-  if (path.startsWith("/approval")) {
-    return ["approval"];
-  }
-  if (path.startsWith("/system/users") || path.startsWith("/system/departments") || path.startsWith("/system/positions")) {
-    return ["organization"];
-  }
-  if (path.startsWith("/system/roles") || path.startsWith("/system/permissions") || path.startsWith("/system/menus")) {
-    return ["permission"];
-  }
-  if (path.startsWith("/system/projects")) {
-    return ["business"];
-  }
-  if (path.startsWith("/system/apps")) {
-    return ["application"];
-  }
-  if (path.startsWith("/amis/system")) {
-    return ["amis"];
-  }
-  if (path.startsWith("/visualization")) {
-    return ["visualization"];
-  }
-  if (path.startsWith("/workflow")) {
-    return ["workflow"];
-  }
-  return [];
-};
-
-const handleGlobalSearch = (value: string) => {
-  const keyword = value.trim();
-  if (!keyword) return;
-  const map: Array<{ keywords: string[]; path: string }> = [
-    { keywords: ["员工", "用户", "人员"], path: "/system/users" },
-    { keywords: ["部门", "组织"], path: "/system/departments" },
-    { keywords: ["职位", "岗位"], path: "/system/positions" },
-    { keywords: ["角色"], path: "/system/roles" },
-    { keywords: ["权限"], path: "/system/permissions" },
-    { keywords: ["菜单"], path: "/system/menus" },
-    { keywords: ["项目"], path: "/system/projects" },
-    { keywords: ["应用"], path: "/system/apps" },
-    { keywords: ["审计"], path: "/audit" },
-    { keywords: ["告警"], path: "/alert" },
-    { keywords: ["资产"], path: "/assets" }
-  ];
-  const matched = map.find((entry) => entry.keywords.some((item) => keyword.includes(item)));
-  if (matched) {
-    router.push(matched.path);
-    return;
-  }
-  message.info("全局搜索索引建设中");
-};
-
-const openHelp = () => {
-  message.info("帮助中心建设中");
-};
-
-const currentLocale = ref(getLocale());
-const handleLocaleChange = ({ key }: { key: string }) => {
-  setLocale(key as "zh-CN" | "en-US");
-  currentLocale.value = key;
-};
-
-const loadProfile = async () => {
-  const cached = getAuthProfile();
-  if (cached) {
-    profile.value = cached;
-  }
-
-  if (!getAccessToken()) {
-    return;
-  }
-
-  try {
-    const result = await getCurrentUser();
-    profile.value = result;
-    setAuthProfile(result);
-  } catch (error) {
-    message.error((error as Error).message || "获取用户信息失败");
-  }
-};
-
-const openProfile = () => {
-  router.push("/profile");
-};
-
-const logout = async () => {
-  try {
-    await apiLogout();
-  } catch (error) {
-    message.error((error as Error).message || "退出失败");
-  } finally {
-    clearAuthStorage();
-    router.push("/login");
-  }
-};
-
-const onProjectChanged = () => {
-  contentKey.value += 1;
-};
-
-onMounted(() => {
-  loadProfile();
-  window.addEventListener("project-changed", onProjectChanged);
-  openKeys.value = resolveOpenKeys(route.path);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("project-changed", onProjectChanged);
 });
 
 watch(
-  () => route.path,
-  (path) => {
-    openKeys.value = resolveOpenKeys(path);
+  () => route.fullPath,
+  () => {
+    if (isMobile.value && !collapsed.value) {
+      collapsed.value = true;
+    }
   }
 );
+
+const isAuthPage = computed(() => route.path === "/login" || route.path === "/register");
+const profileDisplayName = computed(
+  () => userStore.profile?.displayName || userStore.profile?.username || "个人中心"
+);
+const profileInitials = computed(() => {
+  const name = profileDisplayName.value;
+  return name.slice(0, 2);
+});
+
+const cachedViews = computed(() => tagsViewStore.cachedViews);
+
+function openProfile() {
+  router.push("/profile");
+}
+
+async function logout() {
+  await userStore.logout();
+  permissionStore.reset();
+  tagsViewStore.delAllViews();
+  router.push("/login");
+}
 </script>
 
 <style scoped>
+.app-shell {
+  min-height: 100vh;
+  position: relative;
+  width: 100%;
+}
+
+.drawer-bg {
+  background: #000;
+  opacity: 0.3;
+  width: 100%;
+  top: 0;
+  height: 100%;
+  position: absolute;
+  z-index: 999;
+}
+
+.sidebar-container {
+  transition: width 0.28s;
+  background: #2b2f3a !important; /* Sidebar 基础颜色 */
+  box-shadow: 2px 0 6px rgba(0,21,41,.35);
+  z-index: 1001;
+}
+
+.scrollbar-wrapper {
+  height: calc(100vh - 50px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.scrollbar-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(144, 147, 153, 0.3);
+  border-radius: 3px;
+}
+
+.brand {
+  height: 48px;
+  line-height: 48px;
+  text-align: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  padding: 0 16px;
+  height: 50px;
+  line-height: 50px;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  z-index: 10;
+  transition: width 0.28s;
+}
+
+/* 移动端样式 */
+.mobile .sidebar-container {
+  transition: transform .28s;
+  width: 210px !important;
+}
+
+.mobile .hide-sidebar {
+  pointer-events: none;
+  transition: transform .28s;
+  transform: translate3d(-210px, 0, 0);
+}
+
+.mobile .main-container {
+  margin-left: 0;
+}
+
+.trigger {
+  font-size: 18px;
+  cursor: pointer;
+  transition: color 0.3s;
+  margin-right: 16px;
+}
+
+.trigger:hover {
+  color: var(--color-primary, #1890ff);
+}
+
 .header-left {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-}
-
-.header-title {
-  color: var(--color-text-primary);
-  font-weight: 500;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
-.global-search {
-  width: 280px;
+.tags-container {
+  background: #fff;
 }
 
-.header-help {
-  color: var(--color-text-primary);
+.app-content {
+  margin: 16px;
+  position: relative;
 }
 
-/* ── Fullscreen mode ── */
-.app-fullscreen {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+/* fade-transform transition */
+.fade-transform-leave-active,
+.fade-transform-enter-active {
+  transition: all 0.3s;
 }
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* breadcrumb transition */
+.breadcrumb-enter-active,
+.breadcrumb-leave-active {
+  transition: all 0.5s;
+}
+.breadcrumb-enter-from,
+.breadcrumb-leave-active {
+  opacity: 0;
+  transform: translateX(20px);
+}
+.breadcrumb-leave-active {
+  position: absolute;
+}
+
 </style>

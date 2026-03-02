@@ -9,6 +9,7 @@ using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.Approval.Enums;
 using FluentValidation;
+using Atlas.WebApi.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Atlas.WebApi.Helpers;
 
@@ -85,6 +86,7 @@ public sealed class ApprovalRuntimeController : ControllerBase
     /// 获取我发起的流程实例
     /// </summary>
     [HttpGet("my")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<PagedResult<ApprovalInstanceListItem>>> GetMyInstancesAsync(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 10,
@@ -107,6 +109,7 @@ public sealed class ApprovalRuntimeController : ControllerBase
     /// 获取流程实例详情
     /// </summary>
     [HttpGet("{id:long}")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<ApprovalInstanceResponse>> GetInstanceByIdAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -128,6 +131,7 @@ public sealed class ApprovalRuntimeController : ControllerBase
     /// 获取流程实例的历史事件
     /// </summary>
     [HttpGet("{id:long}/history")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<PagedResult<ApprovalHistoryEventResponse>>> GetHistoryAsync(
         long id,
         [FromQuery] int pageIndex = 1,
@@ -376,6 +380,7 @@ public sealed class ApprovalRuntimeController : ControllerBase
     /// 预览流程实例（需要权限校验和审计记录）
     /// </summary>
     [HttpGet("{id:long}/preview")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<ApprovalInstanceResponse>> PreviewInstanceAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -418,6 +423,7 @@ public sealed class ApprovalRuntimeController : ControllerBase
     /// 打印流程实例（需要权限校验和审计记录）
     /// </summary>
     [HttpGet("{id:long}/print-view")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<ApprovalInstanceResponse>> PrintInstanceAsync(
         long id,
         CancellationToken cancellationToken = default)

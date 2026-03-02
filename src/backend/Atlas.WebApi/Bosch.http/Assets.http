@@ -17,12 +17,12 @@ X-Tenant-Id: {{tenantId}}
 ###
 @accessToken = {{login.response.body.$.data.accessToken}}
 
-### Get Assets (Paged)
+### Get Assets (Paged) - 需要权限: assets:view
 GET {{baseUrl}}/api/v1/assets?pageIndex=1&pageSize=10
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
-### Create Asset
+### Create Asset - 需要权限: assets:create
 POST {{baseUrl}}/api/v1/assets
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}

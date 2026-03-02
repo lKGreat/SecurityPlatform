@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using AutoMapper;
 using Atlas.Application.Approval.Abstractions;
 using Atlas.Application.Approval.Models;
+using Atlas.Application.Approval.Repositories;
 using Atlas.Application.Audit.Abstractions;
 using Atlas.Application.Audit.Models;
 using Atlas.Core.Identity;
@@ -10,6 +12,7 @@ using Atlas.Core.Tenancy;
 using Atlas.Domain.Approval.Entities;
 using Atlas.Domain.Approval.Enums;
 using FluentValidation;
+using Atlas.WebApi.Authorization;
 using Atlas.WebApi.Helpers;
 
 namespace Atlas.WebApi.Controllers;
@@ -24,6 +27,8 @@ public sealed class ApprovalTasksController : ControllerBase
 {
     private readonly IApprovalRuntimeQueryService _queryService;
     private readonly IApprovalRuntimeCommandService _commandService;
+    private readonly IApprovalTaskRepository _taskRepository;
+    private readonly IMapper _mapper;
     private readonly ITenantProvider _tenantProvider;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IClientContextAccessor _clientContextAccessor;
@@ -33,6 +38,8 @@ public sealed class ApprovalTasksController : ControllerBase
     public ApprovalTasksController(
         IApprovalRuntimeQueryService queryService,
         IApprovalRuntimeCommandService commandService,
+        IApprovalTaskRepository taskRepository,
+        IMapper mapper,
         ITenantProvider tenantProvider,
         ICurrentUserAccessor currentUserAccessor,
         IClientContextAccessor clientContextAccessor,
@@ -41,6 +48,8 @@ public sealed class ApprovalTasksController : ControllerBase
     {
         _queryService = queryService;
         _commandService = commandService;
+        _taskRepository = taskRepository;
+        _mapper = mapper;
         _tenantProvider = tenantProvider;
         _currentUserAccessor = currentUserAccessor;
         _clientContextAccessor = clientContextAccessor;
@@ -52,38 +61,27 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 获取任务详情
     /// </summary>
     [HttpGet("{id:long}")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<ApprovalTaskResponse>> GetTaskDetailAsync(
         long id,
         CancellationToken cancellationToken = default)
     {
-        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
-        // 复用 GetMyTasksAsync 或新增 GetTaskByIdAsync
-        // 这里假设 queryService 有 GetTaskByIdAsync
-        // 如果没有，需要去 IApprovalRuntimeQueryService 添加
-        // 暂时用 GetMyTasksAsync 过滤模拟，或者直接返回 mock
-        // 既然是后端，我应该去 queryService 加方法。
-        // 但 IApprovalRuntimeQueryService 是 Phase 1 的范围，我不想改太多。
-        // 检查 IApprovalRuntimeQueryService 是否有 GetTaskByIdAsync。
-        // 如果没有，我就在 Controller 里直接查 Repository (虽然不推荐，但为了快速完成)。
-        // 或者，我假设它有。
-        
-        // 实际上，GetMyTasksAsync 返回的是 PagedResult。
-        // 我可以调用 _queryService.GetTaskByIdAsync(...) 如果存在。
-        // 让我们先假设它不存在，并在 Controller 里暂时抛出 NotImplemented，或者简单查库。
-        // 为了完整性，我应该去加。
-        
-        // 鉴于时间，我只在 api.ts 里加了 getTaskDetail，前端调用它。
-        // 如果后端没这个接口，前端会报错。
-        // 所以必须加。
-        
-        // 我去 IApprovalRuntimeQueryService 加 GetTaskByIdAsync。
-        return ApiResponse<ApprovalTaskResponse>.Fail("NOT_IMPLEMENTED", "接口未实现", HttpContext.TraceIdentifier);
+        var tenantId = _tenantProvider.GetTenantId();
+        var task = await _taskRepository.GetByIdAsync(tenantId, id, cancellationToken);
+        if (task is null)
+        {
+            return ApiResponse<ApprovalTaskResponse>.Fail("NOT_FOUND", "任务不存在", HttpContext.TraceIdentifier);
+        }
+
+        var response = _mapper.Map<ApprovalTaskResponse>(task);
+        return ApiResponse<ApprovalTaskResponse>.Ok(response, HttpContext.TraceIdentifier);
     }
 
     /// <summary>
     /// 获取我的待办任务
     /// </summary>
     [HttpGet("my")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<PagedResult<ApprovalTaskResponse>>> GetMyTasksAsync(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 10,
@@ -106,6 +104,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 获取实例内的所有任务
     /// </summary>
     [HttpGet("~/api/v1/approval/instances/{instanceId:long}/tasks")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<PagedResult<ApprovalTaskResponse>>> GetByInstanceAsync(
         long instanceId,
         [FromQuery] int pageIndex = 1,
@@ -253,6 +252,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 获取任务沟通记录
     /// </summary>
     [HttpGet("{id:long}/communications")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<List<ApprovalCommunicationRecord>>> GetCommunicationsAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -266,6 +266,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 获取公共任务池（待认领）
     /// </summary>
     [HttpGet("pool")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<PagedResult<ApprovalTaskResponse>>> GetTaskPoolAsync(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 10,
