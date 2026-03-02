@@ -1,5 +1,6 @@
 using Atlas.Application.System.Abstractions;
 using Atlas.Application.System.Models;
+using Atlas.Application.Identity.Abstractions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Authorization;
@@ -22,6 +23,7 @@ public sealed class DictTypesController : ControllerBase
     private readonly IValidator<DictTypeCreateRequest> _createValidator;
     private readonly IValidator<DictTypeUpdateRequest> _updateValidator;
     private readonly IValidator<DictDataCreateRequest> _createDataValidator;
+    private readonly IExcelExportService _excelExportService;
 
     public DictTypesController(
         IDictQueryService queryService,
@@ -29,7 +31,8 @@ public sealed class DictTypesController : ControllerBase
         ITenantProvider tenantProvider,
         IValidator<DictTypeCreateRequest> createValidator,
         IValidator<DictTypeUpdateRequest> updateValidator,
-        IValidator<DictDataCreateRequest> createDataValidator)
+        IValidator<DictDataCreateRequest> createDataValidator,
+        IExcelExportService excelExportService)
     {
         _queryService = queryService;
         _commandService = commandService;
@@ -37,6 +40,7 @@ public sealed class DictTypesController : ControllerBase
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _createDataValidator = createDataValidator;
+        _excelExportService = excelExportService;
     }
 
     [HttpGet]
@@ -98,6 +102,22 @@ public sealed class DictTypesController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         var result = await _queryService.GetActiveDictDataByCodeAsync(tenantId, code, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<DictDataDto>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("{code}/data/export")]
+    [Authorize(Policy = PermissionPolicies.DictDataView)]
+    public async Task<IActionResult> ExportData(
+        string code,
+        [FromQuery] string? keyword = null,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var bytes = await _excelExportService.ExportDictDataAsync(tenantId, code, keyword, cancellationToken);
+        var fileName = $"dict_{code}_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+        return File(
+            bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            fileName);
     }
 
     [HttpPost]
