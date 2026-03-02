@@ -47,6 +47,7 @@ public sealed class ApprovalFlowsController : ControllerBase
     /// 获取流程定义列表（分页）
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<PagedResult<ApprovalFlowDefinitionListItem>>> GetPagedAsync(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 10,

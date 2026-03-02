@@ -52,14 +52,18 @@ public static class PermissionCodes
     public const string ProjectsAssignPositions = "projects:assign-positions";
 
     public const string AuditView = "audit:view";
+    public const string AssetsView = "assets:view";
     public const string AssetsCreate = "assets:create";
+    public const string AlertView = "alert:view";
 
+    public const string ApprovalFlowView = "approval:flow:view";
     public const string ApprovalFlowCreate = "approval:flow:create";
     public const string ApprovalFlowUpdate = "approval:flow:update";
     public const string ApprovalFlowPublish = "approval:flow:publish";
     public const string ApprovalFlowDelete = "approval:flow:delete";
     public const string ApprovalFlowDisable = "approval:flow:disable";
 
+    public const string VisualizationView = "visualization:view";
     public const string VisualizationProcessSave = "visualization:process:save";
     public const string VisualizationProcessUpdate = "visualization:process:update";
     public const string VisualizationProcessPublish = "visualization:process:publish";

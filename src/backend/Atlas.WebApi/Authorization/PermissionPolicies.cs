@@ -59,14 +59,18 @@ public static class PermissionPolicies
     public const string ProjectsAssignPositions = "Permission:projects:assign-positions";
 
     public const string AuditView = "Permission:audit:view";
+    public const string AssetsView = "Permission:assets:view";
     public const string AssetsCreate = "Permission:assets:create";
+    public const string AlertView = "Permission:alert:view";
 
+    public const string ApprovalFlowView = "Permission:approval:flow:view";
     public const string ApprovalFlowCreate = "Permission:approval:flow:create";
     public const string ApprovalFlowUpdate = "Permission:approval:flow:update";
     public const string ApprovalFlowPublish = "Permission:approval:flow:publish";
     public const string ApprovalFlowDelete = "Permission:approval:flow:delete";
     public const string ApprovalFlowDisable = "Permission:approval:flow:disable";
 
+    public const string VisualizationView = "Permission:visualization:view";
     public const string VisualizationProcessSave = "Permission:visualization:process:save";
     public const string VisualizationProcessUpdate = "Permission:visualization:process:update";
     public const string VisualizationProcessPublish = "Permission:visualization:process:publish";

@@ -16,16 +16,17 @@
       >
         <a-menu-item key="home" @click="go('/')">总览</a-menu-item>
 
-        <a-sub-menu key="security" title="安全运营">
-          <a-menu-item key="assets" @click="go('/assets')">资产</a-menu-item>
-          <a-menu-item key="audit" @click="go('/audit')">审计</a-menu-item>
-          <a-menu-item key="alert" @click="go('/alert')">告警</a-menu-item>
+        <a-sub-menu v-if="showSecurityMenu" key="security" title="安全运营">
+          <a-menu-item v-if="showAssetsMenu" key="assets" @click="go('/assets')">资产</a-menu-item>
+          <a-menu-item v-if="showAuditMenu" key="audit" @click="go('/audit')">审计</a-menu-item>
+          <a-menu-item v-if="showAlertMenu" key="alert" @click="go('/alert')">告警</a-menu-item>
         </a-sub-menu>
 
-        <a-sub-menu key="approval" title="审批中心">
-          <a-menu-item key="approval-flows" @click="go('/approval/flows')">审批流</a-menu-item>
-          <a-menu-item key="approval-tasks" @click="go('/approval/tasks')">审批任务</a-menu-item>
-          <a-menu-item key="approval-instances" @click="go('/approval/instances')">流程实例</a-menu-item>
+        <a-sub-menu v-if="showApprovalMenu" key="approval" title="审批中心">
+          <a-menu-item v-if="showApprovalFlowMenu" key="approval-flows" @click="go('/approval/flows')">审批流</a-menu-item>
+          <a-menu-item v-if="showApprovalDesignerMenu" key="approval-designer" @click="go('/approval/designer')">流程设计</a-menu-item>
+          <a-menu-item v-if="showApprovalFlowMenu" key="approval-tasks" @click="go('/approval/tasks')">审批任务</a-menu-item>
+          <a-menu-item v-if="showApprovalFlowMenu" key="approval-instances" @click="go('/approval/instances')">流程实例</a-menu-item>
         </a-sub-menu>
 
         <a-sub-menu v-if="showOrganizationMenu" key="organization" title="组织管理">
@@ -64,36 +65,36 @@
           </a-menu-item>
         </a-sub-menu>
 
-        <a-sub-menu key="amis" title="AMIS 管理">
-          <a-menu-item key="amis-users" @click="go('/amis/system/users')">
+        <a-sub-menu v-if="showAmisMenu" key="amis" title="AMIS 管理">
+          <a-menu-item v-if="showUsersMenu" key="amis-users" @click="go('/amis/system/users')">
             员工管理
           </a-menu-item>
-          <a-menu-item key="amis-departments" @click="go('/amis/system/departments')">
+          <a-menu-item v-if="showDepartmentsMenu" key="amis-departments" @click="go('/amis/system/departments')">
             部门管理
           </a-menu-item>
-          <a-menu-item key="amis-positions" @click="go('/amis/system/positions')">
+          <a-menu-item v-if="showPositionsMenu" key="amis-positions" @click="go('/amis/system/positions')">
             职位管理
           </a-menu-item>
-          <a-menu-item key="amis-roles" @click="go('/amis/system/roles')">
+          <a-menu-item v-if="showRolesMenu" key="amis-roles" @click="go('/amis/system/roles')">
             角色管理
           </a-menu-item>
-          <a-menu-item key="amis-permissions" @click="go('/amis/system/permissions')">
+          <a-menu-item v-if="showPermissionsMenu" key="amis-permissions" @click="go('/amis/system/permissions')">
             权限管理
           </a-menu-item>
-          <a-menu-item key="amis-menus" @click="go('/amis/system/menus')">
+          <a-menu-item v-if="showMenusMenu" key="amis-menus" @click="go('/amis/system/menus')">
             菜单管理
           </a-menu-item>
-          <a-menu-item key="amis-projects" @click="go('/amis/system/projects')">
+          <a-menu-item v-if="showProjectsMenu" key="amis-projects" @click="go('/amis/system/projects')">
             项目管理
           </a-menu-item>
-          <a-menu-item key="amis-apps" @click="go('/amis/system/apps')">
+          <a-menu-item v-if="showAppsMenu" key="amis-apps" @click="go('/amis/system/apps')">
             应用管理
           </a-menu-item>
         </a-sub-menu>
 
-        <a-menu-item key="system-notifications" @click="go('/system/notifications')">通知中心</a-menu-item>
+        <a-menu-item v-if="showNotificationMenu" key="system-notifications" @click="go('/system/notifications')">通知中心</a-menu-item>
 
-        <a-sub-menu key="visualization" title="可视化中心">
+        <a-sub-menu v-if="showVisualizationMenu" key="visualization" title="可视化中心">
           <a-menu-item key="visualization-center" @click="go('/visualization/center')">
             总览
           </a-menu-item>
@@ -203,7 +204,8 @@ const selectedKeys = computed(() => {
   if (route.path.startsWith("/assets")) return ["assets"];
   if (route.path.startsWith("/audit")) return ["audit"];
   if (route.path.startsWith("/alert")) return ["alert"];
-  if (route.path.startsWith("/approval/flows") || route.path.startsWith("/approval/designer")) return ["approval-flows"];
+  if (route.path.startsWith("/approval/flows")) return ["approval-flows"];
+  if (route.path.startsWith("/approval/designer")) return ["approval-designer"];
   if (route.path.startsWith("/approval/tasks")) return ["approval-tasks"];
   if (route.path.startsWith("/approval/instances")) return ["approval-instances"];
   if (route.path.startsWith("/system/users")) return ["org-users"];
@@ -222,6 +224,7 @@ const selectedKeys = computed(() => {
   if (route.path.startsWith("/amis/system/menus")) return ["amis-menus"];
   if (route.path.startsWith("/amis/system/projects")) return ["amis-projects"];
   if (route.path.startsWith("/amis/system/apps")) return ["amis-apps"];
+  if (route.path.startsWith("/system/notifications")) return ["system-notifications"];
   if (route.path.startsWith("/visualization")) {
     if (route.path.includes("designer")) return ["visualization-designer"];
     if (route.path.includes("runtime")) return ["visualization-runtime"];
@@ -250,6 +253,11 @@ const goBack = () => {
 };
 
 const showWorkflowMenu = computed(() => hasPermission(profile.value, "workflow:design"));
+const showAssetsMenu = computed(() => hasPermission(profile.value, "assets:view"));
+const showAuditMenu = computed(() => hasPermission(profile.value, "audit:view"));
+const showAlertMenu = computed(() => hasPermission(profile.value, "alert:view"));
+const showApprovalFlowMenu = computed(() => hasPermission(profile.value, "approval:flow:view"));
+const showApprovalDesignerMenu = computed(() => hasPermission(profile.value, "approval:flow:create"));
 const showUsersMenu = computed(() => hasPermission(profile.value, "users:view"));
 const showRolesMenu = computed(() => hasPermission(profile.value, "roles:view"));
 const showPermissionsMenu = computed(() => hasPermission(profile.value, "permissions:view"));
@@ -258,6 +266,16 @@ const showDepartmentsMenu = computed(() => hasPermission(profile.value, "departm
 const showPositionsMenu = computed(() => hasPermission(profile.value, "positions:view"));
 const showAppsMenu = computed(() => hasPermission(profile.value, "apps:view"));
 const showProjectsMenu = computed(() => hasPermission(profile.value, "projects:view"));
+const showNotificationMenu = computed(() => hasPermission(profile.value, "notification:view"));
+const showVisualizationMenu = computed(
+  () => hasPermission(profile.value, "visualization:view") || hasPermission(profile.value, "visualization:process:save")
+);
+const showSecurityMenu = computed(
+  () => showAssetsMenu.value || showAuditMenu.value || showAlertMenu.value
+);
+const showApprovalMenu = computed(
+  () => showApprovalFlowMenu.value || showApprovalDesignerMenu.value
+);
 const showOrganizationMenu = computed(
   () => showUsersMenu.value || showDepartmentsMenu.value || showPositionsMenu.value
 );
@@ -266,6 +284,17 @@ const showPermissionMenu = computed(
 );
 const showBusinessMenu = computed(() => showProjectsMenu.value);
 const showApplicationMenu = computed(() => showAppsMenu.value);
+const showAmisMenu = computed(
+  () =>
+    showUsersMenu.value ||
+    showDepartmentsMenu.value ||
+    showPositionsMenu.value ||
+    showRolesMenu.value ||
+    showPermissionsMenu.value ||
+    showMenusMenu.value ||
+    showProjectsMenu.value ||
+    showAppsMenu.value
+);
 
 const handleOpenChange = (keys: string[]) => {
   openKeys.value = keys;

@@ -341,15 +341,26 @@ JWT Claims（新增）：
 - `projects:assign-departments`：项目分配部门
 - `projects:assign-positions`：项目分配岗位
 - `audit:view`：审计查看
+- `assets:view`：资产查看
 - `assets:create`：资产新增
+- `alert:view`：告警查看
+- `approval:flow:view`：审批流查看
 - `approval:flow:create`：审批流创建
 - `approval:flow:update`：审批流更新
 - `approval:flow:publish`：审批流发布
 - `approval:flow:delete`：审批流删除
 - `approval:flow:disable`：审批流停用
+- `visualization:view`：可视化查看
 - `visualization:process:save`：可视化流程保存
 - `visualization:process:update`：可视化流程更新
 - `visualization:process:publish`：可视化流程发布
+- `notification:view`：通知查看
+- `notification:create`：通知创建
+- `notification:update`：通知更新
+- `notification:delete`：通知删除
+- `file:upload`：文件上传
+- `file:download`：文件下载
+- `file:delete`：文件删除
 
 字段说明：
 

@@ -2,12 +2,12 @@
 @token =
 @tenantId =
 
-### 获取我的待办任务
+### 获取我的待办任务（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/tasks/my?pageIndex=1&pageSize=10&status=Pending
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
-### 获取实例内的所有任务
+### 获取实例内的所有任务（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/tasks?pageIndex=1&pageSize=10
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}

@@ -2,7 +2,7 @@
 @token =
 @tenantId =
 
-### 创建流程定义
+### 创建流程定义（需要权限: approval:flow:create）
 POST {{baseUrl}}/api/v1/approval/flows
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
@@ -17,7 +17,7 @@ Content-Type: application/json
   "definitionJson": "{\"meta\":{\"flowName\":\"请假审批流程\",\"description\":\"员工请假审批流程\",\"category\":\"人事\",\"visibilityScope\":{\"scopeType\":\"Department\",\"departmentIds\":[10,11]},\"isQuickEntry\":false,\"isLowCodeFlow\":true},\"lfForm\":{\"formJson\":{\"widgetList\":[],\"formConfig\":{}},\"formFields\":[]},\"nodes\":{\"rootNode\":{\"nodeId\":\"start_1\",\"nodeType\":\"start\",\"nodeName\":\"发起人\",\"childNode\":{\"nodeId\":\"approve_1\",\"nodeType\":\"approve\",\"nodeName\":\"部门主管审批\",\"approverConfig\":{\"setType\":2,\"signType\":1,\"noHeaderAction\":0,\"nodeApproveList\":[{\"targetId\":\"dept-leader\",\"name\":\"部门主管\"}]},\"childNode\":{\"nodeId\":\"end_1\",\"nodeType\":\"end\",\"nodeName\":\"结束\"}}}}}"
 }
 
-### 获取流程定义列表
+### 获取流程定义列表（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/flows?pageIndex=1&pageSize=10&status=Draft
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
@@ -27,7 +27,7 @@ GET {{baseUrl}}/api/v1/approval/flows/{flowId}
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
-### 更新流程定义
+### 更新流程定义（需要权限: approval:flow:update）
 PUT {{baseUrl}}/api/v1/approval/flows/{flowId}
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
@@ -42,7 +42,7 @@ Content-Type: application/json
   "definitionJson": "{\"meta\":{\"flowName\":\"请假审批流程v2\",\"description\":\"请假流程v2\",\"category\":\"人事\",\"visibilityScope\":{\"scopeType\":\"All\"},\"isQuickEntry\":true,\"isLowCodeFlow\":false},\"nodes\":{\"rootNode\":{\"nodeId\":\"start_1\",\"nodeType\":\"start\",\"nodeName\":\"发起人\",\"childNode\":{\"nodeId\":\"approve_1\",\"nodeType\":\"approve\",\"nodeName\":\"直属领导审批\",\"approverConfig\":{\"setType\":4,\"signType\":1,\"noHeaderAction\":0,\"nodeApproveList\":[]},\"childNode\":{\"nodeId\":\"end_1\",\"nodeType\":\"end\",\"nodeName\":\"结束\"}}}}}"
 }
 
-### 发布流程定义
+### 发布流程定义（需要权限: approval:flow:publish）
 POST {{baseUrl}}/api/v1/approval/flows/{flowId}/publication
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
@@ -50,7 +50,7 @@ Content-Type: application/json
 
 {}
 
-### 禁用流程定义
+### 禁用流程定义（需要权限: approval:flow:disable）
 POST {{baseUrl}}/api/v1/approval/flows/{flowId}/deactivation
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
@@ -58,7 +58,7 @@ Content-Type: application/json
 
 {}
 
-### 删除流程定义
+### 删除流程定义（需要权限: approval:flow:delete）
 DELETE {{baseUrl}}/api/v1/approval/flows/{flowId}
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}

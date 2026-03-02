@@ -14,17 +14,17 @@ Content-Type: application/json
   "dataJson": "{\"leaveType\":\"sick\",\"startDate\":\"2026-02-01\",\"endDate\":\"2026-02-03\",\"reason\":\"感冒\"}"
 }
 
-### 获取我发起的流程实例
+### 获取我发起的流程实例（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/my?pageIndex=1&pageSize=10&status=Running
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
-### 获取流程实例详情
+### 获取流程实例详情（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
-### 获取流程实例历史事件
+### 获取流程实例历史事件（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/history?pageIndex=1&pageSize=20
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
@@ -37,12 +37,12 @@ Content-Type: application/json
 
 {}
 
-### 预览流程实例
+### 预览流程实例（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/preview
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
-### 打印流程实例
+### 打印流程实例（需要权限: approval:flow:view）
 GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/print-view
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}

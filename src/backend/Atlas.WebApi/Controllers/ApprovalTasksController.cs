@@ -10,6 +10,7 @@ using Atlas.Core.Tenancy;
 using Atlas.Domain.Approval.Entities;
 using Atlas.Domain.Approval.Enums;
 using FluentValidation;
+using Atlas.WebApi.Authorization;
 using Atlas.WebApi.Helpers;
 
 namespace Atlas.WebApi.Controllers;
@@ -52,6 +53,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 获取任务详情
     /// </summary>
     [HttpGet("{id:long}")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<ApprovalTaskResponse>> GetTaskDetailAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -84,6 +86,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 获取我的待办任务
     /// </summary>
     [HttpGet("my")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<PagedResult<ApprovalTaskResponse>>> GetMyTasksAsync(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 10,
@@ -106,6 +109,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 获取实例内的所有任务
     /// </summary>
     [HttpGet("~/api/v1/approval/instances/{instanceId:long}/tasks")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<PagedResult<ApprovalTaskResponse>>> GetByInstanceAsync(
         long instanceId,
         [FromQuery] int pageIndex = 1,
@@ -253,6 +257,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 获取任务沟通记录
     /// </summary>
     [HttpGet("{id:long}/communications")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<List<ApprovalCommunicationRecord>>> GetCommunicationsAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -266,6 +271,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 获取公共任务池（待认领）
     /// </summary>
     [HttpGet("pool")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<PagedResult<ApprovalTaskResponse>>> GetTaskPoolAsync(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 10,

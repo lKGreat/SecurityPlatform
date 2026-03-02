@@ -42,13 +42,13 @@ const router = createRouter({
     { path: "/login", name: "login", component: LoginPage },
     { path: "/", name: "home", component: HomePage, meta: { requiresAuth: true } },
     { path: "/profile", name: "profile", component: ProfilePage, meta: { requiresAuth: true } },
-    { path: "/assets", name: "assets", component: AssetsPage, meta: { requiresAuth: true } },
-    { path: "/audit", name: "audit", component: AuditPage, meta: { requiresAuth: true } },
-    { path: "/alert", name: "alert", component: AlertPage, meta: { requiresAuth: true } },
-    { path: "/approval/flows", name: "approval-flows", component: ApprovalFlowsPage, meta: { requiresAuth: true } },
-    { path: "/approval/designer/:id?", name: "approval-designer", component: ApprovalDesignerPage, meta: { requiresAuth: true, fullscreen: true } },
-    { path: "/approval/tasks", name: "approval-tasks", component: ApprovalTasksPage, meta: { requiresAuth: true } },
-    { path: "/approval/instances", name: "approval-instances", component: ApprovalInstancesPage, meta: { requiresAuth: true } },
+    { path: "/assets", name: "assets", component: AssetsPage, meta: { requiresAuth: true, requiresPermission: "assets:view" } },
+    { path: "/audit", name: "audit", component: AuditPage, meta: { requiresAuth: true, requiresPermission: "audit:view" } },
+    { path: "/alert", name: "alert", component: AlertPage, meta: { requiresAuth: true, requiresPermission: "alert:view" } },
+    { path: "/approval/flows", name: "approval-flows", component: ApprovalFlowsPage, meta: { requiresAuth: true, requiresPermission: "approval:flow:view" } },
+    { path: "/approval/designer/:id?", name: "approval-designer", component: ApprovalDesignerPage, meta: { requiresAuth: true, requiresPermission: "approval:flow:create", fullscreen: true } },
+    { path: "/approval/tasks", name: "approval-tasks", component: ApprovalTasksPage, meta: { requiresAuth: true, requiresPermission: "approval:flow:view" } },
+    { path: "/approval/instances", name: "approval-instances", component: ApprovalInstancesPage, meta: { requiresAuth: true, requiresPermission: "approval:flow:view" } },
     {
       path: "/system/users",
       name: "system-users",
@@ -197,7 +197,7 @@ const router = createRouter({
       path: "/system/notifications",
       name: "system-notifications",
       component: NotificationsPage,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, requiresPermission: "notification:view" }
     },
     {
       path: "/monitor/server",
@@ -211,10 +211,10 @@ const router = createRouter({
       component: ScheduledJobsPage,
       meta: { requiresAuth: true, requiresPermission: "job:view" }
     },
-    { path: "/visualization/center", name: "visualization-center", component: VisualizationCenterPage, meta: { requiresAuth: true } },
-    { path: "/visualization/designer/:id?", name: "visualization-designer", component: VisualizationDesignerPage, meta: { requiresAuth: true } },
-    { path: "/visualization/runtime", name: "visualization-runtime", component: VisualizationRuntimePage, meta: { requiresAuth: true } },
-    { path: "/visualization/governance", name: "visualization-governance", component: VisualizationGovernancePage, meta: { requiresAuth: true } },
+    { path: "/visualization/center", name: "visualization-center", component: VisualizationCenterPage, meta: { requiresAuth: true, requiresPermission: "visualization:view" } },
+    { path: "/visualization/designer/:id?", name: "visualization-designer", component: VisualizationDesignerPage, meta: { requiresAuth: true, requiresPermission: "visualization:view" } },
+    { path: "/visualization/runtime", name: "visualization-runtime", component: VisualizationRuntimePage, meta: { requiresAuth: true, requiresPermission: "visualization:view" } },
+    { path: "/visualization/governance", name: "visualization-governance", component: VisualizationGovernancePage, meta: { requiresAuth: true, requiresPermission: "visualization:view" } },
     // 404 catch-all route — must be last
     { path: "/:pathMatch(.*)*", name: "not-found", component: NotFoundPage }
   ]

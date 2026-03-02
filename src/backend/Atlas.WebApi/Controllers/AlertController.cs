@@ -4,6 +4,7 @@ using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Atlas.WebApi.Authorization;
 
 namespace Atlas.WebApi.Controllers;
 
@@ -21,7 +22,7 @@ public sealed class AlertController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize]
+    [Authorize(Policy = PermissionPolicies.AlertView)]
     public async Task<ActionResult<ApiResponse<PagedResult<AlertListItem>>>> Get(
         [FromQuery] PagedRequest request,
         CancellationToken cancellationToken)

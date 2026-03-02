@@ -39,7 +39,7 @@ public sealed class AssetsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize]
+    [Authorize(Policy = PermissionPolicies.AssetsView)]
     public async Task<ActionResult<ApiResponse<PagedResult<AssetListItem>>>> Get(
         [FromQuery] PagedRequest request,
         CancellationToken cancellationToken)
