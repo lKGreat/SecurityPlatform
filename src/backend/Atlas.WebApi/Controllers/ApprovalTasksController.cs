@@ -6,6 +6,7 @@ using Atlas.Application.Approval.Models;
 using Atlas.Application.Approval.Repositories;
 using Atlas.Application.Audit.Abstractions;
 using Atlas.Application.Audit.Models;
+using Atlas.Core.Exceptions;
 using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
@@ -29,6 +30,7 @@ public sealed class ApprovalTasksController : ControllerBase
     private readonly IApprovalRuntimeCommandService _commandService;
     private readonly IApprovalTaskRepository _taskRepository;
     private readonly IApprovalCommunicationRecordRepository _communicationRecordRepository;
+    private readonly IApprovalOperationService _operationService;
     private readonly IMapper _mapper;
     private readonly ITenantProvider _tenantProvider;
     private readonly ICurrentUserAccessor _currentUserAccessor;
@@ -41,6 +43,7 @@ public sealed class ApprovalTasksController : ControllerBase
         IApprovalRuntimeCommandService commandService,
         IApprovalTaskRepository taskRepository,
         IApprovalCommunicationRecordRepository communicationRecordRepository,
+        IApprovalOperationService operationService,
         IMapper mapper,
         ITenantProvider tenantProvider,
         ICurrentUserAccessor currentUserAccessor,
@@ -52,6 +55,7 @@ public sealed class ApprovalTasksController : ControllerBase
         _commandService = commandService;
         _taskRepository = taskRepository;
         _communicationRecordRepository = communicationRecordRepository;
+        _operationService = operationService;
         _mapper = mapper;
         _tenantProvider = tenantProvider;
         _currentUserAccessor = currentUserAccessor;
@@ -280,11 +284,14 @@ public sealed class ApprovalTasksController : ControllerBase
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
-        // 查询 AssigneeType 为 Role/Dept 且 AssigneeValue 包含当前用户的任务
-        // 且 Status = Pending
-        // var tasks = await _queryService.GetTaskPoolAsync(...)
-        return ApiResponse<PagedResult<ApprovalTaskResponse>>.Ok(new PagedResult<ApprovalTaskResponse>(new List<ApprovalTaskResponse>(), 0, pageIndex, pageSize), HttpContext.TraceIdentifier);
+        var tenantId = _tenantProvider.GetTenantId();
+        var (items, totalCount) = await _taskRepository.GetPagedPoolAsync(tenantId, pageIndex, pageSize, cancellationToken);
+        var result = new PagedResult<ApprovalTaskResponse>(
+            _mapper.Map<List<ApprovalTaskResponse>>(items),
+            totalCount,
+            pageIndex,
+            pageSize);
+        return ApiResponse<PagedResult<ApprovalTaskResponse>>.Ok(result, HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -298,11 +305,31 @@ public sealed class ApprovalTasksController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
-        // 权限校验：通常只有管理员或本人可操作
-        
-        // 调用 CommandService 或 OperationService 执行批量转办
-        // await _commandService.BatchTransferAsync(...)
-        return ApiResponse<string>.Ok("已转办", HttpContext.TraceIdentifier);
+        if (fromUserId <= 0 || toUserId <= 0 || fromUserId == toUserId)
+        {
+            throw new BusinessException("VALIDATION_ERROR", "转办用户参数不合法");
+        }
+
+        var tasks = await _taskRepository.GetPendingByAssigneeUserAsync(currentUser.TenantId, fromUserId, cancellationToken);
+        foreach (var task in tasks)
+        {
+            var request = new Atlas.Application.Approval.Models.ApprovalOperationRequest
+            {
+                OperationType = ApprovalOperationType.Transfer,
+                TargetAssigneeValue = toUserId.ToString(),
+                Comment = $"批量转办 {fromUserId} -> {toUserId}"
+            };
+
+            await _operationService.ExecuteOperationAsync(
+                currentUser.TenantId,
+                task.InstanceId,
+                task.Id,
+                currentUser.UserId,
+                request,
+                cancellationToken);
+        }
+
+        return ApiResponse<string>.Ok($"已转办 {tasks.Count} 个任务", HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -314,8 +341,21 @@ public sealed class ApprovalTasksController : ControllerBase
         long id,
         CancellationToken cancellationToken = default)
     {
-        // 标记任务已阅
-        // await _commandService.MarkTaskAsViewedAsync(...)
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
+        var task = await _taskRepository.GetByIdAsync(currentUser.TenantId, id, cancellationToken);
+        if (task is null)
+        {
+            return ApiResponse<string>.Fail("NOT_FOUND", "任务不存在", HttpContext.TraceIdentifier);
+        }
+
+        var isOwnedTask = task.AssigneeType == AssigneeType.User && task.AssigneeValue == currentUser.UserId.ToString();
+        if (!isOwnedTask)
+        {
+            throw new BusinessException("FORBIDDEN", "无权标记该任务为已阅");
+        }
+
+        task.MarkViewed(DateTimeOffset.UtcNow);
+        await _taskRepository.UpdateAsync(task, cancellationToken);
         return ApiResponse<string>.Ok("已标记已阅", HttpContext.TraceIdentifier);
     }
 

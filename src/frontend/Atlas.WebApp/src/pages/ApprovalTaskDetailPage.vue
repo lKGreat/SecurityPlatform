@@ -36,7 +36,7 @@
             <AmisRenderer
               v-if="amisSchema"
               :schema="amisSchema"
-              :data="formData"
+              :data="formDataForAmis"
             />
             <LfFormRenderer
               v-else
@@ -231,6 +231,10 @@ const formData = computed<Record<string, unknown>>(() => {
   }
 });
 
+const formDataForAmis = computed<Record<string, JsonValue>>(() => {
+  return formData.value as Record<string, JsonValue>;
+});
+
 const flowDefinitionNodes = computed(() => {
   return parsedDefinition.value?.nodes ?? null;
 });
@@ -254,7 +258,7 @@ const fetchDetail = async () => {
     historyItems.value = historyResult.items;
 
     if (instanceResult.definitionId) {
-      const def = await getApprovalFlowById(instanceResult.definitionId);
+      const def = await getApprovalFlowById(String(instanceResult.definitionId));
       flowDefinition.value = def;
       try {
         parsedDefinition.value = JSON.parse(def.definitionJson) as ApprovalDefinitionJson;
@@ -319,7 +323,7 @@ const handleTransfer = async () => {
   if (!instance.value) return;
   submitting.value = true;
   try {
-    await transferTask(instance.value.id, taskId, transferTargetIds.value[0], transferComment.value || undefined);
+    await transferTask(String(instance.value.id), taskId, transferTargetIds.value[0], transferComment.value || undefined);
     message.success('转办成功');
     transferVisible.value = false;
     resetTransferForm();
@@ -363,7 +367,7 @@ const handleMenuClick = ({ key }: { key: string }) => {
 const handleJump = async (targetNodeId: string) => {
   if (!instance.value) return;
   try {
-    await jumpTask(instance.value.id, targetNodeId, taskId);
+    await jumpTask(String(instance.value.id), targetNodeId, taskId);
     message.success('跳转成功');
     router.back();
   } catch {
