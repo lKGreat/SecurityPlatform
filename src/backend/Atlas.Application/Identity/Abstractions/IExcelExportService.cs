@@ -13,4 +13,13 @@ public interface IExcelExportService
     /// 生成用户导入模板字节流。
     /// </summary>
     byte[] GenerateUserImportTemplate();
+
+    /// <summary>
+    /// 导出字典数据为 Excel 字节流。
+    /// </summary>
+    Task<byte[]> ExportDictDataAsync(
+        TenantId tenantId,
+        string typeCode,
+        string? keyword = null,
+        CancellationToken ct = default);
 }

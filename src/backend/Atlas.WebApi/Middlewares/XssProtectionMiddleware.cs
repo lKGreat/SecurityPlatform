@@ -41,9 +41,9 @@ public sealed class XssProtectionMiddleware
 
         // 净化 JSON Body（仅对写方法的 application/json）
         if (IsJsonContentType(context.Request)
-            && HttpMethods.IsPost(context.Request.Method)
-               || HttpMethods.IsPut(context.Request.Method)
-               || HttpMethods.IsPatch(context.Request.Method))
+            && (HttpMethods.IsPost(context.Request.Method)
+                || HttpMethods.IsPut(context.Request.Method)
+                || HttpMethods.IsPatch(context.Request.Method)))
         {
             await SanitizeJsonBodyAsync(context);
         }
