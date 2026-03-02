@@ -484,8 +484,15 @@ export interface MenuListItem {
   path: string;
   parentId?: number | null;
   sortOrder: number;
+  menuType: "M" | "C" | "F" | "L";
   component?: string | null;
   icon?: string | null;
+  perms?: string | null;
+  query?: string | null;
+  isFrame: boolean;
+  isCache: boolean;
+  visible: "0" | "1";
+  status: "0" | "1";
   permissionCode?: string | null;
   isHidden: boolean;
 }
@@ -495,8 +502,15 @@ export interface MenuCreateRequest {
   path: string;
   parentId?: number | null;
   sortOrder: number;
+  menuType: "M" | "C" | "F" | "L";
   component?: string | null;
   icon?: string | null;
+  perms?: string | null;
+  query?: string | null;
+  isFrame: boolean;
+  isCache: boolean;
+  visible: "0" | "1";
+  status: "0" | "1";
   permissionCode?: string | null;
   isHidden: boolean;
 }
@@ -506,10 +520,45 @@ export interface MenuUpdateRequest {
   path: string;
   parentId?: number | null;
   sortOrder: number;
+  menuType: "M" | "C" | "F" | "L";
   component?: string | null;
   icon?: string | null;
+  perms?: string | null;
+  query?: string | null;
+  isFrame: boolean;
+  isCache: boolean;
+  visible: "0" | "1";
+  status: "0" | "1";
   permissionCode?: string | null;
   isHidden: boolean;
+}
+
+export interface RouterMeta {
+  title: string;
+  icon?: string;
+  noCache?: boolean;
+  link?: string;
+  permi?: string;
+}
+
+export interface RouterVo {
+  alwaysShow?: boolean;
+  hidden?: boolean;
+  name: string;
+  path: string;
+  redirect?: string;
+  query?: string;
+  component?: string;
+  meta?: RouterMeta;
+  children?: RouterVo[];
+}
+
+export interface RegisterRequest {
+  username: string;
+  password: string;
+  confirmPassword: string;
+  captchaKey?: string;
+  captchaCode?: string;
 }
 
 export interface AppConfigListItem {

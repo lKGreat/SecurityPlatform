@@ -14,4 +14,11 @@ public interface IMenuQueryService
     Task<IReadOnlyList<MenuListItem>> QueryAllAsync(
         TenantId tenantId,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<MenuListItem>> SelectMenuTreeByUserIdAsync(
+        TenantId tenantId,
+        long userId,
+        CancellationToken cancellationToken);
+
+    IReadOnlyList<RouterVo> BuildMenus(IReadOnlyList<MenuListItem> menus);
 }

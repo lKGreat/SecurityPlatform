@@ -30,8 +30,15 @@ public sealed class MenuCommandService : IMenuCommandService
             id,
             request.ParentId,
             request.SortOrder,
+            request.MenuType,
             request.Component,
             request.Icon,
+            request.Perms,
+            request.Query,
+            request.IsFrame,
+            request.IsCache,
+            request.Visible,
+            request.Status,
             request.PermissionCode,
             request.IsHidden);
         await _menuRepository.AddAsync(menu, cancellationToken);
@@ -55,8 +62,15 @@ public sealed class MenuCommandService : IMenuCommandService
             request.Path,
             request.ParentId,
             request.SortOrder,
+            request.MenuType,
             request.Component,
             request.Icon,
+            request.Perms,
+            request.Query,
+            request.IsFrame,
+            request.IsCache,
+            request.Visible,
+            request.Status,
             request.PermissionCode,
             request.IsHidden);
         await _menuRepository.UpdateAsync(menu, cancellationToken);

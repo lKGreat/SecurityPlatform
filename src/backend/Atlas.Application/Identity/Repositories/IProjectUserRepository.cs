@@ -17,6 +17,10 @@ public interface IProjectUserRepository
         TenantId tenantId,
         long userId,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<ProjectUser>> QueryByUserIdsAsync(
+        TenantId tenantId,
+        IReadOnlyList<long> userIds,
+        CancellationToken cancellationToken);
     Task<bool> ExistsAsync(TenantId tenantId, long projectId, long userId, CancellationToken cancellationToken);
     Task DeleteByProjectIdAsync(TenantId tenantId, long projectId, CancellationToken cancellationToken);
     Task DeleteByUserIdAsync(TenantId tenantId, long userId, CancellationToken cancellationToken);

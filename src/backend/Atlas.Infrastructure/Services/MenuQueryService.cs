@@ -10,11 +10,22 @@ namespace Atlas.Infrastructure.Services;
 public sealed class MenuQueryService : IMenuQueryService
 {
     private readonly IMenuRepository _menuRepository;
+    private readonly IUserRoleRepository _userRoleRepository;
+    private readonly IRoleMenuRepository _roleMenuRepository;
+    private readonly IRoleRepository _roleRepository;
     private readonly IMapper _mapper;
 
-    public MenuQueryService(IMenuRepository menuRepository, IMapper mapper)
+    public MenuQueryService(
+        IMenuRepository menuRepository,
+        IUserRoleRepository userRoleRepository,
+        IRoleMenuRepository roleMenuRepository,
+        IRoleRepository roleRepository,
+        IMapper mapper)
     {
         _menuRepository = menuRepository;
+        _userRoleRepository = userRoleRepository;
+        _roleMenuRepository = roleMenuRepository;
+        _roleRepository = roleRepository;
         _mapper = mapper;
     }
 
@@ -44,5 +55,166 @@ public sealed class MenuQueryService : IMenuQueryService
     {
         var items = await _menuRepository.QueryAllAsync(tenantId, cancellationToken);
         return items.Select(x => _mapper.Map<MenuListItem>(x)).ToArray();
+    }
+
+    public async Task<IReadOnlyList<MenuListItem>> SelectMenuTreeByUserIdAsync(
+        TenantId tenantId,
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        var allMenus = await QueryAllAsync(tenantId, cancellationToken);
+        var menuCandidates = allMenus
+            .Where(x => string.Equals(x.Status, "0", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.SortOrder)
+            .ToArray();
+
+        var userRoles = await _userRoleRepository.QueryByUserIdAsync(tenantId, userId, cancellationToken);
+        if (userRoles.Count == 0)
+        {
+            return Array.Empty<MenuListItem>();
+        }
+
+        var roleIds = userRoles.Select(x => x.RoleId).Distinct().ToArray();
+        var roles = await _roleRepository.QueryByIdsAsync(tenantId, roleIds, cancellationToken);
+        var isAdmin = roles.Any(r => string.Equals(r.Code, "Admin", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(r.Code, "SuperAdmin", StringComparison.OrdinalIgnoreCase));
+
+        if (isAdmin)
+        {
+            return menuCandidates.Where(x => !string.Equals(x.MenuType, "F", StringComparison.OrdinalIgnoreCase)).ToArray();
+        }
+
+        var roleMenuEntries = new List<long>();
+        foreach (var roleId in roleIds)
+        {
+            var menus = await _roleMenuRepository.QueryByRoleIdAsync(tenantId, roleId, cancellationToken);
+            roleMenuEntries.AddRange(menus.Select(x => x.MenuId));
+        }
+
+        var menuIdSet = roleMenuEntries.ToHashSet();
+        if (menuIdSet.Count == 0)
+        {
+            return Array.Empty<MenuListItem>();
+        }
+
+        var result = menuCandidates
+            .Where(x => menuIdSet.Contains(long.Parse(x.Id)) && !string.Equals(x.MenuType, "F", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // 递归补全父目录，确保侧边菜单结构完整
+        var byId = menuCandidates.ToDictionary(x => x.Id);
+        var visited = result.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
+        var queue = new Queue<MenuListItem>(result);
+        while (queue.Count > 0)
+        {
+            var item = queue.Dequeue();
+            if (item.ParentId is null or 0)
+            {
+                continue;
+            }
+
+            var parentId = item.ParentId.Value.ToString();
+            if (!visited.Contains(parentId) && byId.TryGetValue(parentId, out var parent))
+            {
+                visited.Add(parentId);
+                result.Add(parent);
+                queue.Enqueue(parent);
+            }
+        }
+
+        return result
+            .OrderBy(x => x.SortOrder)
+            .ToArray();
+    }
+
+    public IReadOnlyList<RouterVo> BuildMenus(IReadOnlyList<MenuListItem> menus)
+    {
+        var nodeMap = menus.ToDictionary(
+            x => x.Id,
+            x => new RouterVo
+            {
+                Hidden = x.Visible == "1" || x.IsHidden,
+                Name = BuildRouteName(x),
+                Path = x.Path,
+                Query = x.Query,
+                Component = string.IsNullOrWhiteSpace(x.Component) ? null : x.Component,
+                Meta = new RouterMeta
+                {
+                    Title = x.Name,
+                    Icon = x.Icon,
+                    NoCache = !x.IsCache,
+                    Link = x.MenuType == "L" ? x.Path : null,
+                    Permi = string.IsNullOrWhiteSpace(x.Perms) ? x.PermissionCode : x.Perms
+                },
+                Children = new List<RouterVo>()
+            },
+            StringComparer.Ordinal);
+
+        var roots = new List<RouterVo>();
+        foreach (var menu in menus.OrderBy(x => x.SortOrder))
+        {
+            if (!nodeMap.TryGetValue(menu.Id, out var node))
+            {
+                continue;
+            }
+
+            var isRoot = menu.ParentId is null or 0;
+            if (isRoot)
+            {
+                roots.Add(node);
+                continue;
+            }
+
+            var parentId = menu.ParentId.Value.ToString();
+            if (nodeMap.TryGetValue(parentId, out var parent))
+            {
+                parent.Children ??= new List<RouterVo>();
+                parent.Children.Add(node);
+            }
+            else
+            {
+                roots.Add(node);
+            }
+        }
+
+        foreach (var root in roots)
+        {
+            NormalizeRouter(root);
+        }
+
+        return roots;
+    }
+
+    private static string BuildRouteName(MenuListItem item)
+    {
+        var path = item.Path.Trim('/');
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "Home";
+        }
+
+        var parts = path
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => string.Concat(part
+                .Split('-', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => char.ToUpperInvariant(s[0]) + s[1..])))
+            .ToArray();
+        return string.Join(string.Empty, parts);
+    }
+
+    private static void NormalizeRouter(RouterVo router)
+    {
+        if (router.Children is { Count: > 0 })
+        {
+            router.AlwaysShow = true;
+            foreach (var child in router.Children)
+            {
+                NormalizeRouter(child);
+            }
+        }
+        else
+        {
+            router.Children = null;
+        }
     }
 }

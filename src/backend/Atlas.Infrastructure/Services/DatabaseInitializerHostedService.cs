@@ -68,6 +68,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         typeof(Permission),
         typeof(UserRole),
         typeof(RolePermission),
+        typeof(RoleDept),
         typeof(Department),
         typeof(Position),
         typeof(UserDepartment),
@@ -396,22 +397,51 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             throw new InvalidOperationException("初始化权限失败：缺少 system:admin 或 workflow:design。");
         }
 
-        var menuSeeds = new (string Name, string Path, string? ParentPath, int SortOrder, string? Component, string? Icon, string? PermissionCode, bool IsHidden)[]
+        var menuSeeds = new (
+            string Name,
+            string Path,
+            string? ParentPath,
+            int SortOrder,
+            string MenuType,
+            string? Component,
+            string? Icon,
+            string? Perms,
+            string? Query,
+            bool IsFrame,
+            bool IsCache,
+            string Visible,
+            string Status,
+            string? PermissionCode,
+            bool IsHidden)[]
         {
-            ("System", "/system", null, 0, "Layout", "settings", adminPermission.Code, false),
-            ("项目管理", "/system/projects", "/system", 70, "system/projects", "project", PermissionCodes.ProjectsView, false),
-            ("Workflow", "/workflow", null, 10, "Layout", "workflow", adminPermission.Code, false),
-            ("Workflow Designer", "/workflow/designer", "/workflow", 20, "workflow/designer", "workflow", workflowPermission.Code, false),
-            ("总览", "/", null, 0, null, null, adminPermission.Code, false),
-            ("资产", "/assets", null, 10, null, null, PermissionCodes.AssetsView, false),
-            ("审计", "/audit", null, 20, null, null, PermissionCodes.AuditView, false),
-            ("告警", "/alert", null, 30, null, null, PermissionCodes.AlertView, false),
-            ("审批流", "/approval/flows", null, 40, null, null, PermissionCodes.ApprovalFlowView, false),
-            ("可视化中心", "/visualization", null, 50, "Layout", "dashboard", PermissionCodes.VisualizationView, false),
-            ("总览", "/visualization/center", "/visualization", 10, "visualization/center", "dashboard", PermissionCodes.VisualizationView, false),
-            ("设计器", "/visualization/designer", "/visualization", 20, "visualization/designer", "dashboard", PermissionCodes.VisualizationView, false),
-            ("运行态", "/visualization/runtime", "/visualization", 30, "visualization/runtime", "dashboard", PermissionCodes.VisualizationView, false),
-            ("治理中心", "/visualization/governance", "/visualization", 40, "visualization/governance", "dashboard", PermissionCodes.VisualizationView, false)
+            ("首页", "/", null, 0, "C", "home", "dashboard", PermissionCodes.SystemAdmin, null, false, false, "0", "0", PermissionCodes.SystemAdmin, false),
+
+            ("安全中心", "/security", null, 10, "M", "Layout", "safety-certificate", null, null, false, false, "0", "0", null, false),
+            ("资产管理", "/assets", "/security", 11, "C", "AssetsPage", "database", PermissionCodes.AssetsView, null, false, true, "0", "0", PermissionCodes.AssetsView, false),
+            ("审计日志", "/audit", "/security", 12, "C", "AuditPage", "file-search", PermissionCodes.AuditView, null, false, true, "0", "0", PermissionCodes.AuditView, false),
+            ("告警管理", "/alert", "/security", 13, "C", "AlertPage", "bell", PermissionCodes.AlertView, null, false, true, "0", "0", PermissionCodes.AlertView, false),
+
+            ("流程中心", "/process", null, 20, "M", "Layout", "cluster", null, null, false, false, "0", "0", null, false),
+            ("审批流", "/approval/flows", "/process", 21, "C", "ApprovalFlowsPage", "apartment", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, false),
+            ("工作流设计", "/workflow/designer", "/process", 22, "C", "WorkflowDesignerPage", "branches", workflowPermission.Code, null, false, true, "0", "0", workflowPermission.Code, false),
+
+            ("系统管理", "/system", null, 30, "M", "Layout", "setting", null, null, false, false, "0", "0", null, false),
+            ("用户管理", "/settings/org/users", "/system", 31, "C", "system/UsersPage", "user", PermissionCodes.UsersView, null, false, true, "0", "0", PermissionCodes.UsersView, false),
+            ("角色管理", "/settings/auth/roles", "/system", 32, "C", "system/RolesPage", "team", PermissionCodes.RolesView, null, false, true, "0", "0", PermissionCodes.RolesView, false),
+            ("菜单管理", "/settings/auth/menus", "/system", 33, "C", "system/MenusPage", "menu", PermissionCodes.MenusView, null, false, true, "0", "0", PermissionCodes.MenusView, false),
+            ("项目管理", "/settings/projects", "/system", 34, "C", "system/ProjectsPage", "project", PermissionCodes.ProjectsView, null, false, true, "0", "0", PermissionCodes.ProjectsView, false),
+
+            ("用户查询", "/settings/org/users:query", "/settings/org/users", 1, "F", null, null, PermissionCodes.UsersView, null, false, false, "0", "0", PermissionCodes.UsersView, true),
+            ("用户新增", "/settings/org/users:create", "/settings/org/users", 2, "F", null, null, PermissionCodes.UsersCreate, null, false, false, "0", "0", PermissionCodes.UsersCreate, true),
+            ("用户修改", "/settings/org/users:update", "/settings/org/users", 3, "F", null, null, PermissionCodes.UsersUpdate, null, false, false, "0", "0", PermissionCodes.UsersUpdate, true),
+            ("用户删除", "/settings/org/users:delete", "/settings/org/users", 4, "F", null, null, PermissionCodes.UsersDelete, null, false, false, "0", "0", PermissionCodes.UsersDelete, true),
+            ("角色查询", "/settings/auth/roles:query", "/settings/auth/roles", 1, "F", null, null, PermissionCodes.RolesView, null, false, false, "0", "0", PermissionCodes.RolesView, true),
+            ("角色新增", "/settings/auth/roles:create", "/settings/auth/roles", 2, "F", null, null, PermissionCodes.RolesCreate, null, false, false, "0", "0", PermissionCodes.RolesCreate, true),
+            ("角色修改", "/settings/auth/roles:update", "/settings/auth/roles", 3, "F", null, null, PermissionCodes.RolesUpdate, null, false, false, "0", "0", PermissionCodes.RolesUpdate, true),
+            ("角色删除", "/settings/auth/roles:delete", "/settings/auth/roles", 4, "F", null, null, PermissionCodes.RolesDelete, null, false, false, "0", "0", PermissionCodes.RolesDelete, true),
+            ("菜单查询", "/settings/auth/menus:query", "/settings/auth/menus", 1, "F", null, null, PermissionCodes.MenusView, null, false, false, "0", "0", PermissionCodes.MenusView, true),
+            ("菜单新增", "/settings/auth/menus:create", "/settings/auth/menus", 2, "F", null, null, PermissionCodes.MenusCreate, null, false, false, "0", "0", PermissionCodes.MenusCreate, true),
+            ("菜单修改", "/settings/auth/menus:update", "/settings/auth/menus", 3, "F", null, null, PermissionCodes.MenusUpdate, null, false, false, "0", "0", PermissionCodes.MenusUpdate, true)
         };
 
         var menuPaths = menuSeeds.Select(x => x.Path).Distinct().ToArray();
@@ -441,8 +471,15 @@ public sealed class DatabaseInitializerHostedService : IHostedService
                 idGeneratorAccessor.NextId(),
                 parentId,
                 seed.SortOrder,
+                seed.MenuType,
                 seed.Component,
                 seed.Icon,
+                seed.Perms,
+                seed.Query,
+                seed.IsFrame,
+                seed.IsCache,
+                seed.Visible,
+                seed.Status,
                 seed.PermissionCode,
                 seed.IsHidden);
             menusToInsert.Add(menu);
@@ -565,20 +602,19 @@ public sealed class DatabaseInitializerHostedService : IHostedService
 
         var requiredMenuPaths = new[]
         {
-            "/system",
-            "/system/projects",
-            "/workflow",
-            "/workflow/designer",
             "/",
+            "/security",
             "/assets",
             "/audit",
             "/alert",
+            "/process",
             "/approval/flows",
-            "/visualization",
-            "/visualization/center",
-            "/visualization/designer",
-            "/visualization/runtime",
-            "/visualization/governance"
+            "/workflow/designer",
+            "/system",
+            "/settings/org/users",
+            "/settings/auth/roles",
+            "/settings/auth/menus",
+            "/settings/projects"
         };
         var menuIds = requiredMenuPaths
             .Select(path => menuIdMap.TryGetValue(path, out var menuId) ? menuId : 0)
@@ -785,7 +821,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         {
             ("security.password.minLength", "8", "密码最小长度", "内置安全策略参数"),
             ("security.lockout.maxFailedAttempts", "5", "最大失败次数", "内置安全策略参数"),
-            ("security.lockout.lockMinutes", "15", "锁定时长(分钟)", "内置安全策略参数")
+            ("security.lockout.lockMinutes", "15", "锁定时长(分钟)", "内置安全策略参数"),
+            ("sys.account.register", "false", "是否开启自助注册", "内置注册策略参数")
         };
 
         foreach (var seed in seeds)

@@ -78,14 +78,43 @@ public sealed class UserQueryService : IUserQueryService
         }
 
         var ownerFilterId = await _dataScopeFilter.GetOwnerFilterIdAsync(cancellationToken);
-        var scopedItems = ownerFilterId.HasValue
-            ? result.Items.Where(x => x.Id == ownerFilterId.Value).ToArray()
-            : result.Items.ToArray();
+        var deptFilterIds = await _dataScopeFilter.GetDeptFilterIdsAsync(cancellationToken);
+        var projectFilterIds = await _dataScopeFilter.GetProjectFilterIdsAsync(cancellationToken);
+        var scopedItems = result.Items.AsEnumerable();
+        if (ownerFilterId.HasValue)
+        {
+            scopedItems = scopedItems.Where(x => x.Id == ownerFilterId.Value);
+        }
+        if (deptFilterIds is { Count: > 0 })
+        {
+            var deptSet = deptFilterIds.ToHashSet();
+            var mappings = await _userDepartmentRepository.QueryByUserIdsAsync(
+                tenantId,
+                result.Items.Select(x => x.Id).Distinct().ToArray(),
+                cancellationToken);
+            var allowedUserIds = mappings
+                .Where(x => deptSet.Contains(x.DepartmentId))
+                .Select(x => x.UserId)
+                .ToHashSet();
+            scopedItems = scopedItems.Where(x => allowedUserIds.Contains(x.Id));
+        }
+        if (projectFilterIds is { Count: > 0 })
+        {
+            var projectSet = projectFilterIds.ToHashSet();
+            var userProjectMappings = await _projectUserRepository.QueryByUserIdsAsync(
+                tenantId,
+                result.Items.Select(x => x.Id).Distinct().ToArray(),
+                cancellationToken);
+            var allowedUserIds = userProjectMappings
+                .Where(x => projectSet.Contains(x.ProjectId))
+                .Select(x => x.UserId)
+                .ToHashSet();
+            scopedItems = scopedItems.Where(x => allowedUserIds.Contains(x.Id));
+        }
+        var scopedArray = scopedItems.ToArray();
 
-        var resultItems = scopedItems.Select(x => _mapper.Map<UserListItem>(x)).ToArray();
-        var scopedTotal = ownerFilterId.HasValue
-            ? resultItems.Length
-            : result.TotalCount;
+        var resultItems = scopedArray.Select(x => _mapper.Map<UserListItem>(x)).ToArray();
+        var scopedTotal = resultItems.Length;
 
         return new PagedResult<UserListItem>(resultItems, scopedTotal, pageIndex, pageSize);
     }
@@ -94,6 +123,8 @@ public sealed class UserQueryService : IUserQueryService
     {
         var projectContext = _projectContextAccessor.GetCurrent();
         var ownerFilterId = await _dataScopeFilter.GetOwnerFilterIdAsync(cancellationToken);
+        var deptFilterIds = await _dataScopeFilter.GetDeptFilterIdsAsync(cancellationToken);
+        var projectFilterIds = await _dataScopeFilter.GetProjectFilterIdsAsync(cancellationToken);
         if (ownerFilterId.HasValue && ownerFilterId.Value != id)
         {
             return null;
@@ -131,6 +162,18 @@ public sealed class UserQueryService : IUserQueryService
         var roleIds = await _userRoleRepository.QueryByUserIdAsync(tenantId, id, cancellationToken);
         var departmentIds = await _userDepartmentRepository.QueryByUserIdAsync(tenantId, id, cancellationToken);
         var positionIds = await _userPositionRepository.QueryByUserIdAsync(tenantId, id, cancellationToken);
+        if (deptFilterIds is { Count: > 0 } && !departmentIds.Any(x => deptFilterIds.Contains(x.DepartmentId)))
+        {
+            return null;
+        }
+        if (projectFilterIds is { Count: > 0 })
+        {
+            var myProjectIds = await _projectUserRepository.QueryProjectIdsByUserIdAsync(tenantId, id, cancellationToken);
+            if (!myProjectIds.Any(projectFilterIds.Contains))
+            {
+                return null;
+            }
+        }
 
         return new UserDetail(
             user.Id.ToString(),

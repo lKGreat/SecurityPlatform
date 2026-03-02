@@ -13,13 +13,25 @@ public sealed class DataScopeFilter : IDataScopeFilter
 {
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly RoleRepository _roleRepository;
+    private readonly IRoleDeptRepository _roleDeptRepository;
+    private readonly IUserDepartmentRepository _userDepartmentRepository;
+    private readonly IDepartmentRepository _departmentRepository;
+    private readonly IProjectUserRepository _projectUserRepository;
 
     public DataScopeFilter(
         ICurrentUserAccessor currentUserAccessor,
-        RoleRepository roleRepository)
+        RoleRepository roleRepository,
+        IRoleDeptRepository roleDeptRepository,
+        IUserDepartmentRepository userDepartmentRepository,
+        IDepartmentRepository departmentRepository,
+        IProjectUserRepository projectUserRepository)
     {
         _currentUserAccessor = currentUserAccessor;
         _roleRepository = roleRepository;
+        _roleDeptRepository = roleDeptRepository;
+        _userDepartmentRepository = userDepartmentRepository;
+        _departmentRepository = departmentRepository;
+        _projectUserRepository = projectUserRepository;
     }
 
     public async Task<DataScopeType> GetEffectiveScopeAsync(CancellationToken ct = default)
@@ -50,5 +62,90 @@ public sealed class DataScopeFilter : IDataScopeFilter
         }
 
         return null; // null = 不过滤（有权查看所有）
+    }
+
+    public async Task<IReadOnlyList<long>?> GetDeptFilterIdsAsync(CancellationToken ct = default)
+    {
+        var user = _currentUserAccessor.GetCurrentUser();
+        if (user is null)
+        {
+            return Array.Empty<long>();
+        }
+
+        var scope = await GetEffectiveScopeAsync(ct);
+        if (scope is DataScopeType.All or DataScopeType.CurrentTenant)
+        {
+            return null;
+        }
+
+        var userRoles = await _roleRepository.QueryByCodesAsync(user.TenantId, user.Roles, ct);
+        if (scope == DataScopeType.CustomDept)
+        {
+            var roleIds = userRoles.Select(x => x.Id).Distinct().ToArray();
+            var roleDepts = await _roleDeptRepository.QueryByRoleIdsAsync(user.TenantId, roleIds, ct);
+            return roleDepts.Select(x => x.DeptId).Distinct().ToArray();
+        }
+
+        var myDepartments = await _userDepartmentRepository.QueryByUserIdAsync(user.TenantId, user.UserId, ct);
+        var myDeptIds = myDepartments.Select(x => x.DepartmentId).Distinct().ToArray();
+
+        if (scope == DataScopeType.CurrentDept)
+        {
+            return myDeptIds;
+        }
+
+        if (scope == DataScopeType.CurrentDeptAndBelow)
+        {
+            var allDepartments = await _departmentRepository.QueryAllAsync(user.TenantId, ct);
+            var childrenByParent = allDepartments
+                .Where(x => x.ParentId.HasValue && x.ParentId.Value > 0)
+                .GroupBy(x => x.ParentId!.Value)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Id).ToArray());
+
+            var result = new HashSet<long>(myDeptIds);
+            var queue = new Queue<long>(myDeptIds);
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if (!childrenByParent.TryGetValue(current, out var children))
+                {
+                    continue;
+                }
+
+                foreach (var child in children)
+                {
+                    if (result.Add(child))
+                    {
+                        queue.Enqueue(child);
+                    }
+                }
+            }
+
+            return result.ToArray();
+        }
+
+        return null;
+    }
+
+    public async Task<IReadOnlyList<long>?> GetProjectFilterIdsAsync(CancellationToken ct = default)
+    {
+        var user = _currentUserAccessor.GetCurrentUser();
+        if (user is null)
+        {
+            return Array.Empty<long>();
+        }
+
+        var scope = await GetEffectiveScopeAsync(ct);
+        if (scope is DataScopeType.All or DataScopeType.CurrentTenant)
+        {
+            return null;
+        }
+
+        if (scope != DataScopeType.Project)
+        {
+            return null;
+        }
+
+        return await _projectUserRepository.QueryProjectIdsByUserIdAsync(user.TenantId, user.UserId, ct);
     }
 }

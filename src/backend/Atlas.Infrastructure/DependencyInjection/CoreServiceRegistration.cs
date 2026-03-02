@@ -78,6 +78,7 @@ public static class CoreServiceRegistration
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
         services.AddScoped<IRoleMenuRepository, RoleMenuRepository>();
+        services.AddScoped<IRoleDeptRepository, RoleDeptRepository>();
         services.AddScoped<IUserDepartmentRepository, UserDepartmentRepository>();
         services.AddScoped<IUserPositionRepository, UserPositionRepository>();
         services.AddScoped<IUserHierarchyQueryRepository, UserHierarchyQueryRepository>();

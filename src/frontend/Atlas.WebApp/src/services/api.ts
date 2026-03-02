@@ -60,6 +60,8 @@ import type {
   MenuCreateRequest,
   MenuUpdateRequest,
   MenuQueryRequest,
+  RouterVo,
+  RegisterRequest,
   PositionListItem,
   PositionDetail,
   PositionCreateRequest,
@@ -183,6 +185,33 @@ export async function getCurrentUser(): Promise<AuthProfile> {
     throw new Error(response.message || "获取用户信息失败");
   }
 
+  return response.data;
+}
+
+export async function getRouters(): Promise<RouterVo[]> {
+  const response = await requestApi<ApiResponse<RouterVo[]>>("/auth/routers");
+  if (!response.data) {
+    throw new Error(response.message || "获取路由失败");
+  }
+  return response.data;
+}
+
+export async function register(
+  tenantId: string,
+  request: RegisterRequest,
+  requestOptions?: RequestOptions
+): Promise<{ id: string }> {
+  const response = await requestApi<ApiResponse<{ id: string }>>("/auth/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Tenant-Id": tenantId
+    },
+    body: JSON.stringify(request)
+  }, { ...requestOptions, disableAutoRefresh: true });
+  if (!response.data) {
+    throw new Error(response.message || "注册失败");
+  }
   return response.data;
 }
 

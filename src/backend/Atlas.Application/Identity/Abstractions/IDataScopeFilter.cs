@@ -16,4 +16,14 @@ public interface IDataScopeFilter
     /// 当权限为 OnlySelf 时，返回当前用户 ID；否则返回 null（不限制）
     /// </summary>
     Task<long?> GetOwnerFilterIdAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// 返回可访问部门ID集合。null 代表不限制。
+    /// </summary>
+    Task<IReadOnlyList<long>?> GetDeptFilterIdsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// 返回可访问项目ID集合。null 代表不限制。
+    /// </summary>
+    Task<IReadOnlyList<long>?> GetProjectFilterIdsAsync(CancellationToken ct = default);
 }

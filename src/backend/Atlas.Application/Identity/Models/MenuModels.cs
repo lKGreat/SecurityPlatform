@@ -9,7 +9,14 @@ public sealed record MenuListItem(
     string? Component,
     string? Icon,
     string? PermissionCode,
-    bool IsHidden);
+    bool IsHidden,
+    string MenuType = "C",
+    string? Perms = null,
+    string? Query = null,
+    bool IsFrame = false,
+    bool IsCache = false,
+    string Visible = "0",
+    string Status = "0");
 
 public sealed record MenuQueryRequest(
     int PageIndex,
@@ -24,8 +31,15 @@ public sealed record MenuCreateRequest(
     string Path,
     long? ParentId,
     int SortOrder,
+    string MenuType,
     string? Component,
     string? Icon,
+    string? Perms,
+    string? Query,
+    bool IsFrame,
+    bool IsCache,
+    string Visible,
+    string Status,
     string? PermissionCode,
     bool IsHidden);
 
@@ -34,7 +48,14 @@ public sealed record MenuUpdateRequest(
     string Path,
     long? ParentId,
     int SortOrder,
+    string MenuType,
     string? Component,
     string? Icon,
+    string? Perms,
+    string? Query,
+    bool IsFrame,
+    bool IsCache,
+    string Visible,
+    string Status,
     string? PermissionCode,
     bool IsHidden);

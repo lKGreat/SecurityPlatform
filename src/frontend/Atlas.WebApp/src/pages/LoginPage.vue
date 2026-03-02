@@ -151,6 +151,7 @@
 
             <div class="secondary-actions">
               <a href="/password-reset">忘记密码</a>
+              <router-link to="/register">还没有账号？立即注册</router-link>
             </div>
           </a-form>
         </a-card>
@@ -557,7 +558,7 @@ onBeforeUnmount(() => {
 
 .secondary-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   margin-top: var(--spacing-sm);
 }
 
