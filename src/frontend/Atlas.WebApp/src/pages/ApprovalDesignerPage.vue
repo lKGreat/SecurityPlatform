@@ -97,7 +97,28 @@
 
     <!-- ══ 步骤 1: 表单设计 ══ -->
     <div class="dd-body dd-body--scroll" v-show="activeStep === 1">
-      <LfFormDesigner v-model="lfFormModel" @update:formFields="handleLfFormFields" />
+      <a-tabs v-model:activeKey="formEngine">
+        <a-tab-pane key="lf" tab="LF(vform3) 表单">
+          <LfFormDesigner v-model="lfFormModel" @update:formFields="handleLfFormFields" />
+        </a-tab-pane>
+        <a-tab-pane key="amis" tab="AMIS 表单 Schema">
+          <a-alert
+            type="info"
+            show-icon
+            style="margin-bottom: 12px"
+            message="请输入 AMIS Schema（JSON），系统会自动提取字段供条件与权限配置使用"
+          />
+          <a-textarea
+            v-model:value="amisSchemaText"
+            :rows="20"
+            placeholder='{"type":"form","body":[{"type":"input-text","name":"title","label":"标题"}]}'
+          />
+          <div style="margin-top: 8px; display: flex; gap: 8px">
+            <a-button size="small" @click="formatAmisSchema">格式化 JSON</a-button>
+            <a-button size="small" @click="applyAmisSchema">应用并提取字段</a-button>
+          </div>
+        </a-tab-pane>
+      </a-tabs>
     </div>
 
     <!-- ══ 步骤 2: 流程设计（三栏，撑满剩余） ══ -->
@@ -118,7 +139,7 @@
       <ApprovalPropertiesPanel
         :open="panelOpen"
         :node="selectedNode"
-        :form-fields="lfFormPayload?.formFields"
+        :form-fields="effectiveFormFields"
         @update:open="panelOpen = $event"
         @update="handleNodeUpdate"
       />
@@ -165,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import {
@@ -186,6 +207,7 @@ import X6PreviewCanvas from '@/components/approval/X6PreviewCanvas.vue';
 import UserRolePicker from '@/components/common/UserRolePicker.vue';
 import { useApprovalTree } from '@/composables/useApprovalTree';
 import { ApprovalTreeConverter } from '@/utils/approval-tree-converter';
+import { extractAmisFields } from '@/utils/amis-field-extractor';
 import type { ApprovalDefinitionMeta, LfFormPayload, FormJson, VisibilityScope } from '@/types/approval-definition';
 import type { TreeNode, ConditionBranch } from '@/types/approval-tree';
 import type { ApprovalFlowValidationResult } from '@/types/api';
@@ -216,6 +238,11 @@ const activeStep = ref(0);
 const definitionMeta = ref<ApprovalDefinitionMeta>({ flowName: '', isLowCodeFlow: true });
 const lfFormPayload = ref<LfFormPayload | undefined>(undefined);
 const lfFormModel = ref<FormJson | undefined>(undefined);
+const formEngine = ref<'lf' | 'amis'>('lf');
+const amisSchemaText = ref('');
+const amisSchemaModel = ref<unknown | undefined>(undefined);
+const amisFormFields = ref<LfFormPayload['formFields']>([]);
+const effectiveFormFields = computed(() => (formEngine.value === 'amis' ? amisFormFields.value : (lfFormPayload.value?.formFields ?? [])));
 // const visibilityScopeText = ref(''); // Removed
 const visibilityScopeType = ref<'All' | 'Department' | 'Role' | 'User'>('All');
 const visibilityScopeIds = ref<string[]>([]);
@@ -252,6 +279,34 @@ const handleLfFormFields = (fields: LfFormPayload['formFields']) => {
   lfFormPayload.value = { formJson: lfFormModel.value ?? { widgetList: [] }, formFields: fields };
 };
 
+const formatAmisSchema = () => {
+  if (!amisSchemaText.value.trim()) {
+    return;
+  }
+  try {
+    const parsed = JSON.parse(amisSchemaText.value);
+    amisSchemaText.value = JSON.stringify(parsed, null, 2);
+  } catch {
+    message.error('AMIS Schema JSON 格式不正确');
+  }
+};
+
+const applyAmisSchema = () => {
+  if (!amisSchemaText.value.trim()) {
+    amisSchemaModel.value = undefined;
+    amisFormFields.value = [];
+    return;
+  }
+  try {
+    const parsed = JSON.parse(amisSchemaText.value);
+    amisSchemaModel.value = parsed;
+    amisFormFields.value = extractAmisFields(parsed);
+    message.success(`已提取 ${amisFormFields.value.length} 个 AMIS 字段`);
+  } catch {
+    message.error('AMIS Schema JSON 解析失败');
+  }
+};
+
 // ── 构建后端请求 ──
 const buildRequest = () => {
   definitionMeta.value.flowName = flowName.value;
@@ -267,11 +322,16 @@ const buildRequest = () => {
   definitionMeta.value.visibilityScope = scope;
 
   if (definitionMeta.value.isLowCodeFlow) {
-    lfFormPayload.value = { formJson: lfFormModel.value ?? { widgetList: [] }, formFields: lfFormPayload.value?.formFields ?? [] };
+    if (formEngine.value === 'lf') {
+      lfFormPayload.value = { formJson: lfFormModel.value ?? { widgetList: [] }, formFields: lfFormPayload.value?.formFields ?? [] };
+    }
   } else {
     lfFormPayload.value = undefined;
   }
-  const definitionJson = ApprovalTreeConverter.treeToDefinitionJson(flowTree.value, definitionMeta.value, lfFormPayload.value);
+  const amisFormPayload = formEngine.value === 'amis' && amisSchemaModel.value
+    ? { schema: amisSchemaModel.value as Record<string, unknown>, schemaVersion: '1.0.0', formFields: amisFormFields.value }
+    : undefined;
+  const definitionJson = ApprovalTreeConverter.treeToDefinitionJson(flowTree.value, definitionMeta.value, lfFormPayload.value, amisFormPayload);
   const visibilityScopeJson = definitionMeta.value.visibilityScope ? JSON.stringify(definitionMeta.value.visibilityScope) : undefined;
   return { name: flowName.value, definitionJson, description: definitionMeta.value.description, category: definitionMeta.value.category, visibilityScopeJson, isQuickEntry: !!definitionMeta.value.isQuickEntry };
 };
@@ -303,7 +363,17 @@ const loadFlow = async () => {
         // 合并 meta，但不覆盖 visibilityScope（由顶层 visibilityScopeJson 权威管理）
         definitionMeta.value = { ...state.meta, visibilityScope: undefined };
       }
-      if (state.lfForm) { lfFormPayload.value = state.lfForm; lfFormModel.value = state.lfForm.formJson; }
+      if (state.lfForm) {
+        formEngine.value = 'lf';
+        lfFormPayload.value = state.lfForm;
+        lfFormModel.value = state.lfForm.formJson;
+      }
+      if (state.amisForm?.schema) {
+        formEngine.value = 'amis';
+        amisSchemaModel.value = state.amisForm.schema;
+        amisSchemaText.value = JSON.stringify(state.amisForm.schema, null, 2);
+        amisFormFields.value = state.amisForm.formFields ?? extractAmisFields(state.amisForm.schema);
+      }
     }
     // 顶层 visibilityScopeJson 为权威来源，最后加载确保不被 definitionJson.meta 覆盖
     if (flow.visibilityScopeJson) {
@@ -332,7 +402,12 @@ const loadFlow = async () => {
 // ── 校验 ──
 const handleValidate = async () => {
   const localResult = validateFlow();
-  if (!localResult.valid) { validateResult.value = { isValid: false, errors: localResult.errors, warnings: [] }; validateModalOpen.value = true; return; }
+  if (!localResult.valid) {
+    focusNodeByErrors(localResult.errors);
+    validateResult.value = { isValid: false, errors: localResult.errors, warnings: [] };
+    validateModalOpen.value = true;
+    return;
+  }
   if (!flowName.value.trim()) { message.warning('请输入流程名称'); return; }
   const request = buildRequest();
   if (!request) return;
@@ -350,7 +425,12 @@ const handleValidate = async () => {
 const handleSave = async () => {
   if (!flowName.value.trim()) { message.warning('请输入流程名称'); return; }
   const localResult = validateFlow();
-  if (!localResult.valid) { validateResult.value = { isValid: false, errors: localResult.errors, warnings: [] }; validateModalOpen.value = true; return; }
+  if (!localResult.valid) {
+    focusNodeByErrors(localResult.errors);
+    validateResult.value = { isValid: false, errors: localResult.errors, warnings: [] };
+    validateModalOpen.value = true;
+    return;
+  }
   const payload = buildRequest();
   if (!payload) return;
   try {
@@ -375,6 +455,7 @@ const handlePublishClick = async () => {
   // 1. 本地校验
   const localResult = validateFlow();
   if (!localResult.valid) {
+    focusNodeByErrors(localResult.errors);
     validateResult.value = { isValid: false, errors: localResult.errors, warnings: [] };
     validateModalOpen.value = true;
     return;
@@ -416,6 +497,43 @@ const handlePreview = () => { previewModalOpen.value = true; };
 // ── 工具 ──
 const parseVisibilityScope = (value: string): VisibilityScope | null => {
   try { const p = JSON.parse(value) as VisibilityScope; return p?.scopeType ? p : null; } catch { return null; }
+};
+
+const focusNodeByErrors = (errors: string[]) => {
+  if (errors.length === 0) return;
+  const firstError = errors[0];
+  const idMatch = firstError.match(/node[_-]?[a-z0-9-]+/i);
+  if (!idMatch) return;
+  const target = findNodeById(flowTree.value.rootNode, idMatch[0]);
+  if (target) {
+    selectNode(target);
+    activeStep.value = 2;
+    message.warning(`已定位到异常节点：${target.nodeName}`);
+  }
+};
+
+const findNodeById = (node: TreeNode | undefined, nodeId: string): TreeNode | null => {
+  if (!node) return null;
+  if (node.id === nodeId) return node;
+  if ('childNode' in node && node.childNode) {
+    const found = findNodeById(node.childNode, nodeId);
+    if (found) return found;
+  }
+  if ('conditionNodes' in node && Array.isArray(node.conditionNodes)) {
+    for (const branch of node.conditionNodes) {
+      if (branch.childNode) {
+        const found = findNodeById(branch.childNode, nodeId);
+        if (found) return found;
+      }
+    }
+  }
+  if ('parallelNodes' in node && Array.isArray(node.parallelNodes)) {
+    for (const child of node.parallelNodes) {
+      const found = findNodeById(child, nodeId);
+      if (found) return found;
+    }
+  }
+  return null;
 };
 
 onMounted(() => { loadFlow(); });

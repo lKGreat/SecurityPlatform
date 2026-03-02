@@ -28,6 +28,7 @@ public sealed class ApprovalTasksController : ControllerBase
     private readonly IApprovalRuntimeQueryService _queryService;
     private readonly IApprovalRuntimeCommandService _commandService;
     private readonly IApprovalTaskRepository _taskRepository;
+    private readonly IApprovalCommunicationRecordRepository _communicationRecordRepository;
     private readonly IMapper _mapper;
     private readonly ITenantProvider _tenantProvider;
     private readonly ICurrentUserAccessor _currentUserAccessor;
@@ -39,6 +40,7 @@ public sealed class ApprovalTasksController : ControllerBase
         IApprovalRuntimeQueryService queryService,
         IApprovalRuntimeCommandService commandService,
         IApprovalTaskRepository taskRepository,
+        IApprovalCommunicationRecordRepository communicationRecordRepository,
         IMapper mapper,
         ITenantProvider tenantProvider,
         ICurrentUserAccessor currentUserAccessor,
@@ -49,6 +51,7 @@ public sealed class ApprovalTasksController : ControllerBase
         _queryService = queryService;
         _commandService = commandService;
         _taskRepository = taskRepository;
+        _communicationRecordRepository = communicationRecordRepository;
         _mapper = mapper;
         _tenantProvider = tenantProvider;
         _currentUserAccessor = currentUserAccessor;
@@ -121,6 +124,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 任务委派
     /// </summary>
     [HttpPost("{id:long}/delegation")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowUpdate)]
     public async Task<ApiResponse<string>> DelegateAsync(
         long id,
         [FromQuery] long delegateeUserId,
@@ -144,6 +148,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 委派归还（完成委派任务）
     /// </summary>
     [HttpPost("{id:long}/resolution")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowUpdate)]
     public async Task<ApiResponse<string>> ResolveAsync(
         long id,
         [FromBody] string? comment,
@@ -165,6 +170,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 认领任务
     /// </summary>
     [HttpPost("{id:long}/claim")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowUpdate)]
     public async Task<ApiResponse<string>> ClaimAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -192,6 +198,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 催办任务
     /// </summary>
     [HttpPost("{id:long}/urge")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowUpdate)]
     public async Task<ApiResponse<string>> UrgeAsync(
         long id,
         [FromBody] string? message,
@@ -221,6 +228,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 任务沟通
     /// </summary>
     [HttpPost("{id:long}/communication")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowUpdate)]
     public async Task<ApiResponse<string>> CommunicateAsync(
         long id,
         [FromQuery] long recipientUserId,
@@ -257,9 +265,9 @@ public sealed class ApprovalTasksController : ControllerBase
         long id,
         CancellationToken cancellationToken = default)
     {
-        // 需注入仓储或查询服务
-        // var records = await _communicationRepository.GetByTaskIdAsync(...)
-        return ApiResponse<List<ApprovalCommunicationRecord>>.Ok(new List<ApprovalCommunicationRecord>(), HttpContext.TraceIdentifier);
+        var tenantId = _tenantProvider.GetTenantId();
+        var records = await _communicationRecordRepository.GetByTaskIdAsync(tenantId, id, cancellationToken);
+        return ApiResponse<List<ApprovalCommunicationRecord>>.Ok(records.ToList(), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -283,6 +291,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 批量转办（离职转办）
     /// </summary>
     [HttpPost("batch-transfer")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowUpdate)]
     public async Task<ApiResponse<string>> BatchTransferAsync(
         [FromQuery] long fromUserId,
         [FromQuery] long toUserId,
@@ -300,6 +309,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 标记已阅
     /// </summary>
     [HttpPost("{id:long}/viewed")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowUpdate)]
     public async Task<ApiResponse<string>> MarkViewedAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -313,6 +323,7 @@ public sealed class ApprovalTasksController : ControllerBase
     /// 同意任务（审批通过）
     /// </summary>
     [HttpPost("{taskId:long}/decision")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowUpdate)]
     public async Task<ApiResponse<string>> DecideAsync(
         long taskId,
         [FromBody] ApprovalTaskDecideRequest request,

@@ -21,6 +21,7 @@ import type {
   ApprovalDefinitionJson,
   ApprovalDefinitionMeta,
   LfFormPayload,
+  AmisFormPayload,
   ApprovalNode,
   ConditionBranch as DefinitionBranch,
   JsonValue
@@ -107,7 +108,8 @@ export class ApprovalTreeConverter {
   static treeToDefinitionJson(
     tree: ApprovalFlowTree,
     meta?: ApprovalDefinitionMeta,
-    lfForm?: LfFormPayload
+    lfForm?: LfFormPayload,
+    amisForm?: AmisFormPayload
   ): string {
     const definition: ApprovalDefinitionJson = {
       meta: {
@@ -119,6 +121,7 @@ export class ApprovalTreeConverter {
         isLowCodeFlow: meta?.isLowCodeFlow
       },
       lfForm,
+      amisForm,
       nodes: {
         rootNode: this.treeNodeToDefinition(tree.rootNode)
       }
@@ -133,6 +136,7 @@ export class ApprovalTreeConverter {
     tree: ApprovalFlowTree;
     meta?: ApprovalDefinitionMeta;
     lfForm?: LfFormPayload;
+    amisForm?: AmisFormPayload;
   } {
     if (!json || json === '{}') {
       return { tree: this.createDefaultTree() };
@@ -143,7 +147,7 @@ export class ApprovalTreeConverter {
       if (parsed?.nodes?.rootNode) {
         const rootNode = this.definitionNodeToTree(parsed.nodes.rootNode);
         if (rootNode.nodeType !== 'start') {
-          return { tree: this.createDefaultTree(), meta: parsed.meta, lfForm: parsed.lfForm };
+          return { tree: this.createDefaultTree(), meta: parsed.meta, lfForm: parsed.lfForm, amisForm: parsed.amisForm };
         }
         const tree: ApprovalFlowTree = {
           flowName: parsed.meta?.flowName ?? '',
@@ -152,7 +156,8 @@ export class ApprovalTreeConverter {
         return {
           tree,
           meta: parsed.meta,
-          lfForm: parsed.lfForm
+          lfForm: parsed.lfForm,
+          amisForm: parsed.amisForm
         };
       }
 

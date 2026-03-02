@@ -886,19 +886,28 @@ export async function communicateTask(taskId: string, recipientUserId: string, c
 }
 
 export async function getCommunications(taskId: string) {
-  const response = await requestApi<ApiResponse<any[]>>(`/approval/tasks/${taskId}/communications`);
+  const response = await requestApi<ApiResponse<ApprovalCommunicationMessage[]>>(`/approval/tasks/${taskId}/communications`);
   if (!response.data) {
     throw new Error(response.message || "获取沟通记录失败");
   }
   return response.data;
 }
 
-export async function jumpTask(instanceId: string, targetNodeId: string) {
+export interface ApprovalCommunicationMessage {
+  id: string;
+  senderUserId: string;
+  senderName?: string;
+  content: string;
+  createdAt: string;
+}
+
+export async function jumpTask(instanceId: string, targetNodeId: string, taskId?: string) {
   const request = {
     operationType: 36, // Jump
     targetNodeId
   };
-  const response = await requestApi<ApiResponse<string>>(`/approval/instances/${instanceId}/operations`, {
+  const query = taskId ? `?taskId=${encodeURIComponent(taskId)}` : "";
+  const response = await requestApi<ApiResponse<string>>(`/approval/instances/${instanceId}/operations${query}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request)

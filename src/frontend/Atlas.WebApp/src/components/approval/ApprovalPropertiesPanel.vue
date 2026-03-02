@@ -319,6 +319,12 @@
 
           <template v-if="!branchForm.isDefault">
             <a-divider>条件规则</a-divider>
+            <a-form-item label="CEL 表达式（可选）">
+              <ExpressionEditorCel
+                v-model="branchForm.conditionExpr"
+                @validate="onExpressionValidate"
+              />
+            </a-form-item>
             <ConditionGroupEditor 
               v-model="branchForm.conditionGroups" 
               :form-fields="formFields" 
@@ -439,6 +445,7 @@ import {
 import { message } from 'ant-design-vue';
 import UserRolePicker from '@/components/common/UserRolePicker.vue';
 import ConditionGroupEditor from './ConditionGroupEditor.vue';
+import ExpressionEditorCel from './ExpressionEditorCel.vue';
 import type { 
   TreeNode, 
   ConditionBranch, 
@@ -465,6 +472,7 @@ interface BranchForm {
     value: unknown;
   };
   conditionGroups?: ConditionGroup[];
+  conditionExpr?: string;
 }
 
 // ── Props / Emits ──
@@ -497,6 +505,7 @@ const approverTargets = ref<string[]>([]);
 const noticeChannels = ref<number[]>([]);
 const noticeTemplateId = ref<string | undefined>(undefined);
 const formPermMap = ref<Record<string, string>>({});
+const expressionValid = ref(true);
 
 // ── 计算属性 ──
 const iconClass = computed(() => {
@@ -612,7 +621,8 @@ function syncNodeRefs() {
       conditionRule: current.conditionRule
         ? { ...current.conditionRule, value: current.conditionRule.value as unknown }
         : undefined,
-      conditionGroups: groups
+      conditionGroups: groups,
+      conditionExpr: extractConditionExpr(current.conditionRule)
     };
   } else if (isInclusiveNode(current)) {
     inclusiveForm.value = current;
@@ -688,13 +698,23 @@ function handleSave() {
 
   // 如果是分支，合并回 formData
   if (branchForm.value) {
+    if (!expressionValid.value) {
+      message.warning('请先修复 CEL 表达式错误');
+      return;
+    }
     const branch = formData.value as ConditionBranch;
     branch.branchName = branchForm.value.branchName;
     branch.isDefault = branchForm.value.isDefault;
     // 保存 conditionGroups
     branch.conditionGroups = branchForm.value.conditionGroups;
     // 同时也更新旧版字段以保持兼容（取第一个条件的第一个规则）
-    if (branch.conditionGroups && branch.conditionGroups.length > 0 && branch.conditionGroups[0].conditions.length > 0) {
+    const celExpr = branchForm.value.conditionExpr?.trim();
+    if (celExpr) {
+      branch.conditionRule = {
+        exprType: 'cel',
+        expression: celExpr
+      } as unknown as typeof branch.conditionRule;
+    } else if (branch.conditionGroups && branch.conditionGroups.length > 0 && branch.conditionGroups[0].conditions.length > 0) {
       const first = branch.conditionGroups[0].conditions[0];
       branch.conditionRule = {
         field: first.field,
@@ -736,6 +756,21 @@ function initConditionRule() {
 function removeConditionRule() {
   if (!branchForm.value) return;
   branchForm.value.conditionRule = undefined;
+}
+
+function onExpressionValidate(valid: boolean) {
+  expressionValid.value = valid;
+}
+
+function extractConditionExpr(conditionRule: unknown): string | undefined {
+  if (!conditionRule || typeof conditionRule !== 'object') {
+    return undefined;
+  }
+  const value = conditionRule as { exprType?: unknown; expression?: unknown };
+  if (value.exprType === 'cel' && typeof value.expression === 'string') {
+    return value.expression;
+  }
+  return undefined;
 }
 
 // ── 类型守卫 ──
