@@ -93,7 +93,7 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
   const projectScopeEnabled = getProjectScopeEnabled();
   const projectId = getProjectId();
   const method = (init?.method ?? "GET").toUpperCase();
-  const shouldAttachSecurityHeaders = Boolean(token) && !path.startsWith("/auth");
+  const shouldAttachSecurityHeaders = Boolean(token);
 
   // 向后兼容：如果localStorage中有token，则设置Authorization header
   // 否则依赖httpOnly cookie自动发送（更安全）

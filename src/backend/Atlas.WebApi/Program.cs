@@ -5,6 +5,8 @@ using Atlas.Application;
 using Atlas.Application.Options;
 using Atlas.Infrastructure;
 using Atlas.WebApi.Middlewares;
+using Hangfire;
+using Hangfire.Storage.SQLite;
 using Atlas.WebApi.Tenancy;
 using Atlas.WorkflowCore;
 using Atlas.WorkflowCore.DSL;
@@ -25,6 +27,9 @@ using Atlas.WebApi.Authorization;
 using Atlas.WebApi.Filters;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Atlas.Core.Models;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +49,7 @@ builder.Services.AddControllers(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new Atlas.WebApi.Json.FlexibleLongJsonConverter());
     options.JsonSerializerOptions.Converters.Add(new Atlas.WebApi.Json.FlexibleNullableLongJsonConverter());
+    options.JsonSerializerOptions.Converters.Add(new Atlas.WebApi.Json.SensitiveObjectConverterFactory());
 });
 
 // 配置 NSwag OpenAPI 文档生成
@@ -69,6 +75,8 @@ builder.Services.AddOpenApiDocument(config =>
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Security"));
+builder.Services.Configure<XssOptions>(builder.Configuration.GetSection("Xss"));
+builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection("FileStorage"));
 builder.Services.Configure<PasswordPolicyOptions>(builder.Configuration.GetSection("Security:PasswordPolicy"));
 builder.Services.Configure<LockoutPolicyOptions>(builder.Configuration.GetSection("Security:LockoutPolicy"));
 builder.Services.Configure<BootstrapAdminOptions>(builder.Configuration.GetSection("Security:BootstrapAdmin"));
@@ -99,6 +107,41 @@ builder.Services.AddHttpLogging(options =>
         | HttpLoggingFields.ResponseStatusCode
         | HttpLoggingFields.Duration;
 });
+
+var serviceName = "Atlas.WebApi";
+var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService(serviceName: serviceName, serviceVersion: serviceVersion))
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation();
+        var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            tracing.AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri(otlpEndpoint);
+            });
+        }
+    })
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation();
+        var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            metrics.AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri(otlpEndpoint);
+            });
+        }
+    });
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Atlas.Core.Tenancy.ITenantProvider, HttpContextTenantProvider>();
@@ -226,8 +269,25 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+builder.Services.AddMemoryCache();
 builder.Services.AddAtlasApplication();
 builder.Services.AddAtlasInfrastructure(builder.Configuration);
+
+// 国际化（i18n）：支持中文和英文
+builder.Services.AddLocalization(opts => opts.ResourcesPath = "");
+builder.Services.Configure<Microsoft.AspNetCore.Builder.RequestLocalizationOptions>(opts =>
+{
+    var supportedCultures = new[] { "zh-CN", "en-US" };
+    opts.SetDefaultCulture("zh-CN")
+        .AddSupportedCultures(supportedCultures)
+        .AddSupportedUICultures(supportedCultures);
+    opts.ApplyCurrentCultureToResponseHeaders = true;
+});
+
+// Hangfire 定时任务（使用 SQLite 存储）
+builder.Services.AddHangfire(config =>
+    config.UseSQLiteStorage("hangfire.db"));
+builder.Services.AddHangfireServer();
 
 // 添加 WorkflowCore 工作流引擎
 builder.Services.AddWorkflowCore();
@@ -272,7 +332,9 @@ if (securityOptions.EnforceHttps)
 app.UseSecurityHeaders();
 
 app.UseHttpLogging();
+app.UseRequestLocalization();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<XssProtectionMiddleware>();
 app.UseRateLimiter();
 app.UseMiddleware<ApiVersionRewriteMiddleware>();
 

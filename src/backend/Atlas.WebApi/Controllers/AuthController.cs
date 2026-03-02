@@ -5,6 +5,7 @@ using Atlas.Application.Identity.Abstractions;
 using Atlas.Application.Audit.Abstractions;
 using Atlas.Application.Audit.Models;
 using Atlas.Application.Models;
+using Atlas.Application.Options;
 using Atlas.Core.Exceptions;
 using Atlas.Core.Identity;
 using Atlas.Core.Models;
@@ -14,6 +15,7 @@ using Atlas.WebApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 namespace Atlas.WebApi.Controllers;
 
@@ -27,11 +29,13 @@ public sealed class AuthController : ControllerBase
     private readonly ITenantProvider _tenantProvider;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IClientContextAccessor _clientContextAccessor;
+    private readonly ICaptchaService _captchaService;
     private readonly IMapper _mapper;
     private readonly IValidator<AuthTokenRequest> _validator;
     private readonly IValidator<AuthRefreshRequest> _refreshValidator;
     private readonly IValidator<ChangePasswordViewModel> _changePasswordValidator;
     private readonly IAuditRecorder _auditRecorder;
+    private readonly SecurityOptions _securityOptions;
 
     public AuthController(
         IAuthTokenService authTokenService,
@@ -40,11 +44,13 @@ public sealed class AuthController : ControllerBase
         ITenantProvider tenantProvider,
         ICurrentUserAccessor currentUserAccessor,
         IClientContextAccessor clientContextAccessor,
+        ICaptchaService captchaService,
         IMapper mapper,
         IValidator<AuthTokenRequest> validator,
         IValidator<AuthRefreshRequest> refreshValidator,
         IValidator<ChangePasswordViewModel> changePasswordValidator,
-        IAuditRecorder auditRecorder)
+        IAuditRecorder auditRecorder,
+        IOptions<SecurityOptions> securityOptions)
     {
         _authTokenService = authTokenService;
         _authProfileService = authProfileService;
@@ -52,11 +58,22 @@ public sealed class AuthController : ControllerBase
         _tenantProvider = tenantProvider;
         _currentUserAccessor = currentUserAccessor;
         _clientContextAccessor = clientContextAccessor;
+        _captchaService = captchaService;
         _mapper = mapper;
         _validator = validator;
         _refreshValidator = refreshValidator;
         _changePasswordValidator = changePasswordValidator;
         _auditRecorder = auditRecorder;
+        _securityOptions = securityOptions.Value;
+    }
+
+    [HttpGet("captcha")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public ActionResult<ApiResponse<object>> GetCaptcha()
+    {
+        var (key, image) = _captchaService.Generate();
+        return Ok(ApiResponse<object>.Ok(new { captchaKey = key, captchaImage = image }, HttpContext.TraceIdentifier));
     }
 
     [HttpPost("token")]
@@ -74,6 +91,16 @@ public sealed class AuthController : ControllerBase
 
         var dto = _mapper.Map<AuthTokenRequest>(request);
         _validator.ValidateAndThrow(dto);
+
+        // 若前端已提供验证码（风控触发后），在此处校验
+        if (!string.IsNullOrWhiteSpace(dto.CaptchaKey))
+        {
+            if (string.IsNullOrWhiteSpace(dto.CaptchaCode)
+                || !_captchaService.Validate(dto.CaptchaKey, dto.CaptchaCode))
+            {
+                throw new BusinessException("验证码错误或已过期", ErrorCodes.ValidationError);
+            }
+        }
 
         var context = new AuthRequestContext(
             ControllerHelper.GetIpAddress(HttpContext),

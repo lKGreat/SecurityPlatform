@@ -64,8 +64,30 @@
           <a-menu-item v-if="showProjectsMenu" key="settings-projects" @click="go('/settings/projects')">
             项目管理
           </a-menu-item>
-          <a-menu-item v-if="showAppsMenu" key="settings-apps" @click="go('/settings/apps')">
-            应用配置
+          <a-menu-item key="amis-apps" @click="go('/amis/system/apps')">
+            应用管理
+          </a-menu-item>
+        </a-sub-menu>
+
+        <a-menu-item key="system-notifications" @click="go('/system/notifications')">通知中心</a-menu-item>
+
+        <a-sub-menu key="visualization" title="可视化中心">
+          <a-menu-item key="visualization-center" @click="go('/visualization/center')">
+            总览
+          </a-menu-item>
+          <a-menu-item key="visualization-designer" @click="go('/visualization/designer')">
+            设计器
+          </a-menu-item>
+          <a-menu-item key="visualization-runtime" @click="go('/visualization/runtime')">
+            运行态
+          </a-menu-item>
+          <a-menu-item key="visualization-governance" @click="go('/visualization/governance')">
+            治理中心
+          </a-menu-item>
+        </a-sub-menu>
+        <a-sub-menu v-if="showWorkflowMenu" key="workflow" title="工作流引擎">
+          <a-menu-item key="workflow-designer" @click="go('/workflow/designer')">
+            工作流设计器
           </a-menu-item>
           <a-menu-item key="settings-messages" @click="go('/settings/messages')">
             消息管理
@@ -89,21 +111,20 @@
             allow-clear
             @select="handleSearchSelect"
           />
-          <a-button type="text" @click="toggleAiDrawer">
-            <RobotOutlined /> AI
-          </a-button>
-          <a-dropdown :trigger="['click']">
-            <a-button type="text" class="header-locale">
-              <GlobalOutlined /> {{ currentLocaleName }}
+          <a-button type="text" class="header-help" @click="openHelp">帮助</a-button>
+          <a-dropdown trigger="click" :overlay-style="{ minWidth: '100px' }">
+            <a-button type="text" class="header-lang">
+              {{ currentLocale === 'zh-CN' ? '中文' : 'English' }}
             </a-button>
             <template #overlay>
-              <a-menu @click="switchLocale">
-                <a-menu-item key="zh-CN">简体中文</a-menu-item>
+              <a-menu @click="handleLocaleChange">
+                <a-menu-item key="zh-CN">中文</a-menu-item>
                 <a-menu-item key="en-US">English</a-menu-item>
               </a-menu>
             </template>
           </a-dropdown>
-          <a-dropdown :trigger="['click']">
+          <NotificationBell />
+          <a-dropdown trigger="click">
             <a-button type="text">
               <a-space>
                 <a-avatar size="small">
@@ -158,6 +179,8 @@ import type { AuthProfile } from "@/types/api";
 import type { BreadcrumbItem } from "@/router";
 import { clearAuthStorage, getAccessToken, getAuthProfile, hasPermission, setAuthProfile } from "@/utils/auth";
 import ProjectSwitcher from "@/components/ProjectSwitcher.vue";
+import NotificationBell from "@/components/layout/NotificationBell.vue";
+import { setLocale, getLocale } from "@/i18n";
 
 const AiAssistantContent = defineAsyncComponent(() => import("@/pages/lowcode/AiAssistantPage.vue"));
 
@@ -276,7 +299,12 @@ const handleSearchSelect = (path: string) => {
   globalKeyword.value = "";
 };
 
-// ── 用户 ──
+const currentLocale = ref(getLocale());
+const handleLocaleChange = ({ key }: { key: string }) => {
+  setLocale(key as "zh-CN" | "en-US");
+  currentLocale.value = key;
+};
+
 const loadProfile = async () => {
   const cached = getAuthProfile();
   if (cached) {
