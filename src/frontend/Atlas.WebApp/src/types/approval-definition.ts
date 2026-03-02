@@ -35,9 +35,11 @@ export type ConditionOperator =
 
 export interface VisibilityScope {
   scopeType: 'All' | 'Department' | 'Role' | 'User';
-  departmentIds?: number[];
+  /** 部门ID列表（字符串形式，避免 Snowflake ID 超出 JS 安全整数范围） */
+  departmentIds?: string[];
   roleCodes?: string[];
-  userIds?: number[];
+  /** 用户ID列表（字符串形式，避免 Snowflake ID 超出 JS 安全整数范围） */
+  userIds?: string[];
 }
 
 export interface ApprovalDefinitionMeta {

@@ -9,7 +9,7 @@
           <a-tag :color="getStatusColor(task?.status)">{{ getStatusText(task?.status) }}</a-tag>
         </template>
         <template #extra>
-          <template v-if="task?.status === 0">
+          <template v-if="task?.status === ApprovalTaskStatus.Pending">
             <a-button type="primary" @click="showApproveModal">同意</a-button>
             <a-button danger @click="showRejectModal">驳回</a-button>
             <a-dropdown>
@@ -31,22 +31,23 @@
     <a-spin :spinning="loading">
       <div class="content-layout">
         <div class="main-content">
-          <!-- 表单区域 (可编辑/只读) -->
+          <!-- 业务表单区域 -->
           <a-card title="业务表单" class="mb-4">
-            <div v-if="instance?.dataJson">
-              <!-- 表单渲染器 -->
-              <pre>{{ JSON.stringify(JSON.parse(instance.dataJson), null, 2) }}</pre>
-            </div>
+            <LfFormRenderer
+              :form-json="formJson ?? undefined"
+              :form-data="formData"
+              :read-only="true"
+            />
           </a-card>
         </div>
 
         <div class="side-content">
           <!-- 沟通面板 -->
           <a-card title="沟通记录" class="mb-4">
-            <CommunicationPanel 
-              v-if="task" 
-              :task-id="task.id" 
-              :current-user-id="currentUserId" 
+            <CommunicationPanel
+              v-if="task"
+              :task-id="task.id"
+              :current-user-id="currentUserId"
               style="height: 400px"
             />
           </a-card>
@@ -54,92 +55,176 @@
       </div>
     </a-spin>
 
-    <!-- 审批弹窗 -->
+    <!-- 同意弹窗 -->
     <a-modal
-      v-model:visible="approveVisible"
+      v-model:open="approveVisible"
       title="审批同意"
       @ok="handleApprove"
       :confirm-loading="submitting"
     >
-      <a-textarea v-model:value="comment" placeholder="请输入审批意见" :rows="4" />
+      <a-textarea v-model:value="comment" placeholder="请输入审批意见（选填）" :rows="4" />
     </a-modal>
 
     <!-- 驳回弹窗 -->
     <a-modal
-      v-model:visible="rejectVisible"
+      v-model:open="rejectVisible"
       title="审批驳回"
       @ok="handleReject"
       :confirm-loading="submitting"
     >
-      <a-textarea v-model:value="comment" placeholder="请输入驳回原因" :rows="4" />
+      <a-form-item label="驳回原因" required>
+        <a-textarea v-model:value="comment" placeholder="请输入驳回原因" :rows="4" />
+      </a-form-item>
+    </a-modal>
+
+    <!-- 转办弹窗 -->
+    <a-modal
+      v-model:open="transferVisible"
+      title="转办"
+      @ok="handleTransfer"
+      :confirm-loading="submitting"
+      @cancel="resetTransferForm"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="转办给" required>
+          <UserRolePicker
+            mode="user"
+            v-model:value="transferTargetIds"
+            placeholder="请选择转办人"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="备注">
+          <a-textarea v-model:value="transferComment" placeholder="请输入转办说明（选填）" :rows="3" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 委派弹窗 -->
+    <a-modal
+      v-model:open="delegateVisible"
+      title="委派"
+      @ok="handleDelegate"
+      :confirm-loading="submitting"
+      @cancel="resetDelegateForm"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="委派给" required>
+          <UserRolePicker
+            mode="user"
+            v-model:value="delegateTargetIds"
+            placeholder="请选择委派人"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="备注">
+          <a-textarea v-model:value="delegateComment" placeholder="请输入委派说明（选填）" :rows="3" />
+        </a-form-item>
+      </a-form>
     </a-modal>
 
     <!-- 跳转选择器 -->
-    <JumpNodeSelector 
-      v-model:visible="jumpVisible" 
-      :flow-definition="flowDefinition" 
-      @select="handleJump" 
+    <JumpNodeSelector
+      v-model:visible="jumpVisible"
+      :flow-definition="flowDefinitionNodes"
+      @select="handleJump"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
-import { 
-  getApprovalInstanceById, 
+import {
+  getApprovalTaskById,
+  getApprovalInstanceById,
   decideApprovalTask,
   delegateTask,
+  transferTask,
   jumpTask,
-  getApprovalFlowById
-} from '@/services/api'; // 假设有 getTaskById (目前 api.ts 里好像没有直接获取单个任务的，通常从列表进)
-// 实际上我们可能需要加一个 getTaskDetail API
+  getApprovalFlowById,
+  getCurrentUser
+} from '@/services/api';
 import { DownOutlined } from '@ant-design/icons-vue';
 import CommunicationPanel from '@/components/approval/runtime/CommunicationPanel.vue';
 import JumpNodeSelector from '@/components/approval/runtime/JumpNodeSelector.vue';
-import { getCurrentUser } from '@/services/api';
+import LfFormRenderer from '@/components/approval/runtime/LfFormRenderer.vue';
+import UserRolePicker from '@/components/common/UserRolePicker.vue';
+import type {
+  ApprovalTaskResponse,
+  ApprovalInstanceResponse,
+  ApprovalFlowDefinitionResponse
+} from '@/types/api';
+import type { ApprovalDefinitionJson, FormJson } from '@/types/approval-definition';
+import { ApprovalTaskStatus } from '@/types/api';
 
 const route = useRoute();
 const router = useRouter();
 const taskId = route.params.id as string;
-const instanceId = route.query.instanceId as string;
 
 const loading = ref(false);
 const submitting = ref(false);
-const task = ref<any>(null); // 需要获取任务详情
-const instance = ref<any>(null);
+const task = ref<ApprovalTaskResponse | null>(null);
+const instance = ref<ApprovalInstanceResponse | null>(null);
+const flowDefinition = ref<ApprovalFlowDefinitionResponse | null>(null);
+const parsedDefinition = ref<ApprovalDefinitionJson | null>(null);
 const currentUserId = ref('');
-const flowDefinition = ref<any>(null);
 
 const approveVisible = ref(false);
 const rejectVisible = ref(false);
+const transferVisible = ref(false);
+const delegateVisible = ref(false);
 const jumpVisible = ref(false);
+
 const comment = ref('');
+const transferTargetIds = ref<string[]>([]);
+const transferComment = ref('');
+const delegateTargetIds = ref<string[]>([]);
+const delegateComment = ref('');
+
+const formJson = computed<FormJson | null>(() => {
+  return parsedDefinition.value?.lfForm?.formJson ?? null;
+});
+
+const formData = computed<Record<string, unknown>>(() => {
+  if (!instance.value?.dataJson) return {};
+  try {
+    return JSON.parse(instance.value.dataJson) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+});
+
+const flowDefinitionNodes = computed(() => {
+  return parsedDefinition.value?.nodes ?? null;
+});
 
 const fetchDetail = async () => {
   loading.value = true;
   try {
-    const user = await getCurrentUser();
-    currentUserId.value = user.id;
+    const [userResult, taskResult] = await Promise.all([
+      getCurrentUser(),
+      getApprovalTaskById(taskId)
+    ]);
 
-    // 获取实例详情
-    if (instanceId) {
-      const res = await getApprovalInstanceById(instanceId);
-      instance.value = res;
-      
-      // 获取流程定义用于跳转选择
-      const flowRes = await getApprovalFlowById(res.definitionId);
-      flowDefinition.value = JSON.parse(flowRes.definitionJson);
+    currentUserId.value = userResult.id;
+    task.value = taskResult;
+
+    const instanceResult = await getApprovalInstanceById(taskResult.instanceId);
+    instance.value = instanceResult;
+
+    if (instanceResult.definitionId) {
+      const def = await getApprovalFlowById(instanceResult.definitionId);
+      flowDefinition.value = def;
+      try {
+        parsedDefinition.value = JSON.parse(def.definitionJson) as ApprovalDefinitionJson;
+      } catch {
+        parsedDefinition.value = null;
+      }
     }
-    
-    // 获取任务详情 (模拟，实际需要 API)
-    // task.value = await getTaskDetail(taskId);
-    // 临时 mock
-    task.value = { id: taskId, title: '测试任务', status: 0 }; 
-
-  } catch (error) {
-    message.error('获取详情失败');
+  } catch {
+    message.error('获取任务详情失败');
   } finally {
     loading.value = false;
   }
@@ -158,15 +243,11 @@ const showRejectModal = () => {
 const handleApprove = async () => {
   submitting.value = true;
   try {
-    await decideApprovalTask({
-      taskId: taskId,
-      approved: true,
-      comment: comment.value
-    });
+    await decideApprovalTask({ taskId, approved: true, comment: comment.value });
     message.success('已同意');
     approveVisible.value = false;
     router.back();
-  } catch (error) {
+  } catch {
     message.error('操作失败');
   } finally {
     submitting.value = false;
@@ -174,18 +255,57 @@ const handleApprove = async () => {
 };
 
 const handleReject = async () => {
+  if (!comment.value.trim()) {
+    message.warning('请填写驳回原因');
+    return;
+  }
   submitting.value = true;
   try {
-    await decideApprovalTask({
-      taskId: taskId,
-      approved: false,
-      comment: comment.value
-    });
+    await decideApprovalTask({ taskId, approved: false, comment: comment.value });
     message.success('已驳回');
     rejectVisible.value = false;
     router.back();
-  } catch (error) {
+  } catch {
     message.error('操作失败');
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const handleTransfer = async () => {
+  if (!transferTargetIds.value.length) {
+    message.warning('请选择转办人');
+    return;
+  }
+  if (!instance.value) return;
+  submitting.value = true;
+  try {
+    await transferTask(instance.value.id, taskId, transferTargetIds.value[0], transferComment.value || undefined);
+    message.success('转办成功');
+    transferVisible.value = false;
+    resetTransferForm();
+    await fetchDetail();
+  } catch {
+    message.error('转办失败');
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const handleDelegate = async () => {
+  if (!delegateTargetIds.value.length) {
+    message.warning('请选择委派人');
+    return;
+  }
+  submitting.value = true;
+  try {
+    await delegateTask(taskId, delegateTargetIds.value[0], delegateComment.value || undefined);
+    message.success('委派成功');
+    delegateVisible.value = false;
+    resetDelegateForm();
+    await fetchDetail();
+  } catch {
+    message.error('委派失败');
   } finally {
     submitting.value = false;
   }
@@ -195,32 +315,57 @@ const handleMenuClick = ({ key }: { key: string }) => {
   if (key === 'jump') {
     jumpVisible.value = true;
   } else if (key === 'delegate') {
-    // 弹窗选择人
+    delegateVisible.value = true;
   } else if (key === 'transfer') {
-    // 弹窗选择人
+    transferVisible.value = true;
   }
 };
 
 const handleJump = async (targetNodeId: string) => {
+  if (!instance.value) return;
   try {
-    await jumpTask(instanceId, targetNodeId);
+    await jumpTask(instance.value.id, targetNodeId);
     message.success('跳转成功');
     router.back();
-  } catch (error) {
+  } catch {
     message.error('跳转失败');
   }
 };
 
-const getStatusColor = (status: number) => {
-  return status === 0 ? 'blue' : 'default';
+const resetTransferForm = () => {
+  transferTargetIds.value = [];
+  transferComment.value = '';
 };
 
-const getStatusText = (status: number) => {
-  return status === 0 ? '待审批' : '已结束';
+const resetDelegateForm = () => {
+  delegateTargetIds.value = [];
+  delegateComment.value = '';
+};
+
+const getStatusColor = (status: number | undefined) => {
+  if (status === undefined) return 'default';
+  const map: Record<number, string> = {
+    [ApprovalTaskStatus.Pending]: 'blue',
+    [ApprovalTaskStatus.Approved]: 'green',
+    [ApprovalTaskStatus.Rejected]: 'red',
+    [ApprovalTaskStatus.Canceled]: 'default'
+  };
+  return map[status] ?? 'default';
+};
+
+const getStatusText = (status: number | undefined) => {
+  if (status === undefined) return '';
+  const map: Record<number, string> = {
+    [ApprovalTaskStatus.Pending]: '待审批',
+    [ApprovalTaskStatus.Approved]: '已同意',
+    [ApprovalTaskStatus.Rejected]: '已驳回',
+    [ApprovalTaskStatus.Canceled]: '已取消'
+  };
+  return map[status] ?? '未知';
 };
 
 onMounted(() => {
-  fetchDetail();
+  void fetchDetail();
 });
 </script>
 

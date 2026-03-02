@@ -786,6 +786,14 @@ export async function getMyTasksPaged(pagedRequest: PagedRequest, status?: numbe
   return response.data;
 }
 
+export async function getApprovalTaskById(id: string) {
+  const response = await requestApi<ApiResponse<ApprovalTaskResponse>>(`/approval/tasks/${id}`);
+  if (!response.data) {
+    throw new Error(response.message || "任务不存在");
+  }
+  return response.data;
+}
+
 export async function getApprovalTasksByInstance(instanceId: string, pagedRequest: PagedRequest) {
   const query = toQuery(pagedRequest);
   const response = await requestApi<ApiResponse<PagedResult<ApprovalTaskResponse>>>(
@@ -816,6 +824,22 @@ export async function delegateTask(taskId: string, delegateeUserId: string, comm
   });
   if (!response.success) {
     throw new Error(response.message || "委派失败");
+  }
+}
+
+export async function transferTask(instanceId: string, taskId: string, targetAssigneeValue: string, comment?: string) {
+  const request = {
+    operationType: 21, // Transfer
+    targetAssigneeValue,
+    comment
+  };
+  const response = await requestApi<ApiResponse<string>>(`/approval/instances/${instanceId}/operations?taskId=${taskId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.success) {
+    throw new Error(response.message || "转办失败");
   }
 }
 

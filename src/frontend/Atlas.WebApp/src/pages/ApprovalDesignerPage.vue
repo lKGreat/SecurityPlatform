@@ -256,26 +256,13 @@ const handleLfFormFields = (fields: LfFormPayload['formFields']) => {
 const buildRequest = () => {
   definitionMeta.value.flowName = flowName.value;
   
-  // 构建 VisibilityScope
+  // 构建 VisibilityScope（ID 保持字符串形式，避免 Snowflake ID 超出 JS Number.MAX_SAFE_INTEGER 导致精度丢失）
   const scope: VisibilityScope = {
     scopeType: visibilityScopeType.value,
-    departmentIds: visibilityScopeType.value === 'Department' ? visibilityScopeIds.value.map(Number).filter(n => !isNaN(n)) : undefined,
-    roleCodes: visibilityScopeType.value === 'Role' ? visibilityScopeIds.value : undefined, // Role uses codes/ids string
-    userIds: visibilityScopeType.value === 'User' ? visibilityScopeIds.value.map(Number).filter(n => !isNaN(n)) : undefined
+    departmentIds: visibilityScopeType.value === 'Department' ? visibilityScopeIds.value.filter(Boolean) : undefined,
+    roleCodes: visibilityScopeType.value === 'Role' ? visibilityScopeIds.value : undefined,
+    userIds: visibilityScopeType.value === 'User' ? visibilityScopeIds.value.filter(Boolean) : undefined
   };
-  // 注意：UserRolePicker 返回的是 string[]，但 VisibilityScope 定义中 departmentIds/userIds 是 number[]。
-  // 如果 API 返回的 ID 是 string (UUID) 或者是 number string，需要适配。
-  // 检查 API 定义：UserListItem.id 是 string。
-  // 检查 VisibilityScope 定义：userIds: number[]。
-  // 这里有类型不匹配。UserListItem.id 是 string (Guid usually).
-  // VisibilityScope 定义可能过时或者是针对旧系统的。
-  // 假设后端支持 string ID，或者我们需要修改 VisibilityScope 类型 definition。
-  // 暂时强转或 parse int。如果 ID 是 UUID，parseInt 会失败。
-  // 让我们检查 types/approval-definition.ts 中的 VisibilityScope。
-  // export interface VisibilityScope { userIds?: number[]; ... }
-  // 如果后端用 UUID，这里应该是 string[]。
-  // 鉴于 FlowLong 使用 Long ID (MyBatisPlus)，可能是 number (string in JS for safety).
-  // 如果 UserListItem.id 是 string，我们应该尝试转 number。
   
   definitionMeta.value.visibilityScope = scope;
 
@@ -309,32 +296,34 @@ const loadFlow = async () => {
     definitionMeta.value.description = flow.description;
     definitionMeta.value.category = flow.category;
     definitionMeta.value.isQuickEntry = flow.isQuickEntry;
+    if (flow.definitionJson) {
+      const state = ApprovalTreeConverter.definitionJsonToState(flow.definitionJson);
+      flowTree.value = state.tree;
+      if (state.meta) {
+        // 合并 meta，但不覆盖 visibilityScope（由顶层 visibilityScopeJson 权威管理）
+        definitionMeta.value = { ...state.meta, visibilityScope: undefined };
+      }
+      if (state.lfForm) { lfFormPayload.value = state.lfForm; lfFormModel.value = state.lfForm.formJson; }
+    }
+    // 顶层 visibilityScopeJson 为权威来源，最后加载确保不被 definitionJson.meta 覆盖
     if (flow.visibilityScopeJson) {
       try {
         const scope = JSON.parse(flow.visibilityScopeJson) as VisibilityScope;
         visibilityScopeType.value = scope.scopeType;
-        if (scope.scopeType === 'Department') visibilityScopeIds.value = (scope.departmentIds || []).map(String);
-        else if (scope.scopeType === 'Role') visibilityScopeIds.value = scope.roleCodes || [];
-        else if (scope.scopeType === 'User') visibilityScopeIds.value = (scope.userIds || []).map(String);
+        if (scope.scopeType === 'Department') visibilityScopeIds.value = scope.departmentIds ?? [];
+        else if (scope.scopeType === 'Role') visibilityScopeIds.value = scope.roleCodes ?? [];
+        else if (scope.scopeType === 'User') visibilityScopeIds.value = scope.userIds ?? [];
         definitionMeta.value.visibilityScope = scope;
       } catch {
         visibilityScopeType.value = 'All';
       }
-    }
-    if (flow.definitionJson) {
-      const state = ApprovalTreeConverter.definitionJsonToState(flow.definitionJson);
-      flowTree.value = state.tree;
-      if (state.meta) { 
-        definitionMeta.value = state.meta; 
-        if (state.meta.visibilityScope) {
-           const scope = state.meta.visibilityScope;
-           visibilityScopeType.value = scope.scopeType;
-           if (scope.scopeType === 'Department') visibilityScopeIds.value = (scope.departmentIds || []).map(String);
-           else if (scope.scopeType === 'Role') visibilityScopeIds.value = scope.roleCodes || [];
-           else if (scope.scopeType === 'User') visibilityScopeIds.value = (scope.userIds || []).map(String);
-        }
-      }
-      if (state.lfForm) { lfFormPayload.value = state.lfForm; lfFormModel.value = state.lfForm.formJson; }
+    } else if (definitionMeta.value.visibilityScope) {
+      // 兼容旧数据：仅 definitionJson.meta 中有 visibilityScope 时回退读取
+      const scope = definitionMeta.value.visibilityScope;
+      visibilityScopeType.value = scope.scopeType;
+      if (scope.scopeType === 'Department') visibilityScopeIds.value = scope.departmentIds ?? [];
+      else if (scope.scopeType === 'Role') visibilityScopeIds.value = scope.roleCodes ?? [];
+      else if (scope.scopeType === 'User') visibilityScopeIds.value = scope.userIds ?? [];
     }
     pushState(flowTree.value);
   } catch (err) { message.error(err instanceof Error ? err.message : '加载失败'); }
@@ -380,7 +369,39 @@ const handleSave = async () => {
 };
 
 // ── 发布 ──
-const handlePublishClick = () => { if (!flowId.value) { message.warning('请先保存流程'); return; } publishModalOpen.value = true; };
+const handlePublishClick = async () => {
+  if (!flowId.value) { message.warning('请先保存流程'); return; }
+
+  // 1. 本地校验
+  const localResult = validateFlow();
+  if (!localResult.valid) {
+    validateResult.value = { isValid: false, errors: localResult.errors, warnings: [] };
+    validateModalOpen.value = true;
+    return;
+  }
+  if (!flowName.value.trim()) { message.warning('请输入流程名称'); return; }
+
+  // 2. 服务端校验（防止绕过前端直接发布）
+  const payload = buildRequest();
+  if (!payload) return;
+  validating.value = true;
+  try {
+    const result = await validateApprovalFlow(payload);
+    if (!result.isValid) {
+      validateResult.value = result;
+      validateModalOpen.value = true;
+      return;
+    }
+  } catch (err) {
+    message.error(err instanceof Error ? err.message : '校验失败');
+    return;
+  } finally {
+    validating.value = false;
+  }
+
+  // 3. 两级校验均通过，弹出发布确认框
+  publishModalOpen.value = true;
+};
 const handlePublishConfirm = async () => {
   if (!flowId.value) return;
   publishing.value = true;

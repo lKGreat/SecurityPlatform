@@ -1,12 +1,16 @@
 @baseUrl = http://localhost:5000
 @token =
 @tenantId =
+@idempotencyKey = {{$guid}}
+@csrfToken =
 
 ### 发起流程实例
 POST {{baseUrl}}/api/v1/approval/instances
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{idempotencyKey}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "definitionId": 1,
@@ -34,6 +38,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/cancellation
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {}
 
@@ -52,6 +58,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 29,
@@ -63,6 +71,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 21,
@@ -75,6 +85,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 25,
@@ -87,6 +99,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 18,
@@ -98,6 +112,8 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 23,
@@ -110,9 +126,31 @@ POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/operations?taskId={taskI
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "operationType": 32,
   "comment": "撤销之前的同意"
 }
 
+### 提交草稿（激活流程）
+POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/submission
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+### 挂起流程实例
+POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/suspension
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+### 激活（恢复）流程实例
+POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/activation
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}

@@ -114,7 +114,7 @@ export class ApprovalTreeConverter {
         flowName: meta?.flowName ?? tree.flowName,
         description: meta?.description,
         category: meta?.category,
-        visibilityScope: meta?.visibilityScope,
+        // visibilityScope 不写入 definitionJson.meta，统一通过顶层 visibilityScopeJson 字段管理，避免双写不一致
         isQuickEntry: meta?.isQuickEntry,
         isLowCodeFlow: meta?.isLowCodeFlow
       },
@@ -669,12 +669,63 @@ export class ApprovalTreeConverter {
     return treeBranch;
   }
   
+  /**
+   * 查找条件分支的汇聚点（多源 BFS：所有分支均能到达的最近节点）
+   */
+  private static findMergePoint(
+    branchStartIds: string[],
+    outgoing: Map<string, GraphEdge[]>
+  ): string | null {
+    if (branchStartIds.length < 2) return null;
+
+    type QueueItem = { nodeId: string; branchIdx: number };
+    const visitedPerBranch: Set<string>[] = branchStartIds.map(() => new Set());
+    const branchesReachedNode = new Map<string, Set<number>>();
+    const queue: QueueItem[] = branchStartIds.map((startId, idx) => ({ nodeId: startId, branchIdx: idx }));
+
+    while (queue.length > 0) {
+      const item = queue.shift()!;
+      const { nodeId, branchIdx } = item;
+
+      if (visitedPerBranch[branchIdx].has(nodeId)) continue;
+      visitedPerBranch[branchIdx].add(nodeId);
+
+      if (!branchesReachedNode.has(nodeId)) {
+        branchesReachedNode.set(nodeId, new Set());
+      }
+      branchesReachedNode.get(nodeId)!.add(branchIdx);
+
+      // 所有分支均到达且不是分支起点本身 → 汇聚点
+      if (
+        branchesReachedNode.get(nodeId)!.size === branchStartIds.length &&
+        !branchStartIds.includes(nodeId)
+      ) {
+        return nodeId;
+      }
+
+      const edges = outgoing.get(nodeId) ?? [];
+      for (const edge of edges) {
+        const targetId = getEdgeTarget(edge.target);
+        if (targetId && !visitedPerBranch[branchIdx].has(targetId)) {
+          queue.push({ nodeId: targetId, branchIdx });
+        }
+      }
+    }
+    return null;
+  }
+
   // 私有辅助方法：从图构建树
   private static buildTreeFromNode(
     nodeId: string,
     allNodes: GraphNode[],
-    outgoing: Map<string, GraphEdge[]>
+    outgoing: Map<string, GraphEdge[]>,
+    stopAtNodeId?: string
   ): TreeNode {
+    // 汇聚点：返回 end 占位，由父节点接管后续树
+    if (stopAtNodeId && nodeId === stopAtNodeId) {
+      return { id: nodeId, nodeType: 'end', nodeName: '结束' } as EndNode;
+    }
+
     const nodeData = allNodes.find(n => n.id === nodeId);
     if (!nodeData) throw new Error(`Node ${nodeId} not found`);
 
@@ -741,23 +792,24 @@ export class ApprovalTreeConverter {
             conditionNodes: []
         } as ConditionNode;
 
-        // 收集分支
-        // 假设 edges 上的 data.conditionRule 对应分支条件
+        // 查找汇聚点：多源 BFS 找所有分支均可到达的最近节点
+        const branchStartIds = edges.map(e => getEdgeTarget(e.target)).filter(Boolean);
+        const mergeNodeId = this.findMergePoint(branchStartIds, outgoing);
+
         const branches: ConditionBranch[] = edges.map((edge, index) => {
             const targetId = getEdgeTarget(edge.target);
-            const branchRoot = this.buildTreeFromNode(targetId, allNodes, outgoing);
-            
+            const branchRoot = this.buildTreeFromNode(targetId, allNodes, outgoing, mergeNodeId ?? undefined);
             return {
                 id: nanoid(),
-                branchName: edge.label || `条件${index + 1}`,
-                conditionRule: edge.data?.conditionRule,
+                branchName: typeof edge.label === 'string' ? edge.label : `条件${index + 1}`,
+                conditionRule: (edge.data as GraphEdgeData | undefined)?.conditionRule,
                 childNode: branchRoot
             };
         });
-        
+
         node.conditionNodes = branches;
-        
-        // 难点：如何识别汇聚点？
+
+        // 将汇聚点提升为 conditionNode.childNode（已在后面 if(mergeNodeId) 处理）
         // 在图转树的过程中，如果多个分支最终指向同一个节点，那个节点就是汇聚点。
         // 简单的递归 buildTreeFromNode 会导致汇聚点被重复构建在每个分支的末尾。
         // 这是一个图转树的经典问题。
@@ -770,8 +822,11 @@ export class ApprovalTreeConverter {
         // 由于时间限制，且通常设计器生成的图结构比较规范。
         // 我们假设：如果所有分支的路径最终都汇聚到同一个节点 X，则 X 是 conditionNode.childNode。
         // 这里暂时不实现复杂的图算法，而是假设 graphToTree 主要用于从简单的 definitionJson 恢复。
-        // 如果是从复杂的图（允许任意连线）恢复，可能无法完美映射到树。
-        
+        // 将汇聚点提升为 conditionNode.childNode，继续构建后续树
+        if (mergeNodeId) {
+            node.childNode = this.buildTreeFromNode(mergeNodeId, allNodes, outgoing, stopAtNodeId);
+        }
+
         return node as TreeNode;
     } else if (normalizedType === 'parallel') {
         const node: ParallelNode = {
@@ -779,7 +834,7 @@ export class ApprovalTreeConverter {
             nodeType: 'parallel',
             parallelNodes: edges.map((edge) => {
                 const targetId = getEdgeTarget(edge.target);
-                return targetId ? this.buildTreeFromNode(targetId, allNodes, outgoing) : this.createDefaultTree().rootNode;
+                return targetId ? this.buildTreeFromNode(targetId, allNodes, outgoing, stopAtNodeId) : this.createDefaultTree().rootNode;
             })
         };
         return node;
@@ -789,18 +844,23 @@ export class ApprovalTreeConverter {
             nodeType: 'inclusive',
             conditionNodes: []
         };
-        // 类似 ConditionNode 处理
-        const branches: ConditionBranch[] = edges.map((edge, index) => {
+        // 类似 ConditionNode 处理，同样需要汇聚点检测
+        const inclusiveBranchStartIds = edges.map(e => getEdgeTarget(e.target)).filter(Boolean);
+        const inclusiveMergeNodeId = this.findMergePoint(inclusiveBranchStartIds, outgoing);
+        const inclusiveBranches: ConditionBranch[] = edges.map((edge, index) => {
             const targetId = getEdgeTarget(edge.target);
-            const branchRoot = this.buildTreeFromNode(targetId, allNodes, outgoing);
+            const branchRoot = this.buildTreeFromNode(targetId, allNodes, outgoing, inclusiveMergeNodeId ?? undefined);
             return {
                 id: nanoid(),
-                branchName: edge.label || `条件${index + 1}`,
-                conditionRule: edge.data?.conditionRule,
+                branchName: typeof edge.label === 'string' ? edge.label : `条件${index + 1}`,
+                conditionRule: (edge.data as GraphEdgeData | undefined)?.conditionRule,
                 childNode: branchRoot
             };
         });
-        node.conditionNodes = branches;
+        node.conditionNodes = inclusiveBranches;
+        if (inclusiveMergeNodeId) {
+            node.childNode = this.buildTreeFromNode(inclusiveMergeNodeId, allNodes, outgoing, stopAtNodeId);
+        }
         return node;
     } else if (normalizedType === 'route') {
         const node: RouteNode = {
