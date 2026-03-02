@@ -2,7 +2,7 @@
   <div class="form-list-page">
     <div class="page-header">
       <div class="page-header-left">
-        <h2>表单管理</h2>
+        <h2 class="page-header-title">表单管理</h2>
         <a-input-search
           v-model:value="keyword"
           placeholder="搜索表单名称"
@@ -229,14 +229,14 @@ const handleCreateSubmit = async () => {
 
     createModalVisible.value = false;
     message.success("创建成功");
-    router.push({ name: "form-designer", params: { id: result.id } });
+    router.push({ name: "apps-form-designer", params: { id: result.id } });
   } catch (error) {
     message.error((error as Error).message || "创建失败");
   }
 };
 
 const handleEdit = (id: string) => {
-  router.push({ name: "form-designer", params: { id } });
+  router.push({ name: "apps-form-designer", params: { id } });
 };
 
 const handlePublish = async (id: string) => {

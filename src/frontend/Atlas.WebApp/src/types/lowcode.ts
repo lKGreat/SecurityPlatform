@@ -170,53 +170,6 @@ export interface LowCodePageUpdateRequest {
   dataTableKey?: string;
 }
 
-// ─── 报表定义 ───
-
-export interface ReportDefinitionListItem {
-  id: string;
-  name: string;
-  description?: string;
-  category?: string;
-  status: string;
-  createdAt: string;
-}
-
-export interface ReportDefinitionDetail {
-  id: string;
-  name: string;
-  description?: string;
-  category?: string;
-  configJson: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ─── 仪表盘定义 ───
-
-export interface DashboardDefinitionListItem {
-  id: string;
-  name: string;
-  description?: string;
-  category?: string;
-  isPublic: boolean;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DashboardDefinitionDetail {
-  id: string;
-  name: string;
-  description?: string;
-  category?: string;
-  layoutJson: string;
-  isPublic: boolean;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 // ─── 消息模板 ───
 
 export interface MessageTemplateListItem {

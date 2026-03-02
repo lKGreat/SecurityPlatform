@@ -28,6 +28,11 @@
           <a-button>更多</a-button>
           <template #overlay>
             <a-menu>
+              <a-menu-item key="guide" @click="showGuide">
+                <template #icon><QuestionCircleOutlined /></template>
+                显示引导
+              </a-menu-item>
+              <a-menu-divider />
               <a-menu-item key="import" @click="handleImport">导入 JSON</a-menu-item>
               <a-menu-item key="export" @click="handleExport">导出 JSON</a-menu-item>
               <a-menu-item key="settings" @click="settingsVisible = true">表单设置</a-menu-item>
@@ -111,6 +116,7 @@
 import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { message } from "ant-design-vue";
+import { QuestionCircleOutlined } from "@ant-design/icons-vue";
 import AmisEditor from "@/components/amis/AmisEditor.vue";
 import {
   getFormDefinitionDetail,
@@ -118,6 +124,8 @@ import {
   updateFormDefinitionSchema,
   publishFormDefinition
 } from "@/services/lowcode";
+import { useOnboarding } from "@/composables/useOnboarding";
+import type { DriveStep } from "driver.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -273,7 +281,81 @@ const handleExport = () => {
 };
 
 const goBack = () => {
-  router.push({ name: "form-list" });
+  router.push({ name: "apps-forms" });
+};
+
+// 新手引导配置
+const tourSteps: DriveStep[] = [
+  {
+    element: ".toolbar-left",
+    popover: {
+      title: "欢迎使用表单设计器",
+      description:
+        "这是Atlas低代码平台的表单设计器。您可以使用可视化方式设计表单，无需编写代码。让我们快速了解一下各个功能区域。",
+      side: "bottom",
+      align: "start"
+    }
+  },
+  {
+    element: ".toolbar-center",
+    popover: {
+      title: "视图模式切换",
+      description:
+        "您可以在【编辑】和【预览】模式之间切换，实时查看表单效果。同时支持PC端和移动端预览。",
+      side: "bottom",
+      align: "center"
+    }
+  },
+  {
+    element: ".toolbar-right .ant-btn-primary",
+    popover: {
+      title: "保存与发布",
+      description:
+        "点击【保存】保存当前设计。点击【发布】使表单对外可用。只有已发布的表单才能被用户填写。",
+      side: "bottom",
+      align: "end"
+    }
+  },
+  {
+    element: ".toolbar-right .ant-dropdown-trigger",
+    popover: {
+      title: "更多操作",
+      description:
+        "在这里可以导入/导出JSON Schema，配置表单设置（如绑定数据表），以及重新显示此引导。",
+      side: "bottom",
+      align: "end"
+    }
+  },
+  {
+    element: ".designer-body",
+    popover: {
+      title: "设计器画布",
+      description:
+        "这是主要的设计区域。您可以通过拖拽组件、配置属性来设计表单。AMIS编辑器提供了丰富的表单组件供您使用。",
+      side: "top",
+      align: "center"
+    }
+  },
+  {
+    popover: {
+      title: "开始设计吧！",
+      description:
+        "现在您已经了解了表单设计器的基本功能。尝试添加一些表单字段，然后保存和预览您的设计吧！如需再次查看引导，请点击右上角【更多】→【显示引导】。"
+    }
+  }
+];
+
+const { startTour } = useOnboarding({
+  storageKey: "atlas-form-designer-tour-viewed",
+  steps: tourSteps,
+  showOnFirstVisit: true,
+  onComplete: () => {
+    message.success("引导完成！开始设计您的表单吧");
+  }
+});
+
+const showGuide = () => {
+  startTour();
 };
 
 onMounted(() => {

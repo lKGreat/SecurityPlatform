@@ -264,7 +264,7 @@ public sealed class AuthController : ControllerBase
         {
             Path = "/",
             Secure = true,
-            SameSiteMode.Strict
+            SameSite = SameSiteMode.Strict
         });
     }
 }

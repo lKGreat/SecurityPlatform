@@ -230,7 +230,7 @@ const previewModalOpen = ref(false);
 // ── 导航 ──
 const goBack = () => {
   if (window.history.length > 1) router.back();
-  else router.push('/approval/flows');
+  else router.push('/process/flows');
 };
 
 // ── 节点选中 ──
@@ -373,7 +373,7 @@ const handleSave = async () => {
       const result = await createApprovalFlow(payload);
       flowId.value = result.id;
       flowVersion.value = result.version;
-      router.replace(`/approval/designer/${result.id}`);
+      router.replace(`/process/designer/${result.id}`);
       message.success('创建成功');
     }
   } catch (err) { message.error(err instanceof Error ? err.message : '保存失败'); }
@@ -384,7 +384,7 @@ const handlePublishClick = () => { if (!flowId.value) { message.warning('请先�
 const handlePublishConfirm = async () => {
   if (!flowId.value) return;
   publishing.value = true;
-  try { await publishApprovalFlow(flowId.value); message.success('发布成功'); publishModalOpen.value = false; router.push('/approval/flows'); }
+  try { await publishApprovalFlow(flowId.value); message.success('发布成功'); publishModalOpen.value = false; router.push('/process/flows'); }
   catch (err) { message.error(err instanceof Error ? err.message : '发布失败'); }
   finally { publishing.value = false; }
 };

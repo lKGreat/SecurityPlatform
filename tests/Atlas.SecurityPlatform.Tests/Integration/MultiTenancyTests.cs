@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Atlas.Core.Models;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace Atlas.SecurityPlatform.Tests.Integration;
@@ -154,7 +155,7 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
         Assert.All(users, user =>
         {
             var username = user.GetProperty("username").GetString();
-            Assert.DoesNotEqual("user_tenant_b", username);
+            Assert.NotEqual("user_tenant_b", username);
         });
     }
 
@@ -253,8 +254,9 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<dynamic>>();
         Assert.NotNull(result);
         Assert.True(result.Success);
+        Assert.NotNull(result.Data);
 
-        var accessToken = result.Data.GetProperty("accessToken").GetString();
+        var accessToken = result.Data!.GetProperty("accessToken").GetString();
         Assert.NotNull(accessToken);
 
         return accessToken;
@@ -272,8 +274,9 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<dynamic>>();
         Assert.NotNull(result);
         Assert.True(result.Success);
+        Assert.NotNull(result.Data);
 
-        var assetId = result.Data.GetProperty("id").GetInt64();
+        var assetId = result.Data!.GetProperty("id").GetInt64();
         return assetId;
     }
 
@@ -292,8 +295,9 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
 
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<dynamic>>();
         Assert.NotNull(result);
+        Assert.NotNull(result.Data);
 
-        var userId = result.Data.GetProperty("id").GetInt64();
+        var userId = result.Data!.GetProperty("id").GetInt64();
         return userId;
     }
 

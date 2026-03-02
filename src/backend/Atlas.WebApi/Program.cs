@@ -45,7 +45,27 @@ builder.Services.AddControllers(options =>
     options.JsonSerializerOptions.Converters.Add(new Atlas.WebApi.Json.FlexibleLongJsonConverter());
     options.JsonSerializerOptions.Converters.Add(new Atlas.WebApi.Json.FlexibleNullableLongJsonConverter());
 });
-builder.Services.AddOpenApi();
+
+// 配置 NSwag OpenAPI 文档生成
+builder.Services.AddOpenApiDocument(config =>
+{
+    config.Title = "Atlas Security Platform API";
+    config.Version = "v1";
+    config.Description = "Atlas 安全平台 API 文档（符合等保2.0标准）";
+    config.UseControllerSummaryAsTagDescription = true;
+    config.PostProcess = document =>
+    {
+        document.Info.Contact = new NSwag.OpenApiContact
+        {
+            Name = "Atlas Security Team",
+            Email = "security@atlas.com"
+        };
+        document.Info.License = new NSwag.OpenApiLicense
+        {
+            Name = "Proprietary"
+        };
+    };
+});
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Security"));
@@ -258,7 +278,9 @@ app.UseMiddleware<ApiVersionRewriteMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    // NSwag 中间件：生成 OpenAPI 规范和 Swagger UI
+    app.UseOpenApi();       // 提供 /swagger/v1/swagger.json
+    app.UseSwaggerUi();     // 提供 /swagger 交互式文档
 }
 
 app.UseCors("WebAppCors");

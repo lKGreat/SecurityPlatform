@@ -64,7 +64,7 @@ const renderEditor = async () => {
   try {
     const React = await import("react");
     const { createRoot } = await import("react-dom/client");
-    const { Editor } = await import("amis-editor");
+    const { Editor } = await import(/* @vite-ignore */ "amis-editor");
 
     if (!rootRef.value) {
       rootRef.value = createRoot(container);
