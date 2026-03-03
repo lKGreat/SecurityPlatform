@@ -288,6 +288,15 @@ export interface ApprovalFlowValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
+  details?: ApprovalFlowValidationIssue[];
+}
+
+export interface ApprovalFlowValidationIssue {
+  code: string;
+  message: string;
+  severity: 'error' | 'warning';
+  nodeId?: string;
+  edgeId?: string;
 }
 
 export interface ApprovalStartRequest {

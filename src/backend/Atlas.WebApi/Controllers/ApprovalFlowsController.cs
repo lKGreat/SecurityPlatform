@@ -24,6 +24,7 @@ public sealed class ApprovalFlowsController : ControllerBase
     private readonly IApprovalFlowCommandService _commandService;
     private readonly ITenantProvider _tenantProvider;
     private readonly ICurrentUserAccessor _currentUserAccessor;
+    private readonly IApprovalDefinitionSemanticValidator _semanticValidator;
     private readonly IValidator<ApprovalFlowDefinitionCreateRequest> _createValidator;
     private readonly IValidator<ApprovalFlowDefinitionUpdateRequest> _updateValidator;
 
@@ -32,6 +33,7 @@ public sealed class ApprovalFlowsController : ControllerBase
         IApprovalFlowCommandService commandService,
         ITenantProvider tenantProvider,
         ICurrentUserAccessor currentUserAccessor,
+        IApprovalDefinitionSemanticValidator semanticValidator,
         IValidator<ApprovalFlowDefinitionCreateRequest> createValidator,
         IValidator<ApprovalFlowDefinitionUpdateRequest> updateValidator)
     {
@@ -39,6 +41,7 @@ public sealed class ApprovalFlowsController : ControllerBase
         _commandService = commandService;
         _tenantProvider = tenantProvider;
         _currentUserAccessor = currentUserAccessor;
+        _semanticValidator = semanticValidator;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
@@ -91,8 +94,34 @@ public sealed class ApprovalFlowsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var validation = await _createValidator.ValidateAsync(request, cancellationToken);
-        var errors = validation.Errors.Select(error => error.ErrorMessage).ToArray();
-        var payload = new ApprovalFlowValidationResult(validation.IsValid, errors, Array.Empty<string>());
+        var errors = validation.Errors.Select(error => error.ErrorMessage).ToList();
+        var details = validation.Errors
+            .Select(error => new ApprovalFlowValidationIssue(
+                "STRUCTURE_VALIDATION_ERROR",
+                error.ErrorMessage,
+                "error"))
+            .ToList();
+
+        if (errors.Count == 0)
+        {
+            var semanticIssues = _semanticValidator.Validate(request.DefinitionJson);
+            details.AddRange(semanticIssues);
+            errors.AddRange(semanticIssues
+                .Where(issue => string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase))
+                .Select(issue => issue.Message));
+        }
+
+        var warnings = details
+            .Where(issue => string.Equals(issue.Severity, "warning", StringComparison.OrdinalIgnoreCase))
+            .Select(issue => issue.Message)
+            .Distinct()
+            .ToList();
+
+        var payload = new ApprovalFlowValidationResult(
+            errors.Count == 0,
+            errors.Distinct().ToList(),
+            warnings,
+            details);
         return ApiResponse<ApprovalFlowValidationResult>.Ok(payload, HttpContext.TraceIdentifier);
     }
 
