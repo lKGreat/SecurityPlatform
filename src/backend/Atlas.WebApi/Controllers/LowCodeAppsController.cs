@@ -203,6 +203,35 @@ public sealed class LowCodeAppsController : ControllerBase
     }
 
     /// <summary>
+    /// 获取页面运行态 Schema（draft/published）
+    /// </summary>
+    [HttpGet("pages/{pageId:long}/runtime")]
+    [Authorize(Policy = PermissionPolicies.AppsView)]
+    public async Task<ActionResult<ApiResponse<LowCodePageRuntimeSchema?>>> GetRuntimePageSchema(
+        long pageId,
+        [FromQuery] string mode = "draft",
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var detail = await _queryService.GetRuntimePageSchemaAsync(tenantId, pageId, mode, cancellationToken);
+        return Ok(ApiResponse<LowCodePageRuntimeSchema?>.Ok(detail, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 获取页面版本历史
+    /// </summary>
+    [HttpGet("pages/{pageId:long}/versions")]
+    [Authorize(Policy = PermissionPolicies.AppsView)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<LowCodePageVersionListItem>>>> GetPageVersions(
+        long pageId,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.GetPageVersionsAsync(tenantId, pageId, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<LowCodePageVersionListItem>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
     /// 获取应用页面树
     /// </summary>
     [HttpGet("{appId:long}/pages/tree")]
@@ -315,5 +344,26 @@ public sealed class LowCodeAppsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         await _pageCommandService.DeleteAsync(tenantId, currentUser.UserId, pageId, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = pageId.ToString() }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 回滚页面到历史版本（并发布为新版本）
+    /// </summary>
+    [HttpPost("pages/{pageId:long}/rollback/{versionId:long}")]
+    [Authorize(Policy = PermissionPolicies.AppsUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> RollbackPage(
+        long pageId,
+        long versionId,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        await _pageCommandService.RollbackAsync(tenantId, currentUser.UserId, pageId, versionId, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { Id = pageId.ToString(), VersionId = versionId.ToString() }, HttpContext.TraceIdentifier));
     }
 }

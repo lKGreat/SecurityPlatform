@@ -111,6 +111,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(MigrationRecord),
             typeof(LowCodeApp),
             typeof(LowCodePage),
+            typeof(LowCodePageVersion),
             typeof(FormDefinition),
             typeof(DashboardDefinition),
             typeof(ReportDefinition),

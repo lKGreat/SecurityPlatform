@@ -9,6 +9,8 @@ import type {
   LowCodeAppCreateRequest,
   LowCodeAppUpdateRequest,
   LowCodePageDetail,
+  LowCodePageRuntimeSchema,
+  LowCodePageVersionListItem,
   LowCodePageTreeNode,
   LowCodePageCreateRequest,
   LowCodePageUpdateRequest
@@ -153,6 +155,25 @@ export async function getLowCodePageDetail(pageId: string): Promise<LowCodePageD
   return response.data;
 }
 
+export async function getLowCodeRuntimePageSchema(
+  pageId: string,
+  mode: "draft" | "published" = "draft"
+): Promise<LowCodePageRuntimeSchema> {
+  const response = await requestApi<ApiResponse<LowCodePageRuntimeSchema>>(
+    `/lowcode-apps/pages/${pageId}/runtime?mode=${mode}`
+  );
+  if (!response.data) throw new Error(response.message || "查询失败");
+  return response.data;
+}
+
+export async function getLowCodePageVersions(pageId: string): Promise<LowCodePageVersionListItem[]> {
+  const response = await requestApi<ApiResponse<LowCodePageVersionListItem[]>>(
+    `/lowcode-apps/pages/${pageId}/versions`
+  );
+  if (!response.data) throw new Error(response.message || "查询失败");
+  return response.data;
+}
+
 export async function getLowCodePageTree(appId: string): Promise<LowCodePageTreeNode[]> {
   const response = await requestApi<ApiResponse<LowCodePageTreeNode[]>>(
     `/lowcode-apps/${appId}/pages/tree`
@@ -266,6 +287,14 @@ export async function publishLowCodePage(pageId: string): Promise<void> {
     { method: "POST" }
   );
   if (!response.success) throw new Error(response.message || "发布失败");
+}
+
+export async function rollbackLowCodePage(pageId: string, versionId: string): Promise<void> {
+  const response = await requestApi<ApiResponse<{ id: string; versionId: string }>>(
+    `/lowcode-apps/pages/${pageId}/rollback/${versionId}`,
+    { method: "POST" }
+  );
+  if (!response.success) throw new Error(response.message || "回滚失败");
 }
 
 export async function deleteLowCodePage(pageId: string): Promise<void> {

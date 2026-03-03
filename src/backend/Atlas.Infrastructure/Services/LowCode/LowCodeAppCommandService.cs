@@ -10,15 +10,18 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
 {
     private readonly ILowCodeAppRepository _appRepository;
     private readonly ILowCodePageRepository _pageRepository;
+    private readonly ILowCodePageVersionRepository _pageVersionRepository;
     private readonly IIdGeneratorAccessor _idGenerator;
 
     public LowCodeAppCommandService(
         ILowCodeAppRepository appRepository,
         ILowCodePageRepository pageRepository,
+        ILowCodePageVersionRepository pageVersionRepository,
         IIdGeneratorAccessor idGenerator)
     {
         _appRepository = appRepository;
         _pageRepository = pageRepository;
+        _pageVersionRepository = pageVersionRepository;
         _idGenerator = idGenerator;
     }
 
@@ -102,6 +105,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
             ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
 
+        await _pageVersionRepository.DeleteByAppIdAsync(id, cancellationToken);
         await _pageRepository.DeleteByAppIdAsync(id, cancellationToken);
         await _appRepository.DeleteAsync(id, cancellationToken);
     }

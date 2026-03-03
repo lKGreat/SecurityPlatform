@@ -135,12 +135,30 @@ export interface LowCodePageDetail {
   parentPageId?: string;
   version: number;
   isPublished: boolean;
+  publishedVersion?: number;
   createdAt: string;
   updatedAt: string;
   createdBy: number;
   updatedBy: number;
   permissionCode?: string;
   dataTableKey?: string;
+}
+
+export interface LowCodePageVersionListItem {
+  id: string;
+  pageId: string;
+  snapshotVersion: number;
+  createdAt: string;
+  createdBy: number;
+}
+
+export interface LowCodePageRuntimeSchema {
+  pageId: string;
+  pageKey: string;
+  name: string;
+  schemaJson: string;
+  version: number;
+  mode: string;
 }
 
 export interface LowCodePageTreeNode extends LowCodePageListItem {

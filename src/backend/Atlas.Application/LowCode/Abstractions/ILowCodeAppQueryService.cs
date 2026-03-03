@@ -21,4 +21,13 @@ public interface ILowCodeAppQueryService
 
     Task<IReadOnlyList<LowCodePageTreeNode>> GetPageTreeAsync(
         TenantId tenantId, long appId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<LowCodePageVersionListItem>> GetPageVersionsAsync(
+        TenantId tenantId, long pageId, CancellationToken cancellationToken = default);
+
+    Task<LowCodePageRuntimeSchema?> GetRuntimePageSchemaAsync(
+        TenantId tenantId,
+        long pageId,
+        string mode,
+        CancellationToken cancellationToken = default);
 }

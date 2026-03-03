@@ -9,13 +9,16 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
 {
     private readonly ILowCodeAppRepository _appRepository;
     private readonly ILowCodePageRepository _pageRepository;
+    private readonly ILowCodePageVersionRepository _pageVersionRepository;
 
     public LowCodeAppQueryService(
         ILowCodeAppRepository appRepository,
-        ILowCodePageRepository pageRepository)
+        ILowCodePageRepository pageRepository,
+        ILowCodePageVersionRepository pageVersionRepository)
     {
         _appRepository = appRepository;
         _pageRepository = pageRepository;
+        _pageVersionRepository = pageVersionRepository;
     }
 
     public async Task<PagedResult<LowCodeAppListItem>> QueryAsync(
@@ -96,6 +99,53 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
         return roots;
     }
 
+    public async Task<IReadOnlyList<LowCodePageVersionListItem>> GetPageVersionsAsync(
+        TenantId tenantId,
+        long pageId,
+        CancellationToken cancellationToken = default)
+    {
+        var versions = await _pageVersionRepository.GetByPageIdAsync(tenantId, pageId, cancellationToken);
+        return versions
+            .Select(x => new LowCodePageVersionListItem(
+                x.Id.ToString(),
+                x.PageId.ToString(),
+                x.SnapshotVersion,
+                x.CreatedAt,
+                x.CreatedBy))
+            .ToArray();
+    }
+
+    public async Task<LowCodePageRuntimeSchema?> GetRuntimePageSchemaAsync(
+        TenantId tenantId,
+        long pageId,
+        string mode,
+        CancellationToken cancellationToken = default)
+    {
+        var page = await _pageRepository.GetByIdAsync(tenantId, pageId, cancellationToken);
+        if (page is null)
+        {
+            return null;
+        }
+
+        var usePublished = string.Equals(mode, "published", StringComparison.OrdinalIgnoreCase);
+        if (usePublished && !page.IsPublished)
+        {
+            return null;
+        }
+        var schema = usePublished
+            ? (!string.IsNullOrWhiteSpace(page.PublishedSchemaJson) ? page.PublishedSchemaJson : page.SchemaJson)
+            : page.SchemaJson;
+        var version = usePublished && page.PublishedVersion.HasValue ? page.PublishedVersion.Value : page.Version;
+
+        return new LowCodePageRuntimeSchema(
+            page.Id.ToString(),
+            page.PageKey,
+            page.Name,
+            schema,
+            version,
+            usePublished ? "published" : "draft");
+    }
+
     private static LowCodeAppDetail MapToDetail(
         Atlas.Domain.LowCode.Entities.LowCodeApp entity,
         IReadOnlyList<Atlas.Domain.LowCode.Entities.LowCodePage> pages)
@@ -113,6 +163,7 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
             p.ParentPageId?.ToString(),
             p.Version,
             p.IsPublished,
+            p.PublishedVersion,
             p.CreatedAt,
             p.PermissionCode,
             p.DataTableKey
@@ -154,6 +205,7 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
             page.ParentPageId?.ToString(),
             page.Version,
             page.IsPublished,
+            page.PublishedVersion,
             page.CreatedAt,
             page.UpdatedAt,
             page.CreatedBy,

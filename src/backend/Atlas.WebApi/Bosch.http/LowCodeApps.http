@@ -116,6 +116,16 @@ GET {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 获取运行态页面 Schema（draft/published）
+GET {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}/runtime?mode=draft
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 获取页面版本历史
+GET {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}/versions
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### 获取页面树（新增接口）
 GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/pages/tree
 Authorization: Bearer {{accessToken}}
@@ -155,6 +165,13 @@ Content-Type: application/json
 
 ### 发布页面（需幂等+CSRF）
 POST {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}/publish
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+### 回滚页面到历史版本（需幂等+CSRF）
+POST {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}/rollback/1001
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 Idempotency-Key: {{$randomUUID}}

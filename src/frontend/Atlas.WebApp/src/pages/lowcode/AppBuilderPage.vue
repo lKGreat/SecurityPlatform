@@ -25,6 +25,7 @@
             <template #overlay>
               <a-menu>
                 <a-menu-item key="edit" @click="handleEditPage(page)">编辑信息</a-menu-item>
+                <a-menu-item key="versions" @click="handleOpenVersionHistory(page)">版本历史</a-menu-item>
                 <a-menu-item v-if="!page.isPublished" key="publish" @click="handlePublishPage(page.id)">发布</a-menu-item>
                 <a-menu-item key="delete" danger @click="handleDeletePage(page.id)">删除</a-menu-item>
               </a-menu>
@@ -43,8 +44,8 @@
         <div class="main-toolbar">
           <span class="page-title">{{ currentPageName }}</span>
           <div class="main-toolbar-actions">
-            <a-button @click="handleSavePageSchema" :loading="saving">保存</a-button>
-            <a-button type="primary" @click="handlePublishPage(selectedPageId!)" :loading="publishing">发布</a-button>
+            <a-button :loading="saving" @click="handleSavePageSchema">保存</a-button>
+            <a-button type="primary" :loading="publishing" @click="handlePublishPage(selectedPageId!)">发布</a-button>
           </div>
         </div>
         <AmisEditor
@@ -96,23 +97,56 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 页面版本历史 -->
+    <a-modal
+      v-model:open="versionModalVisible"
+      title="页面版本历史"
+      :footer="null"
+      width="680px"
+    >
+      <a-table
+        :data-source="pageVersions"
+        :loading="versionLoading"
+        :pagination="false"
+        row-key="id"
+        size="small"
+      >
+        <a-table-column key="snapshotVersion" title="版本号" data-index="snapshotVersion" width="120px" />
+        <a-table-column key="createdAt" title="发布时间" data-index="createdAt" width="220px" />
+        <a-table-column key="createdBy" title="发布人" data-index="createdBy" width="120px" />
+        <a-table-column key="action" title="操作" width="140px">
+          <template #default="{ record }">
+            <a-button size="small" @click="handleRollbackVersion(record.id)">回滚到此版本</a-button>
+          </template>
+        </a-table-column>
+      </a-table>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { message } from "ant-design-vue";
+import { message, Modal } from "ant-design-vue";
 import AmisEditor from "@/components/amis/AmisEditor.vue";
-import type { LowCodeAppDetail, LowCodePageListItem, LowCodePageTreeNode } from "@/types/lowcode";
+import type {
+  LowCodeAppDetail,
+  LowCodePageListItem,
+  LowCodePageTreeNode,
+  LowCodePageVersionListItem
+} from "@/types/lowcode";
 import {
   getLowCodeAppDetail,
   getLowCodePageDetail,
+  getLowCodeRuntimePageSchema,
   getLowCodePageTree,
+  getLowCodePageVersions,
   createLowCodePage,
   updateLowCodePage,
   updateLowCodePageSchema,
   publishLowCodePage,
+  rollbackLowCodePage,
   deleteLowCodePage
 } from "@/services/lowcode";
 
@@ -152,6 +186,11 @@ const pageForm = reactive({
   description: "",
   sortOrder: 0
 });
+
+const versionModalVisible = ref(false);
+const versionLoading = ref(false);
+const versionTargetPageId = ref<string | null>(null);
+const pageVersions = ref<LowCodePageVersionListItem[]>([]);
 
 const pageTypeIcon = (type: string) => {
   const icons: Record<string, string> = {
@@ -271,8 +310,11 @@ const selectPage = async (pageId: string) => {
     const page = pages.value.find(p => p.id === pageId);
     if (page) {
       try {
-        const detail = await getLowCodePageDetail(pageId);
-        pageSchemas.value[pageId] = parseSchemaJson(detail.schemaJson)
+        const [detail, runtime] = await Promise.all([
+          getLowCodePageDetail(pageId),
+          getLowCodeRuntimePageSchema(pageId, "draft")
+        ]);
+        pageSchemas.value[pageId] = parseSchemaJson(runtime.schemaJson)
           ?? generateDefaultSchema(detail.pageType, detail.name);
       } catch {
         pageSchemas.value[pageId] = { type: "page", title: page.name, body: [] };
@@ -388,6 +430,43 @@ const handlePublishPage = async (pageId: string) => {
   } finally {
     publishing.value = false;
   }
+};
+
+const handleOpenVersionHistory = async (page: LowCodePageListItem) => {
+  versionModalVisible.value = true;
+  versionTargetPageId.value = page.id;
+  versionLoading.value = true;
+  try {
+    pageVersions.value = await getLowCodePageVersions(page.id);
+  } catch (error) {
+    pageVersions.value = [];
+    message.error((error as Error).message || "加载版本历史失败");
+  } finally {
+    versionLoading.value = false;
+  }
+};
+
+const handleRollbackVersion = async (versionId: string) => {
+  if (!versionTargetPageId.value) {
+    return;
+  }
+
+  Modal.confirm({
+    title: "确认回滚",
+    content: "回滚后将以历史版本生成新的已发布版本，是否继续？",
+    okText: "确认回滚",
+    cancelText: "取消",
+    onOk: async () => {
+      await rollbackLowCodePage(versionTargetPageId.value!, versionId);
+      message.success("回滚成功");
+      versionModalVisible.value = false;
+      pageSchemas.value = {};
+      await loadApp();
+      if (selectedPageId.value) {
+        await selectPage(selectedPageId.value);
+      }
+    }
+  });
 };
 
 const handleDeletePage = async (pageId: string) => {

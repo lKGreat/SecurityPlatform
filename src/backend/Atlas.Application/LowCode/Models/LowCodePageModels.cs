@@ -31,12 +31,28 @@ public sealed record LowCodePageDetail(
     string? ParentPageId,
     int Version,
     bool IsPublished,
+    int? PublishedVersion,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     long CreatedBy,
     long UpdatedBy,
     string? PermissionCode,
     string? DataTableKey);
+
+public sealed record LowCodePageVersionListItem(
+    string Id,
+    string PageId,
+    int SnapshotVersion,
+    DateTimeOffset CreatedAt,
+    long CreatedBy);
+
+public sealed record LowCodePageRuntimeSchema(
+    string PageId,
+    string PageKey,
+    string Name,
+    string SchemaJson,
+    int Version,
+    string Mode);
 
 public sealed record LowCodePageTreeNode(
     string Id,
