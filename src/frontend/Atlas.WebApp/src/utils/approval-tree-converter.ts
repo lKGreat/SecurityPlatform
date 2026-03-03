@@ -964,7 +964,10 @@ const isAssigneeType = (value: number | undefined): value is ApproveNode['assign
     || value === 4
     || value === 5
     || value === 6
-    || value === 7;
+    || value === 7
+    || value === 8
+    || value === 9
+    || value === 10;
 };
 
 const normalizeAssigneeType = (value: number | undefined): ApproveNode['assigneeType'] => {

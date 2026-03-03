@@ -11,12 +11,17 @@ import type {
   ApprovalFlowDefinitionUpdateRequest,
   ApprovalFlowPublishRequest,
   ApprovalFlowValidationResult,
+  ApprovalFlowCopyRequest,
+  ApprovalFlowImportRequest,
+  ApprovalFlowExportResponse,
+  ApprovalFlowCompareResponse,
   ApprovalStartRequest,
   ApprovalTaskResponse,
   ApprovalTaskDecideRequest,
   ApprovalInstanceListItem,
   ApprovalInstanceResponse,
   ApprovalHistoryEventResponse,
+  ApprovalCopyRecordResponse,
   StepTypeMetadata,
   RegisterWorkflowDefinitionRequest,
   ExecutionPointerResponse,
@@ -665,6 +670,46 @@ export async function createApprovalFlow(request: ApprovalFlowDefinitionCreateRe
   return response.data;
 }
 
+export async function copyApprovalFlow(id: string, request?: ApprovalFlowCopyRequest) {
+  const response = await requestApi<ApiResponse<ApprovalFlowDefinitionResponse>>(`/approval/flows/${id}/copy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request || {})
+  });
+  if (!response.data) {
+    throw new Error(response.message || "复制失败");
+  }
+  return response.data;
+}
+
+export async function importApprovalFlow(request: ApprovalFlowImportRequest) {
+  const response = await requestApi<ApiResponse<ApprovalFlowDefinitionResponse>>("/approval/flows/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.data) {
+    throw new Error(response.message || "导入失败");
+  }
+  return response.data;
+}
+
+export async function exportApprovalFlow(id: string) {
+  const response = await requestApi<ApiResponse<ApprovalFlowExportResponse>>(`/approval/flows/${id}/export`);
+  if (!response.data) {
+    throw new Error(response.message || "导出失败");
+  }
+  return response.data;
+}
+
+export async function compareApprovalFlowVersion(id: string, targetVersion: number) {
+  const response = await requestApi<ApiResponse<ApprovalFlowCompareResponse>>(`/approval/flows/${id}/versions/${targetVersion}/compare`);
+  if (!response.data) {
+    throw new Error(response.message || "版本对比失败");
+  }
+  return response.data;
+}
+
 export async function updateApprovalFlow(id: string, request: ApprovalFlowDefinitionUpdateRequest) {
   const response = await requestApi<ApiResponse<ApprovalFlowDefinitionResponse>>(`/approval/flows/${id}`, {
     method: "PUT",
@@ -737,6 +782,34 @@ export async function getMyInstancesPaged(pagedRequest: PagedRequest, status?: n
   }
   const response = await requestApi<ApiResponse<PagedResult<ApprovalInstanceListItem>>>(
     `/approval/instances/my?${params.toString()}`
+  );
+  if (!response.data) {
+    throw new Error(response.message || "查询失败");
+  }
+  return response.data;
+}
+
+export async function getAdminInstancesPaged(
+  pagedRequest: PagedRequest,
+  filters?: {
+    status?: number;
+    definitionId?: string;
+    initiatorUserId?: string;
+    businessKey?: string;
+    startedFrom?: string;
+    startedTo?: string;
+  }
+) {
+  const params = new URLSearchParams(toQuery(pagedRequest));
+  if (filters?.status !== undefined) params.append("status", String(filters.status));
+  if (filters?.definitionId) params.append("definitionId", filters.definitionId);
+  if (filters?.initiatorUserId) params.append("initiatorUserId", filters.initiatorUserId);
+  if (filters?.businessKey) params.append("businessKey", filters.businessKey);
+  if (filters?.startedFrom) params.append("startedFrom", filters.startedFrom);
+  if (filters?.startedTo) params.append("startedTo", filters.startedTo);
+
+  const response = await requestApi<ApiResponse<PagedResult<ApprovalInstanceListItem>>>(
+    `/approval/instances/admin?${params.toString()}`
   );
   if (!response.data) {
     throw new Error(response.message || "查询失败");
@@ -1006,6 +1079,29 @@ export async function markTaskViewed(taskId: string) {
   });
   if (!response.success) {
     throw new Error(response.message || "操作失败");
+  }
+}
+
+export async function getMyCopyRecordsPaged(pagedRequest: PagedRequest, isRead?: boolean) {
+  const params = new URLSearchParams(toQuery(pagedRequest));
+  if (isRead !== undefined) {
+    params.append("isRead", String(isRead));
+  }
+  const response = await requestApi<ApiResponse<PagedResult<ApprovalCopyRecordResponse>>>(
+    `/approval/copy-records/my-copies?${params.toString()}`
+  );
+  if (!response.data) {
+    throw new Error(response.message || "查询抄送记录失败");
+  }
+  return response.data;
+}
+
+export async function markCopyRecordAsRead(copyRecordId: string) {
+  const response = await requestApi<ApiResponse<string>>(`/approval/copy-records/${copyRecordId}/mark-read`, {
+    method: "POST"
+  });
+  if (!response.success) {
+    throw new Error(response.message || "标记已读失败");
   }
 }
 
