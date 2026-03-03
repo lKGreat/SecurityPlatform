@@ -22,4 +22,10 @@ public interface IMigrationService
         long userId,
         MigrationRecordCreateRequest request,
         CancellationToken cancellationToken);
+
+    Task<MigrationScriptPreview> DetectChangesAsync(
+        TenantId tenantId,
+        string tableKey,
+        DynamicTableAlterRequest request,
+        CancellationToken cancellationToken);
 }

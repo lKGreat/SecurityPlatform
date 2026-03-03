@@ -75,4 +75,16 @@ public sealed class DynamicMigrationsController : ControllerBase
         var id = await _migrationService.CreateAsync(tenantId, currentUser.UserId, request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
     }
+
+    [HttpPost("detect/{tableKey}")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<MigrationScriptPreview>>> DetectChanges(
+        string tableKey,
+        [FromBody] DynamicTableAlterRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var preview = await _migrationService.DetectChangesAsync(tenantId, tableKey, request, cancellationToken);
+        return Ok(ApiResponse<MigrationScriptPreview>.Ok(preview, HttpContext.TraceIdentifier));
+    }
 }

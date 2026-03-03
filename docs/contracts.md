@@ -962,6 +962,7 @@ JWT Claims（新增）：
 - `GET /api/v1/dynamic-migrations?pageIndex=1&pageSize=10&tableKey=orders`：分页查询迁移记录
 - `GET /api/v1/dynamic-migrations/{id}`：迁移记录详情
 - `POST /api/v1/dynamic-migrations`：创建迁移草稿记录（需幂等 + CSRF）
+- `POST /api/v1/dynamic-migrations/detect/{tableKey}`：检测结构变更并生成预览脚本（需幂等 + CSRF）
 
 ```json
 {
@@ -970,6 +971,18 @@ JWT Claims（新增）：
   "upScript": "ALTER TABLE ...",
   "downScript": "ALTER TABLE ...",
   "isDestructive": false
+}
+```
+
+`detect` 响应：
+
+```json
+{
+  "tableKey": "orders",
+  "upScript": "ALTER TABLE ...",
+  "downScript": "-- no-op",
+  "isDestructive": false,
+  "warnings": []
 }
 ```
 

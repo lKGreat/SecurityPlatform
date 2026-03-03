@@ -5,20 +5,29 @@ using Atlas.Core.Abstractions;
 using Atlas.Core.Exceptions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Domain.DynamicTables.Enums;
 using Atlas.Domain.DynamicTables.Entities;
+using Atlas.Infrastructure.DynamicTables;
+using System.Text;
 
 namespace Atlas.Infrastructure.Services;
 
 public sealed class MigrationService : IMigrationService
 {
     private readonly IMigrationRecordRepository _migrationRecordRepository;
+    private readonly IDynamicTableRepository _dynamicTableRepository;
+    private readonly IDynamicFieldRepository _dynamicFieldRepository;
     private readonly IIdGeneratorAccessor _idGeneratorAccessor;
 
     public MigrationService(
         IMigrationRecordRepository migrationRecordRepository,
+        IDynamicTableRepository dynamicTableRepository,
+        IDynamicFieldRepository dynamicFieldRepository,
         IIdGeneratorAccessor idGeneratorAccessor)
     {
         _migrationRecordRepository = migrationRecordRepository;
+        _dynamicTableRepository = dynamicTableRepository;
+        _dynamicFieldRepository = dynamicFieldRepository;
         _idGeneratorAccessor = idGeneratorAccessor;
     }
 
@@ -110,5 +119,128 @@ public sealed class MigrationService : IMigrationService
 
         await _migrationRecordRepository.AddAsync(entity, cancellationToken);
         return entity.Id;
+    }
+
+    public async Task<MigrationScriptPreview> DetectChangesAsync(
+        TenantId tenantId,
+        string tableKey,
+        DynamicTableAlterRequest request,
+        CancellationToken cancellationToken)
+    {
+        var table = await _dynamicTableRepository.FindByKeyAsync(tenantId, tableKey, cancellationToken);
+        if (table is null)
+        {
+            throw new BusinessException("动态表不存在。", ErrorCodes.NotFound);
+        }
+
+        var fields = await _dynamicFieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
+        var existing = fields.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
+        var warnings = new List<string>();
+        var upSql = new StringBuilder();
+        var downSql = new StringBuilder();
+        var isDestructive = false;
+
+        foreach (var field in request.AddFields)
+        {
+            if (existing.ContainsKey(field.Name))
+            {
+                warnings.Add($"字段 {field.Name} 已存在，已跳过新增。");
+                continue;
+            }
+
+            var addSql = BuildAddColumnSql(table, field);
+            upSql.AppendLine(addSql);
+            downSql.AppendLine($"-- SQLite 不支持直接 DROP COLUMN，请通过重建表回滚新增字段 {field.Name}");
+        }
+
+        foreach (var field in request.UpdateFields)
+        {
+            if (!existing.TryGetValue(field.Name, out var current))
+            {
+                warnings.Add($"字段 {field.Name} 不存在，已跳过更新。");
+                continue;
+            }
+
+            if (!IsNoopUpdate(current, field))
+            {
+                isDestructive = true;
+                warnings.Add($"字段 {field.Name} 涉及结构修改，SQLite 需重建表。");
+                upSql.AppendLine($"-- TODO: ALTER COLUMN {field.Name}（SQLite 需重建表）");
+                downSql.AppendLine($"-- TODO: ROLLBACK ALTER COLUMN {field.Name}（SQLite 需重建表）");
+            }
+        }
+
+        foreach (var fieldName in request.RemoveFields)
+        {
+            if (!existing.ContainsKey(fieldName))
+            {
+                warnings.Add($"字段 {fieldName} 不存在，已跳过删除。");
+                continue;
+            }
+
+            isDestructive = true;
+            warnings.Add($"字段 {fieldName} 删除属于破坏性变更，SQLite 需重建表。");
+            upSql.AppendLine($"-- TODO: DROP COLUMN {fieldName}（SQLite 需重建表）");
+            downSql.AppendLine($"-- TODO: RESTORE COLUMN {fieldName}（SQLite 需重建表）");
+        }
+
+        var upScript = upSql.ToString().Trim();
+        if (string.IsNullOrWhiteSpace(upScript))
+        {
+            upScript = "-- no-op: 未检测到可执行的结构变更";
+        }
+
+        var downScript = downSql.ToString().Trim();
+        if (string.IsNullOrWhiteSpace(downScript))
+        {
+            downScript = "-- no-op: 无回滚脚本";
+        }
+
+        return new MigrationScriptPreview(
+            tableKey,
+            upScript,
+            downScript,
+            isDestructive,
+            warnings);
+    }
+
+    private static string BuildAddColumnSql(DynamicTable table, DynamicFieldDefinition field)
+    {
+        var fieldType = DynamicEnumMapper.ParseFieldType(field.FieldType);
+        var tempField = new DynamicField(
+            table.TenantId,
+            table.Id,
+            field.Name,
+            field.DisplayName ?? field.Name,
+            fieldType,
+            field.Length,
+            field.Precision,
+            field.Scale,
+            field.AllowNull,
+            field.IsPrimaryKey,
+            field.IsAutoIncrement,
+            field.IsUnique,
+            field.DefaultValue,
+            field.SortOrder,
+            0,
+            DateTimeOffset.UtcNow);
+
+        var columnName = DynamicSqlBuilder.Quote(field.Name, table.DbType);
+        var columnType = DynamicSqlBuilder.MapToSqlType(tempField, table.DbType);
+        var nullSql = field.AllowNull ? string.Empty : " NOT NULL";
+        return $"ALTER TABLE {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} ADD COLUMN {columnName} {columnType}{nullSql};";
+    }
+
+    private static bool IsNoopUpdate(DynamicField current, DynamicFieldUpdateDefinition update)
+    {
+        var sameDisplayName = string.IsNullOrWhiteSpace(update.DisplayName) || string.Equals(update.DisplayName, current.DisplayName, StringComparison.Ordinal);
+        var sameLength = !update.Length.HasValue || update.Length.Value == current.Length;
+        var samePrecision = !update.Precision.HasValue || update.Precision.Value == current.Precision;
+        var sameScale = !update.Scale.HasValue || update.Scale.Value == current.Scale;
+        var sameAllowNull = !update.AllowNull.HasValue || update.AllowNull.Value == current.AllowNull;
+        var sameUnique = !update.IsUnique.HasValue || update.IsUnique.Value == current.IsUnique;
+        var sameDefaultValue = update.DefaultValue is null || string.Equals(update.DefaultValue, current.DefaultValue, StringComparison.Ordinal);
+
+        return sameDisplayName && sameLength && samePrecision && sameScale && sameAllowNull && sameUnique && sameDefaultValue;
     }
 }

@@ -33,3 +33,10 @@ public sealed record MigrationRecordCreateRequest(
     string UpScript,
     string? DownScript,
     bool IsDestructive);
+
+public sealed record MigrationScriptPreview(
+    string TableKey,
+    string UpScript,
+    string? DownScript,
+    bool IsDestructive,
+    IReadOnlyList<string> Warnings);

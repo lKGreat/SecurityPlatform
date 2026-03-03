@@ -46,6 +46,35 @@ Content-Type: application/json
 ###
 @migrationId = {{createMigration.response.body.$.data.id}}
 
+### Detect changes preview
+POST {{baseUrl}}/api/v1/dynamic-migrations/detect/orders
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "addFields": [
+    {
+      "name": "remark",
+      "displayName": "备注",
+      "fieldType": "String",
+      "length": 200,
+      "precision": null,
+      "scale": null,
+      "allowNull": true,
+      "isPrimaryKey": false,
+      "isAutoIncrement": false,
+      "isUnique": false,
+      "defaultValue": null,
+      "sortOrder": 99
+    }
+  ],
+  "updateFields": [],
+  "removeFields": []
+}
+
 ### Query migration list
 GET {{baseUrl}}/api/v1/dynamic-migrations?pageIndex=1&pageSize=20&tableKey=orders
 Authorization: Bearer {{accessToken}}
