@@ -117,6 +117,11 @@ GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/history?pageIndex=1&pageS
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
+### 导出流程实例历史（CSV）
+GET {{baseUrl}}/api/v1/approval/instances/{instanceId}/history/export
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
 ### 取消流程实例
 POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/cancellation
 Authorization: Bearer {{token}}

@@ -587,6 +587,7 @@ JWT Claims（新增）：
 - `GET /api/v1/approval/instances/my`：我发起的流程实例
 - `GET /api/v1/approval/instances/{id}`：流程实例详情
 - `GET /api/v1/approval/instances/{id}/history`：流程实例历史
+- `GET /api/v1/approval/instances/{id}/history/export`：导出流程历史（CSV）
 - `POST /api/v1/approval/instances/{id}/cancellation`：取消流程实例
 - `POST /api/v1/approval/instances/{id}/operations`：实例操作（撤回/转办/加签等）
 - `GET /api/v1/approval/instances/{id}/preview`：预览流程实例
