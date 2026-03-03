@@ -902,6 +902,45 @@ JWT Claims（新增）：
 
 前端 `AmisRenderer` 组件会把 `schema` 直接传给 `render` 并依赖 `env.fetcher` 将请求透传到后端 `ApiResponse`，还会用 `notify`/`alert` 显示提示。
 
+## 低代码应用版本快照契约
+
+### 适用范围
+
+- 资源：`/api/v1/lowcode-apps/{id}`
+- 所有接口要求：`Authorization` + `X-Tenant-Id`
+- 写接口（发布、回滚）由前端统一携带 `Idempotency-Key` + `X-CSRF-TOKEN`
+
+### 接口清单
+
+- `POST /api/v1/lowcode-apps/{id}/publish`
+  - 发布应用，并自动生成一条 `Publish` 版本快照。
+- `GET /api/v1/lowcode-apps/{id}/versions?pageIndex=1&pageSize=20`
+  - 查询应用版本历史（倒序）。
+- `POST /api/v1/lowcode-apps/{id}/versions/{versionId}/rollback`
+  - 回滚到指定快照；回滚完成后会生成一条新的 `Rollback` 版本记录。
+
+### LowCodeAppVersionListItem
+
+```json
+{
+  "id": "193210000000000001",
+  "appId": "193200000000000001",
+  "version": 3,
+  "actionType": "Publish|Rollback",
+  "sourceVersionId": "193210000000000000",
+  "note": "Rollback to version 1",
+  "createdAt": "2026-03-03T08:30:00Z",
+  "createdBy": 10001
+}
+```
+
+字段说明：
+
+- `version`：应用版本号（同一应用内递增）
+- `actionType`：版本来源动作，`Publish` 或 `Rollback`
+- `sourceVersionId`：仅回滚动作时有值，表示回滚目标版本 ID
+- `note`：回滚备注（发布场景可为空）
+
 ## 动态表与低代码 CRUD 契约（草案）
 
 ### 命名与校验规则

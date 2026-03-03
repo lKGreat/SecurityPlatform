@@ -167,4 +167,36 @@ public sealed class LowCodePage : TenantEntity
         UpdatedBy = updatedBy;
         UpdatedAt = now;
     }
+
+    public void RestoreSnapshot(
+        string name,
+        LowCodePageType pageType,
+        string schemaJson,
+        string? routePath,
+        string? description,
+        string? icon,
+        int sortOrder,
+        long? parentPageId,
+        int version,
+        bool isPublished,
+        string? permissionCode,
+        string? dataTableKey,
+        long updatedBy,
+        DateTimeOffset now)
+    {
+        Name = name;
+        PageType = pageType;
+        SchemaJson = schemaJson;
+        RoutePath = routePath;
+        Description = description;
+        Icon = icon;
+        SortOrder = sortOrder;
+        ParentPageId = parentPageId;
+        Version = version < 1 ? 1 : version;
+        IsPublished = isPublished;
+        PermissionCode = permissionCode;
+        DataTableKey = dataTableKey;
+        UpdatedBy = updatedBy;
+        UpdatedAt = now;
+    }
 }

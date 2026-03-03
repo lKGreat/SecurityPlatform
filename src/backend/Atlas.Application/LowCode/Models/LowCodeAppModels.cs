@@ -43,3 +43,13 @@ public sealed record LowCodeAppUpdateRequest(
     string? Description,
     string? Category,
     string? Icon);
+
+public sealed record LowCodeAppVersionListItem(
+    string Id,
+    string AppId,
+    int Version,
+    string ActionType,
+    string? SourceVersionId,
+    string? Note,
+    DateTimeOffset CreatedAt,
+    long CreatedBy);

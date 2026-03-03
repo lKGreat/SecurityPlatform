@@ -93,17 +93,31 @@ Content-Type: application/json
 # 应用状态管理
 ###############################################
 
-### 8. 发布应用
+### 8. 发布应用（自动生成版本快照）
+# @name publishApp
 POST {{baseUrl}}/lowcode-apps/{{appId}}/publish
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
-### 9. 禁用应用
+### 9. 查询应用版本历史
+# @name getAppVersions
+GET {{baseUrl}}/lowcode-apps/{{appId}}/versions?pageIndex=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+@versionId = {{getAppVersions.response.body.$.data.items[0].id}}
+
+### 10. 回滚到指定版本（回滚后会生成新的回滚版本）
+POST {{baseUrl}}/lowcode-apps/{{appId}}/versions/{{versionId}}/rollback
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 11. 禁用应用
 POST {{baseUrl}}/lowcode-apps/{{appId}}/disable
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
-### 10. 删除应用
+### 12. 删除应用
 DELETE {{baseUrl}}/lowcode-apps/{{appId}}
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
@@ -112,7 +126,7 @@ X-Tenant-Id: {{tenantId}}
 # 页面管理（关联到应用）
 ###############################################
 
-### 11. 为应用创建页面
+### 13. 为应用创建页面
 # @name createPage
 POST {{baseUrl}}/lowcode-apps/{{appId}}/pages
 Authorization: Bearer {{accessToken}}
@@ -147,7 +161,7 @@ Content-Type: application/json
 
 @pageId = {{createPage.response.body.$.data.id}}
 
-### 12. 创建表单页面
+### 14. 创建表单页面
 # @name createFormPage
 POST {{baseUrl}}/lowcode-apps/{{appId}}/pages
 Authorization: Bearer {{accessToken}}
@@ -317,11 +331,20 @@ GET {{baseUrl}}/lowcode-apps/by-key/nonexistent_app
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 23. 查询版本历史 - 未认证（应该返回401）
+GET {{baseUrl}}/lowcode-apps/{{appId}}/versions?pageIndex=1&pageSize=10
+X-Tenant-Id: {{tenantId}}
+
+### 24. 回滚到不存在版本（应该失败）
+POST {{baseUrl}}/lowcode-apps/{{appId}}/versions/999999999/rollback
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ###############################################
 # 完整应用创建流程测试
 ###############################################
 
-### 23. 创建完整应用（CRM系统）
+### 25. 创建完整应用（CRM系统）
 # @name createCrmApp
 POST {{baseUrl}}/lowcode-apps
 Authorization: Bearer {{accessToken}}
@@ -342,7 +365,7 @@ Content-Type: application/json
 
 @crmAppId = {{createCrmApp.response.body.$.data.id}}
 
-### 24. 为CRM创建客户列表页
+### 26. 为CRM创建客户列表页
 POST {{baseUrl}}/lowcode-apps/{{crmAppId}}/pages
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
@@ -374,7 +397,7 @@ Content-Type: application/json
   }
 }
 
-### 25. 为CRM创建销售机会页
+### 27. 为CRM创建销售机会页
 POST {{baseUrl}}/lowcode-apps/{{crmAppId}}/pages
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
@@ -406,12 +429,12 @@ Content-Type: application/json
   }
 }
 
-### 26. 发布CRM应用
+### 28. 发布CRM应用
 POST {{baseUrl}}/lowcode-apps/{{crmAppId}}/publish
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
-### 27. 验证发布状态
+### 29. 验证发布状态
 GET {{baseUrl}}/lowcode-apps/{{crmAppId}}
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}

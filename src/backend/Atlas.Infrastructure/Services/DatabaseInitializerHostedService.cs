@@ -124,6 +124,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             // Low code module
             typeof(LowCodeApp),
             typeof(LowCodePage),
+            typeof(LowCodeAppVersion),
             typeof(FormDefinition));
 
         // 创建审批模块数据库索引
