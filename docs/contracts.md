@@ -1222,6 +1222,26 @@ JWT Claims（新增）：
 
 ## 用户/部门/职位管理契约
 
+## 插件管理契约（AssemblyLoadContext）
+
+- `GET /api/v1/plugins`：查询插件清单
+- `POST /api/v1/plugins/reload`：重载插件目录并刷新清单
+
+### PluginDescriptor
+
+```json
+{
+  "code": "demo.plugin",
+  "name": "Demo Plugin",
+  "version": "1.0.0",
+  "assemblyName": "Atlas.Plugin.Demo",
+  "filePath": "/workspace/src/backend/Atlas.WebApi/plugins/Atlas.Plugin.Demo.dll",
+  "state": "Loaded|Failed|NoEntryPoint",
+  "loadedAt": "2026-03-03T12:00:00Z",
+  "errorMessage": null
+}
+```
+
 ## 用户/部门/职位管理契约
 
 ### 用户
