@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using Atlas.Application.DynamicTables.Models;
+using Atlas.Application.Resources;
 using FluentValidation;
+using Microsoft.Extensions.Localization;
 
 namespace Atlas.Application.Validators;
 
@@ -8,29 +10,29 @@ public sealed class DynamicTableAlterRequestValidator : AbstractValidator<Dynami
 {
     private static readonly Regex FieldNamePattern = new("^[A-Za-z][A-Za-z0-9_]{1,63}$", RegexOptions.Compiled);
 
-    public DynamicTableAlterRequestValidator()
+    public DynamicTableAlterRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x)
             .Must(request => request.AddFields.Count > 0 || request.UpdateFields.Count > 0 || request.RemoveFields.Count > 0)
-            .WithMessage("至少需要一项表结构变更。");
+            .WithMessage(localizer["DynamicAlterAtLeastOneChange"].Value);
 
         RuleFor(x => x.UpdateFields)
             .Must(fields => fields.Count == 0)
-            .WithMessage("当前版本暂不支持字段更新。");
+            .WithMessage(localizer["DynamicAlterUpdateNotSupported"].Value);
 
         RuleFor(x => x.RemoveFields)
             .Must(fields => fields.Count == 0)
-            .WithMessage("当前版本暂不支持字段删除。");
+            .WithMessage(localizer["DynamicAlterRemoveNotSupported"].Value);
 
         RuleForEach(x => x.AddFields)
             .Must(field => !string.IsNullOrWhiteSpace(field.Name)
                            && FieldNamePattern.IsMatch(field.Name)
                            && !field.Name.Equals("TenantIdValue", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("新增字段名不合法。");
+            .WithMessage(localizer["DynamicAlterFieldNameInvalid"].Value);
 
         RuleFor(x => x.AddFields)
             .Must(HaveUniqueFieldNames)
-            .WithMessage("新增字段名不能重复。");
+            .WithMessage(localizer["DynamicAlterFieldNameDuplicated"].Value);
     }
 
     private static bool HaveUniqueFieldNames(IReadOnlyList<DynamicFieldDefinition> fields)
