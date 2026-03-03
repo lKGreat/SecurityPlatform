@@ -963,6 +963,7 @@ JWT Claims（新增）：
 - `POST /api/v1/dynamic-tables`：新建动态表（需幂等 + CSRF）
 - `PUT /api/v1/dynamic-tables/{tableKey}`：更新表元数据（需幂等 + CSRF）
 - `POST /api/v1/dynamic-tables/{tableKey}/schema/alter`：变更字段（需幂等 + CSRF）
+- `POST /api/v1/dynamic-tables/{tableKey}/schema/alter/preview`：预览变更 SQL（只读，不落库）
 - `GET /api/v1/dynamic-tables/{tableKey}/migrations`：分页查询结构迁移记录
 - `DELETE /api/v1/dynamic-tables/{tableKey}`：删除动态表（需幂等 + CSRF）
 
@@ -1081,6 +1082,20 @@ JWT Claims（新增）：
   "rollbackSql": "当前版本不支持自动回滚，请通过备份恢复。",
   "createdBy": 10001,
   "createdAt": "2026-03-03T10:00:00Z"
+}
+```
+
+### AlterPreviewResponse
+
+```json
+{
+  "tableKey": "orders",
+  "operationType": "ADD_FIELDS",
+  "sqlScripts": [
+    "ALTER TABLE \"orders\" ADD COLUMN \"remark\" TEXT;",
+    "CREATE UNIQUE INDEX \"uk_orders_remark\" ON \"orders\" (\"remark\");"
+  ],
+  "rollbackHint": "当前版本不支持自动回滚，请通过备份恢复。"
 }
 ```
 

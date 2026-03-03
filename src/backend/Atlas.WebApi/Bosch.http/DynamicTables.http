@@ -119,6 +119,30 @@ X-CSRF-TOKEN: {{csrfToken}}
   "removeFields": []
 }
 
+### Alter Schema Preview - 仅预览 SQL
+POST {{baseUrl}}/api/v1/dynamic-tables/orders/schema/alter/preview
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "addFields": [
+    {
+      "name": "remark_preview",
+      "displayName": "备注(预览)",
+      "fieldType": "String",
+      "length": 120,
+      "allowNull": true,
+      "isPrimaryKey": false,
+      "isAutoIncrement": false,
+      "isUnique": false,
+      "sortOrder": 99
+    }
+  ],
+  "updateFields": [],
+  "removeFields": []
+}
+
 ### Get Dynamic Table Fields (验证新增字段)
 GET {{baseUrl}}/api/v1/dynamic-tables/orders/fields
 Authorization: Bearer {{accessToken}}

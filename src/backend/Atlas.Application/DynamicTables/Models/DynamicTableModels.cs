@@ -59,6 +59,12 @@ public sealed record DynamicTableAlterRequest(
     IReadOnlyList<DynamicFieldUpdateDefinition> UpdateFields,
     IReadOnlyList<string> RemoveFields);
 
+public sealed record DynamicTableAlterPreviewResponse(
+    string TableKey,
+    string OperationType,
+    IReadOnlyList<string> SqlScripts,
+    string? RollbackHint);
+
 public sealed record DynamicFieldDefinition(
     string Name,
     string? DisplayName,

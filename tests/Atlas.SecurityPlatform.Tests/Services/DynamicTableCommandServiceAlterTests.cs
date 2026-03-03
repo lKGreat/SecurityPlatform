@@ -156,6 +156,76 @@ public sealed class DynamicTableCommandServiceAlterTests
         }
     }
 
+    [Fact]
+    public async Task PreviewAlterAsync_ShouldReturnSql_WithoutChangingSchema()
+    {
+        var dbPath = CreateTempDbPath();
+        try
+        {
+            var db = CreateDb(dbPath);
+            await CreateSchemaAsync(db);
+
+            var tableRepository = new DynamicTableRepository(db);
+            var fieldRepository = new DynamicFieldRepository(db);
+            var indexRepository = new DynamicIndexRepository(db);
+            var recordRepository = new DynamicRecordRepository(db);
+            var migrationRepository = new DynamicSchemaMigrationRepository(db);
+            var idGenerator = new SequentialIdGenerator(7000);
+            var service = new DynamicTableCommandService(
+                tableRepository,
+                fieldRepository,
+                indexRepository,
+                recordRepository,
+                migrationRepository,
+                idGenerator,
+                db,
+                TimeProvider.System);
+
+            var tenantId = new TenantId(Guid.Parse("88888888-8888-8888-8888-888888888888"));
+            await service.CreateAsync(
+                tenantId,
+                userId: 1,
+                new DynamicTableCreateRequest(
+                    "orders_preview",
+                    "订单-预览测试",
+                    null,
+                    "Sqlite",
+                    new[]
+                    {
+                        new DynamicFieldDefinition("id", "主键", "Long", null, null, null, false, true, true, true, null, 0),
+                        new DynamicFieldDefinition("orderNo", "订单号", "String", 50, null, null, false, false, false, false, null, 1)
+                    },
+                    Array.Empty<DynamicIndexDefinition>()),
+                CancellationToken.None);
+
+            var preview = await service.PreviewAlterAsync(
+                tenantId,
+                "orders_preview",
+                new DynamicTableAlterRequest(
+                    new[]
+                    {
+                        new DynamicFieldDefinition("remark_preview", "备注预览", "String", 80, null, null, true, false, false, true, null, 3)
+                    },
+                    Array.Empty<DynamicFieldUpdateDefinition>(),
+                    Array.Empty<string>()),
+                CancellationToken.None);
+
+            Assert.Equal("orders_preview", preview.TableKey);
+            Assert.Equal("ADD_FIELDS", preview.OperationType);
+            Assert.Contains(preview.SqlScripts, script => script.Contains("ALTER TABLE", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(preview.SqlScripts, script => script.Contains("CREATE UNIQUE INDEX", StringComparison.OrdinalIgnoreCase));
+
+            var table = await tableRepository.FindByKeyAsync(tenantId, "orders_preview", CancellationToken.None);
+            Assert.NotNull(table);
+            var fields = await fieldRepository.ListByTableIdAsync(tenantId, table!.Id, CancellationToken.None);
+            Assert.DoesNotContain(fields, x => x.Name.Equals("remark_preview", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            CleanupDbFile(dbPath);
+        }
+    }
+
     private static SqlSugarClient CreateDb(string dbPath)
     {
         return new SqlSugarClient(new ConnectionConfig

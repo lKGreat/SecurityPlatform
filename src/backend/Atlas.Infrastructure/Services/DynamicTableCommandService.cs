@@ -212,6 +212,48 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         }
     }
 
+    public async Task<DynamicTableAlterPreviewResponse> PreviewAlterAsync(
+        TenantId tenantId,
+        string tableKey,
+        DynamicTableAlterRequest request,
+        CancellationToken cancellationToken)
+    {
+        var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, cancellationToken);
+        if (table is null)
+        {
+            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+        }
+
+        if (table.DbType != DynamicDbType.Sqlite)
+        {
+            throw new BusinessException(ErrorCodes.ValidationError, "当前仅支持 SQLite 动态表结构变更预览。");
+        }
+
+        if (request.UpdateFields.Count > 0 || request.RemoveFields.Count > 0)
+        {
+            throw new BusinessException(ErrorCodes.ValidationError, "当前版本仅支持新增字段。");
+        }
+
+        if (request.AddFields.Count == 0)
+        {
+            return new DynamicTableAlterPreviewResponse(tableKey, "ADD_FIELDS", Array.Empty<string>(), "未检测到可执行变更。");
+        }
+
+        var existingFields = await _fieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
+        var existingNames = existingFields
+            .Select(x => x.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        ValidateAddFieldDefinitions(request.AddFields, existingNames);
+
+        var previewFields = BuildPreviewFields(tenantId, table.Id, request.AddFields, existingFields);
+        var sqlScripts = BuildAddFieldSqlScripts(table, previewFields);
+        return new DynamicTableAlterPreviewResponse(
+            tableKey,
+            "ADD_FIELDS",
+            sqlScripts,
+            "当前版本不支持自动回滚，请通过备份恢复。");
+    }
+
     public async Task DeleteAsync(
         TenantId tenantId,
         long userId,
@@ -474,6 +516,39 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         return fields;
     }
 
+    private static IReadOnlyList<DynamicField> BuildPreviewFields(
+        TenantId tenantId,
+        long tableId,
+        IReadOnlyList<DynamicFieldDefinition> definitions,
+        IReadOnlyList<DynamicField> existingFields)
+    {
+        var fields = new List<DynamicField>(definitions.Count);
+        var fallbackOrder = existingFields.Count == 0 ? 0 : existingFields.Max(x => x.SortOrder);
+        foreach (var definition in definitions)
+        {
+            var fieldType = DynamicEnumMapper.ParseFieldType(definition.FieldType);
+            fields.Add(new DynamicField(
+                tenantId,
+                tableId,
+                definition.Name,
+                definition.DisplayName ?? definition.Name,
+                fieldType,
+                definition.Length,
+                definition.Precision,
+                definition.Scale,
+                definition.AllowNull,
+                definition.IsPrimaryKey,
+                definition.IsAutoIncrement,
+                definition.IsUnique,
+                definition.DefaultValue,
+                definition.SortOrder > 0 ? definition.SortOrder : ++fallbackOrder,
+                id: 0,
+                now: DateTimeOffset.UtcNow));
+        }
+
+        return fields;
+    }
+
     private static void ValidateAddFieldDefinitions(
         IReadOnlyList<DynamicFieldDefinition> addFields,
         HashSet<string> existingNames)
@@ -523,6 +598,22 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
                 throw new BusinessException(ErrorCodes.ValidationError, $"新增非空字段 '{field.Name}' 必须提供默认值。");
             }
         }
+    }
+
+    private static IReadOnlyList<string> BuildAddFieldSqlScripts(DynamicTable table, IReadOnlyList<DynamicField> newFields)
+    {
+        var scripts = new List<string>(newFields.Count * 2);
+        foreach (var field in newFields)
+        {
+            scripts.Add(DynamicSqlBuilder.BuildAddColumnSql(table, field));
+            if (field.IsUnique)
+            {
+                var indexName = $"uk_{table.TableKey}_{field.Name}".ToLowerInvariant();
+                scripts.Add(DynamicSqlBuilder.BuildCreateIndexSql(table, new[] { field.Name }, indexName, true));
+            }
+        }
+
+        return scripts;
     }
 
     private DynamicSchemaMigration BuildMigrationRecord(

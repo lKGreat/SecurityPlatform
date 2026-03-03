@@ -182,6 +182,18 @@ public sealed class DynamicTablesController : ControllerBase
         return Ok(ApiResponse<object>.Ok(new { TableKey = tableKey }, HttpContext.TraceIdentifier));
     }
 
+    [HttpPost("{tableKey}/schema/alter/preview")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<DynamicTableAlterPreviewResponse>>> PreviewAlterSchema(
+        string tableKey,
+        [FromBody] DynamicTableAlterRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var preview = await _commandService.PreviewAlterAsync(tenantId, tableKey, request, cancellationToken);
+        return Ok(ApiResponse<DynamicTableAlterPreviewResponse>.Ok(preview, HttpContext.TraceIdentifier));
+    }
+
     [HttpDelete("{tableKey}")]
     [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(
