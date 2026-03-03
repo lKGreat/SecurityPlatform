@@ -6,6 +6,8 @@ using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.DynamicTables.Entities;
+using Atlas.Domain.DynamicTables.Enums;
+using System.Text.Json;
 
 namespace Atlas.Infrastructure.Services;
 
@@ -16,19 +18,23 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
     private readonly IDynamicRecordRepository _recordRepository;
     private readonly IFieldPermissionResolver _fieldPermissionResolver;
     private readonly ICurrentUserAccessor _currentUserAccessor;
+    private readonly IDataScopeFilter _dataScopeFilter;
+    private static readonly string[] OwnerFieldCandidates = ["ownerid", "createdby", "creatorid", "owner_id", "created_by"];
 
     public DynamicRecordQueryService(
         IDynamicTableRepository tableRepository,
         IDynamicFieldRepository fieldRepository,
         IDynamicRecordRepository recordRepository,
         IFieldPermissionResolver fieldPermissionResolver,
-        ICurrentUserAccessor currentUserAccessor)
+        ICurrentUserAccessor currentUserAccessor,
+        IDataScopeFilter dataScopeFilter)
     {
         _tableRepository = tableRepository;
         _fieldRepository = fieldRepository;
         _recordRepository = recordRepository;
         _fieldPermissionResolver = fieldPermissionResolver;
         _currentUserAccessor = currentUserAccessor;
+        _dataScopeFilter = dataScopeFilter;
     }
 
     public async Task<DynamicRecordListResult> QueryAsync(
@@ -50,7 +56,20 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
             throw new BusinessException(ErrorCodes.Forbidden, "无可访问字段。");
         }
 
-        return await _recordRepository.QueryAsync(tenantId, table, fields, request, cancellationToken);
+        var ownerFilterId = await _dataScopeFilter.GetOwnerFilterIdAsync(cancellationToken);
+        var effectiveRequest = request;
+        if (ownerFilterId.HasValue)
+        {
+            var ownerField = ResolveOwnerField(fields);
+            if (ownerField is null)
+            {
+                return BuildEmptyResult(request, fields);
+            }
+
+            effectiveRequest = AppendOwnerFilter(request, ownerField.Name, ownerFilterId.Value);
+        }
+
+        return await _recordRepository.QueryAsync(tenantId, table, fields, effectiveRequest, cancellationToken);
     }
 
     public async Task<DynamicRecordDto?> GetByIdAsync(
@@ -72,7 +91,25 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
             return null;
         }
 
-        return await _recordRepository.GetByIdAsync(tenantId, table, fields, id, cancellationToken);
+        var record = await _recordRepository.GetByIdAsync(tenantId, table, fields, id, cancellationToken);
+        if (record is null)
+        {
+            return null;
+        }
+
+        var ownerFilterId = await _dataScopeFilter.GetOwnerFilterIdAsync(cancellationToken);
+        if (!ownerFilterId.HasValue)
+        {
+            return record;
+        }
+
+        var ownerField = ResolveOwnerField(fields);
+        if (ownerField is null)
+        {
+            return null;
+        }
+
+        return IsOwnedBy(record, ownerField.Name, ownerFilterId.Value) ? record : null;
     }
 
     public async Task<DynamicRecordExportResult> ExportAsync(
@@ -94,18 +131,102 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
             throw new BusinessException(ErrorCodes.Forbidden, "无可访问字段。");
         }
 
-        var selectedFields = ResolveExportFields(fields, request.Fields);
-        var queryRequest = new DynamicRecordQueryRequest(
+        var ownerFilterId = await _dataScopeFilter.GetOwnerFilterIdAsync(cancellationToken);
+        var effectiveRequest = new DynamicRecordQueryRequest(
             1,
             1000,
             request.Keyword,
             request.SortBy,
             request.SortDesc,
             request.Filters ?? Array.Empty<DynamicFilterCondition>());
-        var records = await _recordRepository.QueryAllAsync(tenantId, table, fields, queryRequest, cancellationToken);
+        if (ownerFilterId.HasValue)
+        {
+            var ownerField = ResolveOwnerField(fields);
+            if (ownerField is null)
+            {
+                return new DynamicRecordExportResult(
+                    $"{tableKey}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.csv",
+                    "text/csv; charset=utf-8",
+                    BuildCsv(ResolveExportFields(fields, request.Fields), Array.Empty<DynamicRecordDto>()));
+            }
+
+            effectiveRequest = AppendOwnerFilter(effectiveRequest, ownerField.Name, ownerFilterId.Value);
+        }
+
+        var selectedFields = ResolveExportFields(fields, request.Fields);
+        var records = await _recordRepository.QueryAllAsync(tenantId, table, fields, effectiveRequest, cancellationToken);
         var content = BuildCsv(selectedFields, records);
         var fileName = $"{tableKey}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.csv";
         return new DynamicRecordExportResult(fileName, "text/csv; charset=utf-8", content);
+    }
+
+    private static DynamicRecordListResult BuildEmptyResult(
+        DynamicRecordQueryRequest request,
+        IReadOnlyList<DynamicField> fields)
+    {
+        return new DynamicRecordListResult(
+            Array.Empty<DynamicRecordDto>(),
+            0,
+            request.PageIndex < 1 ? 1 : request.PageIndex,
+            request.PageSize < 1 ? 20 : request.PageSize,
+            fields.Select(field => new DynamicColumnDef(
+                field.Name,
+                string.IsNullOrWhiteSpace(field.DisplayName) ? field.Name : field.DisplayName,
+                field.FieldType == DynamicFieldType.Bool ? "status" : "text",
+                true,
+                field.FieldType is DynamicFieldType.String or DynamicFieldType.Text,
+                false)).ToArray());
+    }
+
+    private static DynamicField? ResolveOwnerField(IReadOnlyList<DynamicField> fields)
+    {
+        return fields.FirstOrDefault(field => OwnerFieldCandidates.Contains(field.Name, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static DynamicRecordQueryRequest AppendOwnerFilter(
+        DynamicRecordQueryRequest request,
+        string ownerFieldName,
+        long ownerId)
+    {
+        var filters = (request.Filters ?? Array.Empty<DynamicFilterCondition>())
+            .Where(filter => !string.Equals(filter.Field, ownerFieldName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        filters.Add(new DynamicFilterCondition(
+            ownerFieldName,
+            "eq",
+            JsonSerializer.SerializeToElement(ownerId)));
+
+        return new DynamicRecordQueryRequest(
+            request.PageIndex,
+            request.PageSize,
+            request.Keyword,
+            request.SortBy,
+            request.SortDesc,
+            filters);
+    }
+
+    private static bool IsOwnedBy(DynamicRecordDto record, string ownerFieldName, long ownerId)
+    {
+        var ownerValue = record.Values.FirstOrDefault(x => string.Equals(x.Field, ownerFieldName, StringComparison.OrdinalIgnoreCase));
+        if (ownerValue is null)
+        {
+            return false;
+        }
+
+        if (ownerValue.LongValue.HasValue)
+        {
+            return ownerValue.LongValue.Value == ownerId;
+        }
+        if (ownerValue.IntValue.HasValue)
+        {
+            return ownerValue.IntValue.Value == ownerId;
+        }
+        if (!string.IsNullOrWhiteSpace(ownerValue.StringValue) && long.TryParse(ownerValue.StringValue, out var parsed))
+        {
+            return parsed == ownerId;
+        }
+
+        return false;
     }
 
     private async Task<IReadOnlyList<DynamicField>> FilterFieldsByPermissionAsync(

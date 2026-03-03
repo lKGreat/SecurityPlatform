@@ -1053,6 +1053,7 @@ JWT Claims（新增）：
 
 - 当目标表配置了字段级权限规则时，查询/详情/导出将按当前用户角色自动裁剪可见字段；
 - 写入（create/update）会校验可编辑字段，越权字段写入将返回 `FORBIDDEN`。
+- 当当前角色数据权限为“仅本人”时，动态记录查询/详情/导出将自动注入 owner 过滤（基于 `ownerId/createdBy/creatorId` 字段约定）。
 
 ### AMIS Schema 接口
 
