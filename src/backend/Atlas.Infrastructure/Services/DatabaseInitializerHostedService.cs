@@ -113,6 +113,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(LowCodeApp),
             typeof(LowCodePage),
             typeof(LowCodePageVersion),
+            typeof(LowCodeEnvironment),
             typeof(FormDefinition),
             typeof(DashboardDefinition),
             typeof(ReportDefinition),

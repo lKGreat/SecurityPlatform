@@ -32,5 +32,6 @@ public interface ILowCodeAppQueryService
         TenantId tenantId,
         long pageId,
         string mode,
+        string? environmentCode,
         CancellationToken cancellationToken = default);
 }

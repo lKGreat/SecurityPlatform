@@ -18,6 +18,7 @@ public sealed class LowCodeAppsController : ControllerBase
     private readonly ILowCodeAppQueryService _queryService;
     private readonly ILowCodeAppCommandService _commandService;
     private readonly ILowCodePageCommandService _pageCommandService;
+    private readonly ILowCodeEnvironmentService _environmentService;
     private readonly ITenantProvider _tenantProvider;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IValidator<LowCodeAppCreateRequest> _createValidator;
@@ -25,22 +26,28 @@ public sealed class LowCodeAppsController : ControllerBase
     private readonly IValidator<LowCodeAppImportRequest> _importValidator;
     private readonly IValidator<LowCodePageCreateRequest> _pageCreateValidator;
     private readonly IValidator<LowCodePageUpdateRequest> _pageUpdateValidator;
+    private readonly IValidator<LowCodeEnvironmentCreateRequest> _environmentCreateValidator;
+    private readonly IValidator<LowCodeEnvironmentUpdateRequest> _environmentUpdateValidator;
 
     public LowCodeAppsController(
         ILowCodeAppQueryService queryService,
         ILowCodeAppCommandService commandService,
         ILowCodePageCommandService pageCommandService,
+        ILowCodeEnvironmentService environmentService,
         ITenantProvider tenantProvider,
         ICurrentUserAccessor currentUserAccessor,
         IValidator<LowCodeAppCreateRequest> createValidator,
         IValidator<LowCodeAppUpdateRequest> updateValidator,
         IValidator<LowCodeAppImportRequest> importValidator,
         IValidator<LowCodePageCreateRequest> pageCreateValidator,
-        IValidator<LowCodePageUpdateRequest> pageUpdateValidator)
+        IValidator<LowCodePageUpdateRequest> pageUpdateValidator,
+        IValidator<LowCodeEnvironmentCreateRequest> environmentCreateValidator,
+        IValidator<LowCodeEnvironmentUpdateRequest> environmentUpdateValidator)
     {
         _queryService = queryService;
         _commandService = commandService;
         _pageCommandService = pageCommandService;
+        _environmentService = environmentService;
         _tenantProvider = tenantProvider;
         _currentUserAccessor = currentUserAccessor;
         _createValidator = createValidator;
@@ -48,6 +55,8 @@ public sealed class LowCodeAppsController : ControllerBase
         _importValidator = importValidator;
         _pageCreateValidator = pageCreateValidator;
         _pageUpdateValidator = pageUpdateValidator;
+        _environmentCreateValidator = environmentCreateValidator;
+        _environmentUpdateValidator = environmentUpdateValidator;
     }
 
     /// <summary>
@@ -235,6 +244,84 @@ public sealed class LowCodeAppsController : ControllerBase
         return Ok(ApiResponse<LowCodeAppImportResult>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    /// <summary>
+    /// 查询应用环境配置
+    /// </summary>
+    [HttpGet("{appId:long}/environments")]
+    [Authorize(Policy = PermissionPolicies.AppsView)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<LowCodeEnvironmentListItem>>>> GetEnvironments(
+        long appId,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _environmentService.GetByAppIdAsync(tenantId, appId, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<LowCodeEnvironmentListItem>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 创建应用环境配置
+    /// </summary>
+    [HttpPost("{appId:long}/environments")]
+    [Authorize(Policy = PermissionPolicies.AppsUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> CreateEnvironment(
+        long appId,
+        [FromBody] LowCodeEnvironmentCreateRequest request,
+        CancellationToken cancellationToken)
+    {
+        _environmentCreateValidator.ValidateAndThrow(request);
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        var id = await _environmentService.CreateAsync(tenantId, currentUser.UserId, appId, request, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 更新应用环境配置
+    /// </summary>
+    [HttpPut("environments/{id:long}")]
+    [Authorize(Policy = PermissionPolicies.AppsUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateEnvironment(
+        long id,
+        [FromBody] LowCodeEnvironmentUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        _environmentUpdateValidator.ValidateAndThrow(request);
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        await _environmentService.UpdateAsync(tenantId, currentUser.UserId, id, request, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 删除应用环境配置
+    /// </summary>
+    [HttpDelete("environments/{id:long}")]
+    [Authorize(Policy = PermissionPolicies.AppsUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteEnvironment(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        await _environmentService.DeleteAsync(tenantId, currentUser.UserId, id, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
+    }
+
     // ─── 页面管理 ───
 
     /// <summary>
@@ -259,10 +346,11 @@ public sealed class LowCodeAppsController : ControllerBase
     public async Task<ActionResult<ApiResponse<LowCodePageRuntimeSchema?>>> GetRuntimePageSchema(
         long pageId,
         [FromQuery] string mode = "draft",
+        [FromQuery] string? environmentCode = null,
         CancellationToken cancellationToken = default)
     {
         var tenantId = _tenantProvider.GetTenantId();
-        var detail = await _queryService.GetRuntimePageSchemaAsync(tenantId, pageId, mode, cancellationToken);
+        var detail = await _queryService.GetRuntimePageSchemaAsync(tenantId, pageId, mode, environmentCode, cancellationToken);
         return Ok(ApiResponse<LowCodePageRuntimeSchema?>.Ok(detail, HttpContext.TraceIdentifier));
     }
 

@@ -864,6 +864,10 @@ JWT Claims（新增）：
 - `POST /api/v1/lowcode-apps/{id}/disable`：停用应用（需幂等 + CSRF）
 - `GET /api/v1/lowcode-apps/{id}/export`：导出应用 JSON 包
 - `POST /api/v1/lowcode-apps/import`：导入应用 JSON 包（需幂等 + CSRF，支持 `Rename/Overwrite/Skip` 冲突策略）
+- `GET /api/v1/lowcode-apps/{appId}/environments`：查询应用环境配置
+- `POST /api/v1/lowcode-apps/{appId}/environments`：创建应用环境配置（需幂等 + CSRF）
+- `PUT /api/v1/lowcode-apps/environments/{id}`：更新应用环境配置（需幂等 + CSRF）
+- `DELETE /api/v1/lowcode-apps/environments/{id}`：删除应用环境配置（需幂等 + CSRF）
 - `DELETE /api/v1/lowcode-apps/{id}`：删除应用（需幂等 + CSRF）
 
 授权策略：
@@ -878,7 +882,7 @@ JWT Claims（新增）：
 - `PATCH /api/v1/lowcode-apps/pages/{pageId}/schema`：仅更新页面 Schema（需幂等 + CSRF）
 - `POST /api/v1/lowcode-apps/pages/{pageId}/publish`：发布页面（需幂等 + CSRF）
 - `GET /api/v1/lowcode-apps/pages/{pageId}/versions`：页面版本历史
-- `GET /api/v1/lowcode-apps/pages/{pageId}/runtime?mode=draft|published`：运行态 Schema（草稿/已发布）
+- `GET /api/v1/lowcode-apps/pages/{pageId}/runtime?mode=draft|published&environmentCode=dev`：运行态 Schema（草稿/已发布，支持环境变量替换）
 - `POST /api/v1/lowcode-apps/pages/{pageId}/rollback/{versionId}`：按历史版本回滚并生成新发布版本（需幂等 + CSRF）
 - `DELETE /api/v1/lowcode-apps/pages/{pageId}`：删除页面（需幂等 + CSRF）
 - `GET /api/v1/lowcode-apps/pages/{pageId}`：页面详情（含完整 `schemaJson`）

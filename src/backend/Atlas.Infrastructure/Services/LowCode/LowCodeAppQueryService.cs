@@ -10,15 +10,18 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
     private readonly ILowCodeAppRepository _appRepository;
     private readonly ILowCodePageRepository _pageRepository;
     private readonly ILowCodePageVersionRepository _pageVersionRepository;
+    private readonly ILowCodeEnvironmentRepository _environmentRepository;
 
     public LowCodeAppQueryService(
         ILowCodeAppRepository appRepository,
         ILowCodePageRepository pageRepository,
-        ILowCodePageVersionRepository pageVersionRepository)
+        ILowCodePageVersionRepository pageVersionRepository,
+        ILowCodeEnvironmentRepository environmentRepository)
     {
         _appRepository = appRepository;
         _pageRepository = pageRepository;
         _pageVersionRepository = pageVersionRepository;
+        _environmentRepository = environmentRepository;
     }
 
     public async Task<PagedResult<LowCodeAppListItem>> QueryAsync(
@@ -176,6 +179,7 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
         TenantId tenantId,
         long pageId,
         string mode,
+        string? environmentCode,
         CancellationToken cancellationToken = default)
     {
         var page = await _pageRepository.GetByIdAsync(tenantId, pageId, cancellationToken);
@@ -192,6 +196,14 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
         var schema = usePublished
             ? (!string.IsNullOrWhiteSpace(page.PublishedSchemaJson) ? page.PublishedSchemaJson : page.SchemaJson)
             : page.SchemaJson;
+        if (!string.IsNullOrWhiteSpace(environmentCode))
+        {
+            var env = await _environmentRepository.GetByCodeAsync(tenantId, page.AppId, environmentCode.Trim(), cancellationToken);
+            if (env is not null && env.IsActive)
+            {
+                schema = ReplaceVariables(schema, env.VariablesJson);
+            }
+        }
         var version = usePublished && page.PublishedVersion.HasValue ? page.PublishedVersion.Value : page.Version;
 
         return new LowCodePageRuntimeSchema(
@@ -201,6 +213,35 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
             schema,
             version,
             usePublished ? "published" : "draft");
+    }
+
+    private static string ReplaceVariables(string schema, string variablesJson)
+    {
+        if (string.IsNullOrWhiteSpace(schema) || string.IsNullOrWhiteSpace(variablesJson))
+        {
+            return schema;
+        }
+
+        try
+        {
+            var vars = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(variablesJson);
+            if (vars is null || vars.Count == 0)
+            {
+                return schema;
+            }
+
+            var result = schema;
+            foreach (var item in vars)
+            {
+                result = result.Replace($"{{{{{item.Key}}}}}", item.Value ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return result;
+        }
+        catch
+        {
+            return schema;
+        }
     }
 
     private static LowCodeAppDetail MapToDetail(

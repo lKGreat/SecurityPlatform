@@ -121,6 +121,11 @@ GET {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}/runtime?mode=draft
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 获取运行态页面 Schema（指定环境变量替换）
+GET {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}/runtime?mode=published&environmentCode=dev
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### 获取页面版本历史
 GET {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}/versions
 Authorization: Bearer {{accessToken}}
@@ -130,6 +135,54 @@ X-Tenant-Id: {{tenantId}}
 GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/pages/tree
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
+
+### 创建应用环境（需幂等+CSRF）
+# @name createEnvironment
+POST {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/environments
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "name": "开发环境",
+  "code": "dev",
+  "description": "开发联调环境",
+  "isDefault": true,
+  "variablesJson": "{\"API_BASE\":\"https://dev-api.example.com\",\"ASSET_BUCKET\":\"dev-bucket\"}"
+}
+
+###
+@environmentId = {{createEnvironment.response.body.$.data.id}}
+
+### 查询应用环境列表
+GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/environments
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 更新应用环境（需幂等+CSRF）
+PUT {{baseUrl}}/api/v1/lowcode-apps/environments/{{environmentId}}
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "name": "开发环境",
+  "description": "开发联调环境（更新）",
+  "isDefault": true,
+  "isActive": true,
+  "variablesJson": "{\"API_BASE\":\"https://dev-api-v2.example.com\",\"ASSET_BUCKET\":\"dev-bucket\"}"
+}
+
+### 删除应用环境（需幂等+CSRF）
+DELETE {{baseUrl}}/api/v1/lowcode-apps/environments/{{environmentId}}
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 ### 更新页面（需幂等+CSRF）
 PUT {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}
