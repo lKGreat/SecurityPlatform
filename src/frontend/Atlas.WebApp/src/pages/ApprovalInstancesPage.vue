@@ -56,7 +56,15 @@
     >
       <div v-if="instanceDetail">
         <a-descriptions :column="1" bordered>
+          <a-descriptions-item label="流程名称">{{ instanceDetail.flowName || '-' }}</a-descriptions-item>
           <a-descriptions-item label="业务Key">{{ instanceDetail.businessKey }}</a-descriptions-item>
+          <a-descriptions-item label="当前节点">{{ instanceDetail.currentNodeName || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="SLA">
+            <a-tag v-if="instanceDetail.slaRemainingMinutes != null" :color="instanceDetail.slaRemainingMinutes >= 0 ? 'processing' : 'error'">
+              {{ formatSla(instanceDetail.slaRemainingMinutes) }}
+            </a-tag>
+            <span v-else>-</span>
+          </a-descriptions-item>
           <a-descriptions-item label="状态">
             <a-tag :color="getStatusColor(instanceDetail.status)">
               {{ getStatusText(instanceDetail.status) }}
@@ -170,7 +178,7 @@ const pagination = reactive<TablePaginationConfig>({
 });
 
 const drawerVisible = ref(false);
-const instanceDetail = ref<(ApprovalInstanceResponse & { flowName?: string }) | null>(null);
+const instanceDetail = ref<ApprovalInstanceResponse | null>(null);
 const taskList = ref<ApprovalTaskResponse[]>([]);
 const historyList = ref<ApprovalHistoryEventResponse[]>([]);
 const taskLoading = ref(false);
@@ -302,11 +310,6 @@ const handleViewDetail = async (id: string) => {
       }
     }
 
-    // 从列表中找到流程名称
-    const listItem = dataSource.value.find((item) => item.id === id);
-    if (listItem && instanceDetail.value) {
-      instanceDetail.value.flowName = listItem.flowName;
-    }
   } catch (err) {
     message.error(err instanceof Error ? err.message : "加载详情失败");
   } finally {
