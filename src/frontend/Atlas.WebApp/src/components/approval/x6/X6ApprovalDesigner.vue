@@ -150,6 +150,7 @@ const emit = defineEmits<{
   addConditionBranch: [nodeId: string];
   deleteConditionBranch: [branchId: string];
   moveBranch: [conditionNodeId: string, branchId: string, direction: 'left' | 'right'];
+  updateRouteTarget: [routeNodeId: string, targetNodeId: string];
 }>();
 
 const containerRef = ref<HTMLElement>();
@@ -159,6 +160,7 @@ const minimapVisible = ref(true);
 const zoom = ref(1);
 const zoomPercent = computed(() => Math.round(zoom.value * 100));
 let selectionPlugin: Selection | null = null;
+let lastConnectionWarnAt = 0;
 
 // ── 右键菜单状态 ──
 const nodeMenuVisible = ref(false);
@@ -207,10 +209,70 @@ function initGraph() {
       edgeLabelMovable: false,
     },
     connecting: {
+      highlight: true,
       allowBlank: false,
       allowLoop: false,
       allowNode: false,
       allowEdge: false,
+      allowMulti: false,
+      snap: true,
+      validateMagnet: ({ magnet }: { magnet: Element | null }) =>
+        magnet?.getAttribute('port-group') === 'out',
+      validateConnection: (args: any) => {
+        const sourceCellId = args?.sourceCell?.id as string | undefined;
+        const targetCellId = args?.targetCell?.id as string | undefined;
+        const sourceMagnet = args?.sourceMagnet as Element | null;
+        const targetMagnet = args?.targetMagnet as Element | null;
+
+        if (!sourceCellId || !targetCellId || sourceCellId === targetCellId) {
+          return false;
+        }
+        if (sourceMagnet?.getAttribute('port-group') !== 'out' || targetMagnet?.getAttribute('port-group') !== 'in') {
+          return false;
+        }
+
+        const sourceType = getCellNodeType(sourceCellId);
+        const targetType = getCellNodeType(targetCellId);
+        if (!sourceType || !targetType) {
+          return false;
+        }
+
+        if (sourceType === 'end') {
+          warnInvalidConnection('结束节点不能作为连线起点');
+          return false;
+        }
+        if (targetType === 'start') {
+          warnInvalidConnection('开始节点不能作为连线目标');
+          return false;
+        }
+        if (sourceType !== 'route') {
+          warnInvalidConnection('当前仅支持路由节点通过连线设置目标节点');
+          return false;
+        }
+        if (targetType === 'route') {
+          warnInvalidConnection('路由节点不能跳转到另一个路由节点');
+          return false;
+        }
+
+        return true;
+      },
+      createEdge: () =>
+        graphRef.value!.createEdge({
+          attrs: {
+            line: {
+              stroke: '#1677ff',
+              strokeWidth: 2.5,
+              targetMarker: {
+                name: 'classic',
+                size: 8,
+              },
+            },
+          },
+          connector: {
+            name: 'rounded',
+            args: { radius: 6 },
+          },
+        }),
     },
   });
 
@@ -304,10 +366,54 @@ function initGraph() {
     nodeMenuVisible.value = false;
   });
 
+  graph.on('edge:connected', ({ edge, isNew }: { edge: { remove: () => void; getSourceCellId: () => string | null; getTargetCellId: () => string | null }; isNew: boolean }) => {
+    if (!isNew) {
+      return;
+    }
+    const sourceId = edge.getSourceCellId();
+    const targetId = edge.getTargetCellId();
+    edge.remove();
+
+    if (!sourceId || !targetId) {
+      return;
+    }
+    if (getCellNodeType(sourceId) !== 'route') {
+      warnInvalidConnection('当前仅支持路由节点通过连线设置目标节点');
+      return;
+    }
+
+    emit('updateRouteTarget', sourceId, targetId);
+    message.success('路由目标节点已更新');
+  });
+
   graphRef.value = graph;
 
   // 首次渲染
   renderTree();
+}
+
+function warnInvalidConnection(text: string) {
+  const now = Date.now();
+  if (now - lastConnectionWarnAt < 1000) {
+    return;
+  }
+  lastConnectionWarnAt = now;
+  message.warning(text);
+}
+
+function getCellNodeType(cellId: string): NodeType | null {
+  if (!graphRef.value) {
+    return null;
+  }
+  const cell = graphRef.value.getCellById(cellId);
+  if (!cell || !cell.isNode()) {
+    return null;
+  }
+  const data = cell.getData() as Record<string, unknown> | null;
+  if (!data || typeof data.nodeType !== 'string') {
+    return null;
+  }
+  return data.nodeType as NodeType;
 }
 
 // ── 渲染 ──

@@ -139,6 +139,7 @@
           @addConditionBranch="addConditionBranch"
           @deleteConditionBranch="deleteConditionBranch"
           @moveBranch="moveBranch"
+          @updateRouteTarget="handleRouteTargetUpdate"
         />
       </div>
       <ApprovalPropertiesPanel
@@ -273,6 +274,17 @@ const goBack = () => {
 watch(selectedNode, (node) => { panelOpen.value = !!node; });
 const handleSelectNode = (node: TreeNode | ConditionBranch | null) => { selectNode(node); };
 const handleNodeUpdate = (updatedNode: TreeNode | ConditionBranch) => { updateNode(updatedNode); };
+const handleRouteTargetUpdate = (routeNodeId: string, targetNodeId: string) => {
+  const target = findNodeById(flowTree.value.rootNode, routeNodeId);
+  if (!target || target.nodeType !== 'route') {
+    return;
+  }
+
+  updateNode({
+    ...target,
+    routeTargetNodeId: targetNodeId,
+  });
+};
 
 // ── 步骤 ──
 const nextStep = () => { if (activeStep.value < 2) activeStep.value += 1; };
