@@ -151,6 +151,25 @@ export default {
     deleteFailed: "Delete failed",
     operationFailed: "Operation failed"
   },
+  loginLog: {
+    title: "Login Logs",
+    username: "Username",
+    ipAddress: "IP Address",
+    status: "Login Status",
+    statusSuccess: "Success",
+    statusFailed: "Failed",
+    startTime: "Start Time",
+    endTime: "End Time",
+    empty: "No login logs",
+    colUsername: "Username",
+    colIpAddress: "IP Address",
+    colBrowser: "Browser",
+    colOperatingSystem: "Operating System",
+    colStatus: "Status",
+    colMessage: "Failure Reason",
+    colLoginTime: "Login Time",
+    loadFailed: "Load failed"
+  },
   datasource: {
     title: "Tenant Data Sources",
     create: "Create Data Source",

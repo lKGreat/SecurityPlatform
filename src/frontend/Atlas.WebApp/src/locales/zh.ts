@@ -151,6 +151,25 @@ export default {
     deleteFailed: "删除失败",
     operationFailed: "操作失败"
   },
+  loginLog: {
+    title: "登录日志",
+    username: "用户名",
+    ipAddress: "IP地址",
+    status: "登录状态",
+    statusSuccess: "成功",
+    statusFailed: "失败",
+    startTime: "开始时间",
+    endTime: "结束时间",
+    empty: "暂无登录日志",
+    colUsername: "用户名",
+    colIpAddress: "IP地址",
+    colBrowser: "浏览器",
+    colOperatingSystem: "操作系统",
+    colStatus: "状态",
+    colMessage: "失败原因",
+    colLoginTime: "登录时间",
+    loadFailed: "加载失败"
+  },
   datasource: {
     title: "租户数据源管理",
     create: "新增数据源",
