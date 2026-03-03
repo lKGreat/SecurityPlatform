@@ -93,6 +93,37 @@ GET {{baseUrl}}/api/v1/dynamic-tables/orders
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### Alter Schema - 新增字段（M9 首阶段）
+POST {{baseUrl}}/api/v1/dynamic-tables/orders/schema/alter
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "addFields": [
+    {
+      "name": "remark",
+      "displayName": "备注",
+      "fieldType": "String",
+      "length": 200,
+      "allowNull": true,
+      "isPrimaryKey": false,
+      "isAutoIncrement": false,
+      "isUnique": false,
+      "sortOrder": 3
+    }
+  ],
+  "updateFields": [],
+  "removeFields": []
+}
+
+### Get Dynamic Table Fields (验证新增字段)
+GET {{baseUrl}}/api/v1/dynamic-tables/orders/fields
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### Create Record
 POST {{baseUrl}}/api/v1/dynamic-tables/orders/records
 Content-Type: application/json
@@ -104,7 +135,8 @@ X-CSRF-TOKEN: {{csrfToken}}
 {
   "values": [
     { "field": "orderNo", "valueType": "String", "stringValue": "SO-10001" },
-    { "field": "amount", "valueType": "Decimal", "decimalValue": 199.99 }
+    { "field": "amount", "valueType": "Decimal", "decimalValue": 199.99 },
+    { "field": "remark", "valueType": "String", "stringValue": "M9 alter add field" }
   ]
 }
 
@@ -218,6 +250,25 @@ Idempotency-Key: {{$randomUUID}}
       "sortOrder": 0
     }
   ]
+}
+
+### 负例：schema/alter 传入 updateFields（当前版本不支持，应返回 400）
+POST {{baseUrl}}/api/v1/dynamic-tables/orders/schema/alter
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "addFields": [],
+  "updateFields": [
+    {
+      "name": "amount",
+      "displayName": "金额（更新）"
+    }
+  ],
+  "removeFields": []
 }
 
 ### 安全负例：记录写入缺少 Idempotency-Key（应返回 400）

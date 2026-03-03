@@ -71,6 +71,17 @@ internal static class DynamicSqlBuilder
         return $"CREATE {uniqueSql}INDEX {Quote(indexName, dbType)} ON {Quote(table.TableKey, dbType)} ({string.Join(", ", quotedFields)});";
     }
 
+    public static string BuildAddColumnSql(DynamicTable table, DynamicField field)
+    {
+        var dbType = table.DbType;
+        var tableName = Quote(table.TableKey, dbType);
+        var columnName = Quote(field.Name, dbType);
+        var typeSql = MapToSqlType(field, dbType);
+        var nullSql = field.AllowNull ? string.Empty : " NOT NULL";
+        var defaultSql = BuildDefaultSql(field);
+        return $"ALTER TABLE {tableName} ADD COLUMN {columnName} {typeSql}{nullSql}{defaultSql};";
+    }
+
     public static string BuildDropTableSql(DynamicTable table)
     {
         return $"DROP TABLE IF EXISTS {Quote(table.TableKey, table.DbType)};";
@@ -120,5 +131,30 @@ internal static class DynamicSqlBuilder
         }
 
         return string.Create(CultureInfo.InvariantCulture, $"NUMERIC({precision},{scale})");
+    }
+
+    private static string BuildDefaultSql(DynamicField field)
+    {
+        if (string.IsNullOrWhiteSpace(field.DefaultValue))
+        {
+            return string.Empty;
+        }
+
+        var value = field.DefaultValue.Trim();
+        return field.FieldType switch
+        {
+            DynamicFieldType.Int or DynamicFieldType.Long or DynamicFieldType.Decimal
+                => $" DEFAULT {value}",
+            DynamicFieldType.Bool
+                => value.Equals("true", StringComparison.OrdinalIgnoreCase) ? " DEFAULT 1" :
+                   value.Equals("false", StringComparison.OrdinalIgnoreCase) ? " DEFAULT 0" :
+                   $" DEFAULT {value}",
+            _ => $" DEFAULT '{EscapeSqlLiteral(value)}'"
+        };
+    }
+
+    private static string EscapeSqlLiteral(string value)
+    {
+        return value.Replace("'", "''", StringComparison.Ordinal);
     }
 }

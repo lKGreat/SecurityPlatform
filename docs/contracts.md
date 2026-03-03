@@ -1053,6 +1053,8 @@ JWT Claims（新增）：
 
 ### TableAlterRequest
 
+> 当前阶段（M9 首批）仅支持 `addFields`；`updateFields` 与 `removeFields` 传值将返回 `VALIDATION_ERROR`。
+
 ```json
 {
   "addFields": [
