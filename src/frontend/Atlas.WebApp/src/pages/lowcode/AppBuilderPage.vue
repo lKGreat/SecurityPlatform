@@ -8,6 +8,7 @@
       </div>
       <div class="sidebar-actions">
         <a-button type="primary" size="small" block @click="handleAddPage">新建页面</a-button>
+        <a-button size="small" block style="margin-top: 8px" @click="openVersionDrawer">版本历史</a-button>
       </div>
       <div class="page-tree">
         <div
@@ -96,6 +97,61 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <a-drawer
+      v-model:open="versionDrawerVisible"
+      title="应用版本历史"
+      placement="right"
+      width="720"
+      :destroy-on-close="true"
+    >
+      <a-table
+        :columns="versionColumns"
+        :data-source="versionItems"
+        :loading="versionLoading"
+        row-key="id"
+        :pagination="{
+          total: versionTotal,
+          current: versionPageIndex,
+          pageSize: versionPageSize,
+          showQuickJumper: true,
+          onChange: onVersionPageChange
+        }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'actionType'">
+            <a-tag :color="record.actionType === 'Publish' ? 'blue' : 'orange'">
+              {{ record.actionType }}
+            </a-tag>
+          </template>
+          <template v-else-if="column.key === 'createdAt'">
+            {{ formatTime(record.createdAt) }}
+          </template>
+          <template v-else-if="column.key === 'sourceVersionId'">
+            {{ record.sourceVersionId ?? "-" }}
+          </template>
+          <template v-else-if="column.key === 'note'">
+            {{ record.note ?? "-" }}
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <a-popconfirm
+              title="确认回滚到该版本？"
+              ok-text="回滚"
+              cancel-text="取消"
+              @confirm="handleRollbackVersion(record.id)"
+            >
+              <a-button
+                type="link"
+                size="small"
+                :loading="rollbackingVersionId === record.id"
+              >
+                回滚
+              </a-button>
+            </a-popconfirm>
+          </template>
+        </template>
+      </a-table>
+    </a-drawer>
   </div>
 </template>
 
@@ -104,9 +160,11 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import AmisEditor from "@/components/amis/AmisEditor.vue";
-import type { LowCodeAppDetail, LowCodePageListItem } from "@/types/lowcode";
+import type { LowCodeAppDetail, LowCodeAppVersionListItem, LowCodePageListItem } from "@/types/lowcode";
 import {
   getLowCodeAppDetail,
+  getLowCodeAppVersionsPaged,
+  rollbackLowCodeAppVersion,
   createLowCodePage,
   updateLowCodePage,
   updateLowCodePageSchema,
@@ -125,6 +183,22 @@ const appDetail = ref<LowCodeAppDetail | null>(null);
 const pages = ref<LowCodePageListItem[]>([]);
 const selectedPageId = ref<string | null>(null);
 const pageEditorRef = ref<InstanceType<typeof AmisEditor> | null>(null);
+const versionDrawerVisible = ref(false);
+const versionLoading = ref(false);
+const versionItems = ref<LowCodeAppVersionListItem[]>([]);
+const versionTotal = ref(0);
+const versionPageIndex = ref(1);
+const versionPageSize = ref(10);
+const rollbackingVersionId = ref<string | null>(null);
+const versionColumns = [
+  { title: "版本号", dataIndex: "version", key: "version", width: 100 },
+  { title: "动作", key: "actionType", width: 110 },
+  { title: "回滚来源", key: "sourceVersionId", width: 150 },
+  { title: "备注", key: "note" },
+  { title: "创建时间", key: "createdAt", width: 170 },
+  { title: "创建人", dataIndex: "createdBy", key: "createdBy", width: 100 },
+  { title: "操作", key: "actions", width: 90 }
+];
 
 // Page schemas cache
 const pageSchemas = ref<Record<string, Record<string, unknown>>>({});
@@ -354,6 +428,55 @@ const handleDeletePage = async (pageId: string) => {
     await loadApp();
   } catch (error) {
     message.error((error as Error).message || "删除失败");
+  }
+};
+
+const loadVersions = async () => {
+  versionLoading.value = true;
+  try {
+    const result = await getLowCodeAppVersionsPaged(appId, {
+      pageIndex: versionPageIndex.value,
+      pageSize: versionPageSize.value
+    });
+    versionItems.value = result.items;
+    versionTotal.value = result.total;
+  } catch (error) {
+    message.error((error as Error).message || "加载版本历史失败");
+  } finally {
+    versionLoading.value = false;
+  }
+};
+
+const openVersionDrawer = async () => {
+  versionDrawerVisible.value = true;
+  versionPageIndex.value = 1;
+  await loadVersions();
+};
+
+const onVersionPageChange = (page: number, pageSizeValue: number) => {
+  versionPageIndex.value = page;
+  versionPageSize.value = pageSizeValue;
+  loadVersions();
+};
+
+const handleRollbackVersion = async (versionId: string) => {
+  rollbackingVersionId.value = versionId;
+  try {
+    const newVersion = await rollbackLowCodeAppVersion(appId, versionId);
+    message.success(`回滚成功，当前版本 v${newVersion}`);
+    await Promise.all([loadApp(), loadVersions()]);
+  } catch (error) {
+    message.error((error as Error).message || "回滚失败");
+  } finally {
+    rollbackingVersionId.value = null;
+  }
+};
+
+const formatTime = (time: string) => {
+  try {
+    return new Date(time).toLocaleString("zh-CN");
+  } catch {
+    return time;
   }
 };
 

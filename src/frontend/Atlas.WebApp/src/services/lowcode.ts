@@ -6,6 +6,7 @@ import type {
   FormDefinitionUpdateRequest,
   LowCodeAppListItem,
   LowCodeAppDetail,
+  LowCodeAppVersionListItem,
   LowCodeAppCreateRequest,
   LowCodeAppUpdateRequest,
   LowCodePageCreateRequest,
@@ -184,6 +185,33 @@ export async function publishLowCodeApp(id: string): Promise<void> {
     { method: "POST" }
   );
   if (!response.success) throw new Error(response.message || "发布失败");
+}
+
+export async function getLowCodeAppVersionsPaged(
+  appId: string,
+  params: PagedRequest
+): Promise<PagedResult<LowCodeAppVersionListItem>> {
+  const query = new URLSearchParams({
+    pageIndex: params.pageIndex.toString(),
+    pageSize: params.pageSize.toString()
+  });
+  if (params.keyword) {
+    query.set("keyword", params.keyword);
+  }
+  const response = await requestApi<ApiResponse<PagedResult<LowCodeAppVersionListItem>>>(
+    `/lowcode-apps/${appId}/versions?${query.toString()}`
+  );
+  if (!response.data) throw new Error(response.message || "查询版本失败");
+  return response.data;
+}
+
+export async function rollbackLowCodeAppVersion(appId: string, versionId: string): Promise<number> {
+  const response = await requestApi<ApiResponse<{ id: string; version: number }>>(
+    `/lowcode-apps/${appId}/versions/${versionId}/rollback`,
+    { method: "POST" }
+  );
+  if (!response.success || !response.data) throw new Error(response.message || "回滚失败");
+  return response.data.version;
 }
 
 export async function deleteLowCodeApp(id: string): Promise<void> {
