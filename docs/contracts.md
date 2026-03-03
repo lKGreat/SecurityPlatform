@@ -179,6 +179,36 @@ JWT Claims（新增）：
 - 若用户被禁用，已签发 access token 在下一次请求即失效（返回 401）。
 - 同时校验会话 `sid` 是否存在、是否已撤销、是否过期。
 
+### 获取个人资料
+
+`GET /api/v1/auth/profile`
+
+响应（`ApiResponse` 包装）：
+
+```json
+{
+  "displayName": "系统管理员",
+  "email": "admin@atlas.local",
+  "phoneNumber": "13800000000"
+}
+```
+
+### 更新个人资料
+
+`PUT /api/v1/auth/profile`
+
+请求（需携带 `Authorization` 与 `X-Tenant-Id`）：
+
+```json
+{
+  "displayName": "系统管理员",
+  "email": "admin@atlas.local",
+  "phoneNumber": "13800000000"
+}
+```
+
+响应：通用 `ApiResponse`
+
 ### 修改密码
 
 `PUT /api/v1/auth/password`

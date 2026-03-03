@@ -3,6 +3,8 @@ import type {
   AuthTokenResult,
   AuthProfile,
   ChangePasswordRequest,
+  UserProfileDetail,
+  UserProfileUpdateRequest,
   PagedRequest,
   PagedResult,
   ApprovalFlowDefinitionListItem,
@@ -186,6 +188,26 @@ export async function getCurrentUser(): Promise<AuthProfile> {
   }
 
   return response.data;
+}
+
+export async function getProfileDetail(): Promise<UserProfileDetail> {
+  const response = await requestApi<ApiResponse<UserProfileDetail>>("/auth/profile");
+  if (!response.data) {
+    throw new Error(response.message || "获取个人资料失败");
+  }
+
+  return response.data;
+}
+
+export async function updateProfile(request: UserProfileUpdateRequest): Promise<void> {
+  const response = await requestApi<ApiResponse<{ success: boolean }>>("/auth/profile", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.success) {
+    throw new Error(response.message || "更新个人资料失败");
+  }
 }
 
 export async function getRouters(): Promise<RouterVo[]> {

@@ -40,6 +40,18 @@ export interface ChangePasswordRequest {
   confirmPassword: string;
 }
 
+export interface UserProfileDetail {
+  displayName: string;
+  email?: string;
+  phoneNumber?: string;
+}
+
+export interface UserProfileUpdateRequest {
+  displayName: string;
+  email?: string;
+  phoneNumber?: string;
+}
+
 export interface AuthTokenResult {
   accessToken: string;
   expiresAt: string;
