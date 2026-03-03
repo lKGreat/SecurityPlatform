@@ -32,6 +32,8 @@ public sealed class AuditQueryService : IAuditQueryService
     public async Task<PagedResult<AuditListItem>> QueryAuditsAsync(
         PagedRequest request,
         TenantId tenantId,
+        string? action,
+        string? result,
         CancellationToken cancellationToken)
     {
         var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
@@ -60,6 +62,16 @@ public sealed class AuditQueryService : IAuditQueryService
         {
             var keyword = request.Keyword.Trim();
             query = query.Where(x => x.Action.Contains(keyword) || x.Actor.Contains(keyword) || x.Target.Contains(keyword));
+        }
+
+        if (!string.IsNullOrWhiteSpace(action))
+        {
+            query = query.Where(x => x.Action == action);
+        }
+
+        if (!string.IsNullOrWhiteSpace(result))
+        {
+            query = query.Where(x => x.Result == result);
         }
 
         var total = await query.CountAsync(cancellationToken);

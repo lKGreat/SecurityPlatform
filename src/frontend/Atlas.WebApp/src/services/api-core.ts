@@ -64,6 +64,14 @@ interface ApiRequestError extends Error {
   raw?: string;
 }
 
+export interface ClientErrorReportPayload {
+  message: string;
+  stack?: string;
+  url?: string;
+  component?: string;
+  level?: string;
+}
+
 // ─── Query Builder ───────────────────────────────────────
 
 export function toQuery(pagedRequest: PagedRequest, extra?: Record<string, string | undefined>) {
@@ -198,6 +206,32 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
   }
 
   return (await response.json()) as T;
+}
+
+let reportingClientError = false;
+
+export async function reportClientErrorSilently(payload: ClientErrorReportPayload): Promise<void> {
+  if (reportingClientError) {
+    return;
+  }
+  if (!payload.message) {
+    return;
+  }
+
+  reportingClientError = true;
+  try {
+    await requestApi<ApiResponse<{ success: boolean }>>("/audit/client-errors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }, {
+      suppressErrorMessage: true
+    });
+  } catch {
+    // 静默失败，避免影响主流程
+  } finally {
+    reportingClientError = false;
+  }
 }
 
 // ─── Internal Helpers ────────────────────────────────────

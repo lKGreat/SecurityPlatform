@@ -1403,3 +1403,27 @@ JWT Claims（新增）：
 - 节点 name/code 长度与特殊字符校验
 - 发布前需要通过 validation
 
+## 审计与登录日志补充契约
+
+### 审计日志
+
+- `GET /api/v1/audit?pageIndex=1&pageSize=20&keyword=&action=&result=`：支持按关键字、行为、结果过滤
+- `POST /api/v1/audit/client-errors`：前端异常上报（需登录 + 幂等 + CSRF）
+
+`client-errors` 请求体：
+
+```json
+{
+  "message": "TypeError: Cannot read properties of undefined",
+  "stack": "TypeError: ...",
+  "url": "http://localhost:5173/settings/audit",
+  "component": "AuditPage",
+  "level": "error"
+}
+```
+
+### 登录日志
+
+- `GET /api/v1/login-logs`：分页查询登录日志
+- `GET /api/v1/login-logs/export`：按筛选条件导出 CSV
+

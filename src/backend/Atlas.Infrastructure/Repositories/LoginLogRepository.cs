@@ -47,4 +47,32 @@ public sealed class LoginLogRepository : RepositoryBase<LoginLog>
             .Where(x => x.TenantIdValue == tenantId.Value && x.LoginTime < threshold)
             .ExecuteCommandAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<LoginLog>> QueryAsync(
+        TenantId tenantId,
+        string? username,
+        string? ipAddress,
+        bool? loginStatus,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken cancellationToken)
+    {
+        var query = Db.Queryable<LoginLog>()
+            .Where(x => x.TenantIdValue == tenantId.Value);
+
+        if (!string.IsNullOrWhiteSpace(username))
+            query = query.Where(x => x.Username.Contains(username));
+        if (!string.IsNullOrWhiteSpace(ipAddress))
+            query = query.Where(x => x.IpAddress.Contains(ipAddress));
+        if (loginStatus.HasValue)
+            query = query.Where(x => x.LoginStatus == loginStatus.Value);
+        if (from.HasValue)
+            query = query.Where(x => x.LoginTime >= from.Value);
+        if (to.HasValue)
+            query = query.Where(x => x.LoginTime <= to.Value);
+
+        return await query
+            .OrderBy(x => x.LoginTime, OrderByType.Desc)
+            .ToListAsync(cancellationToken);
+    }
 }

@@ -42,6 +42,45 @@ public sealed class LoginLogQueryService : ILoginLogQueryService
         return new PagedResult<LoginLogDto>(dtos, total, pageIndex, pageSize);
     }
 
+    public async Task<LoginLogExportResult> ExportLoginLogsAsync(
+        TenantId tenantId,
+        string? username,
+        string? ipAddress,
+        bool? loginStatus,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken cancellationToken)
+    {
+        var items = await _loginLogRepository.QueryAsync(
+            tenantId,
+            username,
+            ipAddress,
+            loginStatus,
+            from,
+            to,
+            cancellationToken);
+
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine("用户名,IP地址,浏览器,操作系统,状态,失败原因,登录时间");
+        foreach (var item in items)
+        {
+            var status = item.LoginStatus ? "成功" : "失败";
+            builder.AppendLine(string.Join(",",
+                EscapeCsv(item.Username),
+                EscapeCsv(item.IpAddress),
+                EscapeCsv(item.Browser),
+                EscapeCsv(item.OperatingSystem),
+                EscapeCsv(status),
+                EscapeCsv(item.Message),
+                EscapeCsv(item.LoginTime.ToString("yyyy-MM-dd HH:mm:ss"))));
+        }
+
+        return new LoginLogExportResult(
+            $"login-logs-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.csv",
+            "text/csv; charset=utf-8",
+            System.Text.Encoding.UTF8.GetBytes(builder.ToString()));
+    }
+
     public async Task<PagedResult<OnlineUserDto>> GetOnlineUsersPagedAsync(
         TenantId tenantId,
         string? keyword,
@@ -83,5 +122,18 @@ public sealed class LoginLogQueryService : ILoginLogQueryService
             x.LoginTime, x.LastSeenAt, x.ExpiresAt)).ToList();
 
         return new PagedResult<OnlineUserDto>(dtos, total, pageIndex, pageSize);
+    }
+
+    private static string EscapeCsv(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var escaped = value.Replace("\"", "\"\"");
+        return escaped.Contains(',') || escaped.Contains('\n') || escaped.Contains('\r')
+            ? $"\"{escaped}\""
+            : escaped;
     }
 }

@@ -267,14 +267,39 @@ export async function getAssetsPaged(pagedRequest: PagedRequest) {
   return response.data;
 }
 
-export async function getAuditsPaged(pagedRequest: PagedRequest) {
-  const query = toQuery(pagedRequest);
+export async function getAuditsPaged(
+  pagedRequest: PagedRequest,
+  extra?: { action?: string; result?: string }
+) {
+  const query = toQuery(pagedRequest, {
+    action: extra?.action,
+    result: extra?.result
+  });
   const response = await requestApi<ApiResponse<PagedResult<AuditListItem>>>(`/audit?${query}`);
   if (!response.data) {
     throw new Error(response.message || "查询失败");
   }
 
   return response.data;
+}
+
+export interface ClientErrorReportRequest {
+  message: string;
+  stack?: string;
+  url?: string;
+  component?: string;
+  level?: string;
+}
+
+export async function reportClientError(request: ClientErrorReportRequest): Promise<void> {
+  const response = await requestApi<ApiResponse<{ success: boolean }>>("/audit/client-errors", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  }, { suppressErrorMessage: true });
+  if (!response.success) {
+    throw new Error(response.message || "上报失败");
+  }
 }
 
 export async function getUsersPaged(pagedRequest: PagedRequest) {
