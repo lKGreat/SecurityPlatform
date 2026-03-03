@@ -1,4 +1,5 @@
 using Atlas.Application.System.Abstractions;
+using Atlas.Application.System.Models;
 using Atlas.Infrastructure.Options;
 using Atlas.Infrastructure.Repositories;
 using Microsoft.Extensions.Caching.Memory;
@@ -32,8 +33,14 @@ public sealed class TenantDbConnectionFactory : ITenantDbConnectionFactory
 
     public async Task<string?> GetConnectionStringAsync(string tenantId, CancellationToken ct = default)
     {
+        var info = await GetConnectionInfoAsync(tenantId, ct);
+        return info?.ConnectionString;
+    }
+
+    public async Task<TenantDbConnectionInfo?> GetConnectionInfoAsync(string tenantId, CancellationToken ct = default)
+    {
         var cacheKey = CacheKeyPrefix + tenantId;
-        if (_cache.TryGetValue(cacheKey, out string? cached))
+        if (_cache.TryGetValue(cacheKey, out TenantDbConnectionInfo? cached))
         {
             return cached;
         }
@@ -41,7 +48,7 @@ public sealed class TenantDbConnectionFactory : ITenantDbConnectionFactory
         var source = await _repository.FindByTenantIdAsync(tenantId, ct);
         if (source is null)
         {
-            _cache.Set(cacheKey, (string?)null, CacheDuration);
+            _cache.Set(cacheKey, (TenantDbConnectionInfo?)null, CacheDuration);
             return null;
         }
 
@@ -49,8 +56,9 @@ public sealed class TenantDbConnectionFactory : ITenantDbConnectionFactory
             ? Decrypt(source.EncryptedConnectionString, _encryptionOptions.Key)
             : source.EncryptedConnectionString;
 
-        _cache.Set(cacheKey, connectionString, CacheDuration);
-        return connectionString;
+        var info = new TenantDbConnectionInfo(connectionString, source.DbType);
+        _cache.Set(cacheKey, info, CacheDuration);
+        return info;
     }
 
     public void InvalidateCache(string tenantId)

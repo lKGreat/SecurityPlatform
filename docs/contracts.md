@@ -197,6 +197,43 @@ JWT Claims（新增）：
 
 响应：通用 `ApiResponse`
 
+## 租户数据源契约
+
+### 数据源类型
+
+- `SQLite`
+- `SqlServer`
+- `MySql`
+- `PostgreSql`
+
+### 测试连接
+
+`POST /api/v1/tenant-datasources/test`
+
+请求示例：
+
+```json
+{
+  "connectionString": "Host=127.0.0.1;Port=5432;Database=atlas;Username=postgres;Password=postgres",
+  "dbType": "PostgreSql"
+}
+```
+
+响应示例：
+
+```json
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "OK",
+  "traceId": "00-...",
+  "data": {
+    "success": true,
+    "errorMessage": null
+  }
+}
+```
+
 ## 角色、权限与菜单契约
 
 ### 角色列表（分页）
