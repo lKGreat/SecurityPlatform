@@ -117,6 +117,13 @@ public sealed record DynamicRecordQueryRequest(
     bool SortDesc,
     IReadOnlyList<DynamicFilterCondition> Filters);
 
+public sealed record DynamicRecordExportRequest(
+    string? Keyword,
+    string? SortBy,
+    bool SortDesc,
+    IReadOnlyList<DynamicFilterCondition> Filters,
+    IReadOnlyList<string>? Fields);
+
 public sealed record DynamicFilterCondition(
     string Field,
     string Operator,
@@ -132,6 +139,11 @@ public sealed record DynamicRecordListResult(
     int PageIndex,
     int PageSize,
     IReadOnlyList<DynamicColumnDef> Columns);
+
+public sealed record DynamicRecordExportResult(
+    string FileName,
+    string ContentType,
+    byte[] Content);
 
 public sealed record DynamicColumnDef(
     string Name,

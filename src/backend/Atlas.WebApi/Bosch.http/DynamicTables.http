@@ -176,6 +176,28 @@ X-CSRF-TOKEN: {{csrfToken}}
   ]
 }
 
+### Export Records CSV
+POST {{baseUrl}}/api/v1/dynamic-tables/orders/records/export
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "keyword": "SO",
+  "sortBy": "amount",
+  "sortDesc": true,
+  "filters": [
+    {
+      "field": "amount",
+      "operator": "gte",
+      "value": 100
+    }
+  ],
+  "fields": ["orderNo", "amount"]
+}
+
 ### Update Record
 PUT {{baseUrl}}/api/v1/dynamic-tables/orders/records/1
 Content-Type: application/json

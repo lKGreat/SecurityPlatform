@@ -216,6 +216,26 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
         return BuildRecord(fields, dataTable.Rows[0]);
     }
 
+    public async Task<IReadOnlyList<DynamicRecordDto>> QueryAllAsync(
+        Atlas.Core.Tenancy.TenantId tenantId,
+        DynamicTable table,
+        IReadOnlyList<DynamicField> fields,
+        DynamicRecordQueryRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (table.DbType != DynamicDbType.Sqlite)
+        {
+            throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, "当前仅支持 SQLite 动态数据查询。");
+        }
+
+        var where = BuildWhereClause(table, fields, request, out var parameters);
+        var orderBy = BuildOrderBy(table, fields, request);
+        var selectColumns = string.Join(", ", fields.Select(f => DynamicSqlBuilder.Quote(f.Name, table.DbType)));
+        var sql = $"SELECT {selectColumns} FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} {where} {orderBy};";
+        var dataTable = await _db.Ado.GetDataTableAsync(sql, parameters.ToArray());
+        return BuildRecords(fields, dataTable);
+    }
+
     private static DynamicField GetPrimaryKey(IReadOnlyList<DynamicField> fields)
     {
         var pk = fields.FirstOrDefault(x => x.IsPrimaryKey);

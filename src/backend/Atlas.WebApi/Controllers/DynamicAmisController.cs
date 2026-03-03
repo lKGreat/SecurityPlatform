@@ -321,6 +321,27 @@ public sealed class DynamicAmisController : ControllerBase
                                 }
                             }
                         },
+                        new Dictionary<string, object?>
+                        {
+                            ["type"] = "button",
+                            ["label"] = "导出CSV",
+                            ["level"] = "default",
+                            ["actionType"] = "download",
+                            ["api"] = new Dictionary<string, object?>
+                            {
+                                ["method"] = "post",
+                                ["url"] = $"/api/v1/dynamic-tables/{tableKey}/records/export",
+                                ["requestAdaptor"] = BuildCrudRequestAdaptor(),
+                                ["data"] = new Dictionary<string, object?>
+                                {
+                                    ["page"] = "${page}",
+                                    ["perPage"] = "${perPage}",
+                                    ["keyword"] = "${keyword}",
+                                    ["sortBy"] = "${orderBy}",
+                                    ["sortDesc"] = "${orderDir === 'desc'}"
+                                }
+                            }
+                        },
                         "bulkActions",
                         "pagination"
                     },
