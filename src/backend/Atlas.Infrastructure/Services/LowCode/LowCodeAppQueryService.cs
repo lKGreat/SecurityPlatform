@@ -261,7 +261,6 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
             p.ParentPageId?.ToString(),
             p.Version,
             p.IsPublished,
-            p.PublishedVersion,
             p.CreatedAt,
             p.PermissionCode,
             p.DataTableKey

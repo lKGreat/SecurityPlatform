@@ -43,23 +43,23 @@ public sealed class MigrationRecordRepository : IMigrationRecordRepository
         return (items, totalCount);
     }
 
-    public Task<MigrationRecord?> FindByIdAsync(
+    public async Task<MigrationRecord?> FindByIdAsync(
         TenantId tenantId,
         long id,
         CancellationToken cancellationToken)
     {
-        return _db.Queryable<MigrationRecord>()
+        return await _db.Queryable<MigrationRecord>()
             .Where(x => x.TenantIdValue == tenantId.Value && x.Id == id)
             .FirstAsync(cancellationToken);
     }
 
-    public Task<MigrationRecord?> FindByVersionAsync(
+    public async Task<MigrationRecord?> FindByVersionAsync(
         TenantId tenantId,
         string tableKey,
         int version,
         CancellationToken cancellationToken)
     {
-        return _db.Queryable<MigrationRecord>()
+        return await _db.Queryable<MigrationRecord>()
             .Where(x => x.TenantIdValue == tenantId.Value && x.TableKey == tableKey && x.Version == version)
             .FirstAsync(cancellationToken);
     }
