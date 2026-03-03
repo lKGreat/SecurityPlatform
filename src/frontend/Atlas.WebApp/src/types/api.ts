@@ -299,6 +299,47 @@ export interface ApprovalFlowValidationIssue {
   edgeId?: string;
 }
 
+export interface ApprovalFlowCopyRequest {
+  name?: string;
+}
+
+export interface ApprovalFlowImportRequest {
+  name: string;
+  definitionJson: string;
+  description?: string;
+  category?: string;
+  visibilityScopeJson?: string;
+  isQuickEntry?: boolean;
+}
+
+export interface ApprovalFlowExportResponse {
+  id: string;
+  name: string;
+  version: number;
+  definitionJson: string;
+  description?: string;
+  category?: string;
+  visibilityScopeJson?: string;
+  isQuickEntry: boolean;
+  exportedAt: string;
+}
+
+export interface ApprovalFlowDifferenceItem {
+  path: string;
+  sourceValue: string;
+  targetValue: string;
+  changeType: string;
+}
+
+export interface ApprovalFlowCompareResponse {
+  sourceFlowId: string;
+  sourceVersion: number;
+  targetVersion: number;
+  isSame: boolean;
+  summary: string;
+  differences: ApprovalFlowDifferenceItem[];
+}
+
 export interface ApprovalStartRequest {
   definitionId: number | string;
   businessKey: string;

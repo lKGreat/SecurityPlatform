@@ -87,6 +87,56 @@ public sealed class ApprovalRuntimeQueryService : IApprovalRuntimeQueryService
             request.PageSize);
     }
 
+    public async Task<PagedResult<ApprovalInstanceListItem>> GetInstancesPagedAsync(
+        TenantId tenantId,
+        PagedRequest request,
+        long? definitionId = null,
+        long? initiatorUserId = null,
+        DateTimeOffset? startedFrom = null,
+        DateTimeOffset? startedTo = null,
+        string? businessKey = null,
+        ApprovalInstanceStatus? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        var (items, totalCount) = await _instanceRepository.GetPagedAsync(
+            tenantId,
+            request.PageIndex,
+            request.PageSize,
+            definitionId,
+            initiatorUserId,
+            startedFrom,
+            startedTo,
+            businessKey,
+            status,
+            cancellationToken);
+
+        var definitionIds = items.Select(x => x.DefinitionId).Distinct().ToArray();
+        var flows = await _flowRepository.QueryByIdsAsync(tenantId, definitionIds, cancellationToken);
+        var flowMap = flows.ToDictionary(x => x.Id, x => x.Name);
+
+        var listItems = items.Select(item =>
+        {
+            var flowName = flowMap.TryGetValue(item.DefinitionId, out var name) ? name : "Unknown";
+            return new ApprovalInstanceListItem
+            {
+                Id = item.Id,
+                DefinitionId = item.DefinitionId,
+                FlowName = flowName,
+                BusinessKey = item.BusinessKey,
+                InitiatorUserId = item.InitiatorUserId,
+                Status = item.Status,
+                StartedAt = item.StartedAt,
+                EndedAt = item.EndedAt
+            };
+        }).ToList();
+
+        return new PagedResult<ApprovalInstanceListItem>(
+            listItems,
+            totalCount,
+            request.PageIndex,
+            request.PageSize);
+    }
+
     public async Task<PagedResult<ApprovalTaskResponse>> GetTasksByInstanceAsync(
         TenantId tenantId,
         long instanceId,

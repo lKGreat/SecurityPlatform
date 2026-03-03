@@ -142,6 +142,50 @@ public sealed class ApprovalFlowsController : ControllerBase
     }
 
     /// <summary>
+    /// 复制流程定义为新草稿
+    /// </summary>
+    [HttpPost("{id}/copy")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowCreate)]
+    public async Task<ApiResponse<ApprovalFlowDefinitionResponse>> CopyAsync(
+        long id,
+        [FromBody] ApprovalFlowCopyRequest? request,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _commandService.CopyAsync(
+            tenantId,
+            id,
+            request ?? new ApprovalFlowCopyRequest(null),
+            cancellationToken);
+        return ApiResponse<ApprovalFlowDefinitionResponse>.Ok(result, HttpContext.TraceIdentifier);
+    }
+
+    /// <summary>
+    /// 导入流程定义 JSON 为新草稿
+    /// </summary>
+    [HttpPost("import")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowCreate)]
+    public async Task<ApiResponse<ApprovalFlowDefinitionResponse>> ImportAsync(
+        [FromBody] ApprovalFlowImportRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var createRequest = new ApprovalFlowDefinitionCreateRequest
+        {
+            Name = request.Name,
+            DefinitionJson = request.DefinitionJson,
+            Description = request.Description,
+            Category = request.Category,
+            VisibilityScopeJson = request.VisibilityScopeJson,
+            IsQuickEntry = request.IsQuickEntry
+        };
+        await _createValidator.ValidateAndThrowAsync(createRequest, cancellationToken);
+
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _commandService.ImportAsync(tenantId, request, cancellationToken);
+        return ApiResponse<ApprovalFlowDefinitionResponse>.Ok(result, HttpContext.TraceIdentifier);
+    }
+
+    /// <summary>
     /// 更新流程定义
     /// </summary>
     [HttpPut("{id}")]
@@ -232,5 +276,50 @@ public sealed class ApprovalFlowsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         await _commandService.DisableAsync(tenantId, id, cancellationToken);
         return ApiResponse<string>.Ok("已禁用", HttpContext.TraceIdentifier);
+    }
+
+    /// <summary>
+    /// 导出流程定义 JSON
+    /// </summary>
+    [HttpGet("{id}/export")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
+    public async Task<ApiResponse<ApprovalFlowExportResponse>> ExportAsync(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.ExportAsync(tenantId, id, cancellationToken);
+        if (result == null)
+        {
+            return ApiResponse<ApprovalFlowExportResponse>.Fail(
+                "NOT_FOUND",
+                "流程定义不存在",
+                HttpContext.TraceIdentifier);
+        }
+
+        return ApiResponse<ApprovalFlowExportResponse>.Ok(result, HttpContext.TraceIdentifier);
+    }
+
+    /// <summary>
+    /// 对比流程定义版本
+    /// </summary>
+    [HttpGet("{id}/versions/{targetVersion}/compare")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
+    public async Task<ApiResponse<ApprovalFlowCompareResponse>> CompareAsync(
+        long id,
+        int targetVersion,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.CompareAsync(tenantId, id, targetVersion, cancellationToken);
+        if (result == null)
+        {
+            return ApiResponse<ApprovalFlowCompareResponse>.Fail(
+                "NOT_FOUND",
+                "目标版本不存在，无法对比",
+                HttpContext.TraceIdentifier);
+        }
+
+        return ApiResponse<ApprovalFlowCompareResponse>.Ok(result, HttpContext.TraceIdentifier);
     }
 }
