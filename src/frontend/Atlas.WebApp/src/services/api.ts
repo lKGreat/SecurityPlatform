@@ -17,6 +17,7 @@ import type {
   ApprovalInstanceListItem,
   ApprovalInstanceResponse,
   ApprovalHistoryEventResponse,
+  ApprovalCopyRecordResponse,
   StepTypeMetadata,
   RegisterWorkflowDefinitionRequest,
   ExecutionPointerResponse,
@@ -1006,6 +1007,29 @@ export async function markTaskViewed(taskId: string) {
   });
   if (!response.success) {
     throw new Error(response.message || "操作失败");
+  }
+}
+
+export async function getMyCopyRecordsPaged(pagedRequest: PagedRequest, isRead?: boolean) {
+  const params = new URLSearchParams(toQuery(pagedRequest));
+  if (isRead !== undefined) {
+    params.append("isRead", String(isRead));
+  }
+  const response = await requestApi<ApiResponse<PagedResult<ApprovalCopyRecordResponse>>>(
+    `/approval/copy-records/my-copies?${params.toString()}`
+  );
+  if (!response.data) {
+    throw new Error(response.message || "查询抄送记录失败");
+  }
+  return response.data;
+}
+
+export async function markCopyRecordAsRead(copyRecordId: string) {
+  const response = await requestApi<ApiResponse<string>>(`/approval/copy-records/${copyRecordId}/mark-read`, {
+    method: "POST"
+  });
+  if (!response.success) {
+    throw new Error(response.message || "标记已读失败");
   }
 }
 

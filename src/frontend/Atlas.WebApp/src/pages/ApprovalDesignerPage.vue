@@ -309,7 +309,7 @@ const warningIssues = computed(() => allValidationIssues.value.filter((issue) =>
 // ── 导航 ──
 const goBack = () => {
   if (window.history.length > 1) router.back();
-  else router.push('/process/flows');
+  else router.push('/approval/flows');
 };
 
 // ── 节点选中 ──
@@ -595,7 +595,7 @@ const handlePublishClick = async () => {
 const handlePublishConfirm = async () => {
   if (!flowId.value) return;
   publishing.value = true;
-  try { await publishApprovalFlow(flowId.value); message.success('发布成功'); publishModalOpen.value = false; router.push('/process/flows'); }
+  try { await publishApprovalFlow(flowId.value); message.success('发布成功'); publishModalOpen.value = false; router.push('/approval/flows'); }
   catch (err) { message.error(err instanceof Error ? err.message : '发布失败'); }
   finally { publishing.value = false; }
 };
