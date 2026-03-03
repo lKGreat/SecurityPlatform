@@ -813,6 +813,78 @@ JWT Claims（新增）：
 
 前端 `AmisRenderer` 组件会把 `schema` 直接传给 `render` 并依赖 `env.fetcher` 将请求透传到后端 `ApiResponse`，还会用 `notify`/`alert` 显示提示。
 
+## 低代码应用与页面契约
+
+### 低代码应用（LowCodeApp）
+
+- `GET /api/v1/lowcode-apps?pageIndex=1&pageSize=10&keyword=&category=`：分页查询应用
+- `GET /api/v1/lowcode-apps/{id}`：应用详情（含页面列表）
+- `GET /api/v1/lowcode-apps/by-key/{appKey}`：按应用标识查询详情
+- `POST /api/v1/lowcode-apps`：创建应用（需幂等 + CSRF）
+- `PUT /api/v1/lowcode-apps/{id}`：更新应用（需幂等 + CSRF）
+- `POST /api/v1/lowcode-apps/{id}/publish`：发布应用（需幂等 + CSRF）
+- `POST /api/v1/lowcode-apps/{id}/disable`：停用应用（需幂等 + CSRF）
+- `DELETE /api/v1/lowcode-apps/{id}`：删除应用（需幂等 + CSRF）
+
+### 低代码页面（LowCodePage）
+
+- `POST /api/v1/lowcode-apps/{appId}/pages`：创建页面（需幂等 + CSRF）
+- `PUT /api/v1/lowcode-apps/pages/{pageId}`：更新页面元数据（需幂等 + CSRF）
+- `PATCH /api/v1/lowcode-apps/pages/{pageId}/schema`：仅更新页面 Schema（需幂等 + CSRF）
+- `POST /api/v1/lowcode-apps/pages/{pageId}/publish`：发布页面（需幂等 + CSRF）
+- `DELETE /api/v1/lowcode-apps/pages/{pageId}`：删除页面（需幂等 + CSRF）
+- `GET /api/v1/lowcode-apps/pages/{pageId}`：页面详情（含完整 `schemaJson`）
+- `GET /api/v1/lowcode-apps/{appId}/pages/tree`：页面树（按 `parentPageId` + `sortOrder`）
+
+### LowCodePageTreeNode
+
+```json
+{
+  "id": "1001",
+  "appId": "2001",
+  "pageKey": "customer-list",
+  "name": "客户列表",
+  "pageType": "List",
+  "routePath": "/customers",
+  "description": "客户管理列表页面",
+  "icon": "unordered-list",
+  "sortOrder": 1,
+  "parentPageId": null,
+  "version": 3,
+  "isPublished": true,
+  "createdAt": "2026-03-03T09:00:00Z",
+  "permissionCode": "customers:view",
+  "dataTableKey": "crm_customers",
+  "children": []
+}
+```
+
+### LowCodePageDetail
+
+```json
+{
+  "id": "1001",
+  "appId": "2001",
+  "pageKey": "customer-list",
+  "name": "客户列表",
+  "pageType": "List",
+  "schemaJson": "{ \"type\": \"page\", \"body\": [] }",
+  "routePath": "/customers",
+  "description": "客户管理列表页面",
+  "icon": "unordered-list",
+  "sortOrder": 1,
+  "parentPageId": null,
+  "version": 3,
+  "isPublished": true,
+  "createdAt": "2026-03-03T09:00:00Z",
+  "updatedAt": "2026-03-03T10:00:00Z",
+  "createdBy": 10001,
+  "updatedBy": 10001,
+  "permissionCode": "customers:view",
+  "dataTableKey": "crm_customers"
+}
+```
+
 ## 动态表与低代码 CRUD 契约（草案）
 
 ### 命名与校验规则

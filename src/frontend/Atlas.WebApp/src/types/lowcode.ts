@@ -143,6 +143,10 @@ export interface LowCodePageDetail {
   dataTableKey?: string;
 }
 
+export interface LowCodePageTreeNode extends LowCodePageListItem {
+  children: LowCodePageTreeNode[];
+}
+
 export interface LowCodePageCreateRequest {
   pageKey: string;
   name: string;

@@ -189,6 +189,34 @@ public sealed class LowCodeAppsController : ControllerBase
     // ─── 页面管理 ───
 
     /// <summary>
+    /// 获取页面详情
+    /// </summary>
+    [HttpGet("pages/{pageId:long}")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<LowCodePageDetail?>>> GetPageById(
+        long pageId,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var detail = await _queryService.GetPageByIdAsync(tenantId, pageId, cancellationToken);
+        return Ok(ApiResponse<LowCodePageDetail?>.Ok(detail, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 获取应用页面树
+    /// </summary>
+    [HttpGet("{appId:long}/pages/tree")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<LowCodePageTreeNode>>>> GetPageTree(
+        long appId,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.GetPageTreeAsync(tenantId, appId, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<LowCodePageTreeNode>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
     /// 创建页面
     /// </summary>
     [HttpPost("{appId:long}/pages")]

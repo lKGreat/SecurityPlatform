@@ -230,7 +230,7 @@ const handleFormSubmit = async () => {
 };
 
 const handleOpenApp = (id: string) => {
-  router.push({ name: "app-builder", params: { id } });
+  router.push(`/lowcode/apps/${id}/builder`);
 };
 
 const handlePublish = async (id: string) => {

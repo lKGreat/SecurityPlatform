@@ -38,6 +38,24 @@ public sealed record LowCodePageDetail(
     string? PermissionCode,
     string? DataTableKey);
 
+public sealed record LowCodePageTreeNode(
+    string Id,
+    string AppId,
+    string PageKey,
+    string Name,
+    string PageType,
+    string? RoutePath,
+    string? Description,
+    string? Icon,
+    int SortOrder,
+    string? ParentPageId,
+    int Version,
+    bool IsPublished,
+    DateTimeOffset CreatedAt,
+    string? PermissionCode,
+    string? DataTableKey,
+    IReadOnlyList<LowCodePageTreeNode> Children);
+
 public sealed record LowCodePageCreateRequest(
     string PageKey,
     string Name,

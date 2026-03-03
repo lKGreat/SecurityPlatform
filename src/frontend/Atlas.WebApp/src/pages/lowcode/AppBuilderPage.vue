@@ -18,7 +18,7 @@
           @click="selectPage(page.id)"
         >
           <span class="page-icon">{{ pageTypeIcon(page.pageType) }}</span>
-          <span class="page-name">{{ page.name }}</span>
+          <span class="page-name" :style="{ paddingLeft: `${(pageDepthMap[page.id] ?? 0) * 12}px` }">{{ page.name }}</span>
           <a-tag v-if="page.isPublished" color="green" size="small">已发布</a-tag>
           <a-dropdown trigger="click" @click.stop>
             <a-button type="text" size="small">...</a-button>
@@ -104,9 +104,11 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import AmisEditor from "@/components/amis/AmisEditor.vue";
-import type { LowCodeAppDetail, LowCodePageListItem } from "@/types/lowcode";
+import type { LowCodeAppDetail, LowCodePageListItem, LowCodePageTreeNode } from "@/types/lowcode";
 import {
   getLowCodeAppDetail,
+  getLowCodePageDetail,
+  getLowCodePageTree,
   createLowCodePage,
   updateLowCodePage,
   updateLowCodePageSchema,
@@ -128,6 +130,7 @@ const pageEditorRef = ref<InstanceType<typeof AmisEditor> | null>(null);
 
 // Page schemas cache
 const pageSchemas = ref<Record<string, Record<string, unknown>>>({});
+const pageDepthMap = ref<Record<string, number>>({});
 
 const currentSchema = computed(() => {
   if (!selectedPageId.value) return null;
@@ -205,12 +208,55 @@ const generateDefaultSchema = (pageType: string, pageName: string): Record<strin
   }
 };
 
+const parseSchemaJson = (schemaJson: string | null | undefined): Record<string, unknown> | null => {
+  if (!schemaJson) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(schemaJson) as unknown;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+};
+
+const flattenPageTree = (
+  treeNodes: LowCodePageTreeNode[],
+  depth = 0,
+  target: LowCodePageListItem[] = [],
+  depthRecord: Record<string, number> = {}
+): { list: LowCodePageListItem[]; depthRecord: Record<string, number> } => {
+  for (const node of treeNodes) {
+    const { children, ...item } = node;
+    target.push(item);
+    depthRecord[item.id] = depth;
+    flattenPageTree(children, depth + 1, target, depthRecord);
+  }
+  return { list: target, depthRecord };
+};
+
 const loadApp = async () => {
   loading.value = true;
   try {
-    const detail = await getLowCodeAppDetail(appId);
+    const [detail, pageTree] = await Promise.all([
+      getLowCodeAppDetail(appId),
+      getLowCodePageTree(appId)
+    ]);
     appDetail.value = detail;
-    pages.value = detail.pages;
+    const flattened = flattenPageTree(pageTree);
+    pages.value = flattened.list;
+    pageDepthMap.value = flattened.depthRecord;
+
+    if (selectedPageId.value && !flattened.list.some(page => page.id === selectedPageId.value)) {
+      selectedPageId.value = null;
+    }
+    if (!selectedPageId.value && flattened.list.length > 0) {
+      await selectPage(flattened.list[0].id);
+    }
   } catch (error) {
     message.error((error as Error).message || "加载应用失败");
   } finally {
@@ -222,16 +268,12 @@ const selectPage = async (pageId: string) => {
   selectedPageId.value = pageId;
 
   if (!pageSchemas.value[pageId]) {
-    // Find page in pages list; schema is loaded from app detail
     const page = pages.value.find(p => p.id === pageId);
     if (page) {
-      // Load full detail from app (schema is not in list item, need to reload)
       try {
-        const detail = await getLowCodeAppDetail(appId);
-        appDetail.value = detail;
-        pages.value = detail.pages;
-        // For now, set a default schema based on page type
-        pageSchemas.value[pageId] = generateDefaultSchema(page.pageType, page.name);
+        const detail = await getLowCodePageDetail(pageId);
+        pageSchemas.value[pageId] = parseSchemaJson(detail.schemaJson)
+          ?? generateDefaultSchema(detail.pageType, detail.name);
       } catch {
         pageSchemas.value[pageId] = { type: "page", title: page.name, body: [] };
       }
@@ -287,8 +329,13 @@ const handlePageFormSubmit = async () => {
       });
       message.success("页面创建成功");
     } else if (editingPageId.value) {
-      const currentSchema = pageSchemas.value[editingPageId.value]
-        ?? generateDefaultSchema(pageForm.pageType, pageForm.name);
+      let currentSchema = pageSchemas.value[editingPageId.value];
+      if (!currentSchema) {
+        const pageDetail = await getLowCodePageDetail(editingPageId.value);
+        currentSchema = parseSchemaJson(pageDetail.schemaJson)
+          ?? generateDefaultSchema(pageDetail.pageType, pageDetail.name);
+        pageSchemas.value[editingPageId.value] = currentSchema;
+      }
       await updateLowCodePage(editingPageId.value, {
         name: pageForm.name,
         pageType: pageForm.pageType,
@@ -358,7 +405,7 @@ const handleDeletePage = async (pageId: string) => {
 };
 
 const goBack = () => {
-  router.push({ name: "app-list" });
+  router.push("/lowcode/apps");
 };
 
 onMounted(() => {

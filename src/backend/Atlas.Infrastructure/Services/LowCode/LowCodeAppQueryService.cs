@@ -62,6 +62,40 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
         return MapToDetail(entity, pages);
     }
 
+    public async Task<LowCodePageDetail?> GetPageByIdAsync(
+        TenantId tenantId, long pageId, CancellationToken cancellationToken = default)
+    {
+        var page = await _pageRepository.GetByIdAsync(tenantId, pageId, cancellationToken);
+        return page is null ? null : MapToPageDetail(page);
+    }
+
+    public async Task<IReadOnlyList<LowCodePageTreeNode>> GetPageTreeAsync(
+        TenantId tenantId, long appId, CancellationToken cancellationToken = default)
+    {
+        var pages = await _pageRepository.GetByAppIdAsync(tenantId, appId, cancellationToken);
+        if (pages.Count == 0)
+        {
+            return Array.Empty<LowCodePageTreeNode>();
+        }
+
+        var pageMap = pages.ToDictionary(x => x.Id);
+        var childLookup = pages
+            .Where(x => x.ParentPageId.HasValue && pageMap.ContainsKey(x.ParentPageId.Value))
+            .GroupBy(x => x.ParentPageId!.Value)
+            .ToDictionary(
+                x => x.Key,
+                x => x.OrderBy(p => p.SortOrder).ThenBy(p => p.Id).ToArray());
+
+        var roots = pages
+            .Where(x => !x.ParentPageId.HasValue || !pageMap.ContainsKey(x.ParentPageId.Value))
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Id)
+            .Select(x => BuildTreeNode(x, childLookup))
+            .ToArray();
+
+        return roots;
+    }
+
     private static LowCodeAppDetail MapToDetail(
         Atlas.Domain.LowCode.Entities.LowCodeApp entity,
         IReadOnlyList<Atlas.Domain.LowCode.Entities.LowCodePage> pages)
@@ -101,6 +135,59 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
             entity.PublishedAt,
             entity.PublishedBy,
             pageItems
+        );
+    }
+
+    private static LowCodePageDetail MapToPageDetail(Atlas.Domain.LowCode.Entities.LowCodePage page)
+    {
+        return new LowCodePageDetail(
+            page.Id.ToString(),
+            page.AppId.ToString(),
+            page.PageKey,
+            page.Name,
+            page.PageType.ToString(),
+            page.SchemaJson,
+            page.RoutePath,
+            page.Description,
+            page.Icon,
+            page.SortOrder,
+            page.ParentPageId?.ToString(),
+            page.Version,
+            page.IsPublished,
+            page.CreatedAt,
+            page.UpdatedAt,
+            page.CreatedBy,
+            page.UpdatedBy,
+            page.PermissionCode,
+            page.DataTableKey
+        );
+    }
+
+    private static LowCodePageTreeNode BuildTreeNode(
+        Atlas.Domain.LowCode.Entities.LowCodePage page,
+        IReadOnlyDictionary<long, Atlas.Domain.LowCode.Entities.LowCodePage[]> childLookup)
+    {
+        var children = childLookup.TryGetValue(page.Id, out var rawChildren)
+            ? rawChildren.Select(x => BuildTreeNode(x, childLookup)).ToArray()
+            : Array.Empty<LowCodePageTreeNode>();
+
+        return new LowCodePageTreeNode(
+            page.Id.ToString(),
+            page.AppId.ToString(),
+            page.PageKey,
+            page.Name,
+            page.PageType.ToString(),
+            page.RoutePath,
+            page.Description,
+            page.Icon,
+            page.SortOrder,
+            page.ParentPageId?.ToString(),
+            page.Version,
+            page.IsPublished,
+            page.CreatedAt,
+            page.PermissionCode,
+            page.DataTableKey,
+            children
         );
     }
 }

@@ -12,6 +12,7 @@ using Atlas.Domain.Assets.Entities;
 using Atlas.Domain.Audit.Entities;
 using Atlas.Domain.DynamicTables.Entities;
 using Atlas.Domain.Identity.Entities;
+using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.System.Entities;
 using Atlas.Domain.Workflow.Entities;
 using Atlas.Infrastructure.Repositories;
@@ -106,6 +107,12 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(DynamicTable),
             typeof(DynamicField),
             typeof(DynamicIndex),
+            typeof(LowCodeApp),
+            typeof(LowCodePage),
+            typeof(FormDefinition),
+            typeof(DashboardDefinition),
+            typeof(ReportDefinition),
+            typeof(DataSourceDefinition),
             // Workflow entities
             typeof(PersistedWorkflow),
             typeof(PersistedExecutionPointer),

@@ -8,6 +8,8 @@ import type {
   LowCodeAppDetail,
   LowCodeAppCreateRequest,
   LowCodeAppUpdateRequest,
+  LowCodePageDetail,
+  LowCodePageTreeNode,
   LowCodePageCreateRequest,
   LowCodePageUpdateRequest
 } from "@/types/lowcode";
@@ -138,6 +140,22 @@ export async function getLowCodeAppsPaged(
 export async function getLowCodeAppDetail(id: string): Promise<LowCodeAppDetail> {
   const response = await requestApi<ApiResponse<LowCodeAppDetail>>(
     `/lowcode-apps/${id}`
+  );
+  if (!response.data) throw new Error(response.message || "查询失败");
+  return response.data;
+}
+
+export async function getLowCodePageDetail(pageId: string): Promise<LowCodePageDetail> {
+  const response = await requestApi<ApiResponse<LowCodePageDetail>>(
+    `/lowcode-apps/pages/${pageId}`
+  );
+  if (!response.data) throw new Error(response.message || "查询失败");
+  return response.data;
+}
+
+export async function getLowCodePageTree(appId: string): Promise<LowCodePageTreeNode[]> {
+  const response = await requestApi<ApiResponse<LowCodePageTreeNode[]>>(
+    `/lowcode-apps/${appId}/pages/tree`
   );
   if (!response.data) throw new Error(response.message || "查询失败");
   return response.data;
