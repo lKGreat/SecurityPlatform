@@ -26,6 +26,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
     private readonly IDynamicFieldRepository _fieldRepository;
     private readonly IDynamicIndexRepository _indexRepository;
     private readonly IDynamicRelationRepository _relationRepository;
+    private readonly IFieldPermissionRepository _fieldPermissionRepository;
     private readonly IDynamicRecordRepository _recordRepository;
     private readonly IIdGeneratorAccessor _idGeneratorAccessor;
     private readonly ISqlSugarClient _db;
@@ -37,6 +38,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         IDynamicFieldRepository fieldRepository,
         IDynamicIndexRepository indexRepository,
         IDynamicRelationRepository relationRepository,
+        IFieldPermissionRepository fieldPermissionRepository,
         IDynamicRecordRepository recordRepository,
         IIdGeneratorAccessor idGeneratorAccessor,
         ISqlSugarClient db,
@@ -47,6 +49,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         _fieldRepository = fieldRepository;
         _indexRepository = indexRepository;
         _relationRepository = relationRepository;
+        _fieldPermissionRepository = fieldPermissionRepository;
         _recordRepository = recordRepository;
         _idGeneratorAccessor = idGeneratorAccessor;
         _db = db;
@@ -152,6 +155,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             await _fieldRepository.DeleteByTableIdAsync(tenantId, table.Id, cancellationToken);
             await _indexRepository.DeleteByTableIdAsync(tenantId, table.Id, cancellationToken);
             await _relationRepository.DeleteByTableIdAsync(tenantId, table.Id, cancellationToken);
+            await _fieldPermissionRepository.ReplaceByTableKeyAsync(tenantId, tableKey, Array.Empty<FieldPermission>(), cancellationToken);
             await _tableRepository.DeleteAsync(tenantId, table.Id, cancellationToken);
         });
 
@@ -238,6 +242,47 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         {
             throw tran.ErrorException ?? new BusinessException(ErrorCodes.ServerError, "更新动态表关系失败。");
         }
+    }
+
+    public async Task SetFieldPermissionsAsync(
+        TenantId tenantId,
+        long userId,
+        string tableKey,
+        DynamicFieldPermissionUpsertRequest request,
+        CancellationToken cancellationToken)
+    {
+        var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, cancellationToken);
+        if (table is null)
+        {
+            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+        }
+
+        var rules = request.Permissions ?? Array.Empty<DynamicFieldPermissionRule>();
+        var fieldNames = (await _fieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken))
+            .Select(x => x.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var invalid = rules
+            .Where(x => !fieldNames.Contains(x.FieldName))
+            .Select(x => x.FieldName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (invalid.Length > 0)
+        {
+            throw new BusinessException(ErrorCodes.ValidationError, $"字段不存在：{string.Join(", ", invalid)}");
+        }
+
+        var now = _timeProvider.GetUtcNow();
+        var entities = rules.Select(x => new FieldPermission(
+            tenantId,
+            tableKey,
+            x.FieldName,
+            x.RoleCode,
+            x.CanView,
+            x.CanEdit,
+            _idGeneratorAccessor.NextId(),
+            now)).ToArray();
+
+        await _fieldPermissionRepository.ReplaceByTableKeyAsync(tenantId, tableKey, entities, cancellationToken);
     }
 
     private IReadOnlyList<DynamicField> BuildFields(

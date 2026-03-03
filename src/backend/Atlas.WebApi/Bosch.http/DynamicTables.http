@@ -118,6 +118,36 @@ GET {{baseUrl}}/api/v1/dynamic-tables/orders/relations
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### Set Dynamic Field Permissions
+PUT {{baseUrl}}/api/v1/dynamic-tables/orders/field-permissions
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "permissions": [
+    {
+      "fieldName": "orderNo",
+      "roleCode": "Admin",
+      "canView": true,
+      "canEdit": true
+    },
+    {
+      "fieldName": "amount",
+      "roleCode": "AuditAdmin",
+      "canView": true,
+      "canEdit": false
+    }
+  ]
+}
+
+### Get Dynamic Field Permissions
+GET {{baseUrl}}/api/v1/dynamic-tables/orders/field-permissions
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### Get Dynamic CRUD AMIS Schema
 GET {{baseUrl}}/api/v1/amis/dynamic-tables/orders/crud
 Authorization: Bearer {{accessToken}}

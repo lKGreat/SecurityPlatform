@@ -2,6 +2,7 @@ using Atlas.Application.DynamicTables.Abstractions;
 using Atlas.Application.DynamicTables.Models;
 using Atlas.Application.DynamicTables.Repositories;
 using Atlas.Core.Exceptions;
+using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.DynamicTables.Entities;
@@ -13,15 +14,21 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
     private readonly IDynamicTableRepository _tableRepository;
     private readonly IDynamicFieldRepository _fieldRepository;
     private readonly IDynamicRecordRepository _recordRepository;
+    private readonly IFieldPermissionResolver _fieldPermissionResolver;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
 
     public DynamicRecordQueryService(
         IDynamicTableRepository tableRepository,
         IDynamicFieldRepository fieldRepository,
-        IDynamicRecordRepository recordRepository)
+        IDynamicRecordRepository recordRepository,
+        IFieldPermissionResolver fieldPermissionResolver,
+        ICurrentUserAccessor currentUserAccessor)
     {
         _tableRepository = tableRepository;
         _fieldRepository = fieldRepository;
         _recordRepository = recordRepository;
+        _fieldPermissionResolver = fieldPermissionResolver;
+        _currentUserAccessor = currentUserAccessor;
     }
 
     public async Task<DynamicRecordListResult> QueryAsync(
@@ -37,9 +44,10 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         }
 
         var fields = await _fieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
+        fields = await FilterFieldsByPermissionAsync(tenantId, tableKey, fields, cancellationToken);
         if (fields.Count == 0)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "动态表字段为空。");
+            throw new BusinessException(ErrorCodes.Forbidden, "无可访问字段。");
         }
 
         return await _recordRepository.QueryAsync(tenantId, table, fields, request, cancellationToken);
@@ -58,6 +66,7 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         }
 
         var fields = await _fieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
+        fields = await FilterFieldsByPermissionAsync(tenantId, tableKey, fields, cancellationToken);
         if (fields.Count == 0)
         {
             return null;
@@ -79,9 +88,10 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         }
 
         var fields = await _fieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
+        fields = await FilterFieldsByPermissionAsync(tenantId, tableKey, fields, cancellationToken);
         if (fields.Count == 0)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "动态表字段为空。");
+            throw new BusinessException(ErrorCodes.Forbidden, "无可访问字段。");
         }
 
         var selectedFields = ResolveExportFields(fields, request.Fields);
@@ -96,6 +106,26 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         var content = BuildCsv(selectedFields, records);
         var fileName = $"{tableKey}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.csv";
         return new DynamicRecordExportResult(fileName, "text/csv; charset=utf-8", content);
+    }
+
+    private async Task<IReadOnlyList<DynamicField>> FilterFieldsByPermissionAsync(
+        TenantId tenantId,
+        string tableKey,
+        IReadOnlyList<DynamicField> fields,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return fields;
+        }
+
+        return await _fieldPermissionResolver.FilterViewableFieldsAsync(
+            tenantId,
+            currentUser.UserId,
+            tableKey,
+            fields,
+            cancellationToken);
     }
 
     private static IReadOnlyList<DynamicField> ResolveExportFields(

@@ -105,6 +105,25 @@ public sealed class DynamicTablesController : ControllerBase
         return Ok(ApiResponse<IReadOnlyList<DynamicRelationDefinition>>.Ok(relations, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("{tableKey}/field-permissions")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<DynamicFieldPermissionRule>>>> GetFieldPermissions(
+        string tableKey,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(tableKey))
+        {
+            return BadRequest(ApiResponse<IReadOnlyList<DynamicFieldPermissionRule>>.Fail(
+                ErrorCodes.ValidationError,
+                "TableKey不能为空",
+                HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        var rules = await _queryService.GetFieldPermissionsAsync(tenantId, tableKey, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<DynamicFieldPermissionRule>>.Ok(rules, HttpContext.TraceIdentifier));
+    }
+
     [HttpPost]
     [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ActionResult<ApiResponse<object>>> Create(
@@ -207,6 +226,27 @@ public sealed class DynamicTablesController : ControllerBase
 
         var tenantId = _tenantProvider.GetTenantId();
         await _commandService.SetRelationsAsync(tenantId, currentUser.UserId, tableKey, request, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { TableKey = tableKey }, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPut("{tableKey}/field-permissions")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<object>>> SetFieldPermissions(
+        string tableKey,
+        [FromBody] DynamicFieldPermissionUpsertRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(
+                ErrorCodes.Unauthorized,
+                "未登录",
+                HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        await _commandService.SetFieldPermissionsAsync(tenantId, currentUser.UserId, tableKey, request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { TableKey = tableKey }, HttpContext.TraceIdentifier));
     }
 

@@ -29,4 +29,9 @@ public interface IDynamicTableQueryService
         TenantId tenantId,
         string tableKey,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<DynamicFieldPermissionRule>> GetFieldPermissionsAsync(
+        TenantId tenantId,
+        string tableKey,
+        CancellationToken cancellationToken);
 }

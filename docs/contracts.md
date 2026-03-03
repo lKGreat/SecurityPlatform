@@ -963,6 +963,8 @@ JWT Claims（新增）：
 - `DELETE /api/v1/dynamic-tables/{tableKey}`：删除动态表（需幂等 + CSRF）
 - `GET /api/v1/dynamic-tables/{tableKey}/relations`：查询轻量关系
 - `PUT /api/v1/dynamic-tables/{tableKey}/relations`：覆盖更新轻量关系（需幂等 + CSRF）
+- `GET /api/v1/dynamic-tables/{tableKey}/field-permissions`：查询字段级权限规则
+- `PUT /api/v1/dynamic-tables/{tableKey}/field-permissions`：覆盖更新字段级权限规则（需幂等 + CSRF）
 
 ### 动态迁移记录接口（骨架）
 
@@ -1046,6 +1048,11 @@ JWT Claims（新增）：
 - `POST /api/v1/dynamic-tables/{tableKey}/records/export`：按筛选条件导出 CSV（需幂等 + CSRF）
 - `POST /api/v1/dynamic-tables/{tableKey}/records/batch`：批量新增（需幂等 + CSRF）
 - `DELETE /api/v1/dynamic-tables/{tableKey}/records`：批量删除（需幂等 + CSRF）
+
+说明：
+
+- 当目标表配置了字段级权限规则时，查询/详情/导出将按当前用户角色自动裁剪可见字段；
+- 写入（create/update）会校验可编辑字段，越权字段写入将返回 `FORBIDDEN`。
 
 ### AMIS Schema 接口
 

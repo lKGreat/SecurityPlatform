@@ -38,6 +38,13 @@ public interface IDynamicTableCommandService
         DynamicRelationUpsertRequest request,
         CancellationToken cancellationToken);
 
+    Task SetFieldPermissionsAsync(
+        TenantId tenantId,
+        long userId,
+        string tableKey,
+        DynamicFieldPermissionUpsertRequest request,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// 绑定/解绑审批流
     /// </summary>

@@ -88,6 +88,15 @@ public sealed record DynamicRelationDefinition(
 public sealed record DynamicRelationUpsertRequest(
     IReadOnlyList<DynamicRelationDefinition> Relations);
 
+public sealed record DynamicFieldPermissionRule(
+    string FieldName,
+    string RoleCode,
+    bool CanView,
+    bool CanEdit);
+
+public sealed record DynamicFieldPermissionUpsertRequest(
+    IReadOnlyList<DynamicFieldPermissionRule> Permissions);
+
 public sealed record DynamicFieldTypeOption(string Label, string Value);
 
 /// <summary>
