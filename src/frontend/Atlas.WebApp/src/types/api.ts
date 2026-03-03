@@ -358,6 +358,10 @@ export interface ApprovalTaskResponse {
   decisionAt?: string;
   comment?: string;
   createdAt: string;
+  flowName?: string;
+  currentNodeName?: string;
+  slaRemainingMinutes?: number;
+  expectedCompleteTime?: string;
 }
 
 export interface ApprovalTaskDecideRequest {
@@ -375,6 +379,8 @@ export interface ApprovalInstanceListItem {
   status: ApprovalInstanceStatus;
   startedAt: string;
   endedAt?: string;
+  currentNodeName?: string;
+  slaRemainingMinutes?: number;
 }
 
 export interface ApprovalInstanceResponse {
@@ -386,6 +392,10 @@ export interface ApprovalInstanceResponse {
   status: ApprovalInstanceStatus;
   startedAt: string;
   endedAt?: string;
+  flowName?: string;
+  currentNodeName?: string;
+  slaRemainingMinutes?: number;
+  expectedCompleteTime?: string;
 }
 
 export interface ApprovalHistoryEventResponse {

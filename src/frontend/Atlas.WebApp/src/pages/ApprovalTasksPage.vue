@@ -31,6 +31,12 @@
             {{ getStatusText(record.status) }}
           </a-tag>
         </template>
+        <template v-else-if="column.key === 'sla'">
+          <a-tag v-if="record.slaRemainingMinutes != null" :color="record.slaRemainingMinutes >= 0 ? 'processing' : 'error'">
+            {{ formatSla(record.slaRemainingMinutes) }}
+          </a-tag>
+          <span v-else>-</span>
+        </template>
         <template v-else-if="column.key === 'action'">
           <a-space>
             <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
@@ -93,8 +99,10 @@ import { message } from "ant-design-vue";
 const router = useRouter();
 
 const columns = [
+  { title: "流程名称", dataIndex: "flowName", key: "flowName" },
   { title: "任务标题", dataIndex: "title", key: "title" },
-  { title: "节点ID", dataIndex: "nodeId", key: "nodeId" },
+  { title: "当前节点", dataIndex: "currentNodeName", key: "currentNodeName" },
+  { title: "SLA", key: "sla" },
   { title: "状态", key: "status" },
   { title: "创建时间", dataIndex: "createdAt", key: "createdAt" },
   { title: "操作", key: "action", width: 220 }
@@ -175,6 +183,16 @@ const getStatusText = (status: ApprovalTaskStatus) => {
     default:
       return "未知";
   }
+};
+
+const formatSla = (value: number) => {
+  const abs = Math.abs(value);
+  if (abs >= 60) {
+    const hours = Math.floor(abs / 60);
+    const minutes = abs % 60;
+    return value >= 0 ? `剩余 ${hours}h${minutes}m` : `超时 ${hours}h${minutes}m`;
+  }
+  return value >= 0 ? `剩余 ${abs}m` : `超时 ${abs}m`;
 };
 
 const handleApprove = (record: ApprovalTaskResponse) => {
