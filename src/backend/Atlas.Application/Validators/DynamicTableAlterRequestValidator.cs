@@ -16,10 +16,6 @@ public sealed class DynamicTableAlterRequestValidator : AbstractValidator<Dynami
             .Must(request => request.AddFields.Count > 0 || request.UpdateFields.Count > 0 || request.RemoveFields.Count > 0)
             .WithMessage(localizer["DynamicAlterAtLeastOneChange"].Value);
 
-        RuleFor(x => x.UpdateFields)
-            .Must(fields => fields.Count == 0)
-            .WithMessage(localizer["DynamicAlterUpdateNotSupported"].Value);
-
         RuleFor(x => x.RemoveFields)
             .Must(fields => fields.Count == 0)
             .WithMessage(localizer["DynamicAlterRemoveNotSupported"].Value);
@@ -33,9 +29,31 @@ public sealed class DynamicTableAlterRequestValidator : AbstractValidator<Dynami
         RuleFor(x => x.AddFields)
             .Must(HaveUniqueFieldNames)
             .WithMessage(localizer["DynamicAlterFieldNameDuplicated"].Value);
+
+        RuleForEach(x => x.UpdateFields)
+            .Must(field => !string.IsNullOrWhiteSpace(field.Name) && FieldNamePattern.IsMatch(field.Name))
+            .WithMessage(localizer["DynamicAlterFieldNameInvalid"].Value);
+
+        RuleFor(x => x.UpdateFields)
+            .Must(HaveUniqueUpdateFieldNames)
+            .WithMessage(localizer["DynamicAlterFieldNameDuplicated"].Value);
     }
 
     private static bool HaveUniqueFieldNames(IReadOnlyList<DynamicFieldDefinition> fields)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var field in fields)
+        {
+            if (!set.Add(field.Name))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HaveUniqueUpdateFieldNames(IReadOnlyList<DynamicFieldUpdateDefinition> fields)
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var field in fields)

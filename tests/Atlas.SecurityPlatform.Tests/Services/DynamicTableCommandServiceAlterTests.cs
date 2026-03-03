@@ -96,7 +96,7 @@ public sealed class DynamicTableCommandServiceAlterTests
     }
 
     [Fact]
-    public async Task AlterAsync_ShouldRejectUpdateOrRemoveFields()
+    public async Task AlterAsync_ShouldRejectUnsupportedFieldStructuralUpdate()
     {
         var dbPath = CreateTempDbPath();
         try
@@ -145,10 +145,78 @@ public sealed class DynamicTableCommandServiceAlterTests
                     Array.Empty<DynamicFieldDefinition>(),
                     new[]
                     {
-                        new DynamicFieldUpdateDefinition("orderNo", "订单号-更新", null, null, null, null, null, null, null)
+                        new DynamicFieldUpdateDefinition("orderNo", "订单号-更新", 128, null, null, null, null, null, null)
                     },
                     Array.Empty<string>()),
                 CancellationToken.None));
+        }
+        finally
+        {
+            CleanupDbFile(dbPath);
+        }
+    }
+
+    [Fact]
+    public async Task AlterAsync_ShouldUpdateFieldDisplayNameAndSortOrder()
+    {
+        var dbPath = CreateTempDbPath();
+        try
+        {
+            var db = CreateDb(dbPath);
+            await CreateSchemaAsync(db);
+
+            var tableRepository = new DynamicTableRepository(db);
+            var fieldRepository = new DynamicFieldRepository(db);
+            var indexRepository = new DynamicIndexRepository(db);
+            var recordRepository = new DynamicRecordRepository(db);
+            var migrationRepository = new DynamicSchemaMigrationRepository(db);
+            var idGenerator = new SequentialIdGenerator(6500);
+            var service = new DynamicTableCommandService(
+                tableRepository,
+                fieldRepository,
+                indexRepository,
+                recordRepository,
+                migrationRepository,
+                idGenerator,
+                db,
+                TimeProvider.System);
+
+            var tenantId = new TenantId(Guid.Parse("71717171-7171-7171-7171-717171717171"));
+            await service.CreateAsync(
+                tenantId,
+                userId: 1,
+                new DynamicTableCreateRequest(
+                    "orders_alter_update_meta",
+                    "订单-更新字段元数据",
+                    null,
+                    "Sqlite",
+                    new[]
+                    {
+                        new DynamicFieldDefinition("id", "主键", "Long", null, null, null, false, true, true, true, null, 0),
+                        new DynamicFieldDefinition("orderNo", "订单号", "String", 50, null, null, false, false, false, false, null, 1)
+                    },
+                    Array.Empty<DynamicIndexDefinition>()),
+                CancellationToken.None);
+
+            await service.AlterAsync(
+                tenantId,
+                userId: 1,
+                "orders_alter_update_meta",
+                new DynamicTableAlterRequest(
+                    Array.Empty<DynamicFieldDefinition>(),
+                    new[]
+                    {
+                        new DynamicFieldUpdateDefinition("orderNo", "订单编号", null, null, null, null, null, null, 9)
+                    },
+                    Array.Empty<string>()),
+                CancellationToken.None);
+
+            var table = await tableRepository.FindByKeyAsync(tenantId, "orders_alter_update_meta", CancellationToken.None);
+            Assert.NotNull(table);
+            var fields = await fieldRepository.ListByTableIdAsync(tenantId, table!.Id, CancellationToken.None);
+            var orderNo = fields.Single(x => x.Name == "orderNo");
+            Assert.Equal("订单编号", orderNo.DisplayName);
+            Assert.Equal(9, orderNo.SortOrder);
         }
         finally
         {

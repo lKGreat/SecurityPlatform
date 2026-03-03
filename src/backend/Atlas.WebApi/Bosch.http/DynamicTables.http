@@ -153,6 +153,26 @@ GET {{baseUrl}}/api/v1/dynamic-tables/orders/migrations?pageIndex=1&pageSize=20
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### Alter Schema - 更新字段元数据（显示名/排序）
+POST {{baseUrl}}/api/v1/dynamic-tables/orders/schema/alter
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "addFields": [],
+  "updateFields": [
+    {
+      "name": "remark",
+      "displayName": "备注(已更新)",
+      "sortOrder": 6
+    }
+  ],
+  "removeFields": []
+}
+
 ### Create Record
 POST {{baseUrl}}/api/v1/dynamic-tables/orders/records
 Content-Type: application/json
@@ -281,7 +301,7 @@ Idempotency-Key: {{$randomUUID}}
   ]
 }
 
-### 负例：schema/alter 传入 updateFields（当前版本不支持，应返回 400）
+### 负例：schema/alter 更新不支持的结构属性（应返回 400）
 POST {{baseUrl}}/api/v1/dynamic-tables/orders/schema/alter
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
@@ -294,7 +314,8 @@ X-CSRF-TOKEN: {{csrfToken}}
   "updateFields": [
     {
       "name": "amount",
-      "displayName": "金额（更新）"
+      "displayName": "金额（更新）",
+      "length": 128
     }
   ],
   "removeFields": []

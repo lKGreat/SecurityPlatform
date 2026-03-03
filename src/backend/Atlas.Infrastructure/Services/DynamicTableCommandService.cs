@@ -149,12 +149,12 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             throw new BusinessException(ErrorCodes.ValidationError, "当前仅支持 SQLite 动态表结构变更。");
         }
 
-        if (request.UpdateFields.Count > 0 || request.RemoveFields.Count > 0)
+        if (request.RemoveFields.Count > 0)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "当前版本仅支持新增字段。");
+            throw new BusinessException(ErrorCodes.ValidationError, "当前版本暂不支持字段删除。");
         }
 
-        if (request.AddFields.Count == 0)
+        if (request.AddFields.Count == 0 && request.UpdateFields.Count == 0)
         {
             return;
         }
@@ -167,6 +167,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         ValidateAddFieldDefinitions(request.AddFields, existingNames);
         var now = _timeProvider.GetUtcNow();
         var newFields = BuildAddFields(tenantId, table.Id, request.AddFields, existingFields, now);
+        var fieldsToUpdate = BuildUpdatedFields(request.UpdateFields, existingFields, now);
         var ddlCommands = new List<string>(newFields.Count * 2);
         var generatedIndexes = new List<DynamicIndex>();
         foreach (var field in newFields)
@@ -189,7 +190,13 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         }
 
         table.UpdateMeta(table.DisplayName, table.Description, table.Status, userId, now);
-        var migrationRecord = BuildMigrationRecord(tenantId, table, ddlCommands, userId, now);
+        var migrationRecord = BuildMigrationRecord(
+            tenantId,
+            table,
+            ResolveOperationType(newFields.Count, fieldsToUpdate.Count),
+            BuildMigrationSqlScripts(ddlCommands, fieldsToUpdate),
+            userId,
+            now);
         var result = await _db.Ado.UseTranAsync(async () =>
         {
             foreach (var ddl in ddlCommands)
@@ -198,6 +205,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             }
 
             await _fieldRepository.AddRangeAsync(newFields, cancellationToken);
+            await _fieldRepository.UpdateRangeAsync(fieldsToUpdate, cancellationToken);
             await _indexRepository.AddRangeAsync(generatedIndexes, cancellationToken);
             await _tableRepository.UpdateAsync(table, cancellationToken);
             if (_migrationRepository is not null)
@@ -229,14 +237,14 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             throw new BusinessException(ErrorCodes.ValidationError, "当前仅支持 SQLite 动态表结构变更预览。");
         }
 
-        if (request.UpdateFields.Count > 0 || request.RemoveFields.Count > 0)
+        if (request.RemoveFields.Count > 0)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "当前版本仅支持新增字段。");
+            throw new BusinessException(ErrorCodes.ValidationError, "当前版本暂不支持字段删除。");
         }
 
-        if (request.AddFields.Count == 0)
+        if (request.AddFields.Count == 0 && request.UpdateFields.Count == 0)
         {
-            return new DynamicTableAlterPreviewResponse(tableKey, "ADD_FIELDS", Array.Empty<string>(), "未检测到可执行变更。");
+            return new DynamicTableAlterPreviewResponse(tableKey, "NOOP", Array.Empty<string>(), "未检测到可执行变更。");
         }
 
         var existingFields = await _fieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
@@ -246,10 +254,11 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         ValidateAddFieldDefinitions(request.AddFields, existingNames);
 
         var previewFields = BuildPreviewFields(tenantId, table.Id, request.AddFields, existingFields);
-        var sqlScripts = BuildAddFieldSqlScripts(table, previewFields);
+        var previewUpdatedFields = BuildUpdatedFields(request.UpdateFields, existingFields, DateTimeOffset.UtcNow);
+        var sqlScripts = BuildMigrationSqlScripts(BuildAddFieldSqlScripts(table, previewFields), previewUpdatedFields);
         return new DynamicTableAlterPreviewResponse(
             tableKey,
-            "ADD_FIELDS",
+            ResolveOperationType(previewFields.Count, previewUpdatedFields.Count),
             sqlScripts,
             "当前版本不支持自动回滚，请通过备份恢复。");
     }
@@ -616,19 +625,97 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         return scripts;
     }
 
+    private static IReadOnlyList<DynamicField> BuildUpdatedFields(
+        IReadOnlyList<DynamicFieldUpdateDefinition> updateFields,
+        IReadOnlyList<DynamicField> existingFields,
+        DateTimeOffset now)
+    {
+        if (updateFields.Count == 0)
+        {
+            return Array.Empty<DynamicField>();
+        }
+
+        var map = existingFields.ToDictionary(x => x.Name, x => x, StringComparer.OrdinalIgnoreCase);
+        var updated = new List<DynamicField>(updateFields.Count);
+        foreach (var update in updateFields)
+        {
+            if (!map.TryGetValue(update.Name, out var field))
+            {
+                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{update.Name}' 不存在。");
+            }
+
+            if (update.Length.HasValue || update.Precision.HasValue || update.Scale.HasValue ||
+                update.AllowNull.HasValue || update.IsUnique.HasValue || update.DefaultValue is not null)
+            {
+                throw new BusinessException(ErrorCodes.ValidationError, "当前版本仅支持更新字段显示名和排序。");
+            }
+
+            var displayName = string.IsNullOrWhiteSpace(update.DisplayName) ? field.DisplayName : update.DisplayName;
+            var sortOrder = update.SortOrder ?? field.SortOrder;
+            field.Update(
+                displayName,
+                field.Length,
+                field.Precision,
+                field.Scale,
+                field.AllowNull,
+                field.IsUnique,
+                field.DefaultValue,
+                sortOrder,
+                now);
+            updated.Add(field);
+        }
+
+        return updated;
+    }
+
+    private static string ResolveOperationType(int addCount, int updateCount)
+    {
+        if (addCount > 0 && updateCount > 0)
+        {
+            return "ADD_UPDATE_FIELDS";
+        }
+
+        if (addCount > 0)
+        {
+            return "ADD_FIELDS";
+        }
+
+        if (updateCount > 0)
+        {
+            return "UPDATE_FIELDS_META";
+        }
+
+        return "NOOP";
+    }
+
+    private static IReadOnlyList<string> BuildMigrationSqlScripts(
+        IReadOnlyList<string> ddlScripts,
+        IReadOnlyList<DynamicField> updatedFields)
+    {
+        var scripts = new List<string>(ddlScripts.Count + updatedFields.Count);
+        scripts.AddRange(ddlScripts);
+        foreach (var field in updatedFields)
+        {
+            scripts.Add($"-- UPDATE FIELD META: {field.Name}, displayName={field.DisplayName}, sortOrder={field.SortOrder}");
+        }
+
+        return scripts;
+    }
+
     private DynamicSchemaMigration BuildMigrationRecord(
         TenantId tenantId,
         DynamicTable table,
-        IReadOnlyList<string> ddlCommands,
+        string operationType,
+        IReadOnlyList<string> scripts,
         long userId,
         DateTimeOffset now)
     {
-        var appliedSql = string.Join(Environment.NewLine, ddlCommands);
+        var appliedSql = string.Join(Environment.NewLine, scripts);
         return new DynamicSchemaMigration(
             tenantId,
             table.Id,
             table.TableKey,
-            "ADD_FIELDS",
+            operationType,
             appliedSql,
             "当前版本不支持自动回滚，请通过备份恢复。",
             "Succeeded",
