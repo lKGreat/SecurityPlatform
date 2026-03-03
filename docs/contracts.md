@@ -865,6 +865,7 @@ JWT Claims（新增）：
 - `GET /api/v1/lowcode-apps/{id}/export`：导出应用 JSON 包
 - `POST /api/v1/lowcode-apps/import`：导入应用 JSON 包（需幂等 + CSRF，支持 `Rename/Overwrite/Skip` 冲突策略）
 - `GET /api/v1/lowcode-apps/{appId}/environments`：查询应用环境配置
+- `GET /api/v1/lowcode-apps/environments/{id}`：环境配置详情
 - `POST /api/v1/lowcode-apps/{appId}/environments`：创建应用环境配置（需幂等 + CSRF）
 - `PUT /api/v1/lowcode-apps/environments/{id}`：更新应用环境配置（需幂等 + CSRF）
 - `DELETE /api/v1/lowcode-apps/environments/{id}`：删除应用环境配置（需幂等 + CSRF）

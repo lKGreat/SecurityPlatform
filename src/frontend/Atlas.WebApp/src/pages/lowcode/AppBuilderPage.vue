@@ -44,6 +44,15 @@
         <div class="main-toolbar">
           <span class="page-title">{{ currentPageName }}</span>
           <div class="main-toolbar-actions">
+            <a-select
+              v-model:value="selectedEnvironmentCode"
+              style="width: 180px"
+              :options="environmentOptions"
+              allow-clear
+              placeholder="预览环境"
+              @change="handleEnvironmentChange"
+            />
+            <a-button @click="openEnvironmentManager">环境管理</a-button>
             <a-button :loading="saving" @click="handleSavePageSchema">保存</a-button>
             <a-button type="primary" :loading="publishing" @click="handlePublishPage(selectedPageId!)">发布</a-button>
           </div>
@@ -122,6 +131,76 @@
         </a-table-column>
       </a-table>
     </a-modal>
+
+    <a-modal
+      v-model:open="environmentModalVisible"
+      title="环境管理"
+      :footer="null"
+      width="760px"
+    >
+      <div style="margin-bottom: 12px;">
+        <a-button type="primary" @click="openEnvironmentForm('create')">新建环境</a-button>
+      </div>
+      <a-table
+        :data-source="environments"
+        :loading="environmentLoading"
+        :pagination="false"
+        row-key="id"
+        size="small"
+      >
+        <a-table-column key="name" title="名称" data-index="name" width="160px" />
+        <a-table-column key="code" title="编码" data-index="code" width="120px" />
+        <a-table-column key="isDefault" title="默认" width="80px">
+          <template #default="{ record }">
+            <a-tag v-if="record.isDefault" color="green">默认</a-tag>
+            <span v-else>-</span>
+          </template>
+        </a-table-column>
+        <a-table-column key="isActive" title="状态" width="80px">
+          <template #default="{ record }">
+            <a-tag :color="record.isActive ? 'blue' : 'default'">{{ record.isActive ? "启用" : "停用" }}</a-tag>
+          </template>
+        </a-table-column>
+        <a-table-column key="description" title="描述" data-index="description" />
+        <a-table-column key="action" title="操作" width="180px">
+          <template #default="{ record }">
+            <a-space size="small">
+              <a-button type="link" size="small" @click="openEnvironmentForm('edit', record)">编辑</a-button>
+              <a-button type="link" size="small" danger @click="handleDeleteEnvironment(record.id)">删除</a-button>
+            </a-space>
+          </template>
+        </a-table-column>
+      </a-table>
+    </a-modal>
+
+    <a-modal
+      v-model:open="environmentFormVisible"
+      :title="environmentFormMode === 'create' ? '新建环境' : '编辑环境'"
+      ok-text="确定"
+      cancel-text="取消"
+      @ok="submitEnvironmentForm"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="环境名称" required>
+          <a-input v-model:value="environmentForm.name" />
+        </a-form-item>
+        <a-form-item label="环境编码" required>
+          <a-input v-model:value="environmentForm.code" :disabled="environmentFormMode === 'edit'" />
+        </a-form-item>
+        <a-form-item label="变量 JSON" required>
+          <a-textarea v-model:value="environmentForm.variablesJson" :rows="6" />
+        </a-form-item>
+        <a-form-item label="描述">
+          <a-textarea v-model:value="environmentForm.description" :rows="2" />
+        </a-form-item>
+        <a-form-item label="状态">
+          <a-switch v-model:checked="environmentForm.isActive" />
+        </a-form-item>
+        <a-form-item label="默认环境">
+          <a-switch v-model:checked="environmentForm.isDefault" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -132,16 +211,22 @@ import { message, Modal } from "ant-design-vue";
 import AmisEditor from "@/components/amis/AmisEditor.vue";
 import type {
   LowCodeAppDetail,
+  LowCodeEnvironmentListItem,
   LowCodePageListItem,
   LowCodePageTreeNode,
   LowCodePageVersionListItem
 } from "@/types/lowcode";
 import {
   getLowCodeAppDetail,
+  getLowCodeEnvironments,
+  getLowCodeEnvironmentDetail,
   getLowCodePageDetail,
   getLowCodeRuntimePageSchema,
   getLowCodePageTree,
   getLowCodePageVersions,
+  createLowCodeEnvironment,
+  updateLowCodeEnvironment,
+  deleteLowCodeEnvironment,
   createLowCodePage,
   updateLowCodePage,
   updateLowCodePageSchema,
@@ -191,6 +276,28 @@ const versionModalVisible = ref(false);
 const versionLoading = ref(false);
 const versionTargetPageId = ref<string | null>(null);
 const pageVersions = ref<LowCodePageVersionListItem[]>([]);
+const environments = ref<LowCodeEnvironmentListItem[]>([]);
+const environmentLoading = ref(false);
+const selectedEnvironmentCode = ref<string>();
+const environmentModalVisible = ref(false);
+const environmentFormVisible = ref(false);
+const environmentFormMode = ref<"create" | "edit">("create");
+const editingEnvironmentId = ref<string | null>(null);
+const environmentForm = reactive({
+  name: "",
+  code: "",
+  description: "",
+  variablesJson: "{\n  \"API_BASE\": \"https://api.example.com\"\n}",
+  isDefault: false,
+  isActive: true
+});
+
+const environmentOptions = computed(() => environments.value
+  .filter(item => item.isActive)
+  .map(item => ({
+    label: `${item.name} (${item.code})`,
+    value: item.code
+  })));
 
 const pageTypeIcon = (type: string) => {
   const icons: Record<string, string> = {
@@ -281,11 +388,16 @@ const flattenPageTree = (
 const loadApp = async () => {
   loading.value = true;
   try {
-    const [detail, pageTree] = await Promise.all([
+    const [detail, pageTree, envs] = await Promise.all([
       getLowCodeAppDetail(appId),
-      getLowCodePageTree(appId)
+      getLowCodePageTree(appId),
+      getLowCodeEnvironments(appId)
     ]);
     appDetail.value = detail;
+    environments.value = envs;
+    if (!selectedEnvironmentCode.value) {
+      selectedEnvironmentCode.value = envs.find(item => item.isDefault)?.code;
+    }
     const flattened = flattenPageTree(pageTree);
     pages.value = flattened.list;
     pageDepthMap.value = flattened.depthRecord;
@@ -312,7 +424,7 @@ const selectPage = async (pageId: string) => {
       try {
         const [detail, runtime] = await Promise.all([
           getLowCodePageDetail(pageId),
-          getLowCodeRuntimePageSchema(pageId, "draft")
+          getLowCodeRuntimePageSchema(pageId, "draft", selectedEnvironmentCode.value)
         ]);
         pageSchemas.value[pageId] = parseSchemaJson(runtime.schemaJson)
           ?? generateDefaultSchema(detail.pageType, detail.name);
@@ -463,6 +575,122 @@ const handleRollbackVersion = async (versionId: string) => {
       pageSchemas.value = {};
       await loadApp();
       if (selectedPageId.value) {
+        await selectPage(selectedPageId.value);
+      }
+    }
+  });
+};
+
+const handleEnvironmentChange = async () => {
+  if (!selectedPageId.value) {
+    return;
+  }
+  delete pageSchemas.value[selectedPageId.value];
+  await selectPage(selectedPageId.value);
+};
+
+const openEnvironmentManager = async () => {
+  environmentModalVisible.value = true;
+  environmentLoading.value = true;
+  try {
+    environments.value = await getLowCodeEnvironments(appId);
+  } catch (error) {
+    message.error((error as Error).message || "加载环境失败");
+  } finally {
+    environmentLoading.value = false;
+  }
+};
+
+const openEnvironmentForm = async (mode: "create" | "edit", item?: LowCodeEnvironmentListItem) => {
+  environmentFormMode.value = mode;
+  editingEnvironmentId.value = item?.id ?? null;
+  if (mode === "edit" && item?.id) {
+    try {
+      const detail = await getLowCodeEnvironmentDetail(item.id);
+      environmentForm.name = detail.name;
+      environmentForm.code = detail.code;
+      environmentForm.description = detail.description ?? "";
+      environmentForm.variablesJson = detail.variablesJson;
+      environmentForm.isDefault = detail.isDefault;
+      environmentForm.isActive = detail.isActive;
+    } catch (error) {
+      message.error((error as Error).message || "加载环境详情失败");
+      return;
+    }
+  } else {
+    environmentForm.name = "";
+    environmentForm.code = "";
+    environmentForm.description = "";
+    environmentForm.variablesJson = "{\n  \"API_BASE\": \"https://api.example.com\"\n}";
+    environmentForm.isDefault = false;
+    environmentForm.isActive = true;
+  }
+  environmentFormVisible.value = true;
+};
+
+const submitEnvironmentForm = async () => {
+  if (!environmentForm.name.trim() || !environmentForm.code.trim()) {
+    message.warning("请填写环境名称和编码");
+    return;
+  }
+
+  try {
+    JSON.parse(environmentForm.variablesJson);
+  } catch {
+    message.warning("变量 JSON 格式不正确");
+    return;
+  }
+
+  try {
+    if (environmentFormMode.value === "create") {
+      await createLowCodeEnvironment(appId, {
+        name: environmentForm.name,
+        code: environmentForm.code,
+        description: environmentForm.description || undefined,
+        isDefault: environmentForm.isDefault,
+        variablesJson: environmentForm.variablesJson
+      });
+      message.success("环境创建成功");
+    } else if (editingEnvironmentId.value) {
+      await updateLowCodeEnvironment(editingEnvironmentId.value, {
+        name: environmentForm.name,
+        description: environmentForm.description || undefined,
+        isDefault: environmentForm.isDefault,
+        isActive: environmentForm.isActive,
+        variablesJson: environmentForm.variablesJson
+      });
+      message.success("环境更新成功");
+    }
+
+    environmentFormVisible.value = false;
+    environments.value = await getLowCodeEnvironments(appId);
+    if (!selectedEnvironmentCode.value || !environments.value.some(item => item.code === selectedEnvironmentCode.value)) {
+      selectedEnvironmentCode.value = environments.value.find(item => item.isDefault)?.code;
+    }
+    if (selectedPageId.value) {
+      delete pageSchemas.value[selectedPageId.value];
+      await selectPage(selectedPageId.value);
+    }
+  } catch (error) {
+    message.error((error as Error).message || "环境保存失败");
+  }
+};
+
+const handleDeleteEnvironment = (id: string) => {
+  Modal.confirm({
+    title: "确认删除环境",
+    content: "删除后无法恢复，是否继续？",
+    okText: "删除",
+    cancelText: "取消",
+    onOk: async () => {
+      await deleteLowCodeEnvironment(id);
+      message.success("环境已删除");
+      environments.value = await getLowCodeEnvironments(appId);
+      if (selectedEnvironmentCode.value && !environments.value.some(item => item.code === selectedEnvironmentCode.value)) {
+        selectedEnvironmentCode.value = environments.value.find(item => item.isDefault)?.code;
+      }
+      if (selectedPageId.value) {
+        delete pageSchemas.value[selectedPageId.value];
         await selectPage(selectedPageId.value);
       }
     }

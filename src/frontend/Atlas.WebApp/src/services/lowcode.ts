@@ -8,6 +8,10 @@ import type {
   LowCodeAppDetail,
   LowCodeAppCreateRequest,
   LowCodeAppUpdateRequest,
+  LowCodeEnvironmentListItem,
+  LowCodeEnvironmentDetail,
+  LowCodeEnvironmentCreateRequest,
+  LowCodeEnvironmentUpdateRequest,
   LowCodeAppExportPackage,
   LowCodeAppImportRequest,
   LowCodeAppImportResult,
@@ -162,10 +166,15 @@ export async function getLowCodePageDetail(pageId: string): Promise<LowCodePageD
 
 export async function getLowCodeRuntimePageSchema(
   pageId: string,
-  mode: "draft" | "published" = "draft"
+  mode: "draft" | "published" = "draft",
+  environmentCode?: string
 ): Promise<LowCodePageRuntimeSchema> {
+  const query = new URLSearchParams({ mode });
+  if (environmentCode) {
+    query.set("environmentCode", environmentCode);
+  }
   const response = await requestApi<ApiResponse<LowCodePageRuntimeSchema>>(
-    `/lowcode-apps/pages/${pageId}/runtime?mode=${mode}`
+    `/lowcode-apps/pages/${pageId}/runtime?${query.toString()}`
   );
   if (!response.data) throw new Error(response.message || "查询失败");
   return response.data;
@@ -344,6 +353,61 @@ export async function rollbackLowCodePage(pageId: string, versionId: string): Pr
     { method: "POST" }
   );
   if (!response.success) throw new Error(response.message || "回滚失败");
+}
+
+export async function getLowCodeEnvironments(appId: string): Promise<LowCodeEnvironmentListItem[]> {
+  const response = await requestApi<ApiResponse<LowCodeEnvironmentListItem[]>>(
+    `/lowcode-apps/${appId}/environments`
+  );
+  if (!response.data) throw new Error(response.message || "查询失败");
+  return response.data;
+}
+
+export async function getLowCodeEnvironmentDetail(id: string): Promise<LowCodeEnvironmentDetail> {
+  const response = await requestApi<ApiResponse<LowCodeEnvironmentDetail>>(
+    `/lowcode-apps/environments/${id}`
+  );
+  if (!response.data) throw new Error(response.message || "查询失败");
+  return response.data;
+}
+
+export async function createLowCodeEnvironment(
+  appId: string,
+  request: LowCodeEnvironmentCreateRequest
+): Promise<{ id: string }> {
+  const response = await requestApi<ApiResponse<{ id: string }>>(
+    `/lowcode-apps/${appId}/environments`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    }
+  );
+  if (!response.data) throw new Error(response.message || "创建失败");
+  return response.data;
+}
+
+export async function updateLowCodeEnvironment(
+  id: string,
+  request: LowCodeEnvironmentUpdateRequest
+): Promise<void> {
+  const response = await requestApi<ApiResponse<{ id: string }>>(
+    `/lowcode-apps/environments/${id}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    }
+  );
+  if (!response.success) throw new Error(response.message || "更新失败");
+}
+
+export async function deleteLowCodeEnvironment(id: string): Promise<void> {
+  const response = await requestApi<ApiResponse<{ id: string }>>(
+    `/lowcode-apps/environments/${id}`,
+    { method: "DELETE" }
+  );
+  if (!response.success) throw new Error(response.message || "删除失败");
 }
 
 export async function deleteLowCodePage(pageId: string): Promise<void> {

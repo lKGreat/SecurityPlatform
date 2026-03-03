@@ -223,6 +223,40 @@ export interface LowCodePageRuntimeSchema {
   mode: string;
 }
 
+export interface LowCodeEnvironmentListItem {
+  id: string;
+  appId: string;
+  name: string;
+  code: string;
+  description?: string;
+  isDefault: boolean;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface LowCodeEnvironmentDetail extends LowCodeEnvironmentListItem {
+  variablesJson: string;
+  createdAt: string;
+  createdBy: number;
+  updatedBy: number;
+}
+
+export interface LowCodeEnvironmentCreateRequest {
+  name: string;
+  code: string;
+  description?: string;
+  isDefault: boolean;
+  variablesJson: string;
+}
+
+export interface LowCodeEnvironmentUpdateRequest {
+  name: string;
+  description?: string;
+  isDefault: boolean;
+  isActive: boolean;
+  variablesJson: string;
+}
+
 export interface LowCodePageTreeNode extends LowCodePageListItem {
   children: LowCodePageTreeNode[];
 }

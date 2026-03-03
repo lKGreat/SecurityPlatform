@@ -258,6 +258,17 @@ public sealed class LowCodeAppsController : ControllerBase
         return Ok(ApiResponse<IReadOnlyList<LowCodeEnvironmentListItem>>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("environments/{id:long}")]
+    [Authorize(Policy = PermissionPolicies.AppsView)]
+    public async Task<ActionResult<ApiResponse<LowCodeEnvironmentDetail?>>> GetEnvironmentById(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _environmentService.GetByIdAsync(tenantId, id, cancellationToken);
+        return Ok(ApiResponse<LowCodeEnvironmentDetail?>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     /// <summary>
     /// 创建应用环境配置
     /// </summary>

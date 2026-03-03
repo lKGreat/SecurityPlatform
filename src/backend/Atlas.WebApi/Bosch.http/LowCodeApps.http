@@ -161,6 +161,11 @@ GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/environments
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 查询环境详情
+GET {{baseUrl}}/api/v1/lowcode-apps/environments/{{environmentId}}
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### 更新应用环境（需幂等+CSRF）
 PUT {{baseUrl}}/api/v1/lowcode-apps/environments/{{environmentId}}
 Authorization: Bearer {{accessToken}}
