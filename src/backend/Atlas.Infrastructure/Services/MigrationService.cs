@@ -122,6 +122,14 @@ public sealed class MigrationService : IMigrationService
         MigrationRecordCreateRequest request,
         CancellationToken cancellationToken)
     {
+        var table = await _dynamicTableRepository.FindByKeyAsync(tenantId, request.TableKey, cancellationToken);
+        var dbType = table?.DbType ?? DynamicDbType.Sqlite;
+        var validationError = MigrationScriptValidator.Validate(request.UpScript, request.TableKey, dbType);
+        if (validationError is not null)
+        {
+            throw new BusinessException(ErrorCodes.ValidationError, validationError);
+        }
+
         var existed = await _migrationRecordRepository.FindByVersionAsync(
             tenantId,
             request.TableKey,
