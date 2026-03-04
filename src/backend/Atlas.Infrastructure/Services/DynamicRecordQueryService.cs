@@ -21,6 +21,8 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IDataScopeFilter _dataScopeFilter;
     private static readonly string[] OwnerFieldCandidates = ["ownerid", "createdby", "creatorid", "owner_id", "created_by"];
+    private const int ExportPageSize = 1000;
+    private const int MaxExportRows = 10_000;
 
     public DynamicRecordQueryService(
         IDynamicTableRepository tableRepository,
@@ -133,13 +135,14 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         }
 
         var ownerFilterId = await _dataScopeFilter.GetOwnerFilterIdAsync(cancellationToken);
-        var effectiveRequest = new DynamicRecordQueryRequest(
+        var baseRequest = new DynamicRecordQueryRequest(
             1,
-            1000,
+            ExportPageSize,
             request.Keyword,
             request.SortBy,
             request.SortDesc,
             request.Filters ?? Array.Empty<DynamicFilterCondition>());
+        DynamicRecordQueryRequest effectiveRequest = baseRequest;
         if (ownerFilterId.HasValue)
         {
             var ownerField = ResolveOwnerField(fields);
@@ -151,14 +154,48 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
                     BuildCsv(ResolveExportFields(fields, request.Fields), Array.Empty<DynamicRecordDto>()));
             }
 
-            effectiveRequest = AppendOwnerFilter(effectiveRequest, ownerField.Name, ownerFilterId.Value);
+            effectiveRequest = AppendOwnerFilter(baseRequest, ownerField.Name, ownerFilterId.Value);
         }
 
         var selectedFields = ResolveExportFields(fields, request.Fields);
-        var records = await _recordRepository.QueryAllAsync(tenantId, table, fields, effectiveRequest, cancellationToken);
+        var records = await FetchExportRecordsPaginatedAsync(tenantId, table, fields, effectiveRequest, cancellationToken);
         var content = BuildCsv(selectedFields, records);
         var fileName = $"{tableKey}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.csv";
         return new DynamicRecordExportResult(fileName, "text/csv; charset=utf-8", content);
+    }
+
+    private async Task<IReadOnlyList<DynamicRecordDto>> FetchExportRecordsPaginatedAsync(
+        TenantId tenantId,
+        DynamicTable table,
+        IReadOnlyList<DynamicField> fields,
+        DynamicRecordQueryRequest baseRequest,
+        CancellationToken cancellationToken)
+    {
+        var allRecords = new List<DynamicRecordDto>();
+        var pageIndex = 1;
+
+        while (allRecords.Count < MaxExportRows)
+        {
+            var request = new DynamicRecordQueryRequest(
+                pageIndex,
+                ExportPageSize,
+                baseRequest.Keyword,
+                baseRequest.SortBy,
+                baseRequest.SortDesc,
+                baseRequest.Filters ?? Array.Empty<DynamicFilterCondition>());
+
+            var result = await _recordRepository.QueryAsync(tenantId, table, fields, request, cancellationToken);
+            allRecords.AddRange(result.Items);
+
+            if (result.Items.Count < ExportPageSize || allRecords.Count >= MaxExportRows)
+            {
+                break;
+            }
+
+            pageIndex++;
+        }
+
+        return allRecords;
     }
 
     private static DynamicRecordListResult BuildEmptyResult(
