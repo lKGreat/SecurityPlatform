@@ -1,6 +1,9 @@
+using Atlas.Infrastructure.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Atlas.SecurityPlatform.Tests.Integration.Infrastructure;
 
@@ -30,6 +33,23 @@ public sealed class AtlasWebApplicationFactory : WebApplicationFactory<Program>
             };
 
             configurationBuilder.AddInMemoryCollection(overrides);
+        });
+
+        builder.ConfigureServices(services =>
+        {
+            var hostedServiceDescriptors = services
+                .Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
+                .ToList();
+
+            foreach (var descriptor in hostedServiceDescriptors)
+            {
+                if (descriptor.ImplementationType == typeof(DatabaseInitializerHostedService))
+                {
+                    continue;
+                }
+
+                services.Remove(descriptor);
+            }
         });
     }
 
