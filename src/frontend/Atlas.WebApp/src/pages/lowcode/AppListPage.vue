@@ -130,6 +130,7 @@ import {
 } from "@/services/lowcode";
 
 const router = useRouter();
+const { t } = useI18n();
 const canManageApps = hasPermission(getAuthProfile(), "apps:update");
 
 const keyword = ref("");

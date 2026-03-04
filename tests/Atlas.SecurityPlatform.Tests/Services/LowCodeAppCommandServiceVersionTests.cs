@@ -23,11 +23,13 @@ public sealed class LowCodeAppCommandServiceVersionTests
             var appRepository = new LowCodeAppRepository(db);
             var pageRepository = new LowCodePageRepository(db);
             var versionRepository = new LowCodeAppVersionRepository(db);
+            var pageVersionRepository = new LowCodePageVersionRepository(db);
             var idGenerator = new SequentialIdGenerator(9000);
             var service = new LowCodeAppCommandService(
                 appRepository,
                 pageRepository,
                 versionRepository,
+                pageVersionRepository,
                 idGenerator,
                 db);
 

@@ -16,6 +16,12 @@ public interface ILowCodeAppQueryService
     Task<LowCodeAppDetail?> GetByKeyAsync(
         TenantId tenantId, string appKey, CancellationToken cancellationToken = default);
 
+    Task<PagedResult<LowCodeAppVersionListItem>> GetVersionsAsync(
+        TenantId tenantId,
+        long appId,
+        PagedRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<LowCodeAppExportPackage?> ExportAsync(
         TenantId tenantId, long appId, CancellationToken cancellationToken = default);
 

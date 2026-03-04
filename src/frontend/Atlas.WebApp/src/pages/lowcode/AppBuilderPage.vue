@@ -8,7 +8,7 @@
       </div>
       <div class="sidebar-actions">
         <a-button type="primary" size="small" block @click="handleAddPage">{{ t("lowcodeBuilder.createPage") }}</a-button>
-        <a-button size="small" block style="margin-top: 8px" @click="openVersionDrawer">{{ t("lowcodeBuilder.versionHistory") }}</a-button>
+        <a-button size="small" block style="margin-top: 8px" @click="openAppVersionDrawer">{{ t("lowcodeBuilder.versionHistory") }}</a-button>
       </div>
       <div class="page-tree">
         <div
@@ -108,6 +108,61 @@
       </a-form>
     </a-modal>
 
+    <a-drawer
+      v-model:open="appVersionDrawerVisible"
+      :title="t('lowcodeBuilder.versionDrawerTitle')"
+      placement="right"
+      width="720"
+      :destroy-on-close="true"
+    >
+      <a-table
+        :columns="appVersionColumns"
+        :data-source="appVersionItems"
+        :loading="appVersionLoading"
+        row-key="id"
+        :pagination="{
+          total: appVersionTotal,
+          current: appVersionPageIndex,
+          pageSize: appVersionPageSize,
+          showQuickJumper: true,
+          onChange: onAppVersionPageChange
+        }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'actionType'">
+            <a-tag :color="record.actionType === 'Publish' ? 'blue' : 'orange'">
+              {{ record.actionType }}
+            </a-tag>
+          </template>
+          <template v-else-if="column.key === 'createdAt'">
+            {{ formatTime(record.createdAt) }}
+          </template>
+          <template v-else-if="column.key === 'sourceVersionId'">
+            {{ record.sourceVersionId ?? "-" }}
+          </template>
+          <template v-else-if="column.key === 'note'">
+            {{ record.note ?? "-" }}
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <a-popconfirm
+              :title="t('lowcodeBuilder.rollbackConfirm')"
+              :ok-text="t('lowcodeBuilder.rollback')"
+              :cancel-text="t('common.cancel')"
+              @confirm="handleRollbackAppVersion(record.id)"
+            >
+              <a-button
+                type="link"
+                size="small"
+                :loading="appRollbackingVersionId === record.id"
+              >
+                {{ t("lowcodeBuilder.rollback") }}
+              </a-button>
+            </a-popconfirm>
+          </template>
+        </template>
+      </a-table>
+    </a-drawer>
+
     <!-- 页面版本历史 -->
     <a-modal
       v-model:open="versionModalVisible"
@@ -117,7 +172,7 @@
     >
       <a-table
         :data-source="pageVersions"
-        :loading="versionLoading"
+        :loading="pageVersionLoading"
         :pagination="false"
         row-key="id"
         size="small"
@@ -127,7 +182,7 @@
         <a-table-column key="createdBy" title="发布人" data-index="createdBy" width="120px" />
         <a-table-column key="action" title="操作" width="140px">
           <template #default="{ record }">
-            <a-button size="small" @click="handleRollbackVersion(record.id)">回滚到此版本</a-button>
+            <a-button size="small" @click="handleRollbackPageVersion(record.id)">回滚到此版本</a-button>
           </template>
         </a-table-column>
       </a-table>
@@ -209,9 +264,11 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { message, Modal } from "ant-design-vue";
+import { useI18n } from "vue-i18n";
 import AmisEditor from "@/components/amis/AmisEditor.vue";
 import type {
   LowCodeAppDetail,
+  LowCodeAppVersionListItem,
   LowCodeEnvironmentListItem,
   LowCodePageListItem,
   LowCodePageTreeNode,
@@ -219,6 +276,8 @@ import type {
 } from "@/types/lowcode";
 import {
   getLowCodeAppDetail,
+  getLowCodeAppVersionsPaged,
+  rollbackLowCodeAppVersion,
   getLowCodeEnvironments,
   getLowCodeEnvironmentDetail,
   getLowCodePageDetail,
@@ -248,14 +307,14 @@ const appDetail = ref<LowCodeAppDetail | null>(null);
 const pages = ref<LowCodePageListItem[]>([]);
 const selectedPageId = ref<string | null>(null);
 const pageEditorRef = ref<InstanceType<typeof AmisEditor> | null>(null);
-const versionDrawerVisible = ref(false);
-const versionLoading = ref(false);
-const versionItems = ref<LowCodeAppVersionListItem[]>([]);
-const versionTotal = ref(0);
-const versionPageIndex = ref(1);
-const versionPageSize = ref(10);
-const rollbackingVersionId = ref<string | null>(null);
-const versionColumns = computed(() => [
+const appVersionDrawerVisible = ref(false);
+const appVersionLoading = ref(false);
+const appVersionItems = ref<LowCodeAppVersionListItem[]>([]);
+const appVersionTotal = ref(0);
+const appVersionPageIndex = ref(1);
+const appVersionPageSize = ref(10);
+const appRollbackingVersionId = ref<string | null>(null);
+const appVersionColumns = computed(() => [
   { title: t("lowcodeBuilder.version"), dataIndex: "version", key: "version", width: 100 },
   { title: t("lowcodeBuilder.actionType"), key: "actionType", width: 110 },
   { title: t("lowcodeBuilder.sourceVersion"), key: "sourceVersionId", width: 150 },
@@ -291,7 +350,7 @@ const pageForm = reactive({
 });
 
 const versionModalVisible = ref(false);
-const versionLoading = ref(false);
+const pageVersionLoading = ref(false);
 const versionTargetPageId = ref<string | null>(null);
 const pageVersions = ref<LowCodePageVersionListItem[]>([]);
 const environments = ref<LowCodeEnvironmentListItem[]>([]);
@@ -565,18 +624,18 @@ const handlePublishPage = async (pageId: string) => {
 const handleOpenVersionHistory = async (page: LowCodePageListItem) => {
   versionModalVisible.value = true;
   versionTargetPageId.value = page.id;
-  versionLoading.value = true;
+  pageVersionLoading.value = true;
   try {
     pageVersions.value = await getLowCodePageVersions(page.id);
   } catch (error) {
     pageVersions.value = [];
     message.error((error as Error).message || "加载版本历史失败");
   } finally {
-    versionLoading.value = false;
+    pageVersionLoading.value = false;
   }
 };
 
-const handleRollbackVersion = async (versionId: string) => {
+const handleRollbackPageVersion = async (versionId: string) => {
   if (!versionTargetPageId.value) {
     return;
   }
@@ -729,44 +788,44 @@ const handleDeletePage = async (pageId: string) => {
   }
 };
 
-const loadVersions = async () => {
-  versionLoading.value = true;
+const loadAppVersions = async () => {
+  appVersionLoading.value = true;
   try {
     const result = await getLowCodeAppVersionsPaged(appId, {
-      pageIndex: versionPageIndex.value,
-      pageSize: versionPageSize.value
+      pageIndex: appVersionPageIndex.value,
+      pageSize: appVersionPageSize.value
     });
-    versionItems.value = result.items;
-    versionTotal.value = result.total;
+    appVersionItems.value = result.items;
+    appVersionTotal.value = result.total;
   } catch (error) {
     message.error((error as Error).message || t("lowcodeBuilder.loadVersionFailed"));
   } finally {
-    versionLoading.value = false;
+    appVersionLoading.value = false;
   }
 };
 
-const openVersionDrawer = async () => {
-  versionDrawerVisible.value = true;
-  versionPageIndex.value = 1;
-  await loadVersions();
+const openAppVersionDrawer = async () => {
+  appVersionDrawerVisible.value = true;
+  appVersionPageIndex.value = 1;
+  await loadAppVersions();
 };
 
-const onVersionPageChange = (page: number, pageSizeValue: number) => {
-  versionPageIndex.value = page;
-  versionPageSize.value = pageSizeValue;
-  loadVersions();
+const onAppVersionPageChange = (page: number, pageSizeValue: number) => {
+  appVersionPageIndex.value = page;
+  appVersionPageSize.value = pageSizeValue;
+  loadAppVersions();
 };
 
-const handleRollbackVersion = async (versionId: string) => {
-  rollbackingVersionId.value = versionId;
+const handleRollbackAppVersion = async (versionId: string) => {
+  appRollbackingVersionId.value = versionId;
   try {
     const newVersion = await rollbackLowCodeAppVersion(appId, versionId);
     message.success(t("lowcodeBuilder.rollbackSuccess", { version: newVersion }));
-    await Promise.all([loadApp(), loadVersions()]);
+    await Promise.all([loadApp(), loadAppVersions()]);
   } catch (error) {
     message.error((error as Error).message || t("lowcodeBuilder.rollbackFailed"));
   } finally {
-    rollbackingVersionId.value = null;
+    appRollbackingVersionId.value = null;
   }
 };
 

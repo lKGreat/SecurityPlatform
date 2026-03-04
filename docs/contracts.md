@@ -958,6 +958,8 @@ JWT Claims（新增）：
 - `POST /api/v1/lowcode-apps`：创建应用（需幂等 + CSRF）
 - `PUT /api/v1/lowcode-apps/{id}`：更新应用（需幂等 + CSRF）
 - `POST /api/v1/lowcode-apps/{id}/publish`：发布应用（需幂等 + CSRF）
+- `GET /api/v1/lowcode-apps/{id}/versions?pageIndex=1&pageSize=10`：分页查询应用版本历史（仅系统管理员）
+- `POST /api/v1/lowcode-apps/{id}/versions/{versionId}/rollback`：按应用版本回滚（需幂等 + CSRF，仅系统管理员）
 - `POST /api/v1/lowcode-apps/{id}/disable`：停用应用（需幂等 + CSRF）
 - `GET /api/v1/lowcode-apps/{id}/export`：导出应用 JSON 包
 - `POST /api/v1/lowcode-apps/import`：导入应用 JSON 包（需幂等 + CSRF，支持 `Rename/Overwrite/Skip` 冲突策略）
@@ -972,6 +974,22 @@ JWT Claims（新增）：
 
 - 读接口（GET）要求 `apps:view`
 - 写接口（POST/PUT/PATCH/DELETE）要求 `apps:update`
+- 应用版本查询/回滚接口要求 `system:admin`
+
+### LowCodeAppVersionListItem
+
+```json
+{
+  "id": "3001",
+  "appId": "2001",
+  "version": 5,
+  "actionType": "Rollback",
+  "sourceVersionId": "2998",
+  "note": "Rollback to version 3",
+  "createdAt": "2026-03-04T10:00:00Z",
+  "createdBy": 10001
+}
+```
 
 ### 低代码页面（LowCodePage）
 

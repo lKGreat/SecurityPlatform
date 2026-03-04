@@ -11,17 +11,20 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
 {
     private readonly ILowCodeAppRepository _appRepository;
     private readonly ILowCodePageRepository _pageRepository;
+    private readonly ILowCodeAppVersionRepository _versionRepository;
     private readonly ILowCodePageVersionRepository _pageVersionRepository;
     private readonly ILowCodeEnvironmentRepository _environmentRepository;
 
     public LowCodeAppQueryService(
         ILowCodeAppRepository appRepository,
         ILowCodePageRepository pageRepository,
+        ILowCodeAppVersionRepository versionRepository,
         ILowCodePageVersionRepository pageVersionRepository,
         ILowCodeEnvironmentRepository environmentRepository)
     {
         _appRepository = appRepository;
         _pageRepository = pageRepository;
+        _versionRepository = versionRepository;
         _pageVersionRepository = pageVersionRepository;
         _environmentRepository = environmentRepository;
     }
@@ -68,6 +71,32 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
 
         var pages = await _pageRepository.GetByAppIdAsync(tenantId, entity.Id, cancellationToken);
         return MapToDetail(entity, pages);
+    }
+
+    public async Task<PagedResult<LowCodeAppVersionListItem>> GetVersionsAsync(
+        TenantId tenantId,
+        long appId,
+        PagedRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var (items, total) = await _versionRepository.GetPagedAsync(
+            tenantId,
+            appId,
+            request.PageIndex,
+            request.PageSize,
+            cancellationToken);
+
+        var mapped = items.Select(x => new LowCodeAppVersionListItem(
+            x.Id.ToString(),
+            x.AppId.ToString(),
+            x.Version,
+            x.ActionType,
+            x.SourceVersionId?.ToString(),
+            x.Note,
+            x.CreatedAt,
+            x.CreatedBy)).ToList();
+
+        return new PagedResult<LowCodeAppVersionListItem>(mapped, total, request.PageIndex, request.PageSize);
     }
 
     public async Task<LowCodeAppExportPackage?> ExportAsync(

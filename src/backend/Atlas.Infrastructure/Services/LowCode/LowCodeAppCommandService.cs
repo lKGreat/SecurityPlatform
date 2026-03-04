@@ -4,6 +4,7 @@ using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.LowCode.Enums;
+using SqlSugar;
 using System.Text.Json;
 
 namespace Atlas.Infrastructure.Services.LowCode;
@@ -17,6 +18,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
 
     private readonly ILowCodeAppRepository _appRepository;
     private readonly ILowCodePageRepository _pageRepository;
+    private readonly ILowCodeAppVersionRepository _versionRepository;
     private readonly ILowCodePageVersionRepository _pageVersionRepository;
     private readonly IIdGeneratorAccessor _idGenerator;
     private readonly ISqlSugarClient _db;
@@ -24,11 +26,14 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
     public LowCodeAppCommandService(
         ILowCodeAppRepository appRepository,
         ILowCodePageRepository pageRepository,
+        ILowCodeAppVersionRepository versionRepository,
         ILowCodePageVersionRepository pageVersionRepository,
-        IIdGeneratorAccessor idGenerator)
+        IIdGeneratorAccessor idGenerator,
+        ISqlSugarClient db)
     {
         _appRepository = appRepository;
         _pageRepository = pageRepository;
+        _versionRepository = versionRepository;
         _pageVersionRepository = pageVersionRepository;
         _idGenerator = idGenerator;
         _db = db;
@@ -237,7 +242,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
             ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
 
         await _pageVersionRepository.DeleteByAppIdAsync(tenantId, id, cancellationToken);
-        await _pageRepository.DeleteByAppIdAsync(id, cancellationToken);
+        await _pageRepository.DeleteByAppIdAsync(tenantId, id, cancellationToken);
         await _appRepository.DeleteAsync(id, cancellationToken);
     }
 
@@ -272,7 +277,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         if (existing is not null && string.Equals(strategy, "Overwrite", StringComparison.OrdinalIgnoreCase))
         {
             await _pageVersionRepository.DeleteByAppIdAsync(tenantId, existing.Id, cancellationToken);
-            await _pageRepository.DeleteByAppIdAsync(existing.Id, cancellationToken);
+            await _pageRepository.DeleteByAppIdAsync(tenantId, existing.Id, cancellationToken);
             await _appRepository.DeleteAsync(existing.Id, cancellationToken);
             overwritten = true;
             existing = null;
@@ -470,4 +475,73 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         var key = parentSourceId.Trim();
         return pageIdMap.TryGetValue(key, out var mapped) ? mapped : null;
     }
+
+    private static LowCodeAppSnapshot DeserializeSnapshot(string snapshotJson)
+    {
+        var snapshot = JsonSerializer.Deserialize<LowCodeAppSnapshot>(snapshotJson, SnapshotJsonOptions);
+        if (snapshot is null)
+        {
+            throw new InvalidOperationException("应用版本快照无效");
+        }
+
+        return snapshot;
+    }
+
+    private static string BuildSnapshotJson(LowCodeApp app, IReadOnlyList<LowCodePage> pages)
+    {
+        var snapshot = new LowCodeAppSnapshot(
+            new AppSnapshot(
+                app.AppKey,
+                app.Name,
+                app.Description,
+                app.Category,
+                app.Icon,
+                app.ConfigJson),
+            pages
+                .Select(page => new PageSnapshot(
+                    page.Id,
+                    page.PageKey,
+                    page.Name,
+                    page.PageType.ToString(),
+                    page.SchemaJson,
+                    page.RoutePath,
+                    page.Description,
+                    page.Icon,
+                    page.SortOrder,
+                    page.ParentPageId,
+                    page.Version,
+                    page.IsPublished,
+                    page.PermissionCode,
+                    page.DataTableKey))
+                .OrderBy(x => x.SortOrder)
+                .ToList());
+
+        return JsonSerializer.Serialize(snapshot, SnapshotJsonOptions);
+    }
+
+    private sealed record LowCodeAppSnapshot(AppSnapshot App, IReadOnlyList<PageSnapshot> Pages);
+
+    private sealed record AppSnapshot(
+        string AppKey,
+        string Name,
+        string? Description,
+        string? Category,
+        string? Icon,
+        string? ConfigJson);
+
+    private sealed record PageSnapshot(
+        long Id,
+        string PageKey,
+        string Name,
+        string PageType,
+        string SchemaJson,
+        string? RoutePath,
+        string? Description,
+        string? Icon,
+        int SortOrder,
+        long? ParentPageId,
+        int Version,
+        bool IsPublished,
+        string? PermissionCode,
+        string? DataTableKey);
 }

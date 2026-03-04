@@ -22,6 +22,8 @@ public sealed class DynamicTableCommandServiceAlterTests
             var tableRepository = new DynamicTableRepository(db);
             var fieldRepository = new DynamicFieldRepository(db);
             var indexRepository = new DynamicIndexRepository(db);
+            var relationRepository = new DynamicRelationRepository(db);
+            var fieldPermissionRepository = new FieldPermissionRepository(db);
             var recordRepository = new DynamicRecordRepository(db);
             var migrationRepository = new DynamicSchemaMigrationRepository(db);
             var idGenerator = new SequentialIdGenerator(5000);
@@ -29,6 +31,8 @@ public sealed class DynamicTableCommandServiceAlterTests
                 tableRepository,
                 fieldRepository,
                 indexRepository,
+                relationRepository,
+                fieldPermissionRepository,
                 recordRepository,
                 migrationRepository,
                 idGenerator,
@@ -107,6 +111,8 @@ public sealed class DynamicTableCommandServiceAlterTests
             var tableRepository = new DynamicTableRepository(db);
             var fieldRepository = new DynamicFieldRepository(db);
             var indexRepository = new DynamicIndexRepository(db);
+            var relationRepository = new DynamicRelationRepository(db);
+            var fieldPermissionRepository = new FieldPermissionRepository(db);
             var recordRepository = new DynamicRecordRepository(db);
             var migrationRepository = new DynamicSchemaMigrationRepository(db);
             var idGenerator = new SequentialIdGenerator(6000);
@@ -114,6 +120,8 @@ public sealed class DynamicTableCommandServiceAlterTests
                 tableRepository,
                 fieldRepository,
                 indexRepository,
+                relationRepository,
+                fieldPermissionRepository,
                 recordRepository,
                 migrationRepository,
                 idGenerator,
@@ -168,6 +176,8 @@ public sealed class DynamicTableCommandServiceAlterTests
             var tableRepository = new DynamicTableRepository(db);
             var fieldRepository = new DynamicFieldRepository(db);
             var indexRepository = new DynamicIndexRepository(db);
+            var relationRepository = new DynamicRelationRepository(db);
+            var fieldPermissionRepository = new FieldPermissionRepository(db);
             var recordRepository = new DynamicRecordRepository(db);
             var migrationRepository = new DynamicSchemaMigrationRepository(db);
             var idGenerator = new SequentialIdGenerator(6500);
@@ -175,6 +185,8 @@ public sealed class DynamicTableCommandServiceAlterTests
                 tableRepository,
                 fieldRepository,
                 indexRepository,
+                relationRepository,
+                fieldPermissionRepository,
                 recordRepository,
                 migrationRepository,
                 idGenerator,
@@ -236,6 +248,8 @@ public sealed class DynamicTableCommandServiceAlterTests
             var tableRepository = new DynamicTableRepository(db);
             var fieldRepository = new DynamicFieldRepository(db);
             var indexRepository = new DynamicIndexRepository(db);
+            var relationRepository = new DynamicRelationRepository(db);
+            var fieldPermissionRepository = new FieldPermissionRepository(db);
             var recordRepository = new DynamicRecordRepository(db);
             var migrationRepository = new DynamicSchemaMigrationRepository(db);
             var idGenerator = new SequentialIdGenerator(7000);
@@ -243,6 +257,8 @@ public sealed class DynamicTableCommandServiceAlterTests
                 tableRepository,
                 fieldRepository,
                 indexRepository,
+                relationRepository,
+                fieldPermissionRepository,
                 recordRepository,
                 migrationRepository,
                 idGenerator,
