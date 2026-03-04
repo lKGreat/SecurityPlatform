@@ -22,7 +22,7 @@ public interface ILowCodeEnvironmentRepository
 
     Task UpdateAsync(LowCodeEnvironment entity, CancellationToken cancellationToken = default);
 
-    Task DeleteAsync(long id, CancellationToken cancellationToken = default);
+    Task DeleteAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default);
 
     Task<bool> ExistsByCodeAsync(
         TenantId tenantId,

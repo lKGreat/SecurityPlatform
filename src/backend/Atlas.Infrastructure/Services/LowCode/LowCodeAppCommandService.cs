@@ -106,7 +106,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
             ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
 
-        await _pageVersionRepository.DeleteByAppIdAsync(id, cancellationToken);
+        await _pageVersionRepository.DeleteByAppIdAsync(tenantId, id, cancellationToken);
         await _pageRepository.DeleteByAppIdAsync(id, cancellationToken);
         await _appRepository.DeleteAsync(id, cancellationToken);
     }
@@ -141,7 +141,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
 
         if (existing is not null && string.Equals(strategy, "Overwrite", StringComparison.OrdinalIgnoreCase))
         {
-            await _pageVersionRepository.DeleteByAppIdAsync(existing.Id, cancellationToken);
+            await _pageVersionRepository.DeleteByAppIdAsync(tenantId, existing.Id, cancellationToken);
             await _pageRepository.DeleteByAppIdAsync(existing.Id, cancellationToken);
             await _appRepository.DeleteAsync(existing.Id, cancellationToken);
             overwritten = true;

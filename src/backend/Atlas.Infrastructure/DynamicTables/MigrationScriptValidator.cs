@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.RegularExpressions;
 using Atlas.Domain.DynamicTables.Enums;
 
@@ -95,35 +94,22 @@ internal static class MigrationScriptValidator
     }
 
     /// <summary>
-    /// 检测脚本中是否包含危险关键字。移除所有空白后检测，防止 "D\nROP"、"D R O P" 等绕过。
+    /// 检测脚本中是否包含危险关键字。仅匹配整词（非标识符子串），避免 created_at、user_grants 等误报。
+    /// 使用 \b 词边界，确保 CREATE 不匹配 created_at，GRANT 不匹配 user_grants。
     /// </summary>
     private static bool ContainsDangerousKeyword(string script)
     {
-        var noWhitespace = RemoveAllWhitespace(script);
-        var upper = noWhitespace.ToUpperInvariant();
+        var upper = script.ToUpperInvariant();
         foreach (var kw in DangerousKeywords)
         {
-            if (upper.Contains(kw, StringComparison.Ordinal))
+            var pattern = $@"\b{Regex.Escape(kw)}\b";
+            if (Regex.IsMatch(upper, pattern))
             {
                 return true;
             }
         }
 
         return false;
-    }
-
-    private static string RemoveAllWhitespace(string input)
-    {
-        var sb = new StringBuilder(input.Length);
-        foreach (var c in input)
-        {
-            if (!char.IsWhiteSpace(c))
-            {
-                sb.Append(c);
-            }
-        }
-
-        return sb.ToString();
     }
 
     private static string[] SplitStatements(string script)

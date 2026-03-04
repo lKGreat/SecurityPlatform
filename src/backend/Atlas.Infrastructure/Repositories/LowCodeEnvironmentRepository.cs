@@ -58,10 +58,10 @@ public sealed class LowCodeEnvironmentRepository : ILowCodeEnvironmentRepository
             .ExecuteCommandAsync(cancellationToken);
     }
 
-    public Task DeleteAsync(long id, CancellationToken cancellationToken = default)
+    public Task DeleteAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default)
     {
         return _db.Deleteable<LowCodeEnvironment>()
-            .Where(x => x.Id == id)
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Id == id)
             .ExecuteCommandAsync(cancellationToken);
     }
 

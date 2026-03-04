@@ -61,17 +61,17 @@ public sealed class LowCodePageVersionRepository : ILowCodePageVersionRepository
         return _db.Insertable(entities.ToList()).ExecuteCommandAsync(cancellationToken);
     }
 
-    public Task DeleteByPageIdAsync(long pageId, CancellationToken cancellationToken = default)
+    public Task DeleteByPageIdAsync(TenantId tenantId, long pageId, CancellationToken cancellationToken = default)
     {
         return _db.Deleteable<LowCodePageVersion>()
-            .Where(x => x.PageId == pageId)
+            .Where(x => x.TenantIdValue == tenantId.Value && x.PageId == pageId)
             .ExecuteCommandAsync(cancellationToken);
     }
 
-    public Task DeleteByAppIdAsync(long appId, CancellationToken cancellationToken = default)
+    public Task DeleteByAppIdAsync(TenantId tenantId, long appId, CancellationToken cancellationToken = default)
     {
         return _db.Deleteable<LowCodePageVersion>()
-            .Where(x => x.AppId == appId)
+            .Where(x => x.TenantIdValue == tenantId.Value && x.AppId == appId)
             .ExecuteCommandAsync(cancellationToken);
     }
 }

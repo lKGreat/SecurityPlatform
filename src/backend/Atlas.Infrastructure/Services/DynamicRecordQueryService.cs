@@ -371,16 +371,17 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         return string.Empty;
     }
 
-    private static string EscapeCsv(string value)
+    private static string EscapeCsv(string? value)
     {
-        if (value.Contains('"'))
+        if (string.IsNullOrWhiteSpace(value))
         {
-            value = value.Replace("\"", "\"\"");
+            return string.Empty;
         }
 
+        var escaped = value.Replace("\"", "\"\"");
         // RFC 4180: fields containing ", comma, or newline must be enclosed in quotes
-        return value.Contains('"') || value.Contains(',') || value.Contains('\n') || value.Contains('\r')
-            ? $"\"{value}\""
-            : value;
+        return escaped.Contains('"') || escaped.Contains(',') || escaped.Contains('\n') || escaped.Contains('\r')
+            ? $"\"{escaped}\""
+            : escaped;
     }
 }

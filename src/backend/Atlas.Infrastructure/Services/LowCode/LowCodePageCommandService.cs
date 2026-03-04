@@ -151,7 +151,7 @@ public sealed class LowCodePageCommandService : ILowCodePageCommandService
         var entity = await _pageRepository.GetByIdAsync(tenantId, id, cancellationToken)
             ?? throw new InvalidOperationException($"页面 ID={id} 不存在");
 
-        await _pageVersionRepository.DeleteByPageIdAsync(entity.Id, cancellationToken);
+        await _pageVersionRepository.DeleteByPageIdAsync(tenantId, entity.Id, cancellationToken);
         await _pageRepository.DeleteAsync(id, cancellationToken);
     }
 

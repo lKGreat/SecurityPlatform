@@ -138,6 +138,6 @@ public sealed class LowCodeEnvironmentService : ILowCodeEnvironmentService
             ?? throw new InvalidOperationException($"环境 ID={id} 不存在");
         _ = userId;
 
-        await _environmentRepository.DeleteAsync(entity.Id, cancellationToken);
+        await _environmentRepository.DeleteAsync(tenantId, entity.Id, cancellationToken);
     }
 }

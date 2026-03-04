@@ -21,7 +21,7 @@ public interface ILowCodePageVersionRepository
 
     Task AddRangeAsync(IReadOnlyList<LowCodePageVersion> entities, CancellationToken cancellationToken = default);
 
-    Task DeleteByPageIdAsync(long pageId, CancellationToken cancellationToken = default);
+    Task DeleteByPageIdAsync(TenantId tenantId, long pageId, CancellationToken cancellationToken = default);
 
-    Task DeleteByAppIdAsync(long appId, CancellationToken cancellationToken = default);
+    Task DeleteByAppIdAsync(TenantId tenantId, long appId, CancellationToken cancellationToken = default);
 }

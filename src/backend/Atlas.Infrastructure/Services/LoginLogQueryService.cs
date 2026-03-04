@@ -51,28 +51,53 @@ public sealed class LoginLogQueryService : ILoginLogQueryService
         DateTimeOffset? to,
         CancellationToken cancellationToken)
     {
-        var items = await _loginLogRepository.QueryAsync(
-            tenantId,
-            username,
-            ipAddress,
-            loginStatus,
-            from,
-            to,
-            cancellationToken);
+        const int ExportPageSize = 1000;
+        const int MaxExportRows = 10_000;
 
         var builder = new System.Text.StringBuilder();
         builder.AppendLine("用户名,IP地址,浏览器,操作系统,状态,失败原因,登录时间");
-        foreach (var item in items)
+
+        var pageIndex = 1;
+        var totalFetched = 0;
+
+        while (totalFetched < MaxExportRows)
         {
-            var status = item.LoginStatus ? "成功" : "失败";
-            builder.AppendLine(string.Join(",",
-                EscapeCsv(item.Username),
-                EscapeCsv(item.IpAddress),
-                EscapeCsv(item.Browser),
-                EscapeCsv(item.OperatingSystem),
-                EscapeCsv(status),
-                EscapeCsv(item.Message),
-                EscapeCsv(item.LoginTime.ToString("yyyy-MM-dd HH:mm:ss"))));
+            var (items, _) = await _loginLogRepository.GetPagedAsync(
+                tenantId,
+                username,
+                ipAddress,
+                loginStatus,
+                from,
+                to,
+                pageIndex,
+                ExportPageSize,
+                cancellationToken);
+
+            foreach (var item in items)
+            {
+                if (totalFetched >= MaxExportRows)
+                {
+                    break;
+                }
+
+                var status = item.LoginStatus ? "成功" : "失败";
+                builder.AppendLine(string.Join(",",
+                    EscapeCsv(item.Username),
+                    EscapeCsv(item.IpAddress),
+                    EscapeCsv(item.Browser),
+                    EscapeCsv(item.OperatingSystem),
+                    EscapeCsv(status),
+                    EscapeCsv(item.Message),
+                    EscapeCsv(item.LoginTime.ToString("yyyy-MM-dd HH:mm:ss"))));
+                totalFetched++;
+            }
+
+            if (items.Count < ExportPageSize || totalFetched >= MaxExportRows)
+            {
+                break;
+            }
+
+            pageIndex++;
         }
 
         return new LoginLogExportResult(

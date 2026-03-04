@@ -1440,5 +1440,5 @@ JWT Claims（新增）：
 ### 登录日志
 
 - `GET /api/v1/login-logs`：分页查询登录日志
-- `GET /api/v1/login-logs/export`：按筛选条件导出 CSV
+- `GET /api/v1/login-logs/export`：按筛选条件导出 CSV（单次最多 10,000 条，分批查询避免 OOM）
 
