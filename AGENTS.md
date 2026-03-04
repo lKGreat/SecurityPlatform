@@ -118,3 +118,61 @@ npm run format
 ## 登录页 UX 规范
 
 - 登录页的详细结构与状态控制在 `docs/login-prd.md` 中记录，包含控件尺寸、校验规则、状态图、错误文案与多租户/组织切换行为，可直接给前端落地。
+
+## Cursor Cloud specific instructions
+
+### 系统依赖
+
+- **后端：** 需要 .NET 10 SDK（`dotnet-sdk-10.0`），Ubuntu 24.04 可通过 `sudo apt-get install -y dotnet-sdk-10.0` 安装。
+- **前端：** Node.js 22 + npm 10（环境已预装），使用 `npm install` 安装依赖。
+
+### 服务概览
+
+| 服务 | 端口 | 启动命令 |
+|---|---|---|
+| 后端 API (Atlas.WebApi) | 5000 | 见下方 "后端启动注意事项" |
+| 前端开发服务器 (Atlas.WebApp) | 5173 | `cd src/frontend/Atlas.WebApp && npm run dev` |
+
+数据库为嵌入式 SQLite（`atlas.db`），无需外部数据库服务。Hangfire（`hangfire.db`）同样为嵌入式 SQLite 存储。
+
+### 后端启动注意事项（重要）
+
+后端在 `Development` 环境下启用了 .NET DI `ValidateOnBuild`，当前代码存在以下 **预存 DI 注册缺陷**，导致应用无法在 Development 模式启动：
+
+1. `DataScopeFilter` 依赖具体类型 `RoleRepository` 而非接口 `IRoleRepository`
+2. `JumpTaskHandler` 依赖 `FlowEngine`，但 `FlowEngine` 未在 DI 容器中注册
+
+此外，AutoMapper 校验（`AssertConfigurationIsValid`）在所有环境均会执行，当前 `ApprovalMappingProfile` 存在未映射属性（`FlowName`, `SlaRemainingMinutes`, `ExpectedCompleteTime` 等），导致启动抛出 `AutoMapperConfigurationException`。
+
+**要成功启动后端**，需先修复上述代码问题。修复后使用以下命令启动（Staging 环境跳过 DI 验证）：
+
+```bash
+ASPNETCORE_ENVIRONMENT=Staging \
+Security__EnforceHttps=false \
+Security__BootstrapAdmin__Password='P@ssw0rd!' \
+Jwt__SigningKey='Atlas_Dev_Secret_Key_For_Testing_Only_2026_LoremIpsum' \
+Cors__AllowedOrigins__0='http://localhost:5173' \
+dotnet run --project src/backend/Atlas.WebApi --no-launch-profile --urls "http://0.0.0.0:5000"
+```
+
+或在 Development 模式下（需同时修复 DI 注册问题）：
+```bash
+dotnet run --project src/backend/Atlas.WebApi
+```
+
+### 开发默认账号
+
+- **租户 ID：** `00000000-0000-0000-0000-000000000001`
+- **用户名：** `admin`
+- **密码：** `P@ssw0rd!`（由 `appsettings.Development.json` 的 `Security.BootstrapAdmin.Password` 配置）
+
+### 测试
+
+- `dotnet test tests/Atlas.WorkflowCore.Tests` — 4 个测试全部通过
+- `dotnet test tests/Atlas.SecurityPlatform.Tests` — 部分测试因上述 DI 问题失败（59 passed, 20 failed）
+- `npm run lint`（前端）— 有 2 个预存 ESLint errors 和 155 warnings
+- `npm run build`（前端）— 构建成功
+
+### 构建与 Lint 命令参考
+
+标准命令见 `CLAUDE.md` 和 `AGENTS.md` 的"构建与开发命令"章节。
