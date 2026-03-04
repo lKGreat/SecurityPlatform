@@ -9,14 +9,34 @@ using Atlas.Domain.DynamicTables.Enums;
 using Atlas.Domain.DynamicTables.Entities;
 using Atlas.Infrastructure.DynamicTables;
 using System.Text;
-using System.Collections.Concurrent;
 using SqlSugar;
 
 namespace Atlas.Infrastructure.Services;
 
 public sealed class MigrationService : IMigrationService
 {
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> TableLocks = new();
+    /// <summary>
+    /// 固定大小锁池，避免按 tenant+table 无限增长导致内存泄漏。
+    /// 不同 key 可能映射到同一锁，仅增加少量串行化，迁移操作本身低频可接受。
+    /// </summary>
+    private const int LockPoolSize = 64;
+    private static readonly SemaphoreSlim[] LockPool = CreateLockPool();
+
+    private static SemaphoreSlim[] CreateLockPool()
+    {
+        var pool = new SemaphoreSlim[LockPoolSize];
+        for (var i = 0; i < LockPoolSize; i++)
+        {
+            pool[i] = new SemaphoreSlim(1, 1);
+        }
+        return pool;
+    }
+
+    private static SemaphoreSlim GetTableLock(string lockKey)
+    {
+        var hash = Math.Abs(lockKey.GetHashCode(StringComparison.Ordinal));
+        return LockPool[hash % LockPoolSize];
+    }
 
     private readonly IMigrationRecordRepository _migrationRecordRepository;
     private readonly IDynamicTableRepository _dynamicTableRepository;
@@ -109,7 +129,7 @@ public sealed class MigrationService : IMigrationService
             cancellationToken);
         if (existed is not null)
         {
-            throw new BusinessException("同一表的迁移版本已存在。", ErrorCodes.ValidationError);
+            throw new BusinessException(ErrorCodes.ValidationError, "同一表的迁移版本已存在。");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -137,7 +157,7 @@ public sealed class MigrationService : IMigrationService
         var table = await _dynamicTableRepository.FindByKeyAsync(tenantId, tableKey, cancellationToken);
         if (table is null)
         {
-            throw new BusinessException("动态表不存在。", ErrorCodes.NotFound);
+            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
         }
 
         var fields = await _dynamicFieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
@@ -221,15 +241,15 @@ public sealed class MigrationService : IMigrationService
         var migration = await _migrationRecordRepository.FindByIdAsync(tenantId, migrationId, cancellationToken);
         if (migration is null)
         {
-            throw new BusinessException("迁移记录不存在。", ErrorCodes.NotFound);
+            throw new BusinessException(ErrorCodes.NotFound, "迁移记录不存在。");
         }
         if (migration.IsDestructive && !confirmDestructive)
         {
-            throw new BusinessException("该迁移包含破坏性变更，请先通过预检查并确认执行。", ErrorCodes.ValidationError);
+            throw new BusinessException(ErrorCodes.ValidationError, "该迁移包含破坏性变更，请先通过预检查并确认执行。");
         }
 
         var lockKey = $"{tenantId.Value:D}:{migration.TableKey}";
-        var tableLock = TableLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        var tableLock = GetTableLock(lockKey);
         await tableLock.WaitAsync(cancellationToken);
         try
         {
@@ -270,7 +290,7 @@ public sealed class MigrationService : IMigrationService
         var migration = await _migrationRecordRepository.FindByIdAsync(tenantId, migrationId, cancellationToken);
         if (migration is null)
         {
-            throw new BusinessException("迁移记录不存在。", ErrorCodes.NotFound);
+            throw new BusinessException(ErrorCodes.NotFound, "迁移记录不存在。");
         }
 
         var checks = new List<string>
