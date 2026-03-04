@@ -51,8 +51,18 @@ public sealed class AuditQueryService : IAuditQueryService
             else
             {
                 var actorId = currentUser.UserId.ToString();
-                var actorName = currentUser.Username;
-                query = query.Where(x => x.Actor == actorId || x.Actor == actorName);
+                // 兼容历史数据：部分旧审计记录使用用户名写入 Actor。
+                // 为避免用户名与雪花 ID 字符串碰撞，仅在用户名非纯数字时启用回退匹配。
+                if (!string.IsNullOrWhiteSpace(currentUser.Username)
+                    && !long.TryParse(currentUser.Username, out _))
+                {
+                    var actorName = currentUser.Username;
+                    query = query.Where(x => x.Actor == actorId || x.Actor == actorName);
+                }
+                else
+                {
+                    query = query.Where(x => x.Actor == actorId);
+                }
             }
         }
 
