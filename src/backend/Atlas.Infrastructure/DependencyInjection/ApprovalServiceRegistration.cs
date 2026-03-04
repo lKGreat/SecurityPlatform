@@ -92,6 +92,7 @@ public static class ApprovalServiceRegistration
         services.AddScoped<Atlas.Application.Approval.Abstractions.IApprovalFlowQueryService, ApprovalFlowQueryService>();
         services.AddScoped<Atlas.Application.Approval.Abstractions.IApprovalFlowCommandService, ApprovalFlowCommandService>();
         services.AddScoped<Atlas.Application.Approval.Abstractions.IApprovalRuntimeQueryService, ApprovalRuntimeQueryService>();
+        services.AddScoped<Atlas.Application.Approval.Abstractions.IApprovalDefinitionSemanticValidator, Atlas.Infrastructure.Services.ApprovalFlow.ApprovalDefinitionSemanticValidator>();
 
         // Approval Status Sync Handler (for dynamic table status writeback)
         services.AddScoped<Atlas.Infrastructure.Services.ApprovalFlow.ApprovalStatusSyncHandler>();

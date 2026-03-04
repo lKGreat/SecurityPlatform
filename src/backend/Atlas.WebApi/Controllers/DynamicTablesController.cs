@@ -95,24 +95,42 @@ public sealed class DynamicTablesController : ControllerBase
         return Ok(ApiResponse<IReadOnlyList<DynamicFieldDefinition>>.Ok(fields, HttpContext.TraceIdentifier));
     }
 
-    [HttpGet("{tableKey}/migrations")]
+    [HttpGet("{tableKey}/relations")]
     [Authorize(Policy = PermissionPolicies.SystemAdmin)]
-    public async Task<ActionResult<ApiResponse<PagedResult<DynamicSchemaMigrationListItem>>>> GetMigrations(
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<DynamicRelationDefinition>>>> GetRelations(
         string tableKey,
-        [FromQuery] PagedRequest request,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(tableKey))
         {
-            return BadRequest(ApiResponse<PagedResult<DynamicSchemaMigrationListItem>>.Fail(
+            return BadRequest(ApiResponse<IReadOnlyList<DynamicRelationDefinition>>.Fail(
                 ErrorCodes.ValidationError,
                 "TableKey不能为空",
                 HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
-        var result = await _queryService.GetMigrationsAsync(tenantId, tableKey, request, cancellationToken);
-        return Ok(ApiResponse<PagedResult<DynamicSchemaMigrationListItem>>.Ok(result, HttpContext.TraceIdentifier));
+        var relations = await _queryService.GetRelationsAsync(tenantId, tableKey, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<DynamicRelationDefinition>>.Ok(relations, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("{tableKey}/field-permissions")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<DynamicFieldPermissionRule>>>> GetFieldPermissions(
+        string tableKey,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(tableKey))
+        {
+            return BadRequest(ApiResponse<IReadOnlyList<DynamicFieldPermissionRule>>.Fail(
+                ErrorCodes.ValidationError,
+                "TableKey不能为空",
+                HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        var rules = await _queryService.GetFieldPermissionsAsync(tenantId, tableKey, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<DynamicFieldPermissionRule>>.Ok(rules, HttpContext.TraceIdentifier));
     }
 
     [HttpPost]
@@ -212,6 +230,48 @@ public sealed class DynamicTablesController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         await _commandService.DeleteAsync(tenantId, currentUser.UserId, tableKey, cancellationToken);
         await RecordAuditAsync(currentUser, "DELETE_DYNAMIC_TABLE", tableKey, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { TableKey = tableKey }, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPut("{tableKey}/relations")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<object>>> SetRelations(
+        string tableKey,
+        [FromBody] DynamicRelationUpsertRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(
+                ErrorCodes.Unauthorized,
+                "未登录",
+                HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        await _commandService.SetRelationsAsync(tenantId, currentUser.UserId, tableKey, request, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { TableKey = tableKey }, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPut("{tableKey}/field-permissions")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<object>>> SetFieldPermissions(
+        string tableKey,
+        [FromBody] DynamicFieldPermissionUpsertRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(
+                ErrorCodes.Unauthorized,
+                "未登录",
+                HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        await _commandService.SetFieldPermissionsAsync(tenantId, currentUser.UserId, tableKey, request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { TableKey = tableKey }, HttpContext.TraceIdentifier));
     }
 

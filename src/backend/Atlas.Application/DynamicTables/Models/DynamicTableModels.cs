@@ -95,6 +95,25 @@ public sealed record DynamicIndexDefinition(
     bool IsUnique,
     IReadOnlyList<string> Fields);
 
+public sealed record DynamicRelationDefinition(
+    string RelatedTableKey,
+    string SourceField,
+    string TargetField,
+    string RelationType,
+    string? CascadeRule);
+
+public sealed record DynamicRelationUpsertRequest(
+    IReadOnlyList<DynamicRelationDefinition> Relations);
+
+public sealed record DynamicFieldPermissionRule(
+    string FieldName,
+    string RoleCode,
+    bool CanView,
+    bool CanEdit);
+
+public sealed record DynamicFieldPermissionUpsertRequest(
+    IReadOnlyList<DynamicFieldPermissionRule> Permissions);
+
 public sealed record DynamicFieldTypeOption(string Label, string Value);
 
 /// <summary>
@@ -124,6 +143,13 @@ public sealed record DynamicRecordQueryRequest(
     bool SortDesc,
     IReadOnlyList<DynamicFilterCondition> Filters);
 
+public sealed record DynamicRecordExportRequest(
+    string? Keyword,
+    string? SortBy,
+    bool SortDesc,
+    IReadOnlyList<DynamicFilterCondition> Filters,
+    IReadOnlyList<string>? Fields);
+
 public sealed record DynamicFilterCondition(
     string Field,
     string Operator,
@@ -139,6 +165,11 @@ public sealed record DynamicRecordListResult(
     int PageIndex,
     int PageSize,
     IReadOnlyList<DynamicColumnDef> Columns);
+
+public sealed record DynamicRecordExportResult(
+    string FileName,
+    string ContentType,
+    byte[] Content);
 
 public sealed record DynamicColumnDef(
     string Name,

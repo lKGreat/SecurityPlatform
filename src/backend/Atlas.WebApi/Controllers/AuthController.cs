@@ -44,6 +44,7 @@ public sealed class AuthController : ControllerBase
     private readonly IValidator<AuthTokenRequest> _validator;
     private readonly IValidator<AuthRefreshRequest> _refreshValidator;
     private readonly IValidator<ChangePasswordViewModel> _changePasswordValidator;
+    private readonly IValidator<UserProfileUpdateViewModel> _profileUpdateValidator;
     private readonly IValidator<RegisterViewModel> _registerValidator;
     private readonly IAuditRecorder _auditRecorder;
     private readonly SecurityOptions _securityOptions;
@@ -65,6 +66,7 @@ public sealed class AuthController : ControllerBase
         IValidator<AuthTokenRequest> validator,
         IValidator<AuthRefreshRequest> refreshValidator,
         IValidator<ChangePasswordViewModel> changePasswordValidator,
+        IValidator<UserProfileUpdateViewModel> profileUpdateValidator,
         IValidator<RegisterViewModel> registerValidator,
         IAuditRecorder auditRecorder,
         IOptions<SecurityOptions> securityOptions)
@@ -85,6 +87,7 @@ public sealed class AuthController : ControllerBase
         _validator = validator;
         _refreshValidator = refreshValidator;
         _changePasswordValidator = changePasswordValidator;
+        _profileUpdateValidator = profileUpdateValidator;
         _registerValidator = registerValidator;
         _auditRecorder = auditRecorder;
         _securityOptions = securityOptions.Value;
@@ -208,6 +211,57 @@ public sealed class AuthController : ControllerBase
                 clientContext.ClientAgent.ToString())
         };
         return Ok(ApiResponse<AuthProfileResult>.Ok(payloadProfile, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("profile")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<UserProfileDetailViewModel>>> GetProfile(CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
+        var user = await _userAccountRepository.FindByIdAsync(currentUser.TenantId, currentUser.UserId, cancellationToken);
+        if (user is null)
+        {
+            return NotFound(ApiResponse<UserProfileDetailViewModel>.Fail(ErrorCodes.NotFound, "用户不存在", HttpContext.TraceIdentifier));
+        }
+
+        var profile = new UserProfileDetailViewModel(
+            user.DisplayName,
+            user.Email,
+            user.PhoneNumber);
+        return Ok(ApiResponse<UserProfileDetailViewModel>.Ok(profile, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateProfile(
+        [FromBody] UserProfileUpdateViewModel request,
+        CancellationToken cancellationToken)
+    {
+        _profileUpdateValidator.ValidateAndThrow(request);
+        var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
+        var tenantId = _tenantProvider.GetTenantId();
+
+        await _userCommandService.UpdateProfileAsync(
+            tenantId,
+            currentUser.UserId,
+            request.DisplayName.Trim(),
+            string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
+            string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim(),
+            cancellationToken);
+
+        var actor = string.IsNullOrWhiteSpace(currentUser.Username) ? currentUser.UserId.ToString() : currentUser.Username;
+        var auditContext = new AuditContext(
+            currentUser.TenantId,
+            actor,
+            "UPDATE_PROFILE",
+            "SUCCESS",
+            null,
+            ControllerHelper.GetIpAddress(HttpContext),
+            ControllerHelper.GetUserAgent(HttpContext),
+            _clientContextAccessor.GetCurrent());
+        await _auditRecorder.RecordAsync(auditContext, cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(new { Success = true }, HttpContext.TraceIdentifier));
     }
 
     [HttpGet("routers")]

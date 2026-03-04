@@ -173,6 +173,42 @@ JWT Claims（新增）：
 }
 ```
 
+认证校验补充：
+
+- 访问令牌在每次请求都会校验用户状态（`IsActive=true`）。
+- 若用户被禁用，已签发 access token 在下一次请求即失效（返回 401）。
+- 同时校验会话 `sid` 是否存在、是否已撤销、是否过期。
+
+### 获取个人资料
+
+`GET /api/v1/auth/profile`
+
+响应（`ApiResponse` 包装）：
+
+```json
+{
+  "displayName": "系统管理员",
+  "email": "admin@atlas.local",
+  "phoneNumber": "13800000000"
+}
+```
+
+### 更新个人资料
+
+`PUT /api/v1/auth/profile`
+
+请求（需携带 `Authorization` 与 `X-Tenant-Id`）：
+
+```json
+{
+  "displayName": "系统管理员",
+  "email": "admin@atlas.local",
+  "phoneNumber": "13800000000"
+}
+```
+
+响应：通用 `ApiResponse`
+
 ### 修改密码
 
 `PUT /api/v1/auth/password`
@@ -270,6 +306,8 @@ JWT Claims（新增）：
 说明：
 
 - `isSystem`：可选，`true`=系统内置，`false`=自定义。
+- 删除约束：角色已被用户绑定时不允许删除，返回 `VALIDATION_ERROR`，需先解绑用户与角色关系。
+- 角色权限生效规则：后端每次鉴权都会实时按当前 `用户-角色-权限` 关系解析，不依赖令牌中的角色快照，角色调整后无需重新登录。
 
 ### 角色详情
 
@@ -339,7 +377,7 @@ JWT Claims（新增）：
 
 说明：
 
-- `type`：可选，`Api` 或 `Menu`。
+- `type`：可选，支持 `Api`、`Menu`、`Application`、`Page`、`Action`。
 
 ### 菜单列表（分页）
 
@@ -910,44 +948,97 @@ JWT Claims（新增）：
 
 前端 `AmisRenderer` 组件会把 `schema` 直接传给 `render` 并依赖 `env.fetcher` 将请求透传到后端 `ApiResponse`，还会用 `notify`/`alert` 显示提示。
 
-## 低代码应用版本快照契约
+## 低代码应用与页面契约
 
-### 适用范围
+### 低代码应用（LowCodeApp）
 
-- 资源：`/api/v1/lowcode-apps/{id}`
-- 所有接口要求：`Authorization` + `X-Tenant-Id`
-- 写接口（发布、回滚）由前端统一携带 `Idempotency-Key` + `X-CSRF-TOKEN`
+- `GET /api/v1/lowcode-apps?pageIndex=1&pageSize=10&keyword=&category=`：分页查询应用
+- `GET /api/v1/lowcode-apps/{id}`：应用详情（含页面列表）
+- `GET /api/v1/lowcode-apps/by-key/{appKey}`：按应用标识查询详情
+- `POST /api/v1/lowcode-apps`：创建应用（需幂等 + CSRF）
+- `PUT /api/v1/lowcode-apps/{id}`：更新应用（需幂等 + CSRF）
+- `POST /api/v1/lowcode-apps/{id}/publish`：发布应用（需幂等 + CSRF）
+- `POST /api/v1/lowcode-apps/{id}/disable`：停用应用（需幂等 + CSRF）
+- `GET /api/v1/lowcode-apps/{id}/export`：导出应用 JSON 包
+- `POST /api/v1/lowcode-apps/import`：导入应用 JSON 包（需幂等 + CSRF，支持 `Rename/Overwrite/Skip` 冲突策略）
+- `GET /api/v1/lowcode-apps/{appId}/environments`：查询应用环境配置
+- `GET /api/v1/lowcode-apps/environments/{id}`：环境配置详情
+- `POST /api/v1/lowcode-apps/{appId}/environments`：创建应用环境配置（需幂等 + CSRF）
+- `PUT /api/v1/lowcode-apps/environments/{id}`：更新应用环境配置（需幂等 + CSRF）
+- `DELETE /api/v1/lowcode-apps/environments/{id}`：删除应用环境配置（需幂等 + CSRF）
+- `DELETE /api/v1/lowcode-apps/{id}`：删除应用（需幂等 + CSRF）
 
-### 接口清单
+授权策略：
 
-- `POST /api/v1/lowcode-apps/{id}/publish`
-  - 发布应用，并自动生成一条 `Publish` 版本快照。
-- `GET /api/v1/lowcode-apps/{id}/versions?pageIndex=1&pageSize=20`
-  - 查询应用版本历史（倒序）。
-- `POST /api/v1/lowcode-apps/{id}/versions/{versionId}/rollback`
-  - 回滚到指定快照；回滚完成后会生成一条新的 `Rollback` 版本记录。
+- 读接口（GET）要求 `apps:view`
+- 写接口（POST/PUT/PATCH/DELETE）要求 `apps:update`
 
-### LowCodeAppVersionListItem
+### 低代码页面（LowCodePage）
+
+- `POST /api/v1/lowcode-apps/{appId}/pages`：创建页面（需幂等 + CSRF）
+- `PUT /api/v1/lowcode-apps/pages/{pageId}`：更新页面元数据（需幂等 + CSRF）
+- `PATCH /api/v1/lowcode-apps/pages/{pageId}/schema`：仅更新页面 Schema（需幂等 + CSRF）
+- `POST /api/v1/lowcode-apps/pages/{pageId}/publish`：发布页面（需幂等 + CSRF）
+- `GET /api/v1/lowcode-apps/pages/{pageId}/versions`：页面版本历史
+- `GET /api/v1/lowcode-apps/pages/{pageId}/runtime?mode=draft|published&environmentCode=dev`：运行态 Schema（草稿/已发布，支持环境变量替换）
+- `POST /api/v1/lowcode-apps/pages/{pageId}/rollback/{versionId}`：按历史版本回滚并生成新发布版本（需幂等 + CSRF）
+- `DELETE /api/v1/lowcode-apps/pages/{pageId}`：删除页面（需幂等 + CSRF）
+- `GET /api/v1/lowcode-apps/pages/{pageId}`：页面详情（含完整 `schemaJson`）
+- `GET /api/v1/lowcode-apps/{appId}/pages/tree`：页面树（按 `parentPageId` + `sortOrder`）
+
+授权策略：
+
+- 页面读接口要求 `apps:view`
+- 页面写接口要求 `apps:update`
+
+### LowCodePageTreeNode
 
 ```json
 {
-  "id": "193210000000000001",
-  "appId": "193200000000000001",
+  "id": "1001",
+  "appId": "2001",
+  "pageKey": "customer-list",
+  "name": "客户列表",
+  "pageType": "List",
+  "routePath": "/customers",
+  "description": "客户管理列表页面",
+  "icon": "unordered-list",
+  "sortOrder": 1,
+  "parentPageId": null,
   "version": 3,
-  "actionType": "Publish|Rollback",
-  "sourceVersionId": "193210000000000000",
-  "note": "Rollback to version 1",
-  "createdAt": "2026-03-03T08:30:00Z",
-  "createdBy": 10001
+  "isPublished": true,
+  "createdAt": "2026-03-03T09:00:00Z",
+  "permissionCode": "customers:view",
+  "dataTableKey": "crm_customers",
+  "children": []
 }
 ```
 
-字段说明：
+### LowCodePageDetail
 
-- `version`：应用版本号（同一应用内递增）
-- `actionType`：版本来源动作，`Publish` 或 `Rollback`
-- `sourceVersionId`：仅回滚动作时有值，表示回滚目标版本 ID
-- `note`：回滚备注（发布场景可为空）
+```json
+{
+  "id": "1001",
+  "appId": "2001",
+  "pageKey": "customer-list",
+  "name": "客户列表",
+  "pageType": "List",
+  "schemaJson": "{ \"type\": \"page\", \"body\": [] }",
+  "routePath": "/customers",
+  "description": "客户管理列表页面",
+  "icon": "unordered-list",
+  "sortOrder": 1,
+  "parentPageId": null,
+  "version": 3,
+  "isPublished": true,
+  "createdAt": "2026-03-03T09:00:00Z",
+  "updatedAt": "2026-03-03T10:00:00Z",
+  "createdBy": 10001,
+  "updatedBy": 10001,
+  "permissionCode": "customers:view",
+  "dataTableKey": "crm_customers"
+}
+```
 
 ## 动态表与低代码 CRUD 契约（草案）
 
@@ -974,6 +1065,72 @@ JWT Claims（新增）：
 - `POST /api/v1/dynamic-tables/{tableKey}/schema/alter/preview`：预览变更 SQL（只读，不落库）
 - `GET /api/v1/dynamic-tables/{tableKey}/migrations`：分页查询结构迁移记录
 - `DELETE /api/v1/dynamic-tables/{tableKey}`：删除动态表（需幂等 + CSRF）
+- `GET /api/v1/dynamic-tables/{tableKey}/relations`：查询轻量关系
+- `PUT /api/v1/dynamic-tables/{tableKey}/relations`：覆盖更新轻量关系（需幂等 + CSRF）
+- `GET /api/v1/dynamic-tables/{tableKey}/field-permissions`：查询字段级权限规则
+- `PUT /api/v1/dynamic-tables/{tableKey}/field-permissions`：覆盖更新字段级权限规则（需幂等 + CSRF）
+
+### 动态迁移记录接口（骨架）
+
+- `GET /api/v1/dynamic-migrations?pageIndex=1&pageSize=10&tableKey=orders`：分页查询迁移记录
+- `GET /api/v1/dynamic-migrations/{id}`：迁移记录详情
+- `POST /api/v1/dynamic-migrations`：创建迁移草稿记录（需幂等 + CSRF）
+- `POST /api/v1/dynamic-migrations/detect/{tableKey}`：检测结构变更并生成预览脚本（需幂等 + CSRF）
+- `POST /api/v1/dynamic-migrations/{id}/execute`：执行迁移（需幂等 + CSRF）
+- `POST /api/v1/dynamic-migrations/{id}/precheck`：迁移预检查（需幂等 + CSRF）
+- `POST /api/v1/dynamic-migrations/{id}/retry`：重试迁移（需幂等 + CSRF）
+
+```json
+{
+  "tableKey": "orders",
+  "version": 1,
+  "upScript": "ALTER TABLE ...",
+  "downScript": "ALTER TABLE ...",
+  "isDestructive": false
+}
+```
+
+`detect` 响应：
+
+```json
+{
+  "tableKey": "orders",
+  "upScript": "ALTER TABLE ...",
+  "downScript": "-- no-op",
+  "isDestructive": false,
+  "warnings": []
+}
+```
+
+`execute/retry` 响应：
+
+```json
+{
+  "id": "1001",
+  "tableKey": "orders",
+  "version": 1,
+  "status": "Succeeded",
+  "executedAt": "2026-03-03T12:00:00Z",
+  "errorMessage": null
+}
+```
+
+`precheck` 响应：
+
+```json
+{
+  "id": "1001",
+  "tableKey": "orders",
+  "version": 1,
+  "requiresConfirmation": true,
+  "canExecute": true,
+  "checks": [
+    "迁移记录存在",
+    "当前状态：Draft",
+    "检测到破坏性变更，执行前需要确认"
+  ]
+}
+```
 
 ### dbType 枚举
 
@@ -986,21 +1143,29 @@ JWT Claims（新增）：
 
 ### 记录 CRUD 接口
 
-- `GET /api/v1/dynamic-tables/{tableKey}/records`：分页查询记录（支持 `includeColumns=true`）
+- `GET /api/v1/dynamic-tables/{tableKey}/records`：分页查询记录（关键词 + 排序）
 - `GET /api/v1/dynamic-tables/{tableKey}/records/{id}`：单条记录
 - `POST /api/v1/dynamic-tables/{tableKey}/records`：新增记录（需幂等 + CSRF）
 - `PUT /api/v1/dynamic-tables/{tableKey}/records/{id}`：更新记录（需幂等 + CSRF）
 - `DELETE /api/v1/dynamic-tables/{tableKey}/records/{id}`：删除记录（需幂等 + CSRF）
-- `POST /api/v1/dynamic-tables/{tableKey}/records/query`：复杂筛选（需幂等 + CSRF）
+- `POST /api/v1/dynamic-tables/{tableKey}/records/query`：复杂筛选（支持 `eq/ne/gt/gte/lt/lte/like/in/between`，需幂等 + CSRF）
+- `POST /api/v1/dynamic-tables/{tableKey}/records/export`：按筛选条件导出 CSV（需幂等 + CSRF，单次最多 10,000 条，分批查询避免 OOM）
 - `POST /api/v1/dynamic-tables/{tableKey}/records/batch`：批量新增（需幂等 + CSRF）
 - `DELETE /api/v1/dynamic-tables/{tableKey}/records`：批量删除（需幂等 + CSRF）
+
+说明：
+
+- 当目标表配置了字段级权限规则时，查询/详情/导出将按当前用户角色自动裁剪可见字段；
+- 写入（create/update）会校验可编辑字段，越权字段写入将返回 `FORBIDDEN`。
+- 当当前角色数据权限为“仅本人”时，动态记录查询/详情/导出将自动注入 owner 过滤（基于 `ownerId/createdBy/creatorId` 字段约定）。
 
 ### AMIS Schema 接口
 
 - `GET /api/v1/amis/dynamic-tables/designer`：表结构设计器 Schema
-- `GET /api/v1/amis/dynamic-tables/{tableKey}/crud`：动态 CRUD Schema
+- `GET /api/v1/amis/dynamic-tables/{tableKey}/crud`：动态 CRUD Schema（按字段实时生成列定义、排序与分页）
 - `GET /api/v1/amis/dynamic-tables/{tableKey}/forms/create`：新建表单 Schema
 - `GET /api/v1/amis/dynamic-tables/{tableKey}/forms/edit?id=1001`：编辑表单 Schema
+- `GET /api/v1/amis/dynamic-tables/{tableKey}/forms/detail?id=1001`：详情只读 Schema
 
 ### DynamicTableSummary
 
@@ -1403,4 +1568,64 @@ JWT Claims（新增）：
 - 审批节点必须配置 approverRule
 - 节点 name/code 长度与特殊字符校验
 - 发布前需要通过 validation
+
+## 审批流 V1V2 增量契约（2026-03）
+
+### 流程定义管理新增接口
+
+- `POST /api/v1/approval/flows/{id}/copy`：复制现有流程为新草稿。
+  - 请求：`{ "name"?: string }`
+  - 响应：`ApprovalFlowDefinitionResponse`
+- `GET /api/v1/approval/flows/{id}/export`：导出流程定义 JSON。
+  - 响应：`ApprovalFlowExportResponse`
+- `POST /api/v1/approval/flows/import`：导入流程定义 JSON 为新草稿。
+  - 请求：`ApprovalFlowImportRequest`
+  - 响应：`ApprovalFlowDefinitionResponse`
+- `GET /api/v1/approval/flows/{id}/versions/{targetVersion}/compare`：按流程名 + 版本号对比定义差异。
+  - 响应：`ApprovalFlowCompareResponse`
+
+### 流程校验返回增强
+
+- `POST /api/v1/approval/flows/validation` 响应新增 `details` 字段（兼容 `errors`/`warnings`）。
+
+```json
+{
+  "isValid": false,
+  "errors": ["并行节点必须配置汇聚后的后续节点"],
+  "warnings": ["并行块缺少 groupId 标识"],
+  "details": [
+    {
+      "code": "PARALLEL_JOIN_REQUIRED",
+      "message": "并行节点必须配置汇聚后的后续节点",
+      "severity": "error",
+      "nodeId": "parallel_xxx",
+      "edgeId": null
+    }
+  ]
+}
+```
+
+### 运行时实例管理新增接口
+
+- `GET /api/v1/approval/instances/admin`：管理端实例分页查询（支持过滤）。
+  - Query 参数：
+    - `pageIndex`, `pageSize`
+    - `definitionId?`
+    - `initiatorUserId?`
+    - `businessKey?`
+    - `startedFrom?`（ISO8601）
+    - `startedTo?`（ISO8601）
+    - `status?`（`Running|Completed|Rejected|Canceled`）
+  - 响应：`PagedResult<ApprovalInstanceListItem>`
+
+### 前端运行态新增页面路由（动态菜单）
+
+- `/process/start`：发起审批
+- `/process/inbox`：我的待办
+- `/process/done`：我的已办
+- `/process/my-requests`：我发起的
+- `/process/cc`：我的抄送
+- `/process/manage/flows`：流程定义管理
+- `/process/manage/instances`：流程实例管理
+- `/process/designer/:id`、`/process/tasks/:id`、`/process/instances/:id`：隐藏详情路由
 

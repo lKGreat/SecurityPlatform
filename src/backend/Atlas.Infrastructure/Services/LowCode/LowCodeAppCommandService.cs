@@ -4,8 +4,6 @@ using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.LowCode.Enums;
-using SqlSugar;
-using System.Text.Json;
 
 namespace Atlas.Infrastructure.Services.LowCode;
 
@@ -18,20 +16,19 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
 
     private readonly ILowCodeAppRepository _appRepository;
     private readonly ILowCodePageRepository _pageRepository;
-    private readonly ILowCodeAppVersionRepository _versionRepository;
+    private readonly ILowCodePageVersionRepository _pageVersionRepository;
     private readonly IIdGeneratorAccessor _idGenerator;
     private readonly ISqlSugarClient _db;
 
     public LowCodeAppCommandService(
         ILowCodeAppRepository appRepository,
         ILowCodePageRepository pageRepository,
-        ILowCodeAppVersionRepository versionRepository,
-        IIdGeneratorAccessor idGenerator,
-        ISqlSugarClient db)
+        ILowCodePageVersionRepository pageVersionRepository,
+        IIdGeneratorAccessor idGenerator)
     {
         _appRepository = appRepository;
         _pageRepository = pageRepository;
-        _versionRepository = versionRepository;
+        _pageVersionRepository = pageVersionRepository;
         _idGenerator = idGenerator;
         _db = db;
     }
@@ -238,86 +235,238 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
             ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
 
-        await _pageRepository.DeleteByAppIdAsync(tenantId, id, cancellationToken);
+        await _pageVersionRepository.DeleteByAppIdAsync(tenantId, id, cancellationToken);
+        await _pageRepository.DeleteByAppIdAsync(id, cancellationToken);
         await _appRepository.DeleteAsync(id, cancellationToken);
     }
 
-    private static LowCodeAppSnapshot DeserializeSnapshot(string snapshotJson)
+    public async Task<LowCodeAppImportResult> ImportAsync(
+        TenantId tenantId,
+        long userId,
+        LowCodeAppImportRequest request,
+        CancellationToken cancellationToken = default)
     {
-        var snapshot = JsonSerializer.Deserialize<LowCodeAppSnapshot>(snapshotJson, SnapshotJsonOptions);
-        if (snapshot is null)
+        var package = request.Package ?? throw new InvalidOperationException("导入包不能为空。");
+        if (string.IsNullOrWhiteSpace(package.AppKey) || string.IsNullOrWhiteSpace(package.Name))
         {
-            throw new InvalidOperationException("应用版本快照无效");
+            throw new InvalidOperationException("导入包缺少应用标识或名称。");
         }
 
-        return snapshot;
+        var strategy = NormalizeConflictStrategy(request.ConflictStrategy);
+        var targetAppKey = package.AppKey.Trim();
+        var existing = await _appRepository.GetByKeyAsync(tenantId, targetAppKey, cancellationToken);
+        var overwritten = false;
+
+        if (existing is not null && string.Equals(strategy, "Skip", StringComparison.OrdinalIgnoreCase))
+        {
+            return new LowCodeAppImportResult(
+                existing.Id.ToString(),
+                existing.AppKey,
+                true,
+                false,
+                0,
+                0);
+        }
+
+        if (existing is not null && string.Equals(strategy, "Overwrite", StringComparison.OrdinalIgnoreCase))
+        {
+            await _pageVersionRepository.DeleteByAppIdAsync(tenantId, existing.Id, cancellationToken);
+            await _pageRepository.DeleteByAppIdAsync(existing.Id, cancellationToken);
+            await _appRepository.DeleteAsync(existing.Id, cancellationToken);
+            overwritten = true;
+            existing = null;
+        }
+
+        if (existing is not null && string.Equals(strategy, "Rename", StringComparison.OrdinalIgnoreCase))
+        {
+            targetAppKey = await ResolveAvailableAppKeyAsync(
+                tenantId,
+                package.AppKey.Trim(),
+                request.KeySuffix,
+                cancellationToken);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var appId = _idGenerator.NextId();
+        var app = new LowCodeApp(
+            tenantId,
+            targetAppKey,
+            package.Name,
+            package.Description,
+            package.Category,
+            package.Icon,
+            userId,
+            appId,
+            now);
+        if (!string.IsNullOrWhiteSpace(package.ConfigJson))
+        {
+            app.UpdateConfig(package.ConfigJson!, userId, now);
+        }
+        if (string.Equals(package.Status, LowCodeAppStatus.Published.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            app.Publish(userId, now);
+        }
+        else if (string.Equals(package.Status, LowCodeAppStatus.Disabled.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            app.Disable(userId, now);
+        }
+        else if (string.Equals(package.Status, LowCodeAppStatus.Archived.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            app.Archive(userId, now);
+        }
+
+        await _appRepository.InsertAsync(app, cancellationToken);
+
+        var pagePackages = package.Pages ?? Array.Empty<LowCodeAppExportPagePackage>();
+        var pageIdMap = pagePackages
+            .Select((item, index) => new { item.Id, NewId = _idGenerator.NextId(), Index = index })
+            .ToDictionary(x => BuildSourcePageKey(x.Id, x.Index), x => x.NewId, StringComparer.OrdinalIgnoreCase);
+
+        var pageEntities = new List<LowCodePage>(pagePackages.Count);
+        for (var i = 0; i < pagePackages.Count; i++)
+        {
+            var item = pagePackages[i];
+            var sourceKey = BuildSourcePageKey(item.Id, i);
+            var pageId = pageIdMap[sourceKey];
+            var parentPageId = ResolveParentPageId(item.ParentPageId, pageIdMap);
+            var pageType = ParsePageType(item.PageType);
+            var pageEntity = new LowCodePage(
+                tenantId,
+                appId,
+                item.PageKey,
+                item.Name,
+                pageType,
+                item.SchemaJson,
+                item.RoutePath,
+                item.Description,
+                item.Icon,
+                item.SortOrder,
+                parentPageId,
+                userId,
+                pageId,
+                now);
+            pageEntity.SetPermission(item.PermissionCode, userId, now);
+            pageEntity.BindDataTable(item.DataTableKey, userId, now);
+            if (item.IsPublished)
+            {
+                pageEntity.Publish(userId, now);
+            }
+
+            pageEntities.Add(pageEntity);
+        }
+
+        await _pageRepository.AddRangeAsync(pageEntities, cancellationToken);
+
+        var pageEntityMap = pageEntities.ToDictionary(x => x.Id);
+        var versionPackages = package.PageVersions ?? Array.Empty<LowCodeAppExportPageVersionPackage>();
+        var versionEntities = new List<LowCodePageVersion>(versionPackages.Count);
+        foreach (var version in versionPackages)
+        {
+            var mappedPageId = ResolveMappedPageId(version.PageId, pageIdMap);
+            if (!mappedPageId.HasValue || !pageEntityMap.TryGetValue(mappedPageId.Value, out var pageEntity))
+            {
+                continue;
+            }
+
+            versionEntities.Add(new LowCodePageVersion(
+                tenantId,
+                pageEntity.Id,
+                appId,
+                version.SnapshotVersion,
+                pageEntity.PageKey,
+                version.Name,
+                ParsePageType(version.PageType),
+                version.SchemaJson,
+                version.RoutePath,
+                version.Description,
+                version.Icon,
+                version.SortOrder,
+                ResolveParentPageId(version.ParentPageId, pageIdMap),
+                version.PermissionCode,
+                version.DataTableKey,
+                userId,
+                _idGenerator.NextId(),
+                now));
+        }
+
+        await _pageVersionRepository.AddRangeAsync(versionEntities, cancellationToken);
+
+        return new LowCodeAppImportResult(
+            appId.ToString(),
+            targetAppKey,
+            false,
+            overwritten,
+            pageEntities.Count,
+            versionEntities.Count);
     }
 
-    private static string BuildSnapshotJson(LowCodeApp app, IReadOnlyList<LowCodePage> pages)
+    private static string NormalizeConflictStrategy(string? strategy)
     {
-        var snapshot = new LowCodeAppSnapshot(
-            new AppSnapshot(
-                app.AppKey,
-                app.Name,
-                app.Description,
-                app.Category,
-                app.Icon,
-                app.ConfigJson),
-            pages
-                .Select(page => new PageSnapshot(
-                    page.Id,
-                    page.PageKey,
-                    page.Name,
-                    page.PageType.ToString(),
-                    page.SchemaJson,
-                    page.RoutePath,
-                    page.Description,
-                    page.Icon,
-                    page.SortOrder,
-                    page.ParentPageId,
-                    page.Version,
-                    page.IsPublished,
-                    page.PermissionCode,
-                    page.DataTableKey))
-                .OrderBy(x => x.SortOrder)
-                .ToList());
+        if (string.Equals(strategy, "Skip", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Skip";
+        }
 
-        return JsonSerializer.Serialize(snapshot, SnapshotJsonOptions);
+        if (string.Equals(strategy, "Overwrite", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Overwrite";
+        }
+
+        return "Rename";
+    }
+
+    private async Task<string> ResolveAvailableAppKeyAsync(
+        TenantId tenantId,
+        string appKey,
+        string? keySuffix,
+        CancellationToken cancellationToken)
+    {
+        var suffix = string.IsNullOrWhiteSpace(keySuffix) ? "import" : keySuffix.Trim();
+        var candidate = $"{appKey}-{suffix}";
+        var index = 1;
+        while (await _appRepository.ExistsByKeyAsync(tenantId, candidate, cancellationToken: cancellationToken))
+        {
+            candidate = $"{appKey}-{suffix}-{index}";
+            index++;
+        }
+
+        return candidate;
     }
 
     private static LowCodePageType ParsePageType(string pageType)
     {
-        if (Enum.TryParse<LowCodePageType>(pageType, true, out var parsed))
-        {
-            return parsed;
-        }
-
-        throw new InvalidOperationException($"页面类型 '{pageType}' 不支持");
+        return Enum.TryParse<LowCodePageType>(pageType, true, out var result)
+            ? result
+            : LowCodePageType.Blank;
     }
 
-    private sealed record LowCodeAppSnapshot(AppSnapshot App, IReadOnlyList<PageSnapshot> Pages);
+    /// <summary>
+    /// 构建用于 pageIdMap 的源页面键。支持数字 ID 或 GUID 等任意字符串格式。
+    /// </summary>
+    private static string BuildSourcePageKey(string? sourceId, int index)
+    {
+        return !string.IsNullOrWhiteSpace(sourceId) ? sourceId.Trim() : $"index-{index}";
+    }
 
-    private sealed record AppSnapshot(
-        string AppKey,
-        string Name,
-        string? Description,
-        string? Category,
-        string? Icon,
-        string? ConfigJson);
+    private static long? ResolveMappedPageId(string? sourcePageId, IReadOnlyDictionary<string, long> pageIdMap)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePageId))
+        {
+            return null;
+        }
 
-    private sealed record PageSnapshot(
-        long Id,
-        string PageKey,
-        string Name,
-        string PageType,
-        string SchemaJson,
-        string? RoutePath,
-        string? Description,
-        string? Icon,
-        int SortOrder,
-        long? ParentPageId,
-        int Version,
-        bool IsPublished,
-        string? PermissionCode,
-        string? DataTableKey);
+        var key = sourcePageId.Trim();
+        return pageIdMap.TryGetValue(key, out var mapped) ? mapped : null;
+    }
+
+    private static long? ResolveParentPageId(string? parentSourceId, IReadOnlyDictionary<string, long> pageIdMap)
+    {
+        if (string.IsNullOrWhiteSpace(parentSourceId))
+        {
+            return null;
+        }
+
+        var key = parentSourceId.Trim();
+        return pageIdMap.TryGetValue(key, out var mapped) ? mapped : null;
+    }
 }

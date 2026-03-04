@@ -3,7 +3,7 @@
 @username = admin
 @password = P@ssw0rd!
 
-### 登录获取访问令牌
+### 登录
 # @name login
 POST {{baseUrl}}/api/v1/auth/token
 Content-Type: application/json
@@ -17,18 +17,13 @@ X-Tenant-Id: {{tenantId}}
 ###
 @accessToken = {{login.response.body.$.data.accessToken}}
 
-### 分页查询登录日志（默认第一页）
-GET {{baseUrl}}/api/v1/login-logs?pageIndex=1&pageSize=20
+### 查询登录日志
+GET {{baseUrl}}/api/v1/login-logs?pageIndex=1&pageSize=20&username=admin
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
-### 按用户名 + 登录状态筛选（仅成功）
-GET {{baseUrl}}/api/v1/login-logs?pageIndex=1&pageSize=10&username={{username}}&loginStatus=true
-Authorization: Bearer {{accessToken}}
-X-Tenant-Id: {{tenantId}}
-
-### 按 IP + 时间范围筛选
-GET {{baseUrl}}/api/v1/login-logs?pageIndex=1&pageSize=10&ipAddress=127.0.0.1&from=2026-01-01T00:00:00Z&to=2026-12-31T23:59:59Z
+### 导出登录日志
+GET {{baseUrl}}/api/v1/login-logs/export?username=admin&loginStatus=true
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 

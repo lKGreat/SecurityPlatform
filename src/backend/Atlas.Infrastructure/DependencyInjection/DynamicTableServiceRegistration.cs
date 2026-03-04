@@ -16,12 +16,16 @@ public static class DynamicTableServiceRegistration
         services.AddScoped<IDynamicTableRepository, DynamicTableRepository>();
         services.AddScoped<IDynamicFieldRepository, DynamicFieldRepository>();
         services.AddScoped<IDynamicIndexRepository, DynamicIndexRepository>();
+        services.AddScoped<IDynamicRelationRepository, DynamicRelationRepository>();
+        services.AddScoped<IFieldPermissionRepository, FieldPermissionRepository>();
         services.AddScoped<IDynamicRecordRepository, DynamicRecordRepository>();
-        services.AddScoped<IDynamicSchemaMigrationRepository, DynamicSchemaMigrationRepository>();
+        services.AddScoped<IMigrationRecordRepository, MigrationRecordRepository>();
+        services.AddScoped<IFieldPermissionResolver, FieldPermissionResolver>();
         services.AddScoped<IDynamicTableQueryService, DynamicTableQueryService>();
         services.AddScoped<IDynamicTableCommandService, DynamicTableCommandService>();
         services.AddScoped<IDynamicRecordQueryService, DynamicRecordQueryService>();
         services.AddScoped<IDynamicRecordCommandService, DynamicRecordCommandService>();
+        services.AddScoped<IMigrationService, MigrationService>();
 
         return services;
     }

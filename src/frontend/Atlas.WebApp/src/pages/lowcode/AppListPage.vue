@@ -12,7 +12,8 @@
         />
       </div>
       <div class="page-header-right">
-        <a-button type="primary" @click="handleCreate">{{ t("lowcodeApp.create") }}</a-button>
+        <a-button v-if="canManageApps" @click="handleImportClick">导入应用</a-button>
+        <a-button v-if="canManageApps" type="primary" @click="handleCreate">新建应用</a-button>
       </div>
     </div>
 
@@ -39,13 +40,14 @@
           <span class="app-card-version">{{ t("lowcodeApp.versionPrefix", { version: app.version }) }}</span>
         </div>
         <div class="app-card-actions" @click.stop>
-          <a-dropdown trigger="click">
+          <a-dropdown v-if="canManageApps" trigger="click">
             <a-button type="text" size="small">...</a-button>
             <template #overlay>
               <a-menu>
-                <a-menu-item key="edit" @click="handleEdit(app)">{{ t("lowcodeApp.actionEdit") }}</a-menu-item>
-                <a-menu-item v-if="app.status === 'Draft'" key="publish" @click="handlePublish(app.id)">{{ t("lowcodeApp.actionPublish") }}</a-menu-item>
-                <a-menu-item key="delete" danger @click="handleDelete(app.id)">{{ t("lowcodeApp.actionDelete") }}</a-menu-item>
+                <a-menu-item key="edit" @click="handleEdit(app)">编辑</a-menu-item>
+                <a-menu-item key="export" @click="handleExport(app)">导出</a-menu-item>
+                <a-menu-item v-if="app.status === 'Draft'" key="publish" @click="handlePublish(app.id)">发布</a-menu-item>
+                <a-menu-item key="delete" danger @click="handleDelete(app.id)">删除</a-menu-item>
               </a-menu>
             </template>
           </a-dropdown>
@@ -53,7 +55,7 @@
       </div>
 
       <!-- 新建应用占位卡片 -->
-      <div class="app-card app-card-new" @click="handleCreate">
+      <div v-if="canManageApps" class="app-card app-card-new" @click="handleCreate">
         <div class="app-card-new-icon">+</div>
         <div class="app-card-new-text">{{ t("lowcodeApp.newCardText") }}</div>
       </div>
@@ -98,6 +100,14 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <input
+      ref="importInputRef"
+      type="file"
+      accept="application/json,.json"
+      style="display: none"
+      @change="handleImportFileChange"
+    />
   </div>
 </template>
 
@@ -107,20 +117,26 @@ import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import { useI18n } from "vue-i18n";
 import type { LowCodeAppListItem } from "@/types/lowcode";
+import { getAuthProfile, hasPermission } from "@/utils/auth";
 import {
   getLowCodeAppsPaged,
   createLowCodeApp,
   updateLowCodeApp,
+  exportLowCodeApp,
+  importLowCodeApp,
+  parseLowCodeAppExportPackage,
   publishLowCodeApp,
   deleteLowCodeApp
 } from "@/services/lowcode";
 
 const router = useRouter();
-const { t } = useI18n();
+const canManageApps = hasPermission(getAuthProfile(), "apps:update");
 
 const keyword = ref("");
 const loading = ref(false);
 const dataSource = ref<LowCodeAppListItem[]>([]);
+const importing = ref(false);
+const importInputRef = ref<HTMLInputElement | null>(null);
 
 const formVisible = ref(false);
 const formMode = ref<"create" | "edit">("create");
@@ -232,7 +248,11 @@ const handleFormSubmit = async () => {
 };
 
 const handleOpenApp = (id: string) => {
-  router.push({ name: "app-builder", params: { id } });
+  if (!canManageApps) {
+    message.warning("当前账号无应用编辑权限");
+    return;
+  }
+  router.push(`/lowcode/apps/${id}/builder`);
 };
 
 const handlePublish = async (id: string) => {
@@ -252,6 +272,58 @@ const handleDelete = async (id: string) => {
     fetchData();
   } catch (error) {
     message.error((error as Error).message || t("lowcodeApp.deleteFailed"));
+  }
+};
+
+const handleExport = async (app: LowCodeAppListItem) => {
+  try {
+    const blob = await exportLowCodeApp(app.id);
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${app.appKey}-export.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    message.success("导出成功");
+  } catch (error) {
+    message.error((error as Error).message || "导出失败");
+  }
+};
+
+const handleImportClick = () => {
+  if (importing.value) {
+    return;
+  }
+
+  importInputRef.value?.click();
+};
+
+const handleImportFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  importing.value = true;
+  try {
+    const rawText = await file.text();
+    const pkg = parseLowCodeAppExportPackage(rawText);
+    const result = await importLowCodeApp({
+      package: pkg,
+      conflictStrategy: "Rename"
+    });
+    if (result.skipped) {
+      message.info("目标应用已存在，已按策略跳过导入");
+    } else {
+      message.success(`导入成功：${result.appKey}`);
+    }
+    await fetchData();
+  } catch (error) {
+    message.error((error as Error).message || "导入失败");
+  } finally {
+    importing.value = false;
+    input.value = "";
   }
 };
 

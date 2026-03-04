@@ -26,6 +26,7 @@ public sealed class DynamicTableRecordsController : ControllerBase
     private readonly IAuditRecorder _auditRecorder;
     private readonly IValidator<DynamicRecordUpsertRequest> _upsertValidator;
     private readonly IValidator<DynamicRecordQueryRequest> _queryValidator;
+    private readonly IValidator<DynamicRecordExportRequest> _exportValidator;
 
     public DynamicTableRecordsController(
         IDynamicRecordQueryService queryService,
@@ -36,7 +37,8 @@ public sealed class DynamicTableRecordsController : ControllerBase
         IClientContextAccessor clientContextAccessor,
         IAuditRecorder auditRecorder,
         IValidator<DynamicRecordUpsertRequest> upsertValidator,
-        IValidator<DynamicRecordQueryRequest> queryValidator)
+        IValidator<DynamicRecordQueryRequest> queryValidator,
+        IValidator<DynamicRecordExportRequest> exportValidator)
     {
         _queryService = queryService;
         _commandService = commandService;
@@ -47,6 +49,7 @@ public sealed class DynamicTableRecordsController : ControllerBase
         _auditRecorder = auditRecorder;
         _upsertValidator = upsertValidator;
         _queryValidator = queryValidator;
+        _exportValidator = exportValidator;
     }
 
     [HttpGet]
@@ -188,6 +191,19 @@ public sealed class DynamicTableRecordsController : ControllerBase
         await _commandService.DeleteBatchAsync(tenantId, currentUser.UserId, tableKey, request.Ids, cancellationToken);
         await RecordAuditAsync(currentUser, "DELETE_BATCH_DYNAMIC_RECORD", $"{tableKey}:{string.Join(',', request.Ids)}", cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Count = request.Ids.Count }, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("export")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<IActionResult> Export(
+        string tableKey,
+        [FromBody] DynamicRecordExportRequest request,
+        CancellationToken cancellationToken)
+    {
+        _exportValidator.ValidateAndThrow(request);
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.ExportAsync(tenantId, tableKey, request, cancellationToken);
+        return File(result.Content, result.ContentType, result.FileName);
     }
 
     /// <summary>

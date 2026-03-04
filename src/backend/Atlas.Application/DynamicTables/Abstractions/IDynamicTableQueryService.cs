@@ -25,9 +25,13 @@ public interface IDynamicTableQueryService
         string dbType,
         CancellationToken cancellationToken);
 
-    Task<PagedResult<DynamicSchemaMigrationListItem>> GetMigrationsAsync(
+    Task<IReadOnlyList<DynamicRelationDefinition>> GetRelationsAsync(
         TenantId tenantId,
         string tableKey,
-        PagedRequest request,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<DynamicFieldPermissionRule>> GetFieldPermissionsAsync(
+        TenantId tenantId,
+        string tableKey,
         CancellationToken cancellationToken);
 }

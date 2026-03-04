@@ -11,5 +11,6 @@ public interface ILowCodeAppCommandService
     Task<int> RollbackAsync(TenantId tenantId, long userId, long id, long versionId, CancellationToken cancellationToken = default);
     Task DisableAsync(TenantId tenantId, long userId, long id, CancellationToken cancellationToken = default);
     Task EnableAsync(TenantId tenantId, long userId, long id, CancellationToken cancellationToken = default);
+    Task<LowCodeAppImportResult> ImportAsync(TenantId tenantId, long userId, LowCodeAppImportRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(TenantId tenantId, long userId, long id, CancellationToken cancellationToken = default);
 }

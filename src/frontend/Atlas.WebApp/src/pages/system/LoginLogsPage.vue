@@ -29,8 +29,9 @@
           show-time
           :placeholder="[t('loginLog.startTime'), t('loginLog.endTime')]"
         />
-        <a-button type="primary" @click="handleSearch">{{ t("common.search") }}</a-button>
-        <a-button @click="handleReset">{{ t("common.reset") }}</a-button>
+        <a-button type="primary" @click="handleSearch">查询</a-button>
+        <a-button :loading="exporting" @click="handleExport">导出</a-button>
+        <a-button @click="handleReset">重置</a-button>
       </a-space>
     </div>
 
@@ -63,7 +64,7 @@ import { message } from "ant-design-vue";
 import { useI18n } from "vue-i18n";
 import type { TablePaginationConfig } from "ant-design-vue";
 import type { Dayjs } from "dayjs";
-import { getLoginLogsPaged, type LoginLogDto } from "@/services/login-log";
+import { getLoginLogsPaged, exportLoginLogs, type LoginLogDto } from "@/services/login-log";
 
 const { t, locale } = useI18n();
 
@@ -76,6 +77,7 @@ const filters = reactive({
 
 const dataList = ref<LoginLogDto[]>([]);
 const loading = ref(false);
+const exporting = ref(false);
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
   pageSize: 20,
@@ -139,6 +141,30 @@ function onTableChange(pag: TablePaginationConfig) {
   pagination.current = pag.current ?? 1;
   pagination.pageSize = pag.pageSize ?? 20;
   loadData();
+}
+
+async function handleExport() {
+  exporting.value = true;
+  try {
+    const blob = await exportLoginLogs({
+      username: filters.username || undefined,
+      ipAddress: filters.ipAddress || undefined,
+      loginStatus: filters.loginStatus,
+      from: filters.timeRange?.[0]?.toISOString(),
+      to: filters.timeRange?.[1]?.toISOString()
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `login-logs-${Date.now()}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    message.success("导出成功");
+  } catch (error: any) {
+    message.error(error?.message || "导出失败");
+  } finally {
+    exporting.value = false;
+  }
 }
 
 onMounted(() => {
