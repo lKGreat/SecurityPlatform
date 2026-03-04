@@ -164,6 +164,48 @@ public sealed class LowCodeAppsController : ControllerBase
     }
 
     /// <summary>
+    /// 查询应用版本历史
+    /// </summary>
+    [HttpGet("{id:long}/versions")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<PagedResult<LowCodeAppVersionListItem>>>> GetVersions(
+        long id,
+        [FromQuery] PagedRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.GetVersionsAsync(tenantId, id, request, cancellationToken);
+        return Ok(ApiResponse<PagedResult<LowCodeAppVersionListItem>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 回滚应用到指定版本
+    /// </summary>
+    [HttpPost("{id:long}/versions/{versionId:long}/rollback")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    public async Task<ActionResult<ApiResponse<object>>> Rollback(
+        long id,
+        long versionId,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        var rollbackVersion = await _commandService.RollbackAsync(
+            tenantId,
+            currentUser.UserId,
+            id,
+            versionId,
+            cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(new { Id = id.ToString(), Version = rollbackVersion }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
     /// 停用应用
     /// </summary>
     [HttpPost("{id:long}/disable")]

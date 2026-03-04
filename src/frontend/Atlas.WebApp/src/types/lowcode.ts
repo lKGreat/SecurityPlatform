@@ -101,6 +101,17 @@ export interface LowCodeAppUpdateRequest {
   icon?: string;
 }
 
+export interface LowCodeAppVersionListItem {
+  id: string;
+  appId: string;
+  version: number;
+  actionType: string;
+  sourceVersionId?: string;
+  note?: string;
+  createdAt: string;
+  createdBy: number;
+}
+
 export interface LowCodeAppExportPagePackage {
   id: string;
   pageKey: string;

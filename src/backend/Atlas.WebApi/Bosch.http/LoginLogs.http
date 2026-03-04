@@ -26,3 +26,7 @@ X-Tenant-Id: {{tenantId}}
 GET {{baseUrl}}/api/v1/login-logs/export?username=admin&loginStatus=true
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
+
+### 缺少令牌（预期 401）
+GET {{baseUrl}}/api/v1/login-logs?pageIndex=1&pageSize=20
+X-Tenant-Id: {{tenantId}}

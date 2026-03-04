@@ -284,7 +284,7 @@ public sealed class ApprovalFlowsController : ControllerBase
     /// 导出流程定义 JSON
     /// </summary>
     [HttpGet("{id}/export")]
-    [Authorize(Policy = PermissionPolicies.ApprovalFlowManage)]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<ApprovalFlowExportResponse>> ExportAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -306,7 +306,7 @@ public sealed class ApprovalFlowsController : ControllerBase
     /// 对比流程定义版本
     /// </summary>
     [HttpGet("{id}/versions/{targetVersion}/compare")]
-    [Authorize(Policy = PermissionPolicies.ApprovalFlowManage)]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
     public async Task<ApiResponse<ApprovalFlowCompareResponse>> CompareAsync(
         long id,
         int targetVersion,

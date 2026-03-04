@@ -131,7 +131,12 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(Notification),
             typeof(UserNotification),
             typeof(FileRecord),
-            typeof(TenantDataSource));
+            typeof(TenantDataSource),
+            // Low code module
+            typeof(LowCodeApp),
+            typeof(LowCodePage),
+            typeof(LowCodeAppVersion),
+            typeof(FormDefinition));
 
         // 创建审批模块数据库索引
         var indexInitializer = scope.ServiceProvider.GetRequiredService<ApprovalIndexInitializer>();
@@ -446,8 +451,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             ("审批设计详情", "/process/designer/:id", "/process", 28, "C", "ApprovalDesignerPage", "branches", PermissionCodes.ApprovalFlowUpdate, null, false, true, "0", "0", PermissionCodes.ApprovalFlowUpdate, true),
             ("审批任务详情", "/process/tasks/:id", "/process", 29, "C", "ApprovalTaskDetailPage", "file-search", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, true),
             ("审批实例详情", "/process/instances/:id", "/process", 30, "C", "ApprovalInstanceDetailPage", "file-text", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, true),
-            ("流程定义管理", "/process/manage/flows", "/process", 31, "C", "ApprovalFlowManagePage", "control", PermissionCodes.ApprovalFlowManage, null, false, true, "0", "0", PermissionCodes.ApprovalFlowManage, false),
-            ("流程实例管理", "/process/manage/instances", "/process", 32, "C", "ApprovalInstanceManagePage", "appstore", PermissionCodes.ApprovalFlowManage, null, false, true, "0", "0", PermissionCodes.ApprovalFlowManage, false),
+            ("流程定义管理", "/process/manage/flows", "/process", 31, "C", "ApprovalFlowManagePage", "control", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, false),
+            ("流程实例管理", "/process/manage/instances", "/process", 32, "C", "ApprovalInstanceManagePage", "appstore", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, false),
             ("工作流设计", "/workflow/designer", "/process", 33, "C", "WorkflowDesignerPage", "branches", workflowPermission.Code, null, false, true, "0", "0", workflowPermission.Code, false),
 
             ("系统管理", "/system", null, 30, "M", "Layout", "setting", null, null, false, false, "0", "0", null, false),
@@ -455,6 +460,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             ("角色管理", "/settings/auth/roles", "/system", 32, "C", "system/RolesPage", "team", PermissionCodes.RolesView, null, false, true, "0", "0", PermissionCodes.RolesView, false),
             ("菜单管理", "/settings/auth/menus", "/system", 33, "C", "system/MenusPage", "menu", PermissionCodes.MenusView, null, false, true, "0", "0", PermissionCodes.MenusView, false),
             ("项目管理", "/settings/projects", "/system", 34, "C", "system/ProjectsPage", "project", PermissionCodes.ProjectsView, null, false, true, "0", "0", PermissionCodes.ProjectsView, false),
+            ("数据源管理", "/settings/system/datasources", "/system", 35, "C", "system/TenantDataSourcesPage", "database", PermissionCodes.SystemAdmin, null, false, true, "0", "0", PermissionCodes.SystemAdmin, false),
 
             ("用户查询", "/settings/org/users:query", "/settings/org/users", 1, "F", null, null, PermissionCodes.UsersView, null, false, false, "0", "0", PermissionCodes.UsersView, true),
             ("用户新增", "/settings/org/users:create", "/settings/org/users", 2, "F", null, null, PermissionCodes.UsersCreate, null, false, false, "0", "0", PermissionCodes.UsersCreate, true),
@@ -650,7 +656,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             "/settings/org/users",
             "/settings/auth/roles",
             "/settings/auth/menus",
-            "/settings/projects"
+            "/settings/projects",
+            "/settings/system/datasources"
         };
         var menuIds = requiredMenuPaths
             .Select(path => menuIdMap.TryGetValue(path, out var menuId) ? menuId : 0)

@@ -1,4 +1,5 @@
 using Atlas.Core.Tenancy;
+using Atlas.Application.Plugins.Abstractions;
 using Atlas.Infrastructure.DependencyInjection;
 using Atlas.Infrastructure.Options;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +13,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddAtlasInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<PluginCatalogOptions>(configuration.GetSection("Plugins"));
+
         // Register modular services
         services.AddCoreInfrastructure(configuration);
         services.AddAssetInfrastructure();
@@ -24,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Atlas.Infrastructure.Repositories.TenantDataSourceRepository>();
         services.AddScoped<Atlas.Application.System.Abstractions.ITenantDbConnectionFactory,
             Atlas.Infrastructure.Services.TenantDbConnectionFactory>();
+        services.AddSingleton<IPluginCatalogService, Atlas.Infrastructure.Services.PluginCatalogService>();
 
         // SqlSugar client (shared across all modules)
         services.AddScoped<ISqlSugarClient>(sp =>
@@ -37,7 +41,7 @@ public static class ServiceCollectionExtensions
             var config = new ConnectionConfig
             {
                 ConnectionString = connectionString,
-                DbType = DbType.Sqlite,
+                DbType = dbType,
                 IsAutoCloseConnection = true,
                 ConfigureExternalServices = new ConfigureExternalServices
                 {
@@ -85,5 +89,22 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    private static DbType MapDbType(string? dbType)
+    {
+        if (string.IsNullOrWhiteSpace(dbType))
+        {
+            return DbType.Sqlite;
+        }
+
+        return dbType.Trim().ToLowerInvariant() switch
+        {
+            "sqlite" => DbType.Sqlite,
+            "sqlserver" => DbType.SqlServer,
+            "mysql" => DbType.MySql,
+            "postgresql" => DbType.PostgreSQL,
+            _ => DbType.Sqlite
+        };
     }
 }
