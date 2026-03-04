@@ -109,7 +109,7 @@ public sealed class ApprovalRuntimeController : ControllerBase
     /// 管理端查询流程实例
     /// </summary>
     [HttpGet("admin")]
-    [Authorize(Policy = PermissionPolicies.ApprovalFlowView)]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowManage)]
     public async Task<ApiResponse<PagedResult<ApprovalInstanceListItem>>> GetAdminInstancesAsync(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 10,

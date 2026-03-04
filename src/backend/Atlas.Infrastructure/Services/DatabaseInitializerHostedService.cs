@@ -318,6 +318,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             (PermissionCodes.AssetsCreate, "Assets Create", "Api"),
             (PermissionCodes.AlertView, "Alert View", "Api"),
             (PermissionCodes.ApprovalFlowView, "Approval Flow View", "Api"),
+            (PermissionCodes.ApprovalFlowManage, "Approval Flow Manage", "Api"),
             (PermissionCodes.ApprovalFlowCreate, "Approval Flow Create", "Api"),
             (PermissionCodes.ApprovalFlowUpdate, "Approval Flow Update", "Api"),
             (PermissionCodes.ApprovalFlowPublish, "Approval Flow Publish", "Api"),
@@ -444,8 +445,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             ("审批设计详情", "/process/designer/:id", "/process", 28, "C", "ApprovalDesignerPage", "branches", PermissionCodes.ApprovalFlowUpdate, null, false, true, "0", "0", PermissionCodes.ApprovalFlowUpdate, true),
             ("审批任务详情", "/process/tasks/:id", "/process", 29, "C", "ApprovalTaskDetailPage", "file-search", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, true),
             ("审批实例详情", "/process/instances/:id", "/process", 30, "C", "ApprovalInstanceDetailPage", "file-text", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, true),
-            ("流程定义管理", "/process/manage/flows", "/process", 31, "C", "ApprovalFlowManagePage", "control", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, false),
-            ("流程实例管理", "/process/manage/instances", "/process", 32, "C", "ApprovalInstanceManagePage", "appstore", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, false),
+            ("流程定义管理", "/process/manage/flows", "/process", 31, "C", "ApprovalFlowManagePage", "control", PermissionCodes.ApprovalFlowManage, null, false, true, "0", "0", PermissionCodes.ApprovalFlowManage, false),
+            ("流程实例管理", "/process/manage/instances", "/process", 32, "C", "ApprovalInstanceManagePage", "appstore", PermissionCodes.ApprovalFlowManage, null, false, true, "0", "0", PermissionCodes.ApprovalFlowManage, false),
             ("工作流设计", "/workflow/designer", "/process", 33, "C", "WorkflowDesignerPage", "branches", workflowPermission.Code, null, false, true, "0", "0", workflowPermission.Code, false),
 
             ("系统管理", "/system", null, 30, "M", "Layout", "setting", null, null, false, false, "0", "0", null, false),
