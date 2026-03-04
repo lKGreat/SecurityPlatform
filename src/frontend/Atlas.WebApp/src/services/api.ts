@@ -3,6 +3,8 @@ import type {
   AuthTokenResult,
   AuthProfile,
   ChangePasswordRequest,
+  UserProfileDetail,
+  UserProfileUpdateRequest,
   PagedRequest,
   PagedResult,
   ApprovalFlowDefinitionListItem,
@@ -193,6 +195,26 @@ export async function getCurrentUser(): Promise<AuthProfile> {
   return response.data;
 }
 
+export async function getProfileDetail(): Promise<UserProfileDetail> {
+  const response = await requestApi<ApiResponse<UserProfileDetail>>("/auth/profile");
+  if (!response.data) {
+    throw new Error(response.message || "获取个人资料失败");
+  }
+
+  return response.data;
+}
+
+export async function updateProfile(request: UserProfileUpdateRequest): Promise<void> {
+  const response = await requestApi<ApiResponse<{ success: boolean }>>("/auth/profile", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.success) {
+    throw new Error(response.message || "更新个人资料失败");
+  }
+}
+
 export async function getRouters(): Promise<RouterVo[]> {
   const response = await requestApi<ApiResponse<RouterVo[]>>("/auth/routers");
   if (!response.data) {
@@ -250,14 +272,39 @@ export async function getAssetsPaged(pagedRequest: PagedRequest) {
   return response.data;
 }
 
-export async function getAuditsPaged(pagedRequest: PagedRequest) {
-  const query = toQuery(pagedRequest);
+export async function getAuditsPaged(
+  pagedRequest: PagedRequest,
+  extra?: { action?: string; result?: string }
+) {
+  const query = toQuery(pagedRequest, {
+    action: extra?.action,
+    result: extra?.result
+  });
   const response = await requestApi<ApiResponse<PagedResult<AuditListItem>>>(`/audit?${query}`);
   if (!response.data) {
     throw new Error(response.message || "查询失败");
   }
 
   return response.data;
+}
+
+export interface ClientErrorReportRequest {
+  message: string;
+  stack?: string;
+  url?: string;
+  component?: string;
+  level?: string;
+}
+
+export async function reportClientError(request: ClientErrorReportRequest): Promise<void> {
+  const response = await requestApi<ApiResponse<{ success: boolean }>>("/audit/client-errors", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  }, { suppressErrorMessage: true });
+  if (!response.success) {
+    throw new Error(response.message || "上报失败");
+  }
 }
 
 export async function getUsersPaged(pagedRequest: PagedRequest) {

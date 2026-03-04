@@ -93,6 +93,71 @@ GET {{baseUrl}}/api/v1/dynamic-tables/orders
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### Set Dynamic Table Relations
+PUT {{baseUrl}}/api/v1/dynamic-tables/orders/relations
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "relations": [
+    {
+      "relatedTableKey": "order_items",
+      "sourceField": "id",
+      "targetField": "orderId",
+      "relationType": "OneToMany",
+      "cascadeRule": "Restrict"
+    }
+  ]
+}
+
+### Get Dynamic Table Relations
+GET {{baseUrl}}/api/v1/dynamic-tables/orders/relations
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Set Dynamic Field Permissions
+PUT {{baseUrl}}/api/v1/dynamic-tables/orders/field-permissions
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "permissions": [
+    {
+      "fieldName": "orderNo",
+      "roleCode": "Admin",
+      "canView": true,
+      "canEdit": true
+    },
+    {
+      "fieldName": "amount",
+      "roleCode": "AuditAdmin",
+      "canView": true,
+      "canEdit": false
+    }
+  ]
+}
+
+### Get Dynamic Field Permissions
+GET {{baseUrl}}/api/v1/dynamic-tables/orders/field-permissions
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Get Dynamic CRUD AMIS Schema
+GET {{baseUrl}}/api/v1/amis/dynamic-tables/orders/crud
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Get Dynamic Detail Form Schema
+GET {{baseUrl}}/api/v1/amis/dynamic-tables/orders/forms/detail?id=1
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### Create Record
 POST {{baseUrl}}/api/v1/dynamic-tables/orders/records
 Content-Type: application/json
@@ -112,6 +177,56 @@ X-CSRF-TOKEN: {{csrfToken}}
 GET {{baseUrl}}/api/v1/dynamic-tables/orders/records?pageIndex=1&pageSize=20&keyword=SO
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
+
+### Query Records (Advanced Filters)
+POST {{baseUrl}}/api/v1/dynamic-tables/orders/records/query
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "pageIndex": 1,
+  "pageSize": 20,
+  "keyword": "SO",
+  "sortBy": "amount",
+  "sortDesc": true,
+  "filters": [
+    {
+      "field": "amount",
+      "operator": "gte",
+      "value": 100
+    },
+    {
+      "field": "orderNo",
+      "operator": "like",
+      "value": "SO-"
+    }
+  ]
+}
+
+### Export Records CSV
+POST {{baseUrl}}/api/v1/dynamic-tables/orders/records/export
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "keyword": "SO",
+  "sortBy": "amount",
+  "sortDesc": true,
+  "filters": [
+    {
+      "field": "amount",
+      "operator": "gte",
+      "value": 100
+    }
+  ],
+  "fields": ["orderNo", "amount"]
+}
 
 ### Update Record
 PUT {{baseUrl}}/api/v1/dynamic-tables/orders/records/1

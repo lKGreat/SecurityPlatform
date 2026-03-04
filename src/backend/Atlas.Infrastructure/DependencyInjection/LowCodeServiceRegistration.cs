@@ -16,6 +16,8 @@ public static class LowCodeServiceRegistration
         services.AddScoped<IFormDefinitionRepository, FormDefinitionRepository>();
         services.AddScoped<ILowCodeAppRepository, LowCodeAppRepository>();
         services.AddScoped<ILowCodePageRepository, LowCodePageRepository>();
+        services.AddScoped<ILowCodePageVersionRepository, LowCodePageVersionRepository>();
+        services.AddScoped<ILowCodeEnvironmentRepository, LowCodeEnvironmentRepository>();
 
         // Query Services
         services.AddScoped<IFormDefinitionQueryService, FormDefinitionQueryService>();
@@ -25,6 +27,7 @@ public static class LowCodeServiceRegistration
         services.AddScoped<IFormDefinitionCommandService, FormDefinitionCommandService>();
         services.AddScoped<ILowCodeAppCommandService, LowCodeAppCommandService>();
         services.AddScoped<ILowCodePageCommandService, LowCodePageCommandService>();
+        services.AddScoped<ILowCodeEnvironmentService, LowCodeEnvironmentService>();
 
         // Process Monitor
         services.AddScoped<IProcessMonitorService, ProcessMonitorService>();
