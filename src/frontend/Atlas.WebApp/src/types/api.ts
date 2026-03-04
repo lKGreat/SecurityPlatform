@@ -300,6 +300,56 @@ export interface ApprovalFlowValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
+  details?: ApprovalFlowValidationIssue[];
+}
+
+export interface ApprovalFlowValidationIssue {
+  code: string;
+  message: string;
+  severity: 'error' | 'warning';
+  nodeId?: string;
+  edgeId?: string;
+}
+
+export interface ApprovalFlowCopyRequest {
+  name?: string;
+}
+
+export interface ApprovalFlowImportRequest {
+  name: string;
+  definitionJson: string;
+  description?: string;
+  category?: string;
+  visibilityScopeJson?: string;
+  isQuickEntry?: boolean;
+}
+
+export interface ApprovalFlowExportResponse {
+  id: string;
+  name: string;
+  version: number;
+  definitionJson: string;
+  description?: string;
+  category?: string;
+  visibilityScopeJson?: string;
+  isQuickEntry: boolean;
+  exportedAt: string;
+}
+
+export interface ApprovalFlowDifferenceItem {
+  path: string;
+  sourceValue: string;
+  targetValue: string;
+  changeType: string;
+}
+
+export interface ApprovalFlowCompareResponse {
+  sourceFlowId: string;
+  sourceVersion: number;
+  targetVersion: number;
+  isSame: boolean;
+  summary: string;
+  differences: ApprovalFlowDifferenceItem[];
 }
 
 export interface ApprovalStartRequest {
@@ -320,6 +370,10 @@ export interface ApprovalTaskResponse {
   decisionAt?: string;
   comment?: string;
   createdAt: string;
+  flowName?: string;
+  currentNodeName?: string;
+  slaRemainingMinutes?: number;
+  expectedCompleteTime?: string;
 }
 
 export interface ApprovalTaskDecideRequest {
@@ -337,6 +391,8 @@ export interface ApprovalInstanceListItem {
   status: ApprovalInstanceStatus;
   startedAt: string;
   endedAt?: string;
+  currentNodeName?: string;
+  slaRemainingMinutes?: number;
 }
 
 export interface ApprovalInstanceResponse {
@@ -348,6 +404,10 @@ export interface ApprovalInstanceResponse {
   status: ApprovalInstanceStatus;
   startedAt: string;
   endedAt?: string;
+  flowName?: string;
+  currentNodeName?: string;
+  slaRemainingMinutes?: number;
+  expectedCompleteTime?: string;
 }
 
 export interface ApprovalHistoryEventResponse {

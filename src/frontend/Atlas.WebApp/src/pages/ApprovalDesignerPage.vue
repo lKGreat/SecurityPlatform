@@ -1,49 +1,26 @@
 <template>
   <div class="dd-page">
-    <!-- ══ 顶部工具栏（44px，贴顶） ══ -->
-    <div class="dd-toolbar">
-      <a-button type="text" size="small" class="dd-toolbar__back" @click="goBack">
-        <LeftOutlined /> 返回
-      </a-button>
-      <a-divider type="vertical" />
-      <a-input
-        v-model:value="flowName"
-        placeholder="流程名称"
-        :bordered="false"
-        class="dd-toolbar__name"
-        :maxlength="100"
-      />
-      <a-tag v-if="flowVersion" color="blue" class="dd-toolbar__version">v{{ flowVersion }}</a-tag>
-
-      <!-- 步骤指示（紧凑圆点） -->
-      <div class="dd-toolbar__steps">
-        <span
-          v-for="(s, i) in ['基础设置', '表单设计', '流程设计']"
-          :key="i"
-          class="dd-step-dot"
-          :class="{ 'dd-step-dot--active': activeStep === i, 'dd-step-dot--done': activeStep > i }"
-          @click="activeStep = i"
-        >{{ s }}</span>
-      </div>
-
-      <div class="dd-toolbar__actions">
-        <a-button v-if="activeStep > 0" size="small" @click="prevStep">上一步</a-button>
-        <a-button v-if="activeStep < 2" size="small" @click="nextStep">下一步</a-button>
-        <template v-if="activeStep === 2">
-          <a-divider type="vertical" />
-          <a-button size="small" :type="paletteVisible ? 'primary' : 'default'" @click="paletteVisible = !paletteVisible" title="节点面板"><AppstoreOutlined /></a-button>
-          <a-divider type="vertical" />
-          <a-button size="small" @click="undo" :disabled="!canUndo"><UndoOutlined /></a-button>
-          <a-button size="small" @click="redo" :disabled="!canRedo"><RedoOutlined /></a-button>
-          <a-divider type="vertical" />
-          <a-button size="small" @click="handleValidate" :loading="validating"><CheckCircleOutlined /> 校验</a-button>
-          <a-button size="small" @click="handlePreview"><EyeOutlined /> 预览</a-button>
-        </template>
-        <a-divider type="vertical" />
-        <a-button size="small" @click="handleSave">保存</a-button>
-        <a-button type="primary" size="small" @click="handlePublishClick">发布</a-button>
-      </div>
-    </div>
+    <DesignerToolbar
+      v-model:flowName="flowName"
+      v-model:activeStep="activeStep"
+      v-model:paletteVisible="paletteVisible"
+      :flow-version="flowVersion"
+      :can-undo="canUndo"
+      :can-redo="canRedo"
+      :validating="validating"
+      @back="goBack"
+      @prev-step="prevStep"
+      @next-step="nextStep"
+      @zoom-out="zoomOutDesigner"
+      @zoom-fit="zoomFitDesigner"
+      @zoom-in="zoomInDesigner"
+      @undo="undo"
+      @redo="redo"
+      @validate="handleValidate"
+      @preview="handlePreview"
+      @save="handleSave"
+      @publish="handlePublishClick"
+    />
 
     <!-- ══ 步骤 0: 基础设置 ══ -->
     <div class="dd-body dd-body--scroll" v-show="activeStep === 0">
@@ -126,6 +103,7 @@
       <ApprovalNodePalette :visible="paletteVisible" @update:visible="paletteVisible = $event" @addNode="handlePaletteAddNode" />
       <div class="dd-canvas">
         <X6ApprovalDesigner
+          ref="designerRef"
           :flow-tree="flowTree"
           :selected-node-id="selectedNode?.id ?? null"
           @selectNode="handleSelectNode"
@@ -134,6 +112,7 @@
           @addConditionBranch="addConditionBranch"
           @deleteConditionBranch="deleteConditionBranch"
           @moveBranch="moveBranch"
+          @updateRouteTarget="handleRouteTargetUpdate"
         />
       </div>
       <ApprovalPropertiesPanel
@@ -146,24 +125,13 @@
     </div>
 
     <!-- ══ 弹窗：校验结果 ══ -->
-    <a-modal v-model:open="validateModalOpen" :title="validateResult?.isValid ? '校验通过' : '校验结果'" :footer="null" width="520px">
-      <div v-if="validateResult">
-        <a-alert v-if="validateResult.isValid" type="success" message="流程校验通过，可以发布" show-icon style="margin-bottom:12px" />
-        <template v-else>
-          <a-alert type="error" message="校验不通过，请修正以下问题" show-icon style="margin-bottom:12px" />
-          <div class="dd-validate-list">
-            <div v-for="(err, idx) in validateResult.errors" :key="idx" class="dd-validate-item">
-              <CloseCircleOutlined style="color:#ff4d4f;margin-right:6px" /> {{ err }}
-            </div>
-          </div>
-        </template>
-        <div v-if="validateResult.warnings?.length" class="dd-validate-list" style="margin-top:8px">
-          <div v-for="(warn, idx) in validateResult.warnings" :key="idx" class="dd-validate-item">
-            <ExclamationCircleOutlined style="color:#faad14;margin-right:6px" /> {{ warn }}
-          </div>
-        </div>
-      </div>
-    </a-modal>
+    <ValidationErrorPanel
+      v-model:open="validateModalOpen"
+      :result="validateResult"
+      :error-issues="errorIssues"
+      :warning-issues="warningIssues"
+      @locate="handleValidationIssueClick"
+    />
 
     <!-- ══ 弹窗：发布确认 ══ -->
     <a-modal v-model:open="publishModalOpen" title="确认发布" ok-text="确认发布" cancel-text="取消" @ok="handlePublishConfirm" :confirm-loading="publishing">
@@ -186,31 +154,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
-import {
-  LeftOutlined,
-  UndoOutlined,
-  RedoOutlined,
-  CheckCircleOutlined,
-  EyeOutlined,
-  CloseCircleOutlined,
-  ExclamationCircleOutlined,
-  AppstoreOutlined,
-} from '@ant-design/icons-vue';
 import X6ApprovalDesigner from '@/components/approval/x6/X6ApprovalDesigner.vue';
 import ApprovalPropertiesPanel from '@/components/approval/ApprovalPropertiesPanel.vue';
 import ApprovalNodePalette from '@/components/approval/ApprovalNodePalette.vue';
 import LfFormDesigner from '@/components/approval/LfFormDesigner.vue';
 import X6PreviewCanvas from '@/components/approval/X6PreviewCanvas.vue';
 import UserRolePicker from '@/components/common/UserRolePicker.vue';
+import DesignerToolbar from '@/components/approval/designer/DesignerToolbar.vue';
+import ValidationErrorPanel from '@/components/approval/designer/ValidationErrorPanel.vue';
 import { useApprovalTree } from '@/composables/useApprovalTree';
 import { ApprovalTreeConverter } from '@/utils/approval-tree-converter';
 import { extractAmisFields } from '@/utils/amis-field-extractor';
 import type { ApprovalDefinitionMeta, LfFormPayload, FormJson, VisibilityScope } from '@/types/approval-definition';
 import type { TreeNode, ConditionBranch } from '@/types/approval-tree';
-import type { ApprovalFlowValidationResult } from '@/types/api';
+import type { ApprovalFlowValidationIssue, ApprovalFlowValidationResult } from '@/types/api';
 import {
   getApprovalFlowById,
   createApprovalFlow,
@@ -253,21 +213,75 @@ const validateResult = ref<ApprovalFlowValidationResult | null>(null);
 const publishModalOpen = ref(false);
 const publishing = ref(false);
 const previewModalOpen = ref(false);
+const designerRef = ref<InstanceType<typeof X6ApprovalDesigner> | null>(null);
+type ValidationIssueView = ApprovalFlowValidationIssue & { severity: 'error' | 'warning' };
+const normalizeValidationIssues = (result: ApprovalFlowValidationResult | null): ValidationIssueView[] => {
+  if (!result) {
+    return [];
+  }
+  if (result.details && result.details.length > 0) {
+    return result.details.map((detail) => ({
+      ...detail,
+      severity: detail.severity === 'warning' ? 'warning' : 'error',
+    }));
+  }
+  const errorIssues = result.errors.map((message) => ({
+    code: 'LOCAL_ERROR',
+    message,
+    severity: 'error' as const,
+  }));
+  const warningIssues = result.warnings.map((message) => ({
+    code: 'LOCAL_WARNING',
+    message,
+    severity: 'warning' as const,
+  }));
+  return [...errorIssues, ...warningIssues];
+};
+const allValidationIssues = computed(() => normalizeValidationIssues(validateResult.value));
+const errorIssues = computed(() => allValidationIssues.value.filter((issue) => issue.severity === 'error'));
+const warningIssues = computed(() => allValidationIssues.value.filter((issue) => issue.severity === 'warning'));
 
 // ── 导航 ──
 const goBack = () => {
   if (window.history.length > 1) router.back();
-  else router.push('/process/flows');
+  else router.push('/approval/flows');
 };
 
 // ── 节点选中 ──
 watch(selectedNode, (node) => { panelOpen.value = !!node; });
 const handleSelectNode = (node: TreeNode | ConditionBranch | null) => { selectNode(node); };
 const handleNodeUpdate = (updatedNode: TreeNode | ConditionBranch) => { updateNode(updatedNode); };
+const handleRouteTargetUpdate = (routeNodeId: string, targetNodeId: string) => {
+  const target = findNodeById(flowTree.value.rootNode, routeNodeId);
+  if (!target || target.nodeType !== 'route') {
+    return;
+  }
+
+  updateNode({
+    ...target,
+    routeTargetNodeId: targetNodeId,
+  });
+};
+
+const handleValidationIssueClick = (issue: ValidationIssueView) => {
+  if (!issue.nodeId) {
+    return;
+  }
+  const target = findNodeById(flowTree.value.rootNode, issue.nodeId);
+  if (!target) {
+    return;
+  }
+  selectNode(target);
+  activeStep.value = 2;
+  message.info(`已定位到节点：${target.nodeName}`);
+};
 
 // ── 步骤 ──
 const nextStep = () => { if (activeStep.value < 2) activeStep.value += 1; };
 const prevStep = () => { if (activeStep.value > 0) activeStep.value -= 1; };
+const zoomInDesigner = () => designerRef.value?.zoomIn();
+const zoomOutDesigner = () => designerRef.value?.zoomOut();
+const zoomFitDesigner = () => designerRef.value?.zoomFit();
 
 // ── 节点库添加 ──
 const handlePaletteAddNode = (nodeType: string) => {
@@ -404,7 +418,17 @@ const handleValidate = async () => {
   const localResult = validateFlow();
   if (!localResult.valid) {
     focusNodeByErrors(localResult.errors);
-    validateResult.value = { isValid: false, errors: localResult.errors, warnings: [] };
+    validateResult.value = {
+      isValid: false,
+      errors: localResult.errors,
+      warnings: [],
+      details: localResult.issues.map((issue) => ({
+        code: issue.code,
+        message: issue.message,
+        severity: issue.severity,
+        nodeId: issue.nodeId,
+      })),
+    };
     validateModalOpen.value = true;
     return;
   }
@@ -427,7 +451,17 @@ const handleSave = async () => {
   const localResult = validateFlow();
   if (!localResult.valid) {
     focusNodeByErrors(localResult.errors);
-    validateResult.value = { isValid: false, errors: localResult.errors, warnings: [] };
+    validateResult.value = {
+      isValid: false,
+      errors: localResult.errors,
+      warnings: [],
+      details: localResult.issues.map((issue) => ({
+        code: issue.code,
+        message: issue.message,
+        severity: issue.severity,
+        nodeId: issue.nodeId,
+      })),
+    };
     validateModalOpen.value = true;
     return;
   }
@@ -456,7 +490,17 @@ const handlePublishClick = async () => {
   const localResult = validateFlow();
   if (!localResult.valid) {
     focusNodeByErrors(localResult.errors);
-    validateResult.value = { isValid: false, errors: localResult.errors, warnings: [] };
+    validateResult.value = {
+      isValid: false,
+      errors: localResult.errors,
+      warnings: [],
+      details: localResult.issues.map((issue) => ({
+        code: issue.code,
+        message: issue.message,
+        severity: issue.severity,
+        nodeId: issue.nodeId,
+      })),
+    };
     validateModalOpen.value = true;
     return;
   }
@@ -486,18 +530,13 @@ const handlePublishClick = async () => {
 const handlePublishConfirm = async () => {
   if (!flowId.value) return;
   publishing.value = true;
-  try { await publishApprovalFlow(flowId.value); message.success('发布成功'); publishModalOpen.value = false; router.push('/process/flows'); }
+  try { await publishApprovalFlow(flowId.value); message.success('发布成功'); publishModalOpen.value = false; router.push('/approval/flows'); }
   catch (err) { message.error(err instanceof Error ? err.message : '发布失败'); }
   finally { publishing.value = false; }
 };
 
 // ── 预览 ──
 const handlePreview = () => { previewModalOpen.value = true; };
-
-// ── 工具 ──
-const parseVisibilityScope = (value: string): VisibilityScope | null => {
-  try { const p = JSON.parse(value) as VisibilityScope; return p?.scopeType ? p : null; } catch { return null; }
-};
 
 const focusNodeByErrors = (errors: string[]) => {
   if (errors.length === 0) return;
@@ -536,7 +575,71 @@ const findNodeById = (node: TreeNode | undefined, nodeId: string): TreeNode | nu
   return null;
 };
 
-onMounted(() => { loadFlow(); });
+const handleGlobalShortcut = (event: KeyboardEvent) => {
+  const target = event.target as HTMLElement | null;
+  if (!target) {
+    return;
+  }
+
+  const tagName = target.tagName.toUpperCase();
+  if (tagName === 'INPUT' || tagName === 'TEXTAREA' || target.isContentEditable) {
+    return;
+  }
+
+  const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+  if (!isCtrlOrCmd) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+  if (key === 's') {
+    event.preventDefault();
+    void handleSave();
+    return;
+  }
+
+  if (activeStep.value !== 2) {
+    return;
+  }
+
+  if (key === 'z' && !event.shiftKey) {
+    event.preventDefault();
+    undo();
+    return;
+  }
+
+  if (key === 'y' || (key === 'z' && event.shiftKey)) {
+    event.preventDefault();
+    redo();
+    return;
+  }
+
+  if (key === '=' || key === '+') {
+    event.preventDefault();
+    zoomInDesigner();
+    return;
+  }
+
+  if (key === '-' || key === '_') {
+    event.preventDefault();
+    zoomOutDesigner();
+    return;
+  }
+
+  if (key === '0') {
+    event.preventDefault();
+    zoomFitDesigner();
+  }
+};
+
+onMounted(() => {
+  loadFlow();
+  window.addEventListener('keydown', handleGlobalShortcut);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleGlobalShortcut);
+});
 </script>
 
 <style scoped>
@@ -651,8 +754,17 @@ onMounted(() => { loadFlow(); });
   font-size: 13px;
   line-height: 1.5;
   border-bottom: 1px solid #fafafa;
+  display: flex;
+  align-items: center;
 }
 .dd-validate-item:last-child {
   border-bottom: none;
+}
+.dd-validate-item--locatable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.dd-validate-item--locatable:hover {
+  background: #f5f5f5;
 }
 </style>

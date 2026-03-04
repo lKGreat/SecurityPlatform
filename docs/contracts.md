@@ -1418,27 +1418,63 @@ JWT Claims（新增）：
 - 节点 name/code 长度与特殊字符校验
 - 发布前需要通过 validation
 
-## 审计与登录日志补充契约
+## 审批流 V1V2 增量契约（2026-03）
 
-### 审计日志
+### 流程定义管理新增接口
 
-- `GET /api/v1/audit?pageIndex=1&pageSize=20&keyword=&action=&result=`：支持按关键字、行为、结果过滤
-- `POST /api/v1/audit/client-errors`：前端异常上报（需登录 + 幂等 + CSRF）
+- `POST /api/v1/approval/flows/{id}/copy`：复制现有流程为新草稿。
+  - 请求：`{ "name"?: string }`
+  - 响应：`ApprovalFlowDefinitionResponse`
+- `GET /api/v1/approval/flows/{id}/export`：导出流程定义 JSON。
+  - 响应：`ApprovalFlowExportResponse`
+- `POST /api/v1/approval/flows/import`：导入流程定义 JSON 为新草稿。
+  - 请求：`ApprovalFlowImportRequest`
+  - 响应：`ApprovalFlowDefinitionResponse`
+- `GET /api/v1/approval/flows/{id}/versions/{targetVersion}/compare`：按流程名 + 版本号对比定义差异。
+  - 响应：`ApprovalFlowCompareResponse`
 
-`client-errors` 请求体：
+### 流程校验返回增强
+
+- `POST /api/v1/approval/flows/validation` 响应新增 `details` 字段（兼容 `errors`/`warnings`）。
 
 ```json
 {
-  "message": "TypeError: Cannot read properties of undefined",
-  "stack": "TypeError: ...",
-  "url": "http://localhost:5173/settings/audit",
-  "component": "AuditPage",
-  "level": "error"
+  "isValid": false,
+  "errors": ["并行节点必须配置汇聚后的后续节点"],
+  "warnings": ["并行块缺少 groupId 标识"],
+  "details": [
+    {
+      "code": "PARALLEL_JOIN_REQUIRED",
+      "message": "并行节点必须配置汇聚后的后续节点",
+      "severity": "error",
+      "nodeId": "parallel_xxx",
+      "edgeId": null
+    }
+  ]
 }
 ```
 
-### 登录日志
+### 运行时实例管理新增接口
 
-- `GET /api/v1/login-logs`：分页查询登录日志
-- `GET /api/v1/login-logs/export`：按筛选条件导出 CSV（单次最多 10,000 条，分批查询避免 OOM）
+- `GET /api/v1/approval/instances/admin`：管理端实例分页查询（支持过滤）。
+  - Query 参数：
+    - `pageIndex`, `pageSize`
+    - `definitionId?`
+    - `initiatorUserId?`
+    - `businessKey?`
+    - `startedFrom?`（ISO8601）
+    - `startedTo?`（ISO8601）
+    - `status?`（`Running|Completed|Rejected|Canceled`）
+  - 响应：`PagedResult<ApprovalInstanceListItem>`
+
+### 前端运行态新增页面路由（动态菜单）
+
+- `/process/start`：发起审批
+- `/process/inbox`：我的待办
+- `/process/done`：我的已办
+- `/process/my-requests`：我发起的
+- `/process/cc`：我的抄送
+- `/process/manage/flows`：流程定义管理
+- `/process/manage/instances`：流程实例管理
+- `/process/designer/:id`、`/process/tasks/:id`、`/process/instances/:id`：隐藏详情路由
 
