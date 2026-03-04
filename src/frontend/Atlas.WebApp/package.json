@@ -45,7 +45,7 @@
     "nprogress": "^0.2.0",
     "pinia": "^3.0.3",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react-dom": "^19.2.4",
     "react-is": "^18.2.0",
     "screenfull": "^6.0.2",
     "vform3-builds": "^3.0.10",
