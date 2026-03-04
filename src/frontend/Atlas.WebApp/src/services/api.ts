@@ -102,7 +102,6 @@ import type {
   FlowDefinition,
   FlowSaveRequest,
   FlowSaveResponse,
-  FlowLoadResponse,
   FlowPublishResponse,
   FlowValidationResult
 } from "@/types/workflow";
@@ -1507,13 +1506,11 @@ export async function validateFlowDefinition(req: FlowSaveRequest): Promise<Flow
 }
 
 export async function previewFlowDefinition(id: string): Promise<FlowDefinition> {
-  const response = await requestApi<ApiResponse<FlowLoadResponse>>(`/approval/flows/${id}/preview`, {
-    method: "POST"
-  });
-  if (!response.data?.definition) {
+  const response = await requestApi<ApiResponse<ApprovalFlowDefinitionResponse>>(`/approval/flows/${id}`);
+  if (!response.data?.definitionJson) {
     throw new Error(response.message || "预览失败");
   }
-  return response.data.definition;
+  return parseFlowDefinition(response.data.definitionJson);
 }
 
 export async function getAppConfigsPaged(pagedRequest: PagedRequest) {
