@@ -1,60 +1,56 @@
-using System.Collections.Generic;
+using Atlas.Infrastructure.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Atlas.SecurityPlatform.Tests.Integration.Infrastructure;
 
-/// <summary>
-/// 集成测试用 WebApplicationFactory，为每次实例化创建独立临时目录存放 SQLite 数据库，
-/// 避免测试间数据污染。Dispose 时清理临时目录，防止 CI 环境下磁盘占用无限增长。
-/// </summary>
 public sealed class AtlasWebApplicationFactory : WebApplicationFactory<Program>
 {
-    private readonly string _tempDirectory;
-
-    public AtlasWebApplicationFactory()
-    {
-        _tempDirectory = Path.Combine(
-            Path.GetTempPath(),
-            "atlas-security-tests",
-            Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempDirectory);
-    }
+    private readonly string _tempDirectory = Path.Combine(
+        Path.GetTempPath(),
+        "atlas-security-tests",
+        Guid.NewGuid().ToString("N"));
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        var dbPath = Path.Combine(_tempDirectory, "atlas.db");
+        Directory.CreateDirectory(_tempDirectory);
+        var databasePath = Path.Combine(_tempDirectory, "atlas.integration.db");
 
         builder.UseEnvironment("Development");
-
-        builder.ConfigureAppConfiguration((_, config) =>
+        builder.ConfigureAppConfiguration((_, configurationBuilder) =>
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
+            var overrides = new Dictionary<string, string?>
             {
-                ["Database:ConnectionString"] = $"Data Source={dbPath}",
-                ["Database:Backup:Enabled"] = "false",
-                ["Security:BootstrapAdmin:Password"] = "Admin@123"
-            });
+                ["Security:EnforceHttps"] = "false",
+                ["Security:BootstrapAdmin:Enabled"] = "true",
+                ["Security:BootstrapAdmin:TenantId"] = IntegrationAuthHelper.DefaultTenantId,
+                ["Security:BootstrapAdmin:Username"] = IntegrationAuthHelper.DefaultUsername,
+                ["Security:BootstrapAdmin:Password"] = IntegrationAuthHelper.DefaultPassword,
+                ["Database:ConnectionString"] = $"Data Source={databasePath}"
+            };
+
+            configurationBuilder.AddInMemoryCollection(overrides);
         });
 
-        base.ConfigureWebHost(builder);
+        builder.ConfigureServices(services =>
+        {
+            var hostedServiceDescriptors = services
+                .Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
+                .ToList();
+
+            foreach (var descriptor in hostedServiceDescriptors)
+            {
+                if (descriptor.ImplementationType == typeof(DatabaseInitializerHostedService))
+                {
+                    continue;
+                }
+
+                services.Remove(descriptor);
+            }
+        });
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        if (disposing && Directory.Exists(_tempDirectory))
-        {
-            try
-            {
-                Directory.Delete(_tempDirectory, recursive: true);
-            }
-            catch (IOException)
-            {
-                // 文件可能仍被占用，忽略清理失败，避免影响测试
-            }
-        }
-    }
 }
