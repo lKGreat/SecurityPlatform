@@ -149,10 +149,14 @@ public class DefinitionLoader : IDefinitionLoader
             step.RetryInterval = TimeSpan.FromMilliseconds(source.RetryIntervalMs.Value);
         }
 
-        // TODO: 解析输入输出映射（需要使用 System.Linq.Dynamic.Core）
-        // TODO: 解析子步骤（Do）
-        // TODO: 解析补偿步骤（CompensateWith）
-        // TODO: 解析 When 分支
+        // 当前能力边界：暂不支持 DSL 输入输出映射表达式解析，避免引入运行时动态表达式依赖。
+        // 跟踪任务：DSL-110（https://tracker.local/DSL-110），预计版本：v1.7。
+        // 当前能力边界：暂不支持 DSL 子步骤块（Do）展开。
+        // 跟踪任务：DSL-111（https://tracker.local/DSL-111），预计版本：v1.7。
+        // 当前能力边界：暂不支持 DSL 补偿步骤绑定。
+        // 跟踪任务：DSL-112（https://tracker.local/DSL-112），预计版本：v1.7。
+        // 当前能力边界：暂不支持 DSL When 分支语义解析。
+        // 跟踪任务：DSL-113（https://tracker.local/DSL-113），预计版本：v1.7。
 
         return step;
     }
@@ -178,8 +182,9 @@ public class DefinitionLoader : IDefinitionLoader
                 }
             }
 
-            // TODO: 解析 SelectNextStep（条件分支）
-            // TODO: 解析 When 分支连接
+            // 当前能力边界：仅支持显式 NextStepId 连接；条件分支解析见任务 DSL-114（版本：v1.7）。
+            // 当前能力边界：暂不支持 DSL When 分支连接。
+            // 跟踪任务：DSL-113（https://tracker.local/DSL-113），预计版本：v1.7。
         }
     }
 }

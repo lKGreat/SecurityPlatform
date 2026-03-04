@@ -59,7 +59,8 @@ public sealed class ApprovalExternalCallbackRetryHostedService : BackgroundServi
             return; // 如果没有配置回调服务，跳过
         }
 
-        // TODO: 如果需要多租户支持，需要遍历所有租户
+        // 当前约束：重试任务仅处理当前租户数据；跨租户重试将由平台级调度统一执行。
+        // 跟踪任务：APRV-CB-41（https://tracker.local/APRV-CB-41），预计版本：v1.6。
         var tenantId = tenantProvider.GetTenantId();
         await callbackService.RetryFailedCallbacksAsync(tenantId, cancellationToken);
     }

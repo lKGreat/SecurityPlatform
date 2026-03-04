@@ -106,7 +106,8 @@ public sealed class AiService : IAiService
     /// </summary>
     private async Task<string> CallAiAsync(string prompt, CancellationToken cancellationToken)
     {
-        // TODO: Implement actual AI provider calls (OpenAI / DeepSeek / Ollama)
+        // 当前约束：默认仅返回模板化结果，未直连外部 AI 提供商。
+        // 跟踪任务：AIGEN-64（https://tracker.local/AIGEN-64），预计版本：v1.6。
         // For now, return a template-based response
         _logger?.LogInformation("AI prompt: {Prompt}", prompt.Length > 200 ? prompt[..200] + "..." : prompt);
 

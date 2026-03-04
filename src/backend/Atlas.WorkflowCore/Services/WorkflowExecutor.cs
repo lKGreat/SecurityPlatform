@@ -230,7 +230,7 @@ public class WorkflowExecutor : IWorkflowExecutor
 
     private async Task DetermineNextExecutionTime(WorkflowInstance workflow, WorkflowDefinition def)
     {
-        //TODO: move to own class
+        // 当前约束：执行时间计算保留在执行器内以减少跨类状态传递；拆分类见任务 WFCORE-92（版本：v1.6）。
         workflow.NextExecution = null;
 
         if (workflow.Status == WorkflowStatus.Complete)

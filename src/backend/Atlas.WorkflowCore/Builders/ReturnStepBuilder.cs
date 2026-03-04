@@ -30,7 +30,7 @@ public class ReturnStepBuilder<TData, TStepBody, TParentStep> : IContainerStepBu
     public IStepBuilder<TData, TParentStep> Do(Action<IWorkflowBuilder<TData>> builder)
     {
         builder.Invoke(WorkflowBuilder);
-        Step.Children.Add(Step.Id + 1); //TODO: make more elegant
+        Step.Children.Add(Step.Id + 1); // 当前约束：通过顺序节点连接保持构建器兼容性，后续统一重构见任务 WFCORE-90（版本：v1.6）。
 
         return _referenceBuilder;
     }

@@ -31,7 +31,7 @@ public static class WorkflowTracing
     public static void StartHost()
     {
         _logger?.LogDebug("[Tracing] WorkflowHost started");
-        // TODO: 添加 OpenTelemetry Activity 创建逻辑
+        // 当前能力边界：仅输出结构化日志，不创建 Activity；完整 OpenTelemetry 接入见任务 OBS-145（版本：v1.5）。
     }
 
     /// <summary>
@@ -40,7 +40,7 @@ public static class WorkflowTracing
     public static void Enrich(WorkflowInstance workflow)
     {
         _logger?.LogDebug("[Tracing] Workflow {WorkflowId} enriched", workflow.Id);
-        // TODO: 添加 OpenTelemetry Span Tags
+        // 当前能力边界：Span Tag 尚未启用，避免在无 Activity 上写入无效元数据；任务：OBS-145，版本：v1.5。
         // Activity.Current?.SetTag("workflow.id", workflow.Id);
         // Activity.Current?.SetTag("workflow.definition", workflow.WorkflowDefinitionId);
         // Activity.Current?.SetTag("workflow.version", workflow.Version);
@@ -53,7 +53,7 @@ public static class WorkflowTracing
     public static void Enrich(WorkflowStep step)
     {
         _logger?.LogDebug("[Tracing] Step {StepName} enriched", step.Name);
-        // TODO: 添加 OpenTelemetry Span Tags
+        // 当前能力边界：Span Tag 尚未启用，避免在无 Activity 上写入无效元数据；任务：OBS-145，版本：v1.5。
         // Activity.Current?.SetTag("step.id", step.Id);
         // Activity.Current?.SetTag("step.name", step.Name);
         // Activity.Current?.SetTag("step.type", step.BodyType.Name);
@@ -65,7 +65,7 @@ public static class WorkflowTracing
     public static void Enrich(ExecutionResult result)
     {
         _logger?.LogDebug("[Tracing] ExecutionResult enriched - Proceed: {Proceed}", result.Proceed);
-        // TODO: 添加 OpenTelemetry Span Tags
+        // 当前能力边界：Span Tag 尚未启用，避免在无 Activity 上写入无效元数据；任务：OBS-145，版本：v1.5。
         // Activity.Current?.SetTag("result.proceed", result.Proceed);
         // Activity.Current?.SetTag("result.outcome", result.OutcomeValue);
     }
@@ -77,7 +77,7 @@ public static class WorkflowTracing
     {
         _logger?.LogDebug("[Tracing] WorkflowExecutorResult enriched - Errors: {ErrorCount}, Subscriptions: {SubscriptionCount}", 
             result.Errors.Count, result.Subscriptions.Count);
-        // TODO: 添加 OpenTelemetry Span Tags
+        // 当前能力边界：Span Tag 尚未启用，避免在无 Activity 上写入无效元数据；任务：OBS-145，版本：v1.5。
         // Activity.Current?.SetTag("result.errors.count", result.Errors.Count);
         // Activity.Current?.SetTag("result.subscriptions.count", result.Subscriptions.Count);
     }
