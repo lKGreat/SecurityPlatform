@@ -233,6 +233,51 @@ JWT Claims（新增）：
 
 响应：通用 `ApiResponse`
 
+## 租户数据源契约
+
+### 管理接口
+
+- `GET /api/v1/tenant-datasources`：查询数据源列表
+- `POST /api/v1/tenant-datasources`：新增数据源
+- `PUT /api/v1/tenant-datasources/{id}`：更新数据源
+- `DELETE /api/v1/tenant-datasources/{id}`：删除数据源
+- `POST /api/v1/tenant-datasources/test`：测试数据源连接
+
+### 数据源类型
+
+- `SQLite`
+- `SqlServer`
+- `MySql`
+- `PostgreSql`
+
+### 测试连接
+
+`POST /api/v1/tenant-datasources/test`
+
+请求示例：
+
+```json
+{
+  "connectionString": "Host=127.0.0.1;Port=5432;Database=atlas;Username=postgres;Password=postgres",
+  "dbType": "PostgreSql"
+}
+```
+
+响应示例：
+
+```json
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "OK",
+  "traceId": "00-...",
+  "data": {
+    "success": true,
+    "errorMessage": null
+  }
+}
+```
+
 ## 角色、权限与菜单契约
 
 ### 角色列表（分页）
@@ -263,6 +308,49 @@ JWT Claims（新增）：
 - `isSystem`：可选，`true`=系统内置，`false`=自定义。
 - 删除约束：角色已被用户绑定时不允许删除，返回 `VALIDATION_ERROR`，需先解绑用户与角色关系。
 - 角色权限生效规则：后端每次鉴权都会实时按当前 `用户-角色-权限` 关系解析，不依赖令牌中的角色快照，角色调整后无需重新登录。
+
+### 角色详情
+
+`GET /api/v1/roles/{id}`
+
+响应：
+
+```json
+{
+  "id": "1",
+  "name": "管理员",
+  "code": "Admin",
+  "description": "系统内置角色",
+  "isSystem": true,
+  "dataScope": 1,
+  "permissionIds": [101, 102],
+  "menuIds": [201, 202]
+}
+```
+
+说明：
+
+- `dataScope` 数据范围枚举：
+  - `1`：全部数据（当前租户）
+  - `2`：自定义部门
+  - `3`：本部门
+  - `4`：本部门及下级
+  - `5`：仅本人
+  - `6`：项目维度
+
+### 设置角色数据范围
+
+`PUT /api/v1/roles/{id}/data-scope`
+
+请求体：
+
+```json
+{
+  "dataScope": 4
+}
+```
+
+响应：通用 `ApiResponse`
 
 ### 权限列表（分页）
 
@@ -545,6 +633,7 @@ JWT Claims（新增）：
 - `GET /api/v1/approval/instances/my`：我发起的流程实例
 - `GET /api/v1/approval/instances/{id}`：流程实例详情
 - `GET /api/v1/approval/instances/{id}/history`：流程实例历史
+- `GET /api/v1/approval/instances/{id}/history/export`：导出流程历史（CSV）
 - `POST /api/v1/approval/instances/{id}/cancellation`：取消流程实例
 - `POST /api/v1/approval/instances/{id}/operations`：实例操作（撤回/转办/加签等）
 - `GET /api/v1/approval/instances/{id}/preview`：预览流程实例
@@ -555,6 +644,14 @@ JWT Claims（新增）：
 - `GET /api/v1/approval/tasks/my`：我的待办任务
 - `GET /api/v1/approval/instances/{instanceId}/tasks`：实例内任务列表
 - `POST /api/v1/approval/tasks/{taskId}/decision`：任务审批（`approved=true|false`）
+
+## 运维监控与合规取证契约
+
+- `GET /api/v1/monitor/server-info`：服务监控快照（CPU/内存/磁盘/运行时）
+- `GET /api/v1/monitor/compliance/evidence-package`：导出等保证据包（zip）
+  - 鉴权：`system:admin`
+  - 响应：`application/zip` 文件流（非 `ApiResponse` 包装）
+  - 默认证据项：合规映射文档、核心配置快照、取证 `.http` 样例、健康与任务取证脚本
 
 ## 可视化模块契约
 
@@ -861,6 +958,8 @@ JWT Claims（新增）：
 - `POST /api/v1/lowcode-apps`：创建应用（需幂等 + CSRF）
 - `PUT /api/v1/lowcode-apps/{id}`：更新应用（需幂等 + CSRF）
 - `POST /api/v1/lowcode-apps/{id}/publish`：发布应用（需幂等 + CSRF）
+- `GET /api/v1/lowcode-apps/{id}/versions?pageIndex=1&pageSize=10`：分页查询应用版本历史（仅系统管理员）
+- `POST /api/v1/lowcode-apps/{id}/versions/{versionId}/rollback`：按应用版本回滚（需幂等 + CSRF，仅系统管理员）
 - `POST /api/v1/lowcode-apps/{id}/disable`：停用应用（需幂等 + CSRF）
 - `GET /api/v1/lowcode-apps/{id}/export`：导出应用 JSON 包
 - `POST /api/v1/lowcode-apps/import`：导入应用 JSON 包（需幂等 + CSRF，支持 `Rename/Overwrite/Skip` 冲突策略）
@@ -875,6 +974,22 @@ JWT Claims（新增）：
 
 - 读接口（GET）要求 `apps:view`
 - 写接口（POST/PUT/PATCH/DELETE）要求 `apps:update`
+- 应用版本查询/回滚接口要求 `system:admin`
+
+### LowCodeAppVersionListItem
+
+```json
+{
+  "id": "3001",
+  "appId": "2001",
+  "version": 5,
+  "actionType": "Rollback",
+  "sourceVersionId": "2998",
+  "note": "Rollback to version 3",
+  "createdAt": "2026-03-04T10:00:00Z",
+  "createdBy": 10001
+}
+```
 
 ### 低代码页面（LowCodePage）
 
@@ -965,6 +1080,8 @@ JWT Claims（新增）：
 - `POST /api/v1/dynamic-tables`：新建动态表（需幂等 + CSRF）
 - `PUT /api/v1/dynamic-tables/{tableKey}`：更新表元数据（需幂等 + CSRF）
 - `POST /api/v1/dynamic-tables/{tableKey}/schema/alter`：变更字段（需幂等 + CSRF）
+- `POST /api/v1/dynamic-tables/{tableKey}/schema/alter/preview`：预览变更 SQL（只读，不落库）
+- `GET /api/v1/dynamic-tables/{tableKey}/migrations`：分页查询结构迁移记录
 - `DELETE /api/v1/dynamic-tables/{tableKey}`：删除动态表（需幂等 + CSRF）
 - `GET /api/v1/dynamic-tables/{tableKey}/relations`：查询轻量关系
 - `PUT /api/v1/dynamic-tables/{tableKey}/relations`：覆盖更新轻量关系（需幂等 + CSRF）
@@ -1129,6 +1246,8 @@ JWT Claims（新增）：
 
 ### TableAlterRequest
 
+> 当前阶段（M9 增量）支持 `addFields` 与 `updateFields`（仅允许更新字段显示名 `displayName` 与排序 `sortOrder`）；`removeFields` 仍返回 `VALIDATION_ERROR`。
+
 ```json
 {
   "addFields": [
@@ -1138,6 +1257,36 @@ JWT Claims（新增）：
     { "name": "amount", "displayName": "金额", "precision": 18, "scale": 4 }
   ],
   "removeFields": ["legacyField"]
+}
+```
+
+### SchemaMigrationListItem
+
+```json
+{
+  "id": "193500000000000001",
+  "tableId": "193400000000000001",
+  "tableKey": "orders",
+  "operationType": "ADD_FIELDS",
+  "status": "Succeeded",
+  "appliedSql": "ALTER TABLE ...",
+  "rollbackSql": "当前版本不支持自动回滚，请通过备份恢复。",
+  "createdBy": 10001,
+  "createdAt": "2026-03-03T10:00:00Z"
+}
+```
+
+### AlterPreviewResponse
+
+```json
+{
+  "tableKey": "orders",
+  "operationType": "ADD_FIELDS",
+  "sqlScripts": [
+    "ALTER TABLE \"orders\" ADD COLUMN \"remark\" TEXT;",
+    "CREATE UNIQUE INDEX \"uk_orders_remark\" ON \"orders\" (\"remark\");"
+  ],
+  "rollbackHint": "当前版本不支持自动回滚，请通过备份恢复。"
 }
 ```
 
@@ -1263,6 +1412,26 @@ JWT Claims（新增）：
 - `docs/amis-templates/dynamic-table-crud.json`：动态 CRUD 页面
 
 ## 用户/部门/职位管理契约
+
+## 插件管理契约（AssemblyLoadContext）
+
+- `GET /api/v1/plugins`：查询插件清单
+- `POST /api/v1/plugins/reload`：重载插件目录并刷新清单
+
+### PluginDescriptor
+
+```json
+{
+  "code": "demo.plugin",
+  "name": "Demo Plugin",
+  "version": "1.0.0",
+  "assemblyName": "Atlas.Plugin.Demo",
+  "filePath": "/workspace/src/backend/Atlas.WebApi/plugins/Atlas.Plugin.Demo.dll",
+  "state": "Loaded|Failed|NoEntryPoint",
+  "loadedAt": "2026-03-03T12:00:00Z",
+  "errorMessage": null
+}
+```
 
 ## 用户/部门/职位管理契约
 

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Globalization;
 using Atlas.Application.DynamicTables.Models;
@@ -7,6 +8,7 @@ using Atlas.Core.Exceptions;
 using Atlas.Domain.DynamicTables.Entities;
 using Atlas.Domain.DynamicTables.Enums;
 using Atlas.Infrastructure.DynamicTables;
+using Atlas.Infrastructure.Observability;
 using SqlSugar;
 
 namespace Atlas.Infrastructure.Repositories;
@@ -35,8 +37,11 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
         var pk = GetPrimaryKey(fields);
         var values = MapValues(request.Values);
 
-        var columns = new List<string>();
-        var parameters = new List<SugarParameter>();
+        var columns = new List<string> { DynamicSqlBuilder.QuoteTenantColumn(table.DbType) };
+        var parameters = new List<SugarParameter>
+        {
+            new("@tenantId", tenantId.Value.ToString("D"))
+        };
 
         foreach (var field in fields)
         {
@@ -97,7 +102,8 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
         var setClauses = new List<string>();
         var parameters = new List<SugarParameter>
         {
-            new SugarParameter("@id", id)
+            new("@id", id),
+            new("@tenantId", tenantId.Value.ToString("D"))
         };
 
         foreach (var field in fields)
@@ -123,7 +129,11 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
             return;
         }
 
-        var sql = $"UPDATE {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} SET {string.Join(", ", setClauses)} WHERE {DynamicSqlBuilder.Quote(pk.Name, table.DbType)} = @id;";
+        var sql =
+            $"UPDATE {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} " +
+            $"SET {string.Join(", ", setClauses)} " +
+            $"WHERE {DynamicSqlBuilder.Quote(pk.Name, table.DbType)} = @id " +
+            $"AND {DynamicSqlBuilder.QuoteTenantColumn(table.DbType)} = @tenantId;";
         await _db.Ado.ExecuteCommandAsync(sql, parameters.ToArray());
     }
 
@@ -135,8 +145,15 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
         CancellationToken cancellationToken)
     {
         var pk = GetPrimaryKey(fields);
-        var sql = $"DELETE FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} WHERE {DynamicSqlBuilder.Quote(pk.Name, table.DbType)} = @id;";
-        return _db.Ado.ExecuteCommandAsync(sql, new[] { new SugarParameter("@id", id) });
+        var sql =
+            $"DELETE FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} " +
+            $"WHERE {DynamicSqlBuilder.Quote(pk.Name, table.DbType)} = @id " +
+            $"AND {DynamicSqlBuilder.QuoteTenantColumn(table.DbType)} = @tenantId;";
+        return _db.Ado.ExecuteCommandAsync(sql, new[]
+        {
+            new SugarParameter("@id", id),
+            new SugarParameter("@tenantId", tenantId.Value.ToString("D"))
+        });
     }
 
     public Task DeleteBatchAsync(
@@ -152,10 +169,14 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
         }
 
         var pk = GetPrimaryKey(fields);
-        var parameters = ids.Select((id, index) => new SugarParameter($"@p{index}", id)).ToArray();
+        var parameters = ids.Select((id, index) => new SugarParameter($"@p{index}", id)).ToList();
         var inClause = string.Join(", ", parameters.Select(p => p.ParameterName));
-        var sql = $"DELETE FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} WHERE {DynamicSqlBuilder.Quote(pk.Name, table.DbType)} IN ({inClause});";
-        return _db.Ado.ExecuteCommandAsync(sql, parameters);
+        parameters.Add(new SugarParameter("@tenantId", tenantId.Value.ToString("D")));
+        var sql =
+            $"DELETE FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} " +
+            $"WHERE {DynamicSqlBuilder.Quote(pk.Name, table.DbType)} IN ({inClause}) " +
+            $"AND {DynamicSqlBuilder.QuoteTenantColumn(table.DbType)} = @tenantId;";
+        return _db.Ado.ExecuteCommandAsync(sql, parameters.ToArray());
     }
 
     public async Task<DynamicRecordListResult> QueryAsync(
@@ -165,37 +186,51 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
         DynamicRecordQueryRequest request,
         CancellationToken cancellationToken)
     {
-        if (table.DbType != DynamicDbType.Sqlite)
+        var stopwatch = Stopwatch.StartNew();
+        var status = "success";
+        try
         {
-            throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, "当前仅支持 SQLite 动态数据查询。");
+            if (table.DbType != DynamicDbType.Sqlite)
+            {
+                throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, "当前仅支持 SQLite 动态数据查询。");
+            }
+
+            var where = BuildWhereClause(tenantId, table, fields, request, out var parameters);
+            var totalSql = $"SELECT COUNT(1) AS Total FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} {where};";
+            var total = (int)await ExecuteScalarLongAsync(totalSql, parameters.ToArray());
+
+            var orderBy = BuildOrderBy(table, fields, request);
+            var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+            var offset = (pageIndex - 1) * pageSize;
+
+            var pagingParameters = new List<SugarParameter>(parameters)
+            {
+                new SugarParameter("@limit", pageSize),
+                new SugarParameter("@offset", offset)
+            };
+
+            var selectColumns = string.Join(", ", fields.Select(f => DynamicSqlBuilder.Quote(f.Name, table.DbType)));
+            var sql = $"SELECT {selectColumns} FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} {where} {orderBy} LIMIT @limit OFFSET @offset;";
+            var dataTable = await _db.Ado.GetDataTableAsync(sql, pagingParameters.ToArray());
+            var items = BuildRecords(fields, dataTable);
+
+            return new DynamicRecordListResult(
+                items,
+                total,
+                pageIndex,
+                pageSize,
+                BuildColumns(fields));
         }
-
-        var where = BuildWhereClause(table, fields, request, out var parameters);
-        var totalSql = $"SELECT COUNT(1) AS Total FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} {where};";
-        var total = (int)await ExecuteScalarLongAsync(totalSql, parameters.ToArray());
-
-        var orderBy = BuildOrderBy(table, fields, request);
-        var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
-        var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
-        var offset = (pageIndex - 1) * pageSize;
-
-        var pagingParameters = new List<SugarParameter>(parameters)
+        catch
         {
-            new SugarParameter("@limit", pageSize),
-            new SugarParameter("@offset", offset)
-        };
-
-        var selectColumns = string.Join(", ", fields.Select(f => DynamicSqlBuilder.Quote(f.Name, table.DbType)));
-        var sql = $"SELECT {selectColumns} FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} {where} {orderBy} LIMIT @limit OFFSET @offset;";
-        var dataTable = await _db.Ado.GetDataTableAsync(sql, pagingParameters.ToArray());
-        var items = BuildRecords(fields, dataTable);
-
-        return new DynamicRecordListResult(
-            items,
-            total,
-            pageIndex,
-            pageSize,
-            BuildColumns(fields));
+            status = "failed";
+            throw;
+        }
+        finally
+        {
+            AtlasMetrics.RecordDynamicQuery(stopwatch.Elapsed.TotalMilliseconds, status);
+        }
     }
 
     public async Task<DynamicRecordDto?> GetByIdAsync(
@@ -206,8 +241,16 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
         CancellationToken cancellationToken)
     {
         var pk = GetPrimaryKey(fields);
-        var sql = $"SELECT {string.Join(", ", fields.Select(f => DynamicSqlBuilder.Quote(f.Name, table.DbType)))} FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} WHERE {DynamicSqlBuilder.Quote(pk.Name, table.DbType)} = @id;";
-        var dataTable = await _db.Ado.GetDataTableAsync(sql, new[] { new SugarParameter("@id", id) });
+        var sql =
+            $"SELECT {string.Join(", ", fields.Select(f => DynamicSqlBuilder.Quote(f.Name, table.DbType)))} " +
+            $"FROM {DynamicSqlBuilder.Quote(table.TableKey, table.DbType)} " +
+            $"WHERE {DynamicSqlBuilder.Quote(pk.Name, table.DbType)} = @id " +
+            $"AND {DynamicSqlBuilder.QuoteTenantColumn(table.DbType)} = @tenantId;";
+        var dataTable = await _db.Ado.GetDataTableAsync(sql, new[]
+        {
+            new SugarParameter("@id", id),
+            new SugarParameter("@tenantId", tenantId.Value.ToString("D"))
+        });
         if (dataTable.Rows.Count == 0)
         {
             return null;
@@ -248,13 +291,20 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
     }
 
     private static string BuildWhereClause(
+        Atlas.Core.Tenancy.TenantId tenantId,
         DynamicTable table,
         IReadOnlyList<DynamicField> fields,
         DynamicRecordQueryRequest request,
         out List<SugarParameter> parameters)
     {
-        parameters = new List<SugarParameter>();
-        var conditions = new List<string>();
+        parameters = new List<SugarParameter>
+        {
+            new("@tenantId", tenantId.Value.ToString("D"))
+        };
+        var conditions = new List<string>
+        {
+            $"{DynamicSqlBuilder.QuoteTenantColumn(table.DbType)} = @tenantId"
+        };
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
@@ -364,11 +414,6 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
                 _ => "="
             };
             conditions.Add($"{fieldName} {sqlOp} {param}");
-        }
-
-        if (conditions.Count == 0)
-        {
-            return string.Empty;
         }
 
         return $"WHERE {string.Join(" AND ", conditions)}";

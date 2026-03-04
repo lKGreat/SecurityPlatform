@@ -16,6 +16,7 @@ X-Tenant-Id: {{tenantId}}
 
 ###
 @accessToken = {{login.response.body.$.data.accessToken}}
+@csrfToken =
 
 ### Get Anti-Forgery Token
 # @name antiforgery

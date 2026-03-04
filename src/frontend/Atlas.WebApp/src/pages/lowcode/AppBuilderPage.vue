@@ -3,11 +3,12 @@
     <!-- 左侧页面树 -->
     <div class="builder-sidebar">
       <div class="sidebar-header">
-        <a-button size="small" @click="goBack">返回</a-button>
-        <h3>{{ appDetail?.name ?? "加载中..." }}</h3>
+        <a-button size="small" @click="goBack">{{ t("lowcodeBuilder.back") }}</a-button>
+        <h3>{{ appDetail?.name ?? t("lowcodeBuilder.loading") }}</h3>
       </div>
       <div class="sidebar-actions">
-        <a-button type="primary" size="small" block @click="handleAddPage">新建页面</a-button>
+        <a-button type="primary" size="small" block @click="handleAddPage">{{ t("lowcodeBuilder.createPage") }}</a-button>
+        <a-button size="small" block style="margin-top: 8px" @click="openAppVersionDrawer">{{ t("lowcodeBuilder.versionHistory") }}</a-button>
       </div>
       <div class="page-tree">
         <div
@@ -33,7 +34,7 @@
           </a-dropdown>
         </div>
         <div v-if="pages.length === 0 && !loading" class="empty-hint">
-          暂无页面，点击上方"新建页面"按钮创建
+          {{ t("lowcodeBuilder.emptyPageHint") }}
         </div>
       </div>
     </div>
@@ -66,7 +67,7 @@
       </template>
       <template v-else>
         <div class="empty-main">
-          <p>请从左侧选择或创建一个页面</p>
+          <p>{{ t("lowcodeBuilder.emptyMainHint") }}</p>
         </div>
       </template>
     </div>
@@ -74,38 +75,93 @@
     <!-- 新建/编辑页面对话框 -->
     <a-modal
       v-model:open="pageFormVisible"
-      :title="pageFormMode === 'create' ? '新建页面' : '编辑页面'"
-      ok-text="确定"
-      cancel-text="取消"
+      :title="pageFormMode === 'create' ? t('lowcodeBuilder.createPageModalTitle') : t('lowcodeBuilder.editPageModalTitle')"
+      :ok-text="t('common.confirm')"
+      :cancel-text="t('common.cancel')"
       @ok="handlePageFormSubmit"
     >
       <a-form layout="vertical">
-        <a-form-item v-if="pageFormMode === 'create'" label="页面标识" required>
-          <a-input v-model:value="pageForm.pageKey" placeholder="如 customer-list" />
+        <a-form-item v-if="pageFormMode === 'create'" :label="t('lowcodeBuilder.pageKeyLabel')" required>
+          <a-input v-model:value="pageForm.pageKey" :placeholder="t('lowcodeBuilder.pageKeyPlaceholder')" />
         </a-form-item>
-        <a-form-item label="页面名称" required>
-          <a-input v-model:value="pageForm.name" placeholder="请输入页面名称" />
+        <a-form-item :label="t('lowcodeBuilder.pageNameLabel')" required>
+          <a-input v-model:value="pageForm.name" :placeholder="t('lowcodeBuilder.pageNamePlaceholder')" />
         </a-form-item>
-        <a-form-item label="页面类型" required>
+        <a-form-item :label="t('lowcodeBuilder.pageTypeLabel')" required>
           <a-select v-model:value="pageForm.pageType">
-            <a-select-option value="List">列表页 (CRUD)</a-select-option>
-            <a-select-option value="Form">表单页</a-select-option>
-            <a-select-option value="Detail">详情页</a-select-option>
-            <a-select-option value="Dashboard">仪表盘</a-select-option>
-            <a-select-option value="Blank">空白页</a-select-option>
+            <a-select-option value="List">{{ t("lowcodeBuilder.pageTypeList") }}</a-select-option>
+            <a-select-option value="Form">{{ t("lowcodeBuilder.pageTypeForm") }}</a-select-option>
+            <a-select-option value="Detail">{{ t("lowcodeBuilder.pageTypeDetail") }}</a-select-option>
+            <a-select-option value="Dashboard">{{ t("lowcodeBuilder.pageTypeDashboard") }}</a-select-option>
+            <a-select-option value="Blank">{{ t("lowcodeBuilder.pageTypeBlank") }}</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="路由路径">
-          <a-input v-model:value="pageForm.routePath" placeholder="如 /app/crm/customers" />
+        <a-form-item :label="t('lowcodeBuilder.routePathLabel')">
+          <a-input v-model:value="pageForm.routePath" :placeholder="t('lowcodeBuilder.routePathPlaceholder')" />
         </a-form-item>
-        <a-form-item label="描述">
+        <a-form-item :label="t('lowcodeBuilder.pageDescriptionLabel')">
           <a-textarea v-model:value="pageForm.description" :rows="2" />
         </a-form-item>
-        <a-form-item label="排序">
+        <a-form-item :label="t('lowcodeBuilder.sortOrderLabel')">
           <a-input-number v-model:value="pageForm.sortOrder" :min="0" style="width: 100%" />
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <a-drawer
+      v-model:open="appVersionDrawerVisible"
+      :title="t('lowcodeBuilder.versionDrawerTitle')"
+      placement="right"
+      width="720"
+      :destroy-on-close="true"
+    >
+      <a-table
+        :columns="appVersionColumns"
+        :data-source="appVersionItems"
+        :loading="appVersionLoading"
+        row-key="id"
+        :pagination="{
+          total: appVersionTotal,
+          current: appVersionPageIndex,
+          pageSize: appVersionPageSize,
+          showQuickJumper: true,
+          onChange: onAppVersionPageChange
+        }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'actionType'">
+            <a-tag :color="record.actionType === 'Publish' ? 'blue' : 'orange'">
+              {{ record.actionType }}
+            </a-tag>
+          </template>
+          <template v-else-if="column.key === 'createdAt'">
+            {{ formatTime(record.createdAt) }}
+          </template>
+          <template v-else-if="column.key === 'sourceVersionId'">
+            {{ record.sourceVersionId ?? "-" }}
+          </template>
+          <template v-else-if="column.key === 'note'">
+            {{ record.note ?? "-" }}
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <a-popconfirm
+              :title="t('lowcodeBuilder.rollbackConfirm')"
+              :ok-text="t('lowcodeBuilder.rollback')"
+              :cancel-text="t('common.cancel')"
+              @confirm="handleRollbackAppVersion(record.id)"
+            >
+              <a-button
+                type="link"
+                size="small"
+                :loading="appRollbackingVersionId === record.id"
+              >
+                {{ t("lowcodeBuilder.rollback") }}
+              </a-button>
+            </a-popconfirm>
+          </template>
+        </template>
+      </a-table>
+    </a-drawer>
 
     <!-- 页面版本历史 -->
     <a-modal
@@ -116,7 +172,7 @@
     >
       <a-table
         :data-source="pageVersions"
-        :loading="versionLoading"
+        :loading="pageVersionLoading"
         :pagination="false"
         row-key="id"
         size="small"
@@ -126,7 +182,7 @@
         <a-table-column key="createdBy" title="发布人" data-index="createdBy" width="120px" />
         <a-table-column key="action" title="操作" width="140px">
           <template #default="{ record }">
-            <a-button size="small" @click="handleRollbackVersion(record.id)">回滚到此版本</a-button>
+            <a-button size="small" @click="handleRollbackPageVersion(record.id)">回滚到此版本</a-button>
           </template>
         </a-table-column>
       </a-table>
@@ -208,9 +264,11 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { message, Modal } from "ant-design-vue";
+import { useI18n } from "vue-i18n";
 import AmisEditor from "@/components/amis/AmisEditor.vue";
 import type {
   LowCodeAppDetail,
+  LowCodeAppVersionListItem,
   LowCodeEnvironmentListItem,
   LowCodePageListItem,
   LowCodePageTreeNode,
@@ -218,6 +276,8 @@ import type {
 } from "@/types/lowcode";
 import {
   getLowCodeAppDetail,
+  getLowCodeAppVersionsPaged,
+  rollbackLowCodeAppVersion,
   getLowCodeEnvironments,
   getLowCodeEnvironmentDetail,
   getLowCodePageDetail,
@@ -237,6 +297,7 @@ import {
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 const appId = route.params.id as string;
 
 const loading = ref(true);
@@ -246,6 +307,22 @@ const appDetail = ref<LowCodeAppDetail | null>(null);
 const pages = ref<LowCodePageListItem[]>([]);
 const selectedPageId = ref<string | null>(null);
 const pageEditorRef = ref<InstanceType<typeof AmisEditor> | null>(null);
+const appVersionDrawerVisible = ref(false);
+const appVersionLoading = ref(false);
+const appVersionItems = ref<LowCodeAppVersionListItem[]>([]);
+const appVersionTotal = ref(0);
+const appVersionPageIndex = ref(1);
+const appVersionPageSize = ref(10);
+const appRollbackingVersionId = ref<string | null>(null);
+const appVersionColumns = computed(() => [
+  { title: t("lowcodeBuilder.version"), dataIndex: "version", key: "version", width: 100 },
+  { title: t("lowcodeBuilder.actionType"), key: "actionType", width: 110 },
+  { title: t("lowcodeBuilder.sourceVersion"), key: "sourceVersionId", width: 150 },
+  { title: t("lowcodeBuilder.note"), key: "note" },
+  { title: t("lowcodeBuilder.createdAt"), key: "createdAt", width: 170 },
+  { title: t("lowcodeBuilder.createdBy"), dataIndex: "createdBy", key: "createdBy", width: 100 },
+  { title: t("common.actions"), key: "actions", width: 90 }
+]);
 
 // Page schemas cache
 const pageSchemas = ref<Record<string, Record<string, unknown>>>({});
@@ -273,7 +350,7 @@ const pageForm = reactive({
 });
 
 const versionModalVisible = ref(false);
-const versionLoading = ref(false);
+const pageVersionLoading = ref(false);
 const versionTargetPageId = ref<string | null>(null);
 const pageVersions = ref<LowCodePageVersionListItem[]>([]);
 const environments = ref<LowCodeEnvironmentListItem[]>([]);
@@ -409,7 +486,7 @@ const loadApp = async () => {
       await selectPage(flattened.list[0].id);
     }
   } catch (error) {
-    message.error((error as Error).message || "加载应用失败");
+    message.error((error as Error).message || t("lowcodeBuilder.loadAppFailed"));
   } finally {
     loading.value = false;
   }
@@ -461,14 +538,14 @@ const handleEditPage = (page: LowCodePageListItem) => {
 
 const handlePageFormSubmit = async () => {
   if (!pageForm.name.trim()) {
-    message.warning("请输入页面名称");
+    message.warning(t("lowcodeBuilder.pageNameRequired"));
     return;
   }
 
   try {
     if (pageFormMode.value === "create") {
       if (!pageForm.pageKey.trim()) {
-        message.warning("请输入页面标识");
+        message.warning(t("lowcodeBuilder.pageKeyRequired"));
         return;
       }
       const schema = generateDefaultSchema(pageForm.pageType, pageForm.name);
@@ -481,7 +558,7 @@ const handlePageFormSubmit = async () => {
         description: pageForm.description || undefined,
         sortOrder: pageForm.sortOrder
       });
-      message.success("页面创建成功");
+      message.success(t("lowcodeBuilder.createPageSuccess"));
     } else if (editingPageId.value) {
       let currentSchema = pageSchemas.value[editingPageId.value];
       if (!currentSchema) {
@@ -498,12 +575,12 @@ const handlePageFormSubmit = async () => {
         description: pageForm.description || undefined,
         sortOrder: pageForm.sortOrder
       });
-      message.success("页面更新成功");
+      message.success(t("lowcodeBuilder.updatePageSuccess"));
     }
     pageFormVisible.value = false;
     await loadApp();
   } catch (error) {
-    message.error((error as Error).message || "操作失败");
+    message.error((error as Error).message || t("lowcodeBuilder.pageOperationFailed"));
   }
 };
 
@@ -522,10 +599,10 @@ const handleSavePageSchema = async () => {
       ?? pageSchemas.value[selectedPageId.value];
     if (currentSchema) {
       await updateLowCodePageSchema(selectedPageId.value, JSON.stringify(currentSchema));
-      message.success("保存成功");
+      message.success(t("lowcodeBuilder.saveSchemaSuccess"));
     }
   } catch (error) {
-    message.error((error as Error).message || "保存失败");
+    message.error((error as Error).message || t("lowcodeBuilder.saveSchemaFailed"));
   } finally {
     saving.value = false;
   }
@@ -535,10 +612,10 @@ const handlePublishPage = async (pageId: string) => {
   publishing.value = true;
   try {
     await publishLowCodePage(pageId);
-    message.success("发布成功");
+    message.success(t("lowcodeBuilder.publishSuccess"));
     await loadApp();
   } catch (error) {
-    message.error((error as Error).message || "发布失败");
+    message.error((error as Error).message || t("lowcodeBuilder.publishFailed"));
   } finally {
     publishing.value = false;
   }
@@ -547,18 +624,18 @@ const handlePublishPage = async (pageId: string) => {
 const handleOpenVersionHistory = async (page: LowCodePageListItem) => {
   versionModalVisible.value = true;
   versionTargetPageId.value = page.id;
-  versionLoading.value = true;
+  pageVersionLoading.value = true;
   try {
     pageVersions.value = await getLowCodePageVersions(page.id);
   } catch (error) {
     pageVersions.value = [];
     message.error((error as Error).message || "加载版本历史失败");
   } finally {
-    versionLoading.value = false;
+    pageVersionLoading.value = false;
   }
 };
 
-const handleRollbackVersion = async (versionId: string) => {
+const handleRollbackPageVersion = async (versionId: string) => {
   if (!versionTargetPageId.value) {
     return;
   }
@@ -704,10 +781,59 @@ const handleDeletePage = async (pageId: string) => {
       selectedPageId.value = null;
     }
     delete pageSchemas.value[pageId];
-    message.success("已删除");
+    message.success(t("lowcodeBuilder.deleteSuccess"));
     await loadApp();
   } catch (error) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("lowcodeBuilder.deleteFailed"));
+  }
+};
+
+const loadAppVersions = async () => {
+  appVersionLoading.value = true;
+  try {
+    const result = await getLowCodeAppVersionsPaged(appId, {
+      pageIndex: appVersionPageIndex.value,
+      pageSize: appVersionPageSize.value
+    });
+    appVersionItems.value = result.items;
+    appVersionTotal.value = result.total;
+  } catch (error) {
+    message.error((error as Error).message || t("lowcodeBuilder.loadVersionFailed"));
+  } finally {
+    appVersionLoading.value = false;
+  }
+};
+
+const openAppVersionDrawer = async () => {
+  appVersionDrawerVisible.value = true;
+  appVersionPageIndex.value = 1;
+  await loadAppVersions();
+};
+
+const onAppVersionPageChange = (page: number, pageSizeValue: number) => {
+  appVersionPageIndex.value = page;
+  appVersionPageSize.value = pageSizeValue;
+  loadAppVersions();
+};
+
+const handleRollbackAppVersion = async (versionId: string) => {
+  appRollbackingVersionId.value = versionId;
+  try {
+    const newVersion = await rollbackLowCodeAppVersion(appId, versionId);
+    message.success(t("lowcodeBuilder.rollbackSuccess", { version: newVersion }));
+    await Promise.all([loadApp(), loadAppVersions()]);
+  } catch (error) {
+    message.error((error as Error).message || t("lowcodeBuilder.rollbackFailed"));
+  } finally {
+    appRollbackingVersionId.value = null;
+  }
+};
+
+const formatTime = (time: string) => {
+  try {
+    return new Date(time).toLocaleString("zh-CN");
+  } catch {
+    return time;
   }
 };
 

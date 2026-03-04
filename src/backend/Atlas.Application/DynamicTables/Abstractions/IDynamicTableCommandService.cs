@@ -25,6 +25,12 @@ public interface IDynamicTableCommandService
         DynamicTableAlterRequest request,
         CancellationToken cancellationToken);
 
+    Task<DynamicTableAlterPreviewResponse> PreviewAlterAsync(
+        TenantId tenantId,
+        string tableKey,
+        DynamicTableAlterRequest request,
+        CancellationToken cancellationToken);
+
     Task DeleteAsync(
         TenantId tenantId,
         long userId,

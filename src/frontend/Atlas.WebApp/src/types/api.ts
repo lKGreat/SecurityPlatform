@@ -87,6 +87,24 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
+export interface FileRecordDto {
+  id: number;
+  originalName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedById: number;
+  uploadedByName: string;
+  uploadedAt: string;
+}
+
+export interface FileUploadResult {
+  id: number;
+  originalName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
 // 表格视图（个人）
 export type TableViewDensity = "compact" | "default" | "comfortable";
 
@@ -542,6 +560,7 @@ export interface RoleDetail {
   code: string;
   description?: string;
   isSystem: boolean;
+  dataScope: number;
   permissionIds: number[];
   menuIds: number[];
 }
@@ -729,6 +748,39 @@ export interface ProjectAssignDepartmentsRequest {
 
 export interface ProjectAssignPositionsRequest {
   positionIds: number[];
+}
+
+export interface TenantDataSourceDto {
+  id: string;
+  tenantIdValue: string;
+  name: string;
+  dbType: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface TenantDataSourceCreateRequest {
+  tenantIdValue: string;
+  name: string;
+  connectionString: string;
+  dbType: string;
+}
+
+export interface TenantDataSourceUpdateRequest {
+  name: string;
+  connectionString: string;
+  dbType: string;
+}
+
+export interface TenantDataSourceTestConnectionRequest {
+  connectionString: string;
+  dbType: string;
+}
+
+export interface TenantDataSourceTestConnectionResult {
+  success: boolean;
+  errorMessage?: string;
 }
 
 export interface PositionListItem {

@@ -30,6 +30,17 @@ public sealed record DynamicTableDetail(
     long? ApprovalFlowDefinitionId = null,
     string? ApprovalStatusField = null);
 
+public sealed record DynamicSchemaMigrationListItem(
+    string Id,
+    string TableId,
+    string TableKey,
+    string OperationType,
+    string Status,
+    string AppliedSql,
+    string? RollbackSql,
+    long CreatedBy,
+    DateTimeOffset CreatedAt);
+
 public sealed record DynamicTableCreateRequest(
     string TableKey,
     string DisplayName,
@@ -47,6 +58,12 @@ public sealed record DynamicTableAlterRequest(
     IReadOnlyList<DynamicFieldDefinition> AddFields,
     IReadOnlyList<DynamicFieldUpdateDefinition> UpdateFields,
     IReadOnlyList<string> RemoveFields);
+
+public sealed record DynamicTableAlterPreviewResponse(
+    string TableKey,
+    string OperationType,
+    IReadOnlyList<string> SqlScripts,
+    string? RollbackHint);
 
 public sealed record DynamicFieldDefinition(
     string Name,
