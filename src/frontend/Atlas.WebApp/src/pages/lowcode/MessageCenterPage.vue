@@ -39,7 +39,7 @@
         <a-table :columns="channelColumns" :data-source="channels" :loading="channelLoading" row-key="id" :pagination="false">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'isEnabled'">
-              <a-tag :color="record.isEnabled ? 'green' : 'default'">{{ record.isEnabled ? '已启用' : '已禁用' }}</a-tag>
+              <a-tag :color="record.isActive ? 'green' : 'default'">{{ record.isActive ? '已启用' : '已禁用' }}</a-tag>
             </template>
             <template v-else-if="column.key === 'actions'">
               <a-button type="link" @click="handleEditChannel(record)">编辑</a-button>
@@ -52,7 +52,6 @@
     <!-- Template Modal -->
     <a-modal v-model:open="templateModalVisible" :title="editingTemplateId ? '编辑模板' : '新建模板'" ok-text="确定" cancel-text="取消" @ok="submitTemplate" width="640px">
       <a-form layout="vertical">
-        <a-form-item label="模板编码" required><a-input v-model:value="templateForm.code" /></a-form-item>
         <a-form-item label="模板名称" required><a-input v-model:value="templateForm.name" /></a-form-item>
         <a-form-item label="渠道" required>
           <a-select v-model:value="templateForm.channel">
@@ -62,7 +61,9 @@
             <a-select-option value="Webhook">Webhook</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="标题模板"><a-input v-model:value="templateForm.titleTemplate" /></a-form-item>
+        <a-form-item label="事件类型"><a-input v-model:value="templateForm.eventType" placeholder="例如：approval.created" /></a-form-item>
+        <a-form-item label="标题模板"><a-input v-model:value="templateForm.subjectTemplate" /></a-form-item>
+        <a-form-item label="描述"><a-input v-model:value="templateForm.description" /></a-form-item>
         <a-form-item label="内容模板" required><a-textarea v-model:value="templateForm.contentTemplate" :rows="5" placeholder="支持 {{variable}} 占位符" /></a-form-item>
       </a-form>
     </a-modal>
@@ -70,9 +71,9 @@
     <!-- Channel Modal -->
     <a-modal v-model:open="channelModalVisible" :title="editingChannelId ? '编辑渠道' : '新建渠道'" ok-text="确定" cancel-text="取消" @ok="submitChannel" width="640px">
       <a-form layout="vertical">
-        <a-form-item label="渠道名称" required><a-input v-model:value="channelForm.name" /></a-form-item>
+        <a-form-item label="渠道标识" required><a-input v-model:value="channelForm.channel" :disabled="!!editingChannelId" /></a-form-item>
         <a-form-item label="渠道类型" required>
-          <a-select v-model:value="channelForm.channelType">
+          <a-select v-model:value="channelForm.channel">
             <a-select-option value="InApp">站内消息</a-select-option>
             <a-select-option value="Email">邮件</a-select-option>
             <a-select-option value="Sms">短信</a-select-option>
@@ -80,7 +81,7 @@
           </a-select>
         </a-form-item>
         <a-form-item label="配置 JSON"><a-textarea v-model:value="channelForm.configJson" :rows="6" placeholder='{"host":"smtp.example.com","port":465}' /></a-form-item>
-        <a-form-item label="启用"><a-switch v-model:checked="channelForm.isEnabled" /></a-form-item>
+        <a-form-item label="启用"><a-switch v-model:checked="channelForm.isActive" /></a-form-item>
       </a-form>
     </a-modal>
   </div>
@@ -93,9 +94,44 @@ import { message } from "ant-design-vue";
 import { requestApi } from "@/services/api";
 import type { ApiResponse, PagedResult } from "@/types/api";
 
-interface TemplateItem { id: string; code: string; name: string; channel: string; titleTemplate?: string; contentTemplate: string; updatedAt: string; }
-interface RecordItem { id: string; templateName: string; channel: string; recipientId: string; status: string; sentAt?: string; error?: string; }
-interface ChannelItem { id: string; name: string; channelType: string; isEnabled: boolean; configJson: string; }
+interface TemplateItem {
+  id: string;
+  name: string;
+  channel: string;
+  eventType?: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface TemplateDetail {
+  id: string;
+  name: string;
+  channel: string;
+  eventType?: string;
+  contentTemplate: string;
+  subjectTemplate?: string;
+  description?: string;
+}
+
+interface RecordItem {
+  id: string;
+  channel: string;
+  recipientAddress?: string;
+  subject?: string;
+  status: string;
+  retryCount: number;
+  createdAt: string;
+  sentAt?: string;
+}
+
+interface ChannelItem {
+  id: string;
+  channel: string;
+  configJson: string;
+  isActive: boolean;
+  updatedAt: string;
+}
 
 const activeTab = ref("templates");
 
@@ -106,13 +142,20 @@ const templates = ref<TemplateItem[]>([]);
 const templatePagination = reactive<TablePaginationConfig>({ current: 1, pageSize: 10, total: 0 });
 const templateModalVisible = ref(false);
 const editingTemplateId = ref<string | null>(null);
-const templateForm = reactive({ code: "", name: "", channel: "InApp", titleTemplate: "", contentTemplate: "" });
+const templateForm = reactive({
+  name: "",
+  channel: "InApp",
+  eventType: "",
+  subjectTemplate: "",
+  description: "",
+  contentTemplate: ""
+});
 
 const templateColumns = [
-  { title: "编码", dataIndex: "code", key: "code", width: 140 },
   { title: "名称", dataIndex: "name", key: "name" },
+  { title: "事件类型", dataIndex: "eventType", key: "eventType", width: 160 },
   { title: "渠道", key: "channel", width: 120 },
-  { title: "更新时间", dataIndex: "updatedAt", key: "updatedAt", width: 180 },
+  { title: "创建时间", dataIndex: "createdAt", key: "createdAt", width: 180 },
   { title: "操作", key: "actions", width: 140 }
 ];
 
@@ -121,78 +164,228 @@ const channelLabel = (ch: string) => ({ InApp: "站内", Email: "邮件", Sms: "
 const fetchTemplates = async () => {
   templateLoading.value = true;
   try {
-    const q = new URLSearchParams({ pageIndex: (templatePagination.current ?? 1).toString(), pageSize: (templatePagination.pageSize ?? 10).toString(), keyword: templateKeyword.value });
+    const q = new URLSearchParams({
+      pageIndex: (templatePagination.current ?? 1).toString(),
+      pageSize: (templatePagination.pageSize ?? 10).toString(),
+      keyword: templateKeyword.value
+    });
     const resp = await requestApi<ApiResponse<PagedResult<TemplateItem>>>(`/messages/templates?${q}`);
-    if (resp.data) { templates.value = resp.data.items; templatePagination.total = resp.data.total; }
-  } catch (e) { message.error((e as Error).message); } finally { templateLoading.value = false; }
+    if (resp.data) {
+      templates.value = resp.data.items;
+      templatePagination.total = resp.data.total;
+    }
+  } catch (error) {
+    message.error((error as Error).message);
+  } finally {
+    templateLoading.value = false;
+  }
 };
-const onTemplatePagChange = (pager: TablePaginationConfig) => { templatePagination.current = pager.current; templatePagination.pageSize = pager.pageSize; fetchTemplates(); };
-const handleCreateTemplate = () => { editingTemplateId.value = null; Object.assign(templateForm, { code: "", name: "", channel: "InApp", titleTemplate: "", contentTemplate: "" }); templateModalVisible.value = true; };
-const handleEditTemplate = (record: TemplateItem) => { editingTemplateId.value = record.id; Object.assign(templateForm, { code: record.code, name: record.name, channel: record.channel, titleTemplate: record.titleTemplate ?? "", contentTemplate: record.contentTemplate }); templateModalVisible.value = true; };
-const submitTemplate = async () => {
-  if (!templateForm.code || !templateForm.name || !templateForm.contentTemplate) { message.warning("请填写必填项"); return; }
+
+const onTemplatePagChange = (pager: TablePaginationConfig) => {
+  templatePagination.current = pager.current;
+  templatePagination.pageSize = pager.pageSize;
+  void fetchTemplates();
+};
+
+const handleCreateTemplate = () => {
+  editingTemplateId.value = null;
+  Object.assign(templateForm, {
+    name: "",
+    channel: "InApp",
+    eventType: "",
+    subjectTemplate: "",
+    description: "",
+    contentTemplate: ""
+  });
+  templateModalVisible.value = true;
+};
+
+const handleEditTemplate = async (record: TemplateItem) => {
+  editingTemplateId.value = record.id;
   try {
-    const body = JSON.stringify(templateForm);
-    if (editingTemplateId.value) { await requestApi(`/messages/templates/${editingTemplateId.value}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body }); }
-    else { await requestApi("/messages/templates", { method: "POST", headers: { "Content-Type": "application/json" }, body }); }
-    templateModalVisible.value = false; message.success("操作成功"); fetchTemplates();
-  } catch (e) { message.error((e as Error).message); }
+    const resp = await requestApi<ApiResponse<TemplateDetail>>(`/messages/templates/${record.id}`);
+    const detail = resp.data;
+    if (!detail) {
+      throw new Error(resp.message || "加载模板详情失败");
+    }
+
+    Object.assign(templateForm, {
+      name: detail.name,
+      channel: detail.channel,
+      eventType: detail.eventType ?? "",
+      subjectTemplate: detail.subjectTemplate ?? "",
+      description: detail.description ?? "",
+      contentTemplate: detail.contentTemplate
+    });
+    templateModalVisible.value = true;
+  } catch (error) {
+    message.error((error as Error).message);
+  }
 };
-const deleteTemplate = async (id: string) => { try { await requestApi(`/messages/templates/${id}`, { method: "DELETE" }); message.success("已删除"); fetchTemplates(); } catch (e) { message.error((e as Error).message); } };
+
+const submitTemplate = async () => {
+  if (!templateForm.name || !templateForm.contentTemplate) {
+    message.warning("请填写必填项");
+    return;
+  }
+
+  const payload = {
+    name: templateForm.name.trim(),
+    channel: templateForm.channel,
+    eventType: templateForm.eventType.trim() || null,
+    contentTemplate: templateForm.contentTemplate,
+    subjectTemplate: templateForm.subjectTemplate.trim() || null,
+    description: templateForm.description.trim() || null
+  };
+
+  try {
+    if (editingTemplateId.value) {
+      await requestApi(`/messages/templates/${editingTemplateId.value}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      await requestApi("/messages/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    }
+    templateModalVisible.value = false;
+    message.success("操作成功");
+    await fetchTemplates();
+  } catch (error) {
+    message.error((error as Error).message);
+  }
+};
+
+const deleteTemplate = async (id: string) => {
+  try {
+    await requestApi(`/messages/templates/${id}`, { method: "DELETE" });
+    message.success("已删除");
+    await fetchTemplates();
+  } catch (error) {
+    message.error((error as Error).message);
+  }
+};
 
 // ---- Records ----
 const recordLoading = ref(false);
 const records = ref<RecordItem[]>([]);
 const recordPagination = reactive<TablePaginationConfig>({ current: 1, pageSize: 10, total: 0 });
 const recordColumns = [
-  { title: "模板", dataIndex: "templateName", key: "templateName" },
+  { title: "主题", dataIndex: "subject", key: "subject" },
   { title: "渠道", dataIndex: "channel", key: "channel", width: 100 },
-  { title: "收件人", dataIndex: "recipientId", key: "recipientId", width: 160 },
+  { title: "收件人", dataIndex: "recipientAddress", key: "recipientAddress", width: 200 },
   { title: "状态", key: "status", width: 100 },
-  { title: "发送时间", dataIndex: "sentAt", key: "sentAt", width: 180 }
+  { title: "发送时间", dataIndex: "sentAt", key: "sentAt", width: 180 },
+  { title: "创建时间", dataIndex: "createdAt", key: "createdAt", width: 180 }
 ];
+
 const fetchRecords = async () => {
   recordLoading.value = true;
   try {
-    const q = new URLSearchParams({ pageIndex: (recordPagination.current ?? 1).toString(), pageSize: (recordPagination.pageSize ?? 10).toString() });
+    const q = new URLSearchParams({
+      pageIndex: (recordPagination.current ?? 1).toString(),
+      pageSize: (recordPagination.pageSize ?? 10).toString()
+    });
     const resp = await requestApi<ApiResponse<PagedResult<RecordItem>>>(`/messages/records?${q}`);
-    if (resp.data) { records.value = resp.data.items; recordPagination.total = resp.data.total; }
-  } catch (e) { message.error((e as Error).message); } finally { recordLoading.value = false; }
+    if (resp.data) {
+      records.value = resp.data.items;
+      recordPagination.total = resp.data.total;
+    }
+  } catch (error) {
+    message.error((error as Error).message);
+  } finally {
+    recordLoading.value = false;
+  }
 };
-const onRecordPagChange = (pager: TablePaginationConfig) => { recordPagination.current = pager.current; recordPagination.pageSize = pager.pageSize; fetchRecords(); };
+
+const onRecordPagChange = (pager: TablePaginationConfig) => {
+  recordPagination.current = pager.current;
+  recordPagination.pageSize = pager.pageSize;
+  void fetchRecords();
+};
 
 // ---- Channels ----
 const channelLoading = ref(false);
 const channels = ref<ChannelItem[]>([]);
 const channelModalVisible = ref(false);
-const editingChannelId = ref<string | null>(null);
-const channelForm = reactive({ name: "", channelType: "InApp", configJson: "{}", isEnabled: true });
+const editingChannelId = ref<string | null>(null); // 存储 channel 值
+const channelForm = reactive({ channel: "InApp", configJson: "{}", isActive: true });
 const channelColumns = [
-  { title: "渠道名称", dataIndex: "name", key: "name" },
-  { title: "类型", dataIndex: "channelType", key: "channelType", width: 120 },
+  { title: "渠道", dataIndex: "channel", key: "channel", width: 140 },
+  { title: "配置", dataIndex: "configJson", key: "configJson", ellipsis: true },
   { title: "状态", key: "isEnabled", width: 100 },
+  { title: "更新时间", dataIndex: "updatedAt", key: "updatedAt", width: 180 },
   { title: "操作", key: "actions", width: 100 }
 ];
+
 const fetchChannels = async () => {
   channelLoading.value = true;
   try {
     const resp = await requestApi<ApiResponse<ChannelItem[]>>("/messages/channels");
-    if (resp.data) { channels.value = resp.data; }
-  } catch (e) { message.error((e as Error).message); } finally { channelLoading.value = false; }
-};
-const handleCreateChannel = () => { editingChannelId.value = null; Object.assign(channelForm, { name: "", channelType: "InApp", configJson: "{}", isEnabled: true }); channelModalVisible.value = true; };
-const handleEditChannel = (record: ChannelItem) => { editingChannelId.value = record.id; Object.assign(channelForm, { name: record.name, channelType: record.channelType, configJson: record.configJson, isEnabled: record.isEnabled }); channelModalVisible.value = true; };
-const submitChannel = async () => {
-  if (!channelForm.name) { message.warning("请填写名称"); return; }
-  try {
-    const body = JSON.stringify(channelForm);
-    if (editingChannelId.value) { await requestApi(`/messages/channels/${editingChannelId.value}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body }); }
-    else { await requestApi("/messages/channels", { method: "POST", headers: { "Content-Type": "application/json" }, body }); }
-    channelModalVisible.value = false; message.success("操作成功"); fetchChannels();
-  } catch (e) { message.error((e as Error).message); }
+    if (resp.data) {
+      channels.value = resp.data;
+    }
+  } catch (error) {
+    message.error((error as Error).message);
+  } finally {
+    channelLoading.value = false;
+  }
 };
 
-onMounted(() => { fetchTemplates(); fetchRecords(); fetchChannels(); });
+const handleCreateChannel = () => {
+  editingChannelId.value = null;
+  Object.assign(channelForm, { channel: "InApp", configJson: "{}", isActive: true });
+  channelModalVisible.value = true;
+};
+
+const handleEditChannel = (record: ChannelItem) => {
+  editingChannelId.value = record.channel;
+  Object.assign(channelForm, {
+    channel: record.channel,
+    configJson: record.configJson,
+    isActive: record.isActive
+  });
+  channelModalVisible.value = true;
+};
+
+const submitChannel = async () => {
+  if (!channelForm.channel) {
+    message.warning("请填写渠道");
+    return;
+  }
+
+  const channel = (editingChannelId.value ?? channelForm.channel).trim();
+  if (!channel) {
+    message.warning("渠道不能为空");
+    return;
+  }
+
+  try {
+    await requestApi(`/messages/channels/${encodeURIComponent(channel)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        configJson: channelForm.configJson,
+        isActive: channelForm.isActive
+      })
+    });
+    channelModalVisible.value = false;
+    message.success("操作成功");
+    await fetchChannels();
+  } catch (error) {
+    message.error((error as Error).message);
+  }
+};
+
+onMounted(() => {
+  void fetchTemplates();
+  void fetchRecords();
+  void fetchChannels();
+});
 </script>
 
 <style scoped>
