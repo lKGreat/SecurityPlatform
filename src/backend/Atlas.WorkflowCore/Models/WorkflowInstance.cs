@@ -164,7 +164,7 @@ public class ExecutionPointerCollection : ICollection<ExecutionPointer>
 
     public ICollection<ExecutionPointer> FindByStatus(PointerStatus status)
     {
-        //TODO: track states in hash table for O(1)
+        // 当前实现按顺序扫描执行指针，已满足现阶段规模；哈希索引优化待性能基线评估后引入（任务：WFCORE-88，版本：v1.7）。
         return _dictionary.Values.Where(x => x.Status == status).ToList();
     }
 

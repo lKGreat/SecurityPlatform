@@ -5,7 +5,8 @@ namespace Atlas.Domain.Approval.Entities;
 
 /// <summary>
 /// 审批流流程变量（用于存储流程运行时的变量数据）
-/// TODO: 流程变量功能预留，待实现条件规则评估器时使用
+/// 当前能力边界：仅用于持久化流程运行时变量快照，
+/// 不承担条件表达式解析、规则求值或动态类型推断。
 /// </summary>
 public sealed class ApprovalProcessVariable : TenantEntity
 {

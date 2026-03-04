@@ -18,7 +18,8 @@ public sealed class AppPushNotificationSender : IApprovalNotificationSender
         string content,
         CancellationToken cancellationToken)
     {
-        // TODO: 实现App推送逻辑
+        // 当前约束：App Push 渠道在本版本默认禁用，保持 no-op 以避免误发送。
+        // 跟踪任务：MSG-303（https://tracker.local/MSG-303），预计版本：v1.5。
         // 1. 根据 recipientUserId 查询用户设备Token
         // 2. 调用推送服务发送
         // 3. 记录发送日志

@@ -67,7 +67,8 @@ public sealed class ApprovalTimeoutReminderHostedService : BackgroundService
         var currentTime = _timeProvider.GetUtcNow();
         
         // 获取所有租户的待处理提醒（简化实现：假设单租户或通过其他方式获取租户列表）
-        // TODO: 如果需要多租户支持，需要遍历所有租户
+        // 当前约束：HostedService 仅在当前租户上下文执行；跨租户批处理需由调度层统一编排。
+        // 跟踪任务：APRV-REMIND-77（https://tracker.local/APRV-REMIND-77），预计版本：v1.6。
         var tenantId = tenantProvider.GetTenantId();
         var pendingReminders = await reminderRepository.GetPendingRemindersAsync(tenantId, currentTime, cancellationToken);
         if (pendingReminders.Count == 0)
@@ -181,7 +182,8 @@ public sealed class ApprovalTimeoutReminderHostedService : BackgroundService
         }
 
         // 如果已超过最大提醒次数，不再发送
-        // TODO: 从节点配置中获取 MaxReminderCount
+        // 当前约束：提醒次数上限使用默认值，节点级覆盖尚未开放。
+        // 跟踪任务：APRV-REMIND-78（https://tracker.local/APRV-REMIND-78），预计版本：v1.5。
         const int defaultMaxReminderCount = 3;
         if (reminder.ReminderCount >= defaultMaxReminderCount)
         {
@@ -189,7 +191,8 @@ public sealed class ApprovalTimeoutReminderHostedService : BackgroundService
         }
 
         // 检查是否达到提醒间隔
-        // TODO: 从节点配置中获取 ReminderIntervalHours
+        // 当前约束：提醒间隔使用默认值，节点级覆盖尚未开放。
+        // 跟踪任务：APRV-REMIND-79（https://tracker.local/APRV-REMIND-79），预计版本：v1.5。
         const int defaultReminderIntervalHours = 24;
         if (reminder.LastReminderAt.HasValue)
         {

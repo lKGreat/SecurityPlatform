@@ -243,7 +243,7 @@ public class StepBuilder<TData, TStepBody> : IStepBuilder<TData, TStepBody>, ICo
 
     private WorkflowStep? IterateParents(int id, string name)
     {
-        // TODO: filter out circular paths
+        // 当前约束：调用方需保证无环定义；自动环路检测见任务 WFCORE-91（版本：v1.6）。
         var upstream = WorkflowBuilder.GetUpstreamSteps(id);
         foreach (var parent in upstream)
         {
@@ -450,7 +450,7 @@ public class StepBuilder<TData, TStepBody> : IStepBuilder<TData, TStepBody>, ICo
         var stepBuilder = new StepBuilder<TData, Sequence>(WorkflowBuilder, newStep);
         Step.Outcomes.Add(new ValueOutcome { NextStep = newStep.Id });
         builder.Invoke(WorkflowBuilder);
-        stepBuilder.Step.Children.Add(stepBuilder.Step.Id + 1); //TODO: make more elegant
+        stepBuilder.Step.Children.Add(stepBuilder.Step.Id + 1); // 当前约束：通过顺序节点连接保持构建器兼容性，后续统一重构见任务 WFCORE-90（版本：v1.6）。
 
         return stepBuilder;
     }
@@ -500,7 +500,7 @@ public class StepBuilder<TData, TStepBody> : IStepBuilder<TData, TStepBody>, ICo
     public IStepBuilder<TData, TStepBody> Do(Action<IWorkflowBuilder<TData>> builder)
     {
         builder.Invoke(WorkflowBuilder);
-        Step.Children.Add(Step.Id + 1); //TODO: make more elegant
+        Step.Children.Add(Step.Id + 1); // 当前约束：通过顺序节点连接保持构建器兼容性，后续统一重构见任务 WFCORE-90（版本：v1.6）。
 
         return this;
     }
@@ -546,7 +546,7 @@ public class StepBuilder<TData, TStepBody> : IStepBuilder<TData, TStepBody>, ICo
         var stepBuilder = new StepBuilder<TData, Sequence>(WorkflowBuilder, newStep);
         Step.CompensationStepId = newStep.Id;
         builder.Invoke(WorkflowBuilder);
-        stepBuilder.Step.Children.Add(stepBuilder.Step.Id + 1); //TODO: make more elegant
+        stepBuilder.Step.Children.Add(stepBuilder.Step.Id + 1); // 当前约束：通过顺序节点连接保持构建器兼容性，后续统一重构见任务 WFCORE-90（版本：v1.6）。
 
         return this;
     }

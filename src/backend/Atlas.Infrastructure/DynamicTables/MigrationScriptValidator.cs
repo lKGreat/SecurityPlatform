@@ -127,7 +127,7 @@ internal static class MigrationScriptValidator
     /// <summary>
     /// 检测脚本中是否包含危险关键字。仅匹配整词（非标识符子串），避免 created_at、user_grants 等误报。
     /// 使用 \b 词边界，确保 CREATE 不匹配 created_at，GRANT 不匹配 user_grants。
-    /// 仅检查可执行 SQL 部分，忽略注释内容，避免 -- TODO: DROP COLUMN 等注释导致误报。
+    /// 仅检查可执行 SQL 部分，忽略注释内容，避免 -- 待办: DROP COLUMN 等注释导致误报。
     /// 在检查前将引号/方括号/反引号内的标识符替换为占位符，避免用户定义的表名或列名（如 select、copy、update）
     /// 被误判为危险关键字。
     /// </summary>

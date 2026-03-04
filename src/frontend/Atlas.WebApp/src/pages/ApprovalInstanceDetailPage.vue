@@ -29,7 +29,16 @@
 
           <!-- 流程图状态 -->
           <a-card title="流程状态" class="mb-4">
-            <div class="flow-chart-container" ref="flowChartRef"></div>
+            <div class="flow-chart-container" ref="flowChartRef">
+              <a-steps
+                v-if="flowSteps.length > 0"
+                direction="vertical"
+                size="small"
+                :current="currentFlowStepIndex"
+                :items="flowSteps"
+              />
+              <a-empty v-else description="当前实例暂无可展示的状态轨迹" />
+            </div>
           </a-card>
         </div>
 
@@ -64,7 +73,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { message } from 'ant-design-vue';
 import { 
   getApprovalInstanceById, 
@@ -83,7 +92,6 @@ import {
 import dayjs from 'dayjs';
 
 const route = useRoute();
-const router = useRouter();
 const instanceId = route.params.id as string;
 
 const loading = ref(false);
@@ -95,6 +103,24 @@ const canCancel = computed(() => instance.value?.status === 0); // Running
 const canSuspend = computed(() => instance.value?.status === 0);
 const canActivate = computed(() => instance.value?.status === -2); // Suspended
 
+const flowSteps = computed(() => {
+  return historyEvents.value
+    .slice()
+    .sort((a, b) => dayjs(a.createdAt).valueOf() - dayjs(b.createdAt).valueOf())
+    .map((event) => ({
+      title: getEventActionText(event.eventType),
+      description: `${event.operatorName || '系统'} · ${formatTime(event.createdAt)}`
+    }));
+});
+
+const currentFlowStepIndex = computed(() => {
+  if (flowSteps.value.length === 0) {
+    return 0;
+  }
+
+  return Math.max(flowSteps.value.length - 1, 0);
+});
+
 const fetchDetail = async () => {
   loading.value = true;
   try {
@@ -104,7 +130,6 @@ const fetchDetail = async () => {
     const historyRes = await getApprovalInstanceHistory(instanceId, { pageIndex: 1, pageSize: 100 });
     historyEvents.value = historyRes.items;
     
-    // TODO: Render Flow Chart with Status
   } catch (error) {
     message.error('获取详情失败');
   } finally {

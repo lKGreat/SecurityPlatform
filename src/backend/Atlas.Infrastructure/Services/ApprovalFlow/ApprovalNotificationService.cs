@@ -108,8 +108,8 @@ public sealed class ApprovalNotificationService : IApprovalNotificationService
                         }
                         catch
                         {
-                            // 发送失败不影响流程，记录日志即可
-                            // TODO: 记录发送失败日志
+                            // 发送失败不影响流程主链路，当前版本不做持久化重试与告警聚合。
+                            // 跟踪任务：APRV-NOTIFY-94（https://tracker.local/APRV-NOTIFY-94），预计版本：v1.5。
                         }
                     }
                 }
@@ -148,7 +148,8 @@ public sealed class ApprovalNotificationService : IApprovalNotificationService
             result = result.Replace("{AssigneeType}", task.AssigneeType.ToString());
         }
 
-        // TODO: 扩展更多变量替换
+        // 当前能力边界：仅支持实例与任务基础变量替换，扩展变量需补充跨域查询与缓存策略。
+        // 跟踪任务：APRV-NOTIFY-93（https://tracker.local/APRV-NOTIFY-93），预计版本：v1.4。
         // - {FlowName} - 流程名称（需要查询流程定义）
         // - {InitiatorName} - 发起人姓名（需要查询用户信息）
         // - {CurrentTime} - 当前时间

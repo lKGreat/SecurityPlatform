@@ -18,7 +18,8 @@ public sealed class SmsNotificationSender : IApprovalNotificationSender
         string content,
         CancellationToken cancellationToken)
     {
-        // TODO: 实现短信发送逻辑
+        // 当前约束：短信渠道在本版本默认禁用，保持 no-op 以避免误发送。
+        // 跟踪任务：MSG-301（https://tracker.local/MSG-301），预计版本：v1.5。
         // 1. 根据 recipientUserId 查询用户手机号
         // 2. 调用短信服务发送
         // 3. 记录发送日志

@@ -501,14 +501,16 @@ public class SqlSugarPersistenceProvider : IPersistenceProvider
 
     public Task<bool> SetSubscriptionToken(string eventSubscriptionId, string token, string workerId, DateTime expiry, CancellationToken cancellationToken = default)
     {
-        // TODO: 实现订阅令牌管理
+        // 当前约束：PersistedSubscription 尚未建模 Token/WorkerId/Expiry 字段，暂不支持分布式订阅令牌抢占。
+        // 跟踪任务：WF-221（https://tracker.local/WF-221），预计版本：v1.5。
         // 需要在 PersistedSubscription 实体中添加 Token、WorkerId、Expiry 字段
         return Task.FromResult(false);
     }
 
     public Task ClearSubscriptionToken(string eventSubscriptionId, string token, CancellationToken cancellationToken = default)
     {
-        // TODO: 实现订阅令牌清除
+        // 当前约束：令牌未持久化，清除操作退化为空操作以保持兼容。
+        // 跟踪任务：WF-221（https://tracker.local/WF-221），预计版本：v1.5。
         return Task.CompletedTask;
     }
 

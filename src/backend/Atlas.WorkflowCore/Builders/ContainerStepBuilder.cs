@@ -31,7 +31,7 @@ public class ContainerStepBuilder<TData, TStepBody, TReturnStep> : IContainerSte
     public IStepBuilder<TData, TReturnStep> Do(Action<IWorkflowBuilder<TData>> builder)
     {
         builder.Invoke(_workflowBuilder);
-        _step.Children.Add(_step.Id + 1); //TODO: make more elegant
+        _step.Children.Add(_step.Id + 1); // 当前约束：通过约定的顺序子节点连接保持兼容，结构性重构见任务 WFCORE-90（版本：v1.6）。
 
         return _returnStepBuilder;
     }

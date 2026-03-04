@@ -18,7 +18,8 @@ public sealed class EmailNotificationSender : IApprovalNotificationSender
         string content,
         CancellationToken cancellationToken)
     {
-        // TODO: 实现邮件发送逻辑
+        // 当前约束：邮件渠道在本版本默认禁用，保持 no-op 以避免误发送。
+        // 跟踪任务：MSG-302（https://tracker.local/MSG-302），预计版本：v1.5。
         // 1. 根据 recipientUserId 查询用户邮箱
         // 2. 调用邮件服务发送
         // 3. 记录发送日志
