@@ -6,6 +6,7 @@ using Atlas.Core.Exceptions;
 using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Core.Utilities;
 using Atlas.Domain.DynamicTables.Entities;
 using Atlas.Domain.DynamicTables.Enums;
 using System.Text.Json;
@@ -185,7 +186,16 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
                 baseRequest.Filters ?? Array.Empty<DynamicFilterCondition>());
 
             var result = await _recordRepository.QueryAsync(tenantId, table, fields, request, cancellationToken);
-            allRecords.AddRange(result.Items);
+
+            foreach (var item in result.Items)
+            {
+                if (allRecords.Count >= MaxExportRows)
+                {
+                    break;
+                }
+
+                allRecords.Add(item);
+            }
 
             if (result.Items.Count < ExportPageSize || allRecords.Count >= MaxExportRows)
             {
@@ -308,7 +318,7 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         IReadOnlyList<DynamicRecordDto> records)
     {
         var builder = new System.Text.StringBuilder();
-        builder.AppendLine(string.Join(",", selectedFields.Select(x => EscapeCsv(string.IsNullOrWhiteSpace(x.DisplayName) ? x.Name : x.DisplayName!))));
+        builder.AppendLine(string.Join(",", selectedFields.Select(x => CsvUtility.EscapeField(string.IsNullOrWhiteSpace(x.DisplayName) ? x.Name : x.DisplayName!))));
 
         foreach (var record in records)
         {
@@ -322,7 +332,7 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
                     continue;
                 }
 
-                row.Add(EscapeCsv(ResolveCsvValue(value)));
+                row.Add(CsvUtility.EscapeField(ResolveCsvValue(value)));
             }
 
             builder.AppendLine(string.Join(",", row));
@@ -371,17 +381,4 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         return string.Empty;
     }
 
-    private static string EscapeCsv(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
-
-        var escaped = value.Replace("\"", "\"\"");
-        // RFC 4180: fields containing ", comma, or newline must be enclosed in quotes
-        return escaped.Contains('"') || escaped.Contains(',') || escaped.Contains('\n') || escaped.Contains('\r')
-            ? $"\"{escaped}\""
-            : escaped;
-    }
 }

@@ -42,13 +42,6 @@ public interface IDynamicRecordRepository
         DynamicRecordQueryRequest request,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<DynamicRecordDto>> QueryAllAsync(
-        TenantId tenantId,
-        DynamicTable table,
-        IReadOnlyList<DynamicField> fields,
-        DynamicRecordQueryRequest request,
-        CancellationToken cancellationToken);
-
     Task<DynamicRecordDto?> GetByIdAsync(
         TenantId tenantId,
         DynamicTable table,

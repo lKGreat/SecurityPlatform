@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using Atlas.Domain.DynamicTables.Enums;
 
@@ -96,10 +97,12 @@ internal static class MigrationScriptValidator
     /// <summary>
     /// 检测脚本中是否包含危险关键字。仅匹配整词（非标识符子串），避免 created_at、user_grants 等误报。
     /// 使用 \b 词边界，确保 CREATE 不匹配 created_at，GRANT 不匹配 user_grants。
+    /// 仅检查可执行 SQL 部分，忽略注释内容，避免 -- TODO: DROP COLUMN 等注释导致误报。
     /// </summary>
     private static bool ContainsDangerousKeyword(string script)
     {
-        var upper = script.ToUpperInvariant();
+        var withoutComments = StripSqlComments(script);
+        var upper = withoutComments.ToUpperInvariant();
         foreach (var kw in DangerousKeywords)
         {
             var pattern = $@"\b{Regex.Escape(kw)}\b";
@@ -110,6 +113,44 @@ internal static class MigrationScriptValidator
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// 移除 SQL 注释（-- 行注释与 /* */ 块注释），用于危险关键字检查前的预处理。
+    /// </summary>
+    private static string StripSqlComments(string script)
+    {
+        var sb = new StringBuilder(script.Length);
+        var i = 0;
+        while (i < script.Length)
+        {
+            if (i + 1 < script.Length && script[i] == '/' && script[i + 1] == '*')
+            {
+                i += 2;
+                while (i + 1 < script.Length && !(script[i] == '*' && script[i + 1] == '/'))
+                {
+                    i++;
+                }
+                if (i + 1 < script.Length)
+                {
+                    i += 2;
+                }
+                continue;
+            }
+
+            if (i + 1 < script.Length && script[i] == '-' && script[i + 1] == '-')
+            {
+                while (i < script.Length && script[i] != '\n')
+                {
+                    i++;
+                }
+                continue;
+            }
+
+            sb.Append(script[i]);
+            i++;
+        }
+        return sb.ToString();
     }
 
     private static string[] SplitStatements(string script)

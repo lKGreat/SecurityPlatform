@@ -2,6 +2,7 @@ using Atlas.Application.System.Abstractions;
 using Atlas.Application.System.Models;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Core.Utilities;
 using Atlas.Domain.Identity.Entities;
 using Atlas.Infrastructure.Repositories;
 using SqlSugar;
@@ -82,13 +83,13 @@ public sealed class LoginLogQueryService : ILoginLogQueryService
 
                 var status = item.LoginStatus ? "成功" : "失败";
                 builder.AppendLine(string.Join(",",
-                    EscapeCsv(item.Username),
-                    EscapeCsv(item.IpAddress),
-                    EscapeCsv(item.Browser),
-                    EscapeCsv(item.OperatingSystem),
-                    EscapeCsv(status),
-                    EscapeCsv(item.Message),
-                    EscapeCsv(item.LoginTime.ToString("yyyy-MM-dd HH:mm:ss"))));
+                    CsvUtility.EscapeField(item.Username),
+                    CsvUtility.EscapeField(item.IpAddress),
+                    CsvUtility.EscapeField(item.Browser),
+                    CsvUtility.EscapeField(item.OperatingSystem),
+                    CsvUtility.EscapeField(status),
+                    CsvUtility.EscapeField(item.Message),
+                    CsvUtility.EscapeField(item.LoginTime.ToString("yyyy-MM-dd HH:mm:ss"))));
                 totalFetched++;
             }
 
@@ -149,17 +150,4 @@ public sealed class LoginLogQueryService : ILoginLogQueryService
         return new PagedResult<OnlineUserDto>(dtos, total, pageIndex, pageSize);
     }
 
-    private static string EscapeCsv(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
-
-        var escaped = value.Replace("\"", "\"\"");
-        // RFC 4180: fields containing ", comma, or newline must be enclosed in quotes
-        return escaped.Contains('"') || escaped.Contains(',') || escaped.Contains('\n') || escaped.Contains('\r')
-            ? $"\"{escaped}\""
-            : escaped;
-    }
 }
