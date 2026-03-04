@@ -81,7 +81,9 @@ public sealed class ApprovalOperationDispatcher
                 // 执行操作
                 if (!_handlers.TryGetValue(request.OperationType, out var handler))
                 {
-                    throw new InvalidOperationException($"不支持的操作类型: {request.OperationType}");
+                    var handlerHint = ApprovalOperationHandlingRegistry.GetResponsibleLayer(request.OperationType);
+                    throw new InvalidOperationException(
+                        $"不支持的操作类型: {request.OperationType}。{handlerHint}");
                 }
 
                 await handler.ExecuteAsync(tenantId, instanceId, taskId, operatorUserId, request, cancellationToken);
@@ -119,7 +121,9 @@ public sealed class ApprovalOperationDispatcher
             {
                 if (!_handlers.TryGetValue(request.OperationType, out var handler))
                 {
-                    throw new InvalidOperationException($"不支持的操作类型: {request.OperationType}");
+                    var handlerHint = ApprovalOperationHandlingRegistry.GetResponsibleLayer(request.OperationType);
+                    throw new InvalidOperationException(
+                        $"不支持的操作类型: {request.OperationType}。{handlerHint}");
                 }
 
                 await handler.ExecuteAsync(tenantId, instanceId, taskId, operatorUserId, request, cancellationToken);

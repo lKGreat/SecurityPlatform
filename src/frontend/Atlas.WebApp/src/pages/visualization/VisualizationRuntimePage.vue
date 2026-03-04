@@ -51,8 +51,8 @@
       </a-timeline>
 
       <a-alert
-        v-for="(risk, idx) in detail?.riskHints || []"
-        :key="idx"
+        v-for="risk in detail?.riskHints || []"
+        :key="risk"
         type="warning"
         show-icon
         :message="risk"

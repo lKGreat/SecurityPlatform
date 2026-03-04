@@ -1,7 +1,5 @@
-import { requestApi } from "@/services/api-core";
-import { API_BASE } from "@/services/api-core";
+import { requestApi, requestApiBlob } from "@/services/api-core";
 import type { ApiResponse, PagedResult } from "@/types/api";
-import { getAccessToken, getTenantId } from "@/utils/auth";
 
 export interface LoginLogDto {
   id: string;
@@ -33,24 +31,7 @@ export async function getLoginLogsPaged(params: LoginLogQueryParams): Promise<Pa
 
 export async function exportLoginLogs(params: LoginLogQueryParams): Promise<Blob> {
   const query = buildQuery(params);
-  const headers = new Headers();
-  const token = getAccessToken();
-  const tenantId = getTenantId();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-  if (tenantId) {
-    headers.set("X-Tenant-Id", tenantId);
-  }
-  const response = await fetch(`${API_BASE}/login-logs/export?${query}`, {
-    method: "GET",
-    headers,
-    credentials: "include"
-  });
-  if (!response.ok) {
-    throw new Error("导出失败");
-  }
-  return response.blob();
+  return requestApiBlob(`/login-logs/export?${query}`);
 }
 
 function buildQuery(params: LoginLogQueryParams): string {

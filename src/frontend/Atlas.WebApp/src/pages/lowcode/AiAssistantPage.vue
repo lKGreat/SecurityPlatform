@@ -12,7 +12,7 @@
       <div class="ai-main">
         <div class="ai-chat-area">
           <div class="chat-messages" ref="chatContainerRef">
-            <div v-for="(msg, idx) in messages" :key="idx" :class="['chat-message', msg.role]">
+            <div v-for="msg in messages" :key="msg.id" :class="['chat-message', msg.role]">
               <div class="message-bubble">
                 <div v-if="msg.role === 'assistant' && msg.resultJson" class="result-section">
                   <a-button type="primary" size="small" @click="handleApplyResult(msg.resultJson)" style="margin-bottom: 8px">应用结果</a-button>
@@ -44,14 +44,14 @@ import { message } from "ant-design-vue";
 import { requestApi } from "@/services/api";
 import type { ApiResponse } from "@/types/api";
 
-interface ChatMessage { role: "user" | "assistant"; content: string; resultJson?: string; }
+interface ChatMessage { id: string; role: "user" | "assistant"; content: string; resultJson?: string; }
 
 const selectedFunction = ref<string[]>(["form"]);
 const userInput = ref("");
 const generating = ref(false);
 const chatContainerRef = ref<HTMLElement>();
 const messages = reactive<ChatMessage[]>([
-  { role: "assistant", content: "你好！我是 AI 助手，可以帮你生成表单、SQL 或工作流建议。请选择左侧功能并描述你的需求。" }
+  { id: crypto.randomUUID(), role: "assistant", content: "你好！我是 AI 助手，可以帮你生成表单、SQL 或工作流建议。请选择左侧功能并描述你的需求。" }
 ]);
 
 const inputPlaceholder = computed(() => {
@@ -72,7 +72,7 @@ const sendMessage = async () => {
   const text = userInput.value.trim();
   if (!text) return;
 
-  messages.push({ role: "user", content: text });
+  messages.push({ id: crypto.randomUUID(), role: "user", content: text });
   userInput.value = "";
   generating.value = true;
   scrollToBottom();
@@ -87,12 +87,12 @@ const sendMessage = async () => {
       body: JSON.stringify({ description: text })
     });
     if (resp.data) {
-      messages.push({ role: "assistant", content: resp.data.explanation, resultJson: resp.data.result });
+      messages.push({ id: crypto.randomUUID(), role: "assistant", content: resp.data.explanation, resultJson: resp.data.result });
     } else {
-      messages.push({ role: "assistant", content: "抱歉，未能生成结果，请重试。" });
+      messages.push({ id: crypto.randomUUID(), role: "assistant", content: "抱歉，未能生成结果，请重试。" });
     }
   } catch (e) {
-    messages.push({ role: "assistant", content: `出错了：${(e as Error).message}` });
+    messages.push({ id: crypto.randomUUID(), role: "assistant", content: `出错了：${(e as Error).message}` });
   } finally {
     generating.value = false;
     scrollToBottom();

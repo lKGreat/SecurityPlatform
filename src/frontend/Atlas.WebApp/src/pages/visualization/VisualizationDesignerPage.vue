@@ -57,8 +57,8 @@
             <a-alert v-if="validation.isValid" type="success" message="校验通过" show-icon />
             <a-alert v-else type="error" message="校验失败" show-icon />
             <ul class="msg-list">
-              <li v-for="(err, idx) in validation.errors" :key="idx">{{ err }}</li>
-              <li v-for="(warn, idx) in validation.warnings || []" :key="'w'+idx" class="warn">{{ warn }}</li>
+              <li v-for="err in validation.errors" :key="err">{{ err }}</li>
+              <li v-for="warn in validation.warnings || []" :key="`w-${warn}`" class="warn">{{ warn }}</li>
             </ul>
           </div>
           <a-empty v-else description="暂无校验结果" />

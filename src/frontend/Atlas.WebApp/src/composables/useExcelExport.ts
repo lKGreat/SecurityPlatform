@@ -1,7 +1,6 @@
 import { ref } from "vue";
 import { message } from "ant-design-vue";
-import { getAccessToken, getTenantId } from "@/utils/auth";
-import { API_BASE, requestApi } from "@/services/api-core";
+import { requestApi, requestApiBlob } from "@/services/api-core";
 import type { ApiResponse } from "@/types/api";
 
 /**
@@ -16,22 +15,7 @@ export function useExcelExport() {
    * 触发文件下载（通过 Blob URL）
    */
   async function downloadBlob(url: string, filename: string) {
-    const token = getAccessToken();
-    const tenantId = getTenantId();
-    const baseUrl = API_BASE;
-
-    const response = await fetch(`${baseUrl}${url}`, {
-      headers: {
-        Authorization: `Bearer ${token ?? ""}`,
-        "X-Tenant-Id": tenantId ?? ""
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`下载失败 (${response.status})`);
-    }
-
-    const blob = await response.blob();
+    const blob = await requestApiBlob(url);
     const objectUrl = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = objectUrl;

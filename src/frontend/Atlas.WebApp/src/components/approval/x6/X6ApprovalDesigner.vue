@@ -218,6 +218,7 @@ function initGraph() {
       snap: true,
       validateMagnet: ({ magnet }: { magnet: Element | null }) =>
         magnet?.getAttribute('port-group') === 'out',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       validateConnection: (args: any) => {
         const sourceCellId = args?.sourceCell?.id as string | undefined;
         const targetCellId = args?.targetCell?.id as string | undefined;
@@ -349,7 +350,7 @@ function initGraph() {
   // ── 右键菜单事件 ──
 
   // 节点右键菜单
-  graph.on('node:contextmenu', ({ e, node }: { e: MouseEvent; node: any }) => {
+  graph.on('node:contextmenu', ({ e, node }: { e: MouseEvent; node: { id: string; getData: () => ContextMenuNode | null } }) => {
     e.preventDefault();
     const nodeData = node.getData();
     contextNode.value = nodeData as ContextMenuNode;
@@ -527,17 +528,17 @@ function handleCopyNode() {
   message.success('节点已复制');
 }
 
-function findNodeById(nodeId: string): any {
+function findNodeById(nodeId: string): TreeNode | ConditionBranch | null {
   // 简化实现：遍历树查找节点
-  function traverse(node: any, depth = 0): any {
+  function traverse(node: TreeNode | ConditionBranch, depth = 0): TreeNode | ConditionBranch | null {
     if (depth > 50) return null; // 防止无限递归
     if (node.id === nodeId) return node;
-    if (node.childNode) {
+    if ('childNode' in node && node.childNode) {
       const result = traverse(node.childNode, depth + 1);
       if (result) return result;
     }
-    if (node.branches) {
-      for (const branch of node.branches) {
+    if ('branches' in node && Array.isArray((node as Record<string, unknown>).branches)) {
+      for (const branch of (node as Record<string, unknown[]>).branches as ConditionBranch[]) {
         if (branch.id === nodeId) return branch;
         if (branch.childNode) {
           const result = traverse(branch.childNode, depth + 1);

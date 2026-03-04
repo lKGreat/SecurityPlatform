@@ -11,19 +11,10 @@ using ParallelTokenStatus = Atlas.Domain.Approval.Entities.ParallelTokenStatus;
 namespace Atlas.Infrastructure.Services.ApprovalFlow;
 
 /// <summary>
-/// 流程执行上下文（AsyncLocal，用于在节点间传递运行时数据）
+/// 流程执行上下文（用于在节点链路中传递运行时数据）
 /// </summary>
 public sealed class FlowExecutionContext
 {
-    private static readonly AsyncLocal<FlowExecutionContext?> _current = new();
-
-    /// <summary>获取或设置当前执行上下文</summary>
-    public static FlowExecutionContext? Current
-    {
-        get => _current.Value;
-        set => _current.Value = value;
-    }
-
     /// <summary>运行时动态分配审批人（nodeId -> userIds）</summary>
     public Dictionary<string, List<long>> DynamicAssignees { get; } = new();
 
@@ -47,12 +38,10 @@ public sealed class FlowEngine
 {
     private readonly IApprovalTaskRepository _taskRepository;
     private readonly IApprovalNodeExecutionRepository _nodeExecutionRepository;
-    private readonly IApprovalDepartmentLeaderRepository _deptLeaderRepository;
     private readonly IApprovalParallelTokenRepository _parallelTokenRepository;
     private readonly IApprovalCopyRecordRepository _copyRecordRepository;
     private readonly ConditionEvaluator _conditionEvaluator;
-    private readonly IApprovalUserQueryService _userQueryService;
-    private readonly DeduplicationService _deduplicationService;
+    private readonly AssigneeResolver _assigneeResolver;
     private readonly IApprovalNotificationService? _notificationService;
     private readonly IApprovalTimeoutReminderRepository? _timeoutReminderRepository;
     private readonly ExternalCallbackService? _callbackService;
@@ -60,16 +49,18 @@ public sealed class FlowEngine
     private readonly IIdGeneratorAccessor _idGeneratorAccessor;
     private readonly IBackgroundWorkQueue? _backgroundWorkQueue;
     private readonly IServiceProvider? _serviceProvider;
+    private readonly FlowGatewayHandler _gatewayHandler;
+    private readonly FlowTaskGenerator _taskGenerator;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<FlowEngine>? _logger;
 
     public FlowEngine(
         IApprovalTaskRepository taskRepository,
         IApprovalNodeExecutionRepository nodeExecutionRepository,
-        IApprovalDepartmentLeaderRepository deptLeaderRepository,
         IApprovalParallelTokenRepository parallelTokenRepository,
         IApprovalCopyRecordRepository copyRecordRepository,
         ConditionEvaluator conditionEvaluator,
+        AssigneeResolver assigneeResolver,
         IApprovalUserQueryService userQueryService,
         DeduplicationService deduplicationService,
         IIdGeneratorAccessor idGeneratorAccessor,
@@ -79,17 +70,17 @@ public sealed class FlowEngine
         IApprovalAiHandler? aiHandler = null,
         IBackgroundWorkQueue? backgroundWorkQueue = null,
         IServiceProvider? serviceProvider = null,
+        FlowGatewayHandler? gatewayHandler = null,
+        FlowTaskGenerator? taskGenerator = null,
         TimeProvider? timeProvider = null,
         ILogger<FlowEngine>? logger = null)
     {
         _taskRepository = taskRepository;
         _nodeExecutionRepository = nodeExecutionRepository;
-        _deptLeaderRepository = deptLeaderRepository;
         _parallelTokenRepository = parallelTokenRepository;
         _copyRecordRepository = copyRecordRepository;
         _conditionEvaluator = conditionEvaluator;
-        _userQueryService = userQueryService;
-        _deduplicationService = deduplicationService;
+        _assigneeResolver = assigneeResolver;
         _notificationService = notificationService;
         _timeoutReminderRepository = timeoutReminderRepository;
         _callbackService = callbackService;
@@ -97,6 +88,17 @@ public sealed class FlowEngine
         _idGeneratorAccessor = idGeneratorAccessor;
         _backgroundWorkQueue = backgroundWorkQueue;
         _serviceProvider = serviceProvider;
+        _gatewayHandler = gatewayHandler ?? new FlowGatewayHandler(parallelTokenRepository, idGeneratorAccessor);
+        _taskGenerator = taskGenerator ?? new FlowTaskGenerator(
+            assigneeResolver,
+            deduplicationService,
+            userQueryService,
+            taskRepository,
+            idGeneratorAccessor,
+            agentConfigRepository: null,
+            timeoutReminderRepository,
+            backgroundWorkQueue,
+            timeProvider);
         _timeProvider = timeProvider ?? TimeProvider.System;
         _logger = logger;
     }
@@ -109,7 +111,8 @@ public sealed class FlowEngine
         ApprovalProcessInstance instance,
         FlowDefinition definition,
         string targetNodeId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        FlowExecutionContext? executionContext = null)
     {
         var targetNode = definition.GetNodeById(targetNodeId);
         if (targetNode == null)
@@ -121,7 +124,7 @@ public sealed class FlowEngine
         // instance.CurrentNodeId 已经在外部被更新前记录了历史，这里不需要额外操作
 
         // 直接处理目标节点
-        await ProcessNextNodeAsync(tenantId, instance, definition, targetNodeId, cancellationToken);
+        await ProcessNextNodeAsync(tenantId, instance, definition, targetNodeId, cancellationToken, executionContext);
     }
 
     /// <summary>
@@ -134,8 +137,10 @@ public sealed class FlowEngine
         FlowDefinition definition,
         string currentNodeId,
         string? specifiedTargetNodeId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        FlowExecutionContext? executionContext = null)
     {
+        var context = executionContext ?? new FlowExecutionContext();
         var currentNode = definition.GetNodeById(currentNodeId);
         if (currentNode == null) return false;
 
@@ -160,8 +165,8 @@ public sealed class FlowEngine
                     var firstApprovalNodeId = FindFirstApprovalNodeAfterStart(definition, startNode.Id);
                     if (firstApprovalNodeId != null)
                     {
-                        SetupReApproveContext(currentNode, firstApprovalNodeId);
-                        await JumpToNodeAsync(tenantId, instance, definition, firstApprovalNodeId, cancellationToken);
+                        SetupReApproveContext(context, currentNode);
+                        await JumpToNodeAsync(tenantId, instance, definition, firstApprovalNodeId, cancellationToken, context);
                         return true;
                     }
                 }
@@ -172,8 +177,8 @@ public sealed class FlowEngine
                 var prevNodeId = definition.FindParentApprovalNodeId(currentNodeId);
                 if (prevNodeId != null)
                 {
-                    SetupReApproveContext(currentNode, prevNodeId);
-                    await JumpToNodeAsync(tenantId, instance, definition, prevNodeId, cancellationToken);
+                    SetupReApproveContext(context, currentNode);
+                    await JumpToNodeAsync(tenantId, instance, definition, prevNodeId, cancellationToken, context);
                     return true;
                 }
                 return false;
@@ -183,8 +188,8 @@ public sealed class FlowEngine
                 var targetId = specifiedTargetNodeId;
                 if (!string.IsNullOrEmpty(targetId))
                 {
-                    SetupReApproveContext(currentNode, targetId);
-                    await JumpToNodeAsync(tenantId, instance, definition, targetId, cancellationToken);
+                    SetupReApproveContext(context, currentNode);
+                    await JumpToNodeAsync(tenantId, instance, definition, targetId, cancellationToken, context);
                     return true;
                 }
                 return false;
@@ -198,8 +203,8 @@ public sealed class FlowEngine
                 var parentApprovalNodeId = definition.FindParentApprovalNodeId(currentNodeId);
                 if (parentApprovalNodeId != null)
                 {
-                    SetupReApproveContext(currentNode, parentApprovalNodeId);
-                    await JumpToNodeAsync(tenantId, instance, definition, parentApprovalNodeId, cancellationToken);
+                    SetupReApproveContext(context, currentNode);
+                    await JumpToNodeAsync(tenantId, instance, definition, parentApprovalNodeId, cancellationToken, context);
                     return true;
                 }
                 return false;
@@ -212,15 +217,11 @@ public sealed class FlowEngine
     /// <summary>
     /// 设置重新审批上下文（用于后续 AdvanceFlowAsync 判断 ReApproveStrategy）
     /// </summary>
-    private static void SetupReApproveContext(FlowNode rejectSourceNode, string targetNodeId)
+    private static void SetupReApproveContext(FlowExecutionContext context, FlowNode rejectSourceNode)
     {
-        var ctx = FlowExecutionContext.Current;
-        if (ctx != null)
-        {
-            ctx.RejectSourceNodeId = rejectSourceNode.Id;
-            ctx.IsReApproveFlow = true;
-            ctx.ReApproveStrategy = rejectSourceNode.ReApproveStrategy;
-        }
+        context.RejectSourceNodeId = rejectSourceNode.Id;
+        context.IsReApproveFlow = true;
+        context.ReApproveStrategy = rejectSourceNode.ReApproveStrategy;
     }
 
     /// <summary>
@@ -291,8 +292,11 @@ public sealed class FlowEngine
         ApprovalProcessInstance instance,
         FlowDefinition definition,
         string currentNodeId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        FlowExecutionContext? executionContext = null)
     {
+        var context = executionContext ?? new FlowExecutionContext();
+
         // 获取当前节点
         var currentNode = definition.GetNodeById(currentNodeId);
         if (currentNode == null)
@@ -303,7 +307,7 @@ public sealed class FlowEngine
         // 检查并行汇聚网关：如果是并行汇聚网关，需要等待所有分支完成
         if (definition.IsParallelJoinGateway(currentNodeId))
         {
-            var canProceed = await CheckParallelJoinCompletionAsync(tenantId, instance.Id, currentNodeId, definition, cancellationToken);
+            var canProceed = await _gatewayHandler.CheckParallelJoinCompletionAsync(tenantId, instance.Id, currentNodeId, definition, cancellationToken);
             if (!canProceed)
             {
                 // 等待所有分支完成
@@ -342,7 +346,7 @@ public sealed class FlowEngine
         // ── 驳回重新审批策略检查 ──
         // 如果当前处于驳回重审流程且策略为 BackToRejectNode，
         // 任务完成后跳转回驳回源节点继续执行，而非沿正常流向推进
-        var ctx = FlowExecutionContext.Current;
+        var ctx = context;
         if (ctx is { IsReApproveFlow: true, ReApproveStrategy: ReApproveStrategy.BackToRejectNode }
             && !string.IsNullOrEmpty(ctx.RejectSourceNodeId))
         {
@@ -354,7 +358,7 @@ public sealed class FlowEngine
             ctx.RejectSourceNodeId = null;
 
             // 跳转回驳回源节点，从该节点继续正常推进
-            await ProcessNextNodeAsync(tenantId, instance, definition, rejectSourceNodeId, cancellationToken);
+            await ProcessNextNodeAsync(tenantId, instance, definition, rejectSourceNodeId, cancellationToken, context);
             return;
         }
 
@@ -369,7 +373,7 @@ public sealed class FlowEngine
         // 处理并行汇聚：标记当前分支的token为已完成
         if (definition.IsParallelJoinGateway(currentNodeId))
         {
-            await MarkParallelBranchCompletedAsync(tenantId, instance.Id, currentNodeId, definition, cancellationToken);
+            await _gatewayHandler.MarkParallelBranchCompletedAsync(tenantId, instance.Id, currentNodeId, definition, cancellationToken);
         }
 
         // 获取当前节点的所有出边
@@ -405,21 +409,37 @@ public sealed class FlowEngine
         // 处理并行分支网关：创建token并推进所有分支
         if (definition.IsParallelSplitGateway(currentNodeId))
         {
-            await HandleParallelSplitAsync(tenantId, instance, definition, currentNodeId, nextNodeIds, cancellationToken);
+            await _gatewayHandler.HandleParallelSplitAsync(
+                tenantId,
+                instance,
+                currentNodeId,
+                nextNodeIds,
+                definition,
+                ProcessNextNodeAsync,
+                cancellationToken,
+                context);
             return;
         }
 
         // 处理包容分支网关：创建token并推进满足条件的分支
         if (definition.IsInclusiveSplitGateway(currentNodeId))
         {
-            await HandleInclusiveSplitAsync(tenantId, instance, definition, currentNodeId, nextNodeIds, cancellationToken);
+            await _gatewayHandler.HandleInclusiveSplitAsync(
+                tenantId,
+                instance,
+                currentNodeId,
+                nextNodeIds,
+                definition,
+                ProcessNextNodeAsync,
+                cancellationToken,
+                context);
             return;
         }
 
         // 为每个下一个节点生成任务
         foreach (var nextNodeId in nextNodeIds)
         {
-            await ProcessNextNodeAsync(tenantId, instance, definition, nextNodeId, cancellationToken);
+            await ProcessNextNodeAsync(tenantId, instance, definition, nextNodeId, cancellationToken, context);
         }
     }
 
@@ -431,8 +451,10 @@ public sealed class FlowEngine
         ApprovalProcessInstance instance,
         FlowDefinition definition,
         string nextNodeId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        FlowExecutionContext? executionContext = null)
     {
+        var context = executionContext ?? new FlowExecutionContext();
         var nextNode = definition.GetNodeById(nextNodeId);
         if (nextNode == null)
         {
@@ -486,7 +508,7 @@ public sealed class FlowEngine
                     // ...
 
                     // 继续推进
-                    await AdvanceFlowAsync(tenantId, instance, definition, nextNodeId, cancellationToken);
+                    await AdvanceFlowAsync(tenantId, instance, definition, nextNodeId, cancellationToken, context);
                     return;
                 }
                 else if (!aiResult.NeedManualReview)
@@ -501,7 +523,7 @@ public sealed class FlowEngine
             }
 
             // 审批节点，生成任务
-            await GenerateTasksForNodeAsync(tenantId, instance, definition, nextNode, cancellationToken);
+            await _taskGenerator.GenerateTasksForNodeAsync(tenantId, instance, definition, nextNode, cancellationToken, context);
 
             // 创建节点执行记录
             var executionManual = new ApprovalNodeExecution(
@@ -525,7 +547,7 @@ public sealed class FlowEngine
                 _idGeneratorAccessor.NextId());
             await _nodeExecutionRepository.AddAsync(execution, cancellationToken);
             instance.SetCurrentNode(nextNodeId);
-            await AdvanceFlowAsync(tenantId, instance, definition, nextNodeId, cancellationToken);
+            await AdvanceFlowAsync(tenantId, instance, definition, nextNodeId, cancellationToken, context);
         }
         else if (nextNode.Type == "copy")
         {
@@ -548,7 +570,7 @@ public sealed class FlowEngine
                 var nextAfterCopy = await EvaluateNextNodesAsync(tenantId, instance, definition, nextNodeId, outgoingEdges, cancellationToken);
                 foreach (var nodeId in nextAfterCopy)
                 {
-                    await ProcessNextNodeAsync(tenantId, instance, definition, nodeId, cancellationToken);
+                    await ProcessNextNodeAsync(tenantId, instance, definition, nodeId, cancellationToken, context);
                 }
             }
         }
@@ -563,7 +585,7 @@ public sealed class FlowEngine
                 _idGeneratorAccessor.NextId());
             await _nodeExecutionRepository.AddAsync(execution, cancellationToken);
             instance.SetCurrentNode(nextNodeId);
-            await AdvanceFlowAsync(tenantId, instance, definition, nextNodeId, cancellationToken);
+            await AdvanceFlowAsync(tenantId, instance, definition, nextNodeId, cancellationToken, context);
         }
         else if (nextNode.Type == "routeGateway")
         {
@@ -581,7 +603,7 @@ public sealed class FlowEngine
                 await _nodeExecutionRepository.AddAsync(execution, cancellationToken);
                 
                 // 递归处理目标节点
-                await ProcessNextNodeAsync(tenantId, instance, definition, targetNodeId, cancellationToken);
+                await ProcessNextNodeAsync(tenantId, instance, definition, targetNodeId, cancellationToken, context);
             }
         }
         else if (nextNode.Type == "callProcess")
@@ -771,612 +793,7 @@ public sealed class FlowEngine
         return nextNodeIds;
     }
 
-    /// <summary>
-    /// 为节点生成审批任务
-    /// </summary>
-    private async Task GenerateTasksForNodeAsync(
-        TenantId tenantId,
-        ApprovalProcessInstance instance,
-        FlowDefinition definition,
-        FlowNode node,
-        CancellationToken cancellationToken)
-    {
-        var tasks = await ExpandTasksByAssigneeTypeAsync(
-            tenantId,
-            instance,
-            definition,
-            node,
-            cancellationToken);
 
-        if (tasks.Count > 0)
-        {
-            await _taskRepository.AddRangeAsync(tasks, cancellationToken);
-
-            // 创建超时提醒记录（如果节点启用了超时配置）
-            if (node.TimeoutEnabled && _timeoutReminderRepository != null)
-            {
-                await CreateTimeoutRemindersAsync(tenantId, instance, node, tasks, cancellationToken);
-            }
-
-            // 发送任务创建通知（后台队列，失败不影响主流程）
-            if (_backgroundWorkQueue != null && _notificationService != null)
-            {
-                var recipientUserIds = tasks.Select(t => ExtractAssigneeUserId(t.AssigneeValue)).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
-                if (recipientUserIds.Count > 0)
-                {
-                    var capturedInstanceId = instance.Id;
-                    _backgroundWorkQueue.Enqueue(async (sp, ct) =>
-                    {
-                        var notificationService = sp.GetRequiredService<IApprovalNotificationService>();
-                        var instanceRepo = sp.GetRequiredService<IApprovalInstanceRepository>();
-                        var inst = await instanceRepo.GetByIdAsync(tenantId, capturedInstanceId, ct);
-                        if (inst != null)
-                        {
-                            await notificationService.NotifyAsync(
-                                tenantId,
-                                ApprovalNotificationEventType.TaskCreated,
-                                inst,
-                                null,
-                                recipientUserIds,
-                                ct);
-                        }
-                    });
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// 创建超时提醒记录
-    /// </summary>
-    private async Task CreateTimeoutRemindersAsync(
-        TenantId tenantId,
-        ApprovalProcessInstance instance,
-        FlowNode node,
-        List<ApprovalTask> tasks,
-        CancellationToken cancellationToken)
-    {
-        if (!node.TimeoutEnabled || (node.TimeoutHours == null && node.TimeoutMinutes == null))
-        {
-            return;
-        }
-
-        var now = _timeProvider.GetUtcNow();
-        var timeoutHours = node.TimeoutHours ?? 0;
-        var timeoutMinutes = node.TimeoutMinutes ?? 0;
-        var expectedCompleteTime = now.AddHours(timeoutHours).AddMinutes(timeoutMinutes);
-
-        // 批量查询已存在的提醒记录（避免N+1查询）
-        var existingReminders = await _timeoutReminderRepository!.GetByInstanceAndNodeAsync(
-            tenantId, instance.Id, node.Id, cancellationToken);
-        var existingReminderTaskIds = existingReminders.Select(r => r.TaskId).ToHashSet();
-
-        // 批量创建提醒记录
-        var reminders = new List<ApprovalTimeoutReminder>();
-        foreach (var task in tasks)
-        {
-            // 检查是否已存在提醒记录（幂等性保护）
-            if (existingReminderTaskIds.Contains(task.Id))
-            {
-                continue; // 已存在，跳过
-            }
-
-            var recipientUserId = ExtractAssigneeUserId(task.AssigneeValue);
-            if (!recipientUserId.HasValue)
-            {
-                continue;
-            }
-
-            var reminder = new ApprovalTimeoutReminder(
-                tenantId,
-                instance.Id,
-                task.Id,
-                node.Id,
-                Domain.Approval.Enums.ReminderType.NodeTimeout,
-                recipientUserId.Value,
-                expectedCompleteTime,
-                _idGeneratorAccessor.NextId());
-
-            reminders.Add(reminder);
-        }
-
-        // 批量添加提醒记录
-        if (reminders.Count > 0)
-        {
-            await _timeoutReminderRepository.AddRangeAsync(reminders, cancellationToken);
-        }
-    }
-
-    /// <summary>
-    /// 从 AssigneeValue 中提取用户ID（简化实现）
-    /// </summary>
-    private static long? ExtractAssigneeUserId(string assigneeValue)
-    {
-        if (string.IsNullOrEmpty(assigneeValue))
-        {
-            return null;
-        }
-
-        // 尝试解析为单个用户ID
-        if (long.TryParse(assigneeValue, out var userId))
-        {
-            return userId;
-        }
-
-        // 尝试解析为逗号分隔的用户ID列表
-        var parts = assigneeValue.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length > 0 && long.TryParse(parts[0].Trim(), out var firstUserId))
-        {
-            return firstUserId;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// 根据分配策略扩展任务
-    /// </summary>
-    private async Task<List<ApprovalTask>> ExpandTasksByAssigneeTypeAsync(
-        TenantId tenantId,
-        ApprovalProcessInstance instance,
-        FlowDefinition definition,
-        FlowNode node,
-        CancellationToken cancellationToken)
-    {
-        var tasks = new List<ApprovalTask>();
-        var userIds = new List<long>();
-
-        var assigneeType = node.AssigneeType;
-        var assigneeValue = node.AssigneeValue ?? string.Empty;
-        var approvalMode = node.ApprovalMode;
-        var missingAssigneeStrategy = node.MissingAssigneeStrategy;
-
-        switch (assigneeType)
-        {
-            case AssigneeType.User:
-                // 指定用户（可能是多个用户，逗号分隔或JSON数组）
-                var userIdStrings = ParseUserIds(assigneeValue);
-                userIds = userIdStrings.Select(x => long.TryParse(x, out var id) ? id : (long?)null)
-                    .Where(x => x.HasValue)
-                    .Select(x => x!.Value)
-                    .ToList();
-                break;
-
-            case AssigneeType.Role:
-                // 按角色：根据角色代码查询用户
-                if (!string.IsNullOrEmpty(assigneeValue))
-                {
-                    var roleUserIds = await _userQueryService.GetUserIdsByRoleCodeAsync(tenantId, assigneeValue, cancellationToken);
-                    userIds.AddRange(roleUserIds);
-                }
-                break;
-
-            case AssigneeType.DepartmentLeader:
-                // 部门负责人
-                if (long.TryParse(assigneeValue, out var deptId))
-                {
-                    var leaderId = await _deptLeaderRepository.GetLeaderUserIdAsync(tenantId, deptId, cancellationToken);
-                    if (leaderId.HasValue)
-                    {
-                        userIds.Add(leaderId.Value);
-                    }
-                }
-                break;
-
-            case AssigneeType.Loop:
-                // 层层审批：向上逐级查找审批人
-                var loopUserIds = await _userQueryService.GetLoopApproversAsync(tenantId, instance.InitiatorUserId, cancellationToken: cancellationToken);
-                userIds.AddRange(loopUserIds);
-                break;
-
-            case AssigneeType.Level:
-                // 指定层级：向上查找指定层级的审批人
-                if (int.TryParse(assigneeValue, out var targetLevel) && targetLevel > 0)
-                {
-                    var levelUserId = await _userQueryService.GetLevelApproverAsync(tenantId, instance.InitiatorUserId, targetLevel, cancellationToken);
-                    if (levelUserId.HasValue)
-                    {
-                        userIds.Add(levelUserId.Value);
-                    }
-                }
-                break;
-
-            case AssigneeType.DirectLeader:
-                // 直属领导
-                var directLeaderId = await _userQueryService.GetDirectLeaderUserIdAsync(tenantId, instance.InitiatorUserId, cancellationToken);
-                if (directLeaderId.HasValue)
-                {
-                    userIds.Add(directLeaderId.Value);
-                }
-                break;
-
-            case AssigneeType.StartUser:
-                // 发起人
-                userIds.Add(instance.InitiatorUserId);
-                break;
-
-            case AssigneeType.Hrbp:
-                // HRBP
-                var hrbpUserId = await _userQueryService.GetHrbpUserIdAsync(tenantId, instance.InitiatorUserId, cancellationToken);
-                if (hrbpUserId.HasValue)
-                {
-                    userIds.Add(hrbpUserId.Value);
-                }
-                break;
-
-            case AssigneeType.Customize:
-                // 自选模块：从实例数据中获取（发起时由前端传入）
-                userIds = ParseUserIdsFromInstanceData(instance.DataJson, assigneeValue);
-                break;
-
-            case AssigneeType.BusinessTable:
-                // 关联业务表：从实例数据中获取（根据字段名从DataJson中提取）
-                userIds = ParseUserIdsFromInstanceData(instance.DataJson, assigneeValue);
-                break;
-
-            case AssigneeType.OutSideAccess:
-                // 外部传入人员：从实例数据中获取（发起时由外部系统传入）
-                userIds = ParseUserIdsFromInstanceData(instance.DataJson, assigneeValue);
-                break;
-        }
-
-        // 验证用户ID有效性
-        if (userIds.Count > 0)
-        {
-            userIds = (await _userQueryService.ValidateUserIdsAsync(tenantId, userIds, cancellationToken)).ToList();
-        }
-
-        // 应用去重策略
-        if (userIds.Count > 0)
-        {
-            userIds = (await _deduplicationService.ApplyDeduplicationAsync(
-                tenantId,
-                instance.Id,
-                userIds,
-                definition,
-                node,
-                cancellationToken)).ToList();
-        }
-
-        // 处理缺失审批人策略
-        if (userIds.Count == 0)
-        {
-            switch (missingAssigneeStrategy)
-            {
-                case MissingAssigneeStrategy.NotAllowed:
-                    // 不允许发起：抛出异常
-                    throw new Core.Exceptions.BusinessException("MISSING_ASSIGNEE", $"节点 {node.Id} 无法找到审批人，不允许发起流程");
-
-                case MissingAssigneeStrategy.Skip:
-                    // 跳过：不生成任务，直接返回空列表
-                    return tasks;
-
-                case MissingAssigneeStrategy.TransferToAdmin:
-                    // 转办给管理员：查找管理员用户
-                    var adminUserIds = await _userQueryService.GetUserIdsByRoleCodeAsync(tenantId, "Admin", cancellationToken);
-                    if (adminUserIds.Count > 0)
-                    {
-                        userIds.AddRange(adminUserIds);
-                    }
-                    else
-                    {
-                        // 如果没有管理员角色，跳过
-                        return tasks;
-                    }
-                    break;
-            }
-        }
-
-        // 处理审批人与提交人相同 (NodeApproveSelf) 策略
-        var approveSelf = node.ApproveSelf ?? 0; // 默认 0 = 由发起人对自己审批
-        if (approveSelf != 0 && userIds.Contains(instance.InitiatorUserId))
-        {
-            switch ((NodeApproveSelf)approveSelf)
-            {
-                case NodeApproveSelf.AutoSkip:
-                    // 自动跳过：移除发起人
-                    userIds.Remove(instance.InitiatorUserId);
-                    if (userIds.Count == 0)
-                    {
-                        // 所有审批人都是发起人，直接跳过整个节点
-                        return tasks;
-                    }
-                    break;
-
-                case NodeApproveSelf.TransferDirectSuperior:
-                    // 转交给直接上级
-                    userIds.Remove(instance.InitiatorUserId);
-                    var directLeader = await _userQueryService.GetDirectLeaderUserIdAsync(
-                        tenantId, instance.InitiatorUserId, cancellationToken);
-                    if (directLeader.HasValue && !userIds.Contains(directLeader.Value))
-                    {
-                        userIds.Add(directLeader.Value);
-                    }
-                    break;
-
-                case NodeApproveSelf.TransferDepartmentHead:
-                    // 转交给部门负责人
-                    userIds.Remove(instance.InitiatorUserId);
-                    var deptHead = await _userQueryService.GetDepartmentHeadUserIdAsync(
-                        tenantId, instance.InitiatorUserId, cancellationToken);
-                    if (deptHead.HasValue && !userIds.Contains(deptHead.Value))
-                    {
-                        userIds.Add(deptHead.Value);
-                    }
-                    break;
-            }
-        }
-
-        // 代理人替换：检查是否有生效的代理配置
-        userIds = await ApplyAgentReplacementAsync(tenantId, userIds, cancellationToken);
-
-        // 检查运行时动态分配审批人
-        var ctx = FlowExecutionContext.Current;
-        if (ctx != null && ctx.DynamicAssignees.TryGetValue(node.Id, out var dynamicUserIds))
-        {
-            userIds = dynamicUserIds.Distinct().ToList();
-        }
-
-        // 为每个用户创建任务
-        int order = 1;
-        foreach (var userId in userIds.Distinct())
-        {
-            // 顺序会签：第一个任务为Pending，其他为Waiting
-            var initialStatus = approvalMode == ApprovalMode.Sequential && order > 1
-                ? ApprovalTaskStatus.Waiting
-                : ApprovalTaskStatus.Pending;
-
-            var task = new ApprovalTask(
-                tenantId,
-                instance.Id,
-                node.Id,
-                node.Label ?? "审批",
-                AssigneeType.User,
-                userId.ToString(),
-                _idGeneratorAccessor.NextId(),
-                order: order,
-                initialStatus: initialStatus);
-
-            // 设置票签权重
-            if (approvalMode == ApprovalMode.Vote && node.Weight.HasValue)
-            {
-                task.SetWeight(node.Weight.Value);
-            }
-
-            tasks.Add(task);
-            order++;
-        }
-
-        return tasks;
-    }
-
-    /// <summary>
-    /// 从实例数据JSON中解析用户ID列表
-    /// </summary>
-    private static List<long> ParseUserIdsFromInstanceData(string? dataJson, string fieldName)
-    {
-        var userIds = new List<long>();
-        if (string.IsNullOrEmpty(dataJson) || string.IsNullOrEmpty(fieldName))
-        {
-            return userIds;
-        }
-
-        try
-        {
-            using var doc = System.Text.Json.JsonDocument.Parse(dataJson);
-            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
-            {
-                if (doc.RootElement.TryGetProperty(fieldName, out var fieldElement))
-                {
-                    if (fieldElement.ValueKind == System.Text.Json.JsonValueKind.Array)
-                    {
-                        foreach (var element in fieldElement.EnumerateArray())
-                        {
-                            if (element.ValueKind == System.Text.Json.JsonValueKind.Number && element.TryGetInt64(out var userId))
-                            {
-                                userIds.Add(userId);
-                            }
-                            else if (element.ValueKind == System.Text.Json.JsonValueKind.String && long.TryParse(element.GetString(), out var userIdStr))
-                            {
-                                userIds.Add(userIdStr);
-                            }
-                        }
-                    }
-                    else if (fieldElement.ValueKind == System.Text.Json.JsonValueKind.Number && fieldElement.TryGetInt64(out var singleUserId))
-                    {
-                        userIds.Add(singleUserId);
-                    }
-                    else if (fieldElement.ValueKind == System.Text.Json.JsonValueKind.String && long.TryParse(fieldElement.GetString(), out var singleUserIdStr))
-                    {
-                        userIds.Add(singleUserIdStr);
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // 解析失败，返回空列表
-        }
-
-        return userIds;
-    }
-
-    /// <summary>
-    /// 解析用户ID列表（支持逗号分隔或JSON数组）
-    /// </summary>
-    private static List<string> ParseUserIds(string assigneeValue)
-    {
-        var userIds = new List<string>();
-        if (string.IsNullOrEmpty(assigneeValue))
-        {
-            return userIds;
-        }
-
-        try
-        {
-            // 尝试解析为JSON数组
-            using var doc = System.Text.Json.JsonDocument.Parse(assigneeValue);
-            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
-            {
-                foreach (var element in doc.RootElement.EnumerateArray())
-                {
-                    var userId = element.ValueKind switch
-                    {
-                        System.Text.Json.JsonValueKind.Number => element.GetInt64().ToString(),
-                        System.Text.Json.JsonValueKind.String => element.GetString(),
-                        _ => null
-                    };
-                    if (!string.IsNullOrEmpty(userId))
-                    {
-                        userIds.Add(userId);
-                    }
-                }
-                return userIds;
-            }
-        }
-        catch
-        {
-            // 不是JSON，继续尝试逗号分隔
-        }
-
-        // 逗号分隔
-        var parts = assigneeValue.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts)
-        {
-            var trimmed = part.Trim();
-            if (!string.IsNullOrEmpty(trimmed))
-            {
-                userIds.Add(trimmed);
-            }
-        }
-
-        return userIds;
-    }
-
-    /// <summary>
-    /// 检查并行汇聚网关是否所有分支都已完成
-    /// </summary>
-    private async Task<bool> CheckParallelJoinCompletionAsync(
-        TenantId tenantId,
-        long instanceId,
-        string gatewayNodeId,
-        FlowDefinition definition,
-        CancellationToken cancellationToken)
-    {
-        // 获取所有指向该汇聚网关的入边
-        var incomingEdges = definition.GetIncomingEdges(gatewayNodeId);
-        if (incomingEdges.Count <= 1)
-        {
-            return true; // 不是并行汇聚
-        }
-
-        // 获取该网关的所有token
-        var tokens = await _parallelTokenRepository.GetByInstanceAndGatewayAsync(tenantId, instanceId, gatewayNodeId, cancellationToken);
-
-        // 检查每个分支是否都有已完成的token
-        var completedBranches = tokens.Where(t => t.Status == ParallelTokenStatus.Completed).Select(t => t.BranchNodeId).ToHashSet();
-        var requiredBranches = incomingEdges.Select(e => e.Source).ToHashSet();
-
-        return requiredBranches.All(branch => completedBranches.Contains(branch));
-    }
-
-    /// <summary>
-    /// 标记并行分支为已完成
-    /// </summary>
-    private async Task MarkParallelBranchCompletedAsync(
-        TenantId tenantId,
-        long instanceId,
-        string gatewayNodeId,
-        FlowDefinition definition,
-        CancellationToken cancellationToken)
-    {
-        // 找到当前到达汇聚网关的分支（通过入边找到来源节点）
-        var incomingEdges = definition.GetIncomingEdges(gatewayNodeId);
-        
-        // 一次性查询所有tokens，避免重复查询
-        var tokens = await _parallelTokenRepository.GetByInstanceAndGatewayAsync(tenantId, instanceId, gatewayNodeId, cancellationToken);
-        var tokensByBranch = tokens.Where(t => t.Status == ParallelTokenStatus.Active).ToDictionary(t => t.BranchNodeId);
-
-        var tokensToUpdate = new List<ApprovalParallelToken>();
-        foreach (var edge in incomingEdges)
-        {
-            if (tokensByBranch.TryGetValue(edge.Source, out var branchToken))
-            {
-                branchToken.MarkCompleted(DateTimeOffset.UtcNow);
-                tokensToUpdate.Add(branchToken);
-            }
-        }
-
-        // 批量更新tokens
-        if (tokensToUpdate.Count > 0)
-        {
-            await _parallelTokenRepository.UpdateRangeAsync(tokensToUpdate, cancellationToken);
-        }
-    }
-
-    /// <summary>
-    /// 处理并行分支网关：创建token并推进所有分支
-    /// </summary>
-    private async Task HandleParallelSplitAsync(
-        TenantId tenantId,
-        ApprovalProcessInstance instance,
-        FlowDefinition definition,
-        string gatewayNodeId,
-        IReadOnlyList<string> nextNodeIds,
-        CancellationToken cancellationToken)
-    {
-        // 为每个分支创建token
-        var tokens = nextNodeIds
-            .Select(nextNodeId => new ApprovalParallelToken(
-                tenantId,
-                instance.Id,
-                gatewayNodeId,
-                nextNodeId,
-                _idGeneratorAccessor.NextId()))
-            .ToList();
-        if (tokens.Count > 0)
-        {
-            await _parallelTokenRepository.AddRangeAsync(tokens, cancellationToken);
-        }
-
-        // 推进所有分支
-        foreach (var nextNodeId in nextNodeIds)
-        {
-            await ProcessNextNodeAsync(tenantId, instance, definition, nextNodeId, cancellationToken);
-        }
-    }
-
-    /// <summary>
-    /// 处理包容分支网关：创建token并推进满足条件的分支
-    /// </summary>
-    private async Task HandleInclusiveSplitAsync(
-        TenantId tenantId,
-        ApprovalProcessInstance instance,
-        FlowDefinition definition,
-        string gatewayNodeId,
-        IReadOnlyList<string> nextNodeIds,
-        CancellationToken cancellationToken)
-    {
-        // 为每个分支创建token
-        var tokens = nextNodeIds
-            .Select(nextNodeId => new ApprovalParallelToken(
-                tenantId,
-                instance.Id,
-                gatewayNodeId,
-                nextNodeId,
-                _idGeneratorAccessor.NextId()))
-            .ToList();
-        if (tokens.Count > 0)
-        {
-            await _parallelTokenRepository.AddRangeAsync(tokens, cancellationToken);
-        }
-
-        // 推进所有分支
-        foreach (var nextNodeId in nextNodeIds)
-        {
-            await ProcessNextNodeAsync(tenantId, instance, definition, nextNodeId, cancellationToken);
-        }
-    }
 
     /// <summary>
     /// 处理子流程节点
@@ -1633,101 +1050,13 @@ public sealed class FlowEngine
         var assigneeType = node.AssigneeType;
         var assigneeValue = node.AssigneeValue ?? string.Empty;
 
-        // 根据分配策略获取收件人列表（与审批节点逻辑一致）
-        switch (assigneeType)
-        {
-            case AssigneeType.User:
-                // 指定用户（可能是多个用户，逗号分隔或JSON数组）
-                var userIdStrings = ParseUserIds(assigneeValue);
-                recipientIds = userIdStrings.Select(x => long.TryParse(x, out var id) ? id : (long?)null)
-                    .Where(x => x.HasValue)
-                    .Select(x => x!.Value)
-                    .ToList();
-                break;
-
-            case AssigneeType.Role:
-                // 按角色：根据角色代码查询用户
-                if (!string.IsNullOrEmpty(assigneeValue))
-                {
-                    var roleUserIds = await _userQueryService.GetUserIdsByRoleCodeAsync(tenantId, assigneeValue, cancellationToken);
-                    recipientIds.AddRange(roleUserIds);
-                }
-                break;
-
-            case AssigneeType.DepartmentLeader:
-                // 部门负责人
-                if (long.TryParse(assigneeValue, out var deptId))
-                {
-                    var leaderId = await _deptLeaderRepository.GetLeaderUserIdAsync(tenantId, deptId, cancellationToken);
-                    if (leaderId.HasValue)
-                    {
-                        recipientIds.Add(leaderId.Value);
-                    }
-                }
-                break;
-
-            case AssigneeType.Loop:
-                // 层层审批：向上逐级查找审批人
-                var loopUserIds = await _userQueryService.GetLoopApproversAsync(tenantId, instance.InitiatorUserId, cancellationToken: cancellationToken);
-                recipientIds.AddRange(loopUserIds);
-                break;
-
-            case AssigneeType.Level:
-                // 指定层级：向上查找指定层级的审批人
-                if (int.TryParse(assigneeValue, out var targetLevel) && targetLevel > 0)
-                {
-                    var levelUserId = await _userQueryService.GetLevelApproverAsync(tenantId, instance.InitiatorUserId, targetLevel, cancellationToken);
-                    if (levelUserId.HasValue)
-                    {
-                        recipientIds.Add(levelUserId.Value);
-                    }
-                }
-                break;
-
-            case AssigneeType.DirectLeader:
-                // 直属领导
-                var directLeaderId = await _userQueryService.GetDirectLeaderUserIdAsync(tenantId, instance.InitiatorUserId, cancellationToken);
-                if (directLeaderId.HasValue)
-                {
-                    recipientIds.Add(directLeaderId.Value);
-                }
-                break;
-
-            case AssigneeType.StartUser:
-                // 发起人
-                recipientIds.Add(instance.InitiatorUserId);
-                break;
-
-            case AssigneeType.Hrbp:
-                // HRBP
-                var hrbpUserId = await _userQueryService.GetHrbpUserIdAsync(tenantId, instance.InitiatorUserId, cancellationToken);
-                if (hrbpUserId.HasValue)
-                {
-                    recipientIds.Add(hrbpUserId.Value);
-                }
-                break;
-
-            case AssigneeType.Customize:
-                // 自选模块：从实例数据中获取（发起时由前端传入）
-                recipientIds = ParseUserIdsFromInstanceData(instance.DataJson, assigneeValue);
-                break;
-
-            case AssigneeType.BusinessTable:
-                // 关联业务表：从实例数据中获取（根据字段名从DataJson中提取）
-                recipientIds = ParseUserIdsFromInstanceData(instance.DataJson, assigneeValue);
-                break;
-
-            case AssigneeType.OutSideAccess:
-                // 外部传入人员：从实例数据中获取（发起时由外部系统传入）
-                recipientIds = ParseUserIdsFromInstanceData(instance.DataJson, assigneeValue);
-                break;
-        }
-
-        // 验证用户ID有效性
-        if (recipientIds.Count > 0)
-        {
-            recipientIds = (await _userQueryService.ValidateUserIdsAsync(tenantId, recipientIds, cancellationToken)).ToList();
-        }
+        recipientIds = await _assigneeResolver.ResolveUserIdsAsync(
+            tenantId,
+            instance.InitiatorUserId,
+            assigneeType,
+            assigneeValue,
+            instance.DataJson,
+            cancellationToken);
 
         // 创建抄送记录
         var copyRecords = recipientIds.Select(userId => new ApprovalCopyRecord(
@@ -1743,41 +1072,6 @@ public sealed class FlowEngine
         }
     }
 
-    /// <summary>
-    /// 代理人替换：如果审批人配置了代理人，替换为代理人
-    /// </summary>
-    private async Task<List<long>> ApplyAgentReplacementAsync(
-        TenantId tenantId,
-        List<long> userIds,
-        CancellationToken cancellationToken)
-    {
-        if (_serviceProvider == null || userIds.Count == 0)
-            return userIds;
-
-        var agentConfigRepo = _serviceProvider.GetService<IApprovalAgentConfigRepository>();
-        if (agentConfigRepo == null)
-            return userIds;
-
-        var now = _timeProvider.GetUtcNow();
-        var result = new List<long>(userIds.Count);
-
-        var agentConfigMap = await agentConfigRepo.GetActiveAgentsByUserIdsAsync(tenantId, userIds, now, cancellationToken);
-
-        foreach (var userId in userIds)
-        {
-            if (agentConfigMap.TryGetValue(userId, out var agentConfig))
-            {
-                // 有生效的代理配置，替换为代理人
-                result.Add(agentConfig.AgentUserId);
-            }
-            else
-            {
-                result.Add(userId);
-            }
-        }
-
-        return result;
-    }
 
     /// <summary>
     /// Enqueue a callback to the background work queue (replaces unsafe Task.Run pattern).

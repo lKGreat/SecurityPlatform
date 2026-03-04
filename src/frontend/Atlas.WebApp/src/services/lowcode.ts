@@ -24,8 +24,7 @@ import type {
   LowCodePageUpdateRequest
 } from "@/types/lowcode";
 import { requestApi } from "@/services/api";
-import { API_BASE } from "@/services/api-core";
-import { getAccessToken, getTenantId } from "@/utils/auth";
+import { requestApiBlob } from "@/services/api-core";
 
 // ─── 表单定义 API ───
 
@@ -276,25 +275,7 @@ export async function deleteLowCodeApp(id: string): Promise<void> {
 }
 
 export async function exportLowCodeApp(id: string): Promise<Blob> {
-  const headers = new Headers();
-  const token = getAccessToken();
-  const tenantId = getTenantId();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-  if (tenantId) {
-    headers.set("X-Tenant-Id", tenantId);
-  }
-
-  const response = await fetch(`${API_BASE}/lowcode-apps/${id}/export`, {
-    method: "GET",
-    headers,
-    credentials: "include"
-  });
-  if (!response.ok) {
-    throw new Error("导出应用失败");
-  }
-  return response.blob();
+  return requestApiBlob(`/lowcode-apps/${id}/export`);
 }
 
 export async function importLowCodeApp(request: LowCodeAppImportRequest): Promise<LowCodeAppImportResult> {

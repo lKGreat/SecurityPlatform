@@ -206,6 +206,63 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
   return (await response.json()) as T;
 }
 
+/**
+ * 下载 Blob 资源的统一入口（复用 requestApi 的认证、CSRF、刷新等机制）
+ * 适用于文件导出等返回二进制数据的接口。
+ */
+export async function requestApiBlob(path: string, init?: RequestInit, options?: RequestOptions): Promise<Blob> {
+  const headers = new Headers(init?.headers ?? {});
+  const token = getAccessToken();
+  const tenantId = getTenantId();
+  const method = (init?.method ?? "GET").toUpperCase();
+  const shouldAttachSecurityHeaders = Boolean(token);
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (tenantId && !headers.has("X-Tenant-Id")) {
+    headers.set("X-Tenant-Id", tenantId);
+  }
+
+  const clientHeaders = getClientContextHeaders();
+  (Object.entries(clientHeaders) as [string, string][]).forEach(([key, value]) => {
+    if (value && !headers.has(key)) {
+      headers.set(key, value);
+    }
+  });
+
+  if (shouldAttachSecurityHeaders && isUnsafeMethod(method)) {
+    const idempotencyKey = options?.idempotencyKey ?? generateIdempotencyKey();
+    headers.set("Idempotency-Key", idempotencyKey);
+    const antiforgeryToken = options?.antiforgeryToken ?? (await ensureAntiforgeryToken()) ?? undefined;
+    if (antiforgeryToken) {
+      headers.set("X-CSRF-TOKEN", antiforgeryToken);
+    }
+  }
+
+  const requestInit: RequestInit = { ...init, headers, credentials: "include" };
+  const response = await fetch(`${API_BASE}${path}`, requestInit);
+
+  if (response.status === 401) {
+    const refreshed = await tryRefreshTokens();
+    if (refreshed) {
+      return requestApiBlob(path, init, { ...(options ?? {}), isRetry: true });
+    }
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    const errorPayload = tryParseErrorPayload(errorText);
+    const errorMessage = formatErrorMessage(errorPayload, errorText || "下载失败");
+    if (!options?.suppressErrorMessage) {
+      showError(errorMessage);
+    }
+    throw buildApiError(errorMessage, response.status, errorPayload, errorText);
+  }
+
+  return response.blob();
+}
+
 let reportingClientError = false;
 
 export async function reportClientErrorSilently(payload: ClientErrorReportPayload): Promise<void> {

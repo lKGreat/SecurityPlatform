@@ -26,11 +26,9 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
     private readonly IApprovalInstanceRepository _instanceRepository;
     private readonly IApprovalTaskRepository _taskRepository;
     private readonly IApprovalHistoryRepository _historyRepository;
-    private readonly IApprovalDepartmentLeaderRepository _deptLeaderRepository;
     private readonly IApprovalNodeExecutionRepository _nodeExecutionRepository;
     private readonly IApprovalParallelTokenRepository _parallelTokenRepository;
     private readonly IApprovalCopyRecordRepository _copyRecordRepository;
-    private readonly IApprovalProcessVariableRepository _processVariableRepository;
     private readonly IApprovalSubProcessLinkRepository _subProcessLinkRepository;
     private readonly IApprovalNotificationService? _notificationService;
     private readonly IApprovalTimeoutReminderRepository? _timeoutReminderRepository;
@@ -48,13 +46,11 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         IApprovalInstanceRepository instanceRepository,
         IApprovalTaskRepository taskRepository,
         IApprovalHistoryRepository historyRepository,
-        IApprovalDepartmentLeaderRepository deptLeaderRepository,
         IApprovalNodeExecutionRepository nodeExecutionRepository,
         IApprovalParallelTokenRepository parallelTokenRepository,
         IApprovalCopyRecordRepository copyRecordRepository,
-        IApprovalProcessVariableRepository processVariableRepository,
         IApprovalSubProcessLinkRepository subProcessLinkRepository,
-        IApprovalUserQueryService userQueryService,
+        FlowEngine flowEngine,
         IIdGeneratorAccessor idGeneratorAccessor,
         IMapper mapper,
         IUnitOfWork? unitOfWork = null,
@@ -63,18 +59,15 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         ExternalCallbackService? callbackService = null,
         ApprovalStatusSyncHandler? statusSyncHandler = null,
         IBackgroundWorkQueue? backgroundWorkQueue = null,
-        IApprovalAiHandler? aiHandler = null,
         ILogger<ApprovalRuntimeCommandService>? logger = null)
     {
         _flowRepository = flowRepository;
         _instanceRepository = instanceRepository;
         _taskRepository = taskRepository;
         _historyRepository = historyRepository;
-        _deptLeaderRepository = deptLeaderRepository;
         _nodeExecutionRepository = nodeExecutionRepository;
         _parallelTokenRepository = parallelTokenRepository;
         _copyRecordRepository = copyRecordRepository;
-        _processVariableRepository = processVariableRepository;
         _subProcessLinkRepository = subProcessLinkRepository;
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
@@ -85,23 +78,7 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         _backgroundWorkQueue = backgroundWorkQueue;
         _mapper = mapper;
         _logger = logger;
-        var conditionEvaluator = new ConditionEvaluator(processVariableRepository);
-        var deduplicationService = new DeduplicationService(taskRepository, userQueryService);
-        _flowEngine = new FlowEngine(
-            taskRepository,
-            nodeExecutionRepository,
-            deptLeaderRepository,
-            parallelTokenRepository,
-            copyRecordRepository,
-            conditionEvaluator,
-            userQueryService,
-            deduplicationService,
-            idGeneratorAccessor,
-            notificationService,
-            timeoutReminderRepository,
-            callbackService,
-            aiHandler: aiHandler,
-            backgroundWorkQueue: backgroundWorkQueue);
+        _flowEngine = flowEngine;
     }
 
     public async Task<ApprovalInstanceResponse> StartAsync(
@@ -322,23 +299,14 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
             {
                 var flowDefinition = FlowDefinitionParser.Parse(flowDef.DefinitionJson);
 
-                // 设置执行上下文用于重新审批策略
-                FlowExecutionContext.Current = new FlowExecutionContext();
+                var executionContext = new FlowExecutionContext();
+                routed = await _flowEngine.HandleRejectionAsync(
+                    tenantId, instance, flowDefinition, task.NodeId, targetNodeId, cancellationToken, executionContext);
 
-                try
+                if (routed)
                 {
-                    routed = await _flowEngine.HandleRejectionAsync(
-                        tenantId, instance, flowDefinition, task.NodeId, targetNodeId, cancellationToken);
-
-                    if (routed)
-                    {
-                        // 驳回已路由到目标节点，流程继续运行
-                        await _instanceRepository.UpdateAsync(instance, cancellationToken);
-                    }
-                }
-                finally
-                {
-                    FlowExecutionContext.Current = null;
+                    // 驳回已路由到目标节点，流程继续运行
+                    await _instanceRepository.UpdateAsync(instance, cancellationToken);
                 }
             }
 

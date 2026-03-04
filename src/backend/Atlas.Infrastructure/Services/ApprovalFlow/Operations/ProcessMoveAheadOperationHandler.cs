@@ -6,7 +6,6 @@ using Atlas.Core.Tenancy;
 using Atlas.Domain.Approval.Entities;
 using Atlas.Domain.Approval.Enums;
 using Atlas.Infrastructure.Services.ApprovalFlow;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Atlas.Infrastructure.Services.ApprovalFlow.Operations;
 
@@ -20,7 +19,7 @@ public sealed class ProcessMoveAheadOperationHandler : IApprovalOperationHandler
     private readonly IApprovalTaskRepository _taskRepository;
     private readonly IApprovalNodeExecutionRepository _nodeExecutionRepository;
     private readonly IApprovalHistoryRepository _historyRepository;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly FlowEngine _flowEngine;
     private readonly IIdGeneratorAccessor _idGeneratorAccessor;
 
     public ApprovalOperationType SupportedOperationType => ApprovalOperationType.ProcessMoveAhead;
@@ -31,7 +30,7 @@ public sealed class ProcessMoveAheadOperationHandler : IApprovalOperationHandler
         IApprovalTaskRepository taskRepository,
         IApprovalNodeExecutionRepository nodeExecutionRepository,
         IApprovalHistoryRepository historyRepository,
-        IServiceProvider serviceProvider,
+        FlowEngine flowEngine,
         IIdGeneratorAccessor idGeneratorAccessor)
     {
         _instanceRepository = instanceRepository;
@@ -39,7 +38,7 @@ public sealed class ProcessMoveAheadOperationHandler : IApprovalOperationHandler
         _taskRepository = taskRepository;
         _nodeExecutionRepository = nodeExecutionRepository;
         _historyRepository = historyRepository;
-        _serviceProvider = serviceProvider;
+        _flowEngine = flowEngine;
         _idGeneratorAccessor = idGeneratorAccessor;
     }
 
@@ -92,28 +91,8 @@ public sealed class ProcessMoveAheadOperationHandler : IApprovalOperationHandler
             await _nodeExecutionRepository.UpdateAsync(nodeExecution, cancellationToken);
         }
 
-        // 推进流程到下一个节点：创建 FlowEngine 并调用 AdvanceFlowAsync
-        var deptLeaderRepository = _serviceProvider.GetRequiredService<IApprovalDepartmentLeaderRepository>();
-        var parallelTokenRepository = _serviceProvider.GetRequiredService<IApprovalParallelTokenRepository>();
-        var copyRecordRepository = _serviceProvider.GetRequiredService<IApprovalCopyRecordRepository>();
-        var processVariableRepository = _serviceProvider.GetRequiredService<IApprovalProcessVariableRepository>();
-        var userQueryService = _serviceProvider.GetRequiredService<IApprovalUserQueryService>();
-        
-        var conditionEvaluator = new ConditionEvaluator(processVariableRepository);
-        var deduplicationService = new DeduplicationService(_taskRepository, userQueryService);
-        var flowEngine = new FlowEngine(
-            _taskRepository,
-            _nodeExecutionRepository,
-            deptLeaderRepository,
-            parallelTokenRepository,
-            copyRecordRepository,
-            conditionEvaluator,
-            userQueryService,
-            deduplicationService,
-            _idGeneratorAccessor);
-
-        // 调用流程推进引擎
-        await flowEngine.AdvanceFlowAsync(tenantId, instance, flowDefinition, currentNodeId, cancellationToken);
+        // 推进流程到下一个节点
+        await _flowEngine.AdvanceFlowAsync(tenantId, instance, flowDefinition, currentNodeId, cancellationToken);
 
         // 更新实例
         await _instanceRepository.UpdateAsync(instance, cancellationToken);

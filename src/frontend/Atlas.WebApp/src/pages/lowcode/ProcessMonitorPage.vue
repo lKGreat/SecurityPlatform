@@ -40,8 +40,8 @@
     <a-modal v-model:open="traceVisible" title="流程轨迹" width="700px" :footer="null">
       <a-timeline v-if="traceData.length">
         <a-timeline-item
-          v-for="(node, idx) in traceData"
-          :key="idx"
+          v-for="node in traceData"
+          :key="node.nodeId"
           :color="node.status === 'Completed' ? 'green' : node.status === 'Active' ? 'blue' : 'gray'"
         >
           <p><strong>{{ node.nodeName }}</strong> ({{ node.nodeType }})</p>

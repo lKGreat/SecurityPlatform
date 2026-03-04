@@ -255,7 +255,7 @@
                 <a-form-item label="AI 配置 (JSON)">
                   <a-textarea 
                     :value="approveForm.aiConfig"
-                    @update:value="(val: string) => approveForm.aiConfig = val"
+                    @update:value="(val: string) => { if (approveForm) approveForm.aiConfig = val }"
                     :rows="4" 
                     placeholder="请输入 AI 配置 JSON"
                   />
@@ -367,12 +367,14 @@
             <a-divider>条件规则</a-divider>
             <a-form-item label="CEL 表达式（可选）">
               <ExpressionEditorCel
-                v-model="branchForm.conditionExpr"
+                :model-value="branchForm.conditionExpr ?? ''"
+                @update:model-value="(v: string) => { if (branchForm) branchForm.conditionExpr = v }"
                 @validate="onExpressionValidate"
               />
             </a-form-item>
             <ConditionGroupEditor 
-              v-model="branchForm.conditionGroups" 
+              :model-value="branchForm.conditionGroups ?? []"
+              @update:model-value="(v: ConditionGroup[]) => { if (branchForm) branchForm.conditionGroups = v }"
               :form-fields="formFields" 
             />
           </template>
@@ -419,7 +421,7 @@
       </template>
 
       <!-- ═══ 定时器节点 ═══ -->
-      <template v-else-if="timerForm">
+      <template v-else-if="timerForm && timerForm.timerConfig">
         <a-form layout="vertical" class="dd-props-form">
           <a-form-item label="定时类型">
             <a-select v-model:value="timerForm.timerConfig.type">
@@ -448,7 +450,7 @@
           <a-form-item label="触发器配置 (JSON)">
             <a-textarea 
               :value="JSON.stringify(triggerForm.triggerConfig, null, 2)"
-              @update:value="(val: string) => applyJsonConfig(val, '触发器配置', (v) => triggerForm.triggerConfig = v)"
+              @update:value="(val: string) => applyJsonConfig(val, '触发器配置', (v) => { if (triggerForm) triggerForm.triggerConfig = v as TriggerNode['triggerConfig'] })"
               :rows="4" 
             />
           </a-form-item>
@@ -506,6 +508,19 @@ import type {
   TriggerNode
 } from '@/types/approval-tree';
 import type { LfFormField } from '@/types/approval-definition';
+import { ASSIGNEE_TYPE_OPTIONS } from '@/constants/approval';
+import {
+  isApproveNode,
+  isCopyNode,
+  isStartNode,
+  isConditionBranch,
+  isInclusiveNode,
+  isRouteNode,
+  isCallProcessNode,
+  isTimerNode,
+  isTriggerNode
+} from '@/utils/workflow-node-guards';
+import { useNodeFormSync } from '@/composables/useNodeFormSync';
 
 // ── 内部类型 ──
 interface BranchForm {
@@ -534,16 +549,16 @@ const emit = defineEmits<{
 }>();
 
 // ── 状态 ──
-const formData = ref<any>(null);
-const approveForm = ref<any>(null);
-const copyForm = ref<any>(null);
-const branchForm = ref<any>(null);
-const inclusiveForm = ref<any>(null);
-const routeForm = ref<any>(null);
-const callProcessForm = ref<any>(null);
-const timerForm = ref<any>(null);
-const triggerForm = ref<any>(null);
-const startForm = ref<any>(null);
+const formData = ref<TreeNode | ConditionBranch | null>(null);
+const approveForm = ref<ApproveNode | null>(null);
+const copyForm = ref<CopyNode | null>(null);
+const branchForm = ref<BranchForm | null>(null);
+const inclusiveForm = ref<InclusiveNode | null>(null);
+const routeForm = ref<RouteNode | null>(null);
+const callProcessForm = ref<CallProcessNode | null>(null);
+const timerForm = ref<TimerNode | null>(null);
+const triggerForm = ref<TriggerNode | null>(null);
+const startForm = ref<StartNode | null>(null);
 const activeTab = ref('approver');
 
 const approverTargets = ref<string[]>([]);
@@ -552,21 +567,9 @@ const assigneeLevel = ref<number | null>(null);
 // const noticeConfigText = ref('');
 const noticeChannels = ref<number[]>([]);
 const noticeTemplateId = ref<string | undefined>(undefined);
-const formPermMap = ref<Record<string, string>>({});
+const formPermMap = ref<Record<string, 'R' | 'E' | 'H'>>({});
 const expressionValid = ref(true);
-const assigneeTypeOptions: Array<{ value: ApproveNode['assigneeType']; label: string }> = [
-  { value: 0, label: '指定人员' },
-  { value: 1, label: '指定角色' },
-  { value: 2, label: '部门负责人' },
-  { value: 3, label: '逐级领导（Loop）' },
-  { value: 4, label: '指定层级（Level）' },
-  { value: 5, label: '直属领导' },
-  { value: 6, label: '发起人' },
-  { value: 7, label: 'HRBP' },
-  { value: 8, label: '发起人自选' },
-  { value: 9, label: '业务字段取人' },
-  { value: 10, label: '外部传入人员' },
-];
+const assigneeTypeOptions = ASSIGNEE_TYPE_OPTIONS;
 
 // ── 计算属性 ──
 const iconClass = computed(() => {
@@ -593,6 +596,17 @@ const nodeIcon = computed(() => {
   return PlayCircleOutlined;
 });
 
+// ── useNodeFormSync composable ──
+const { syncNodeRefs, clearRefs, isPickerAssigneeType } = useNodeFormSync(
+  {
+    formData, approveForm, copyForm, branchForm, inclusiveForm, routeForm,
+    callProcessForm, timerForm, triggerForm, startForm, activeTab,
+    approverTargets, assigneeExpression, assigneeLevel,
+    noticeChannels, noticeTemplateId, formPermMap
+  },
+  () => props.formFields
+);
+
 // ── Watch props.node ──
 watch(
   () => props.node,
@@ -608,135 +622,6 @@ watch(
   { immediate: true },
 );
 
-function syncNodeRefs() {
-  const current = formData.value;
-  clearRefs();
-
-  if (!current) return;
-
-  if (isApproveNode(current)) {
-    const node = current as ApproveNode;
-    approveForm.value = node;
-
-    // 初始化审批人配置
-    if (isPickerAssigneeType(node.assigneeType)) {
-      approverTargets.value = node.assigneeValue ? node.assigneeValue.split(',').filter(Boolean) : [];
-      assigneeExpression.value = '';
-      assigneeLevel.value = null;
-    } else if (node.assigneeType === 4) {
-      approverTargets.value = [];
-      assigneeExpression.value = '';
-      const parsedLevel = Number.parseInt(node.assigneeValue, 10);
-      assigneeLevel.value = Number.isFinite(parsedLevel) && parsedLevel > 0 ? parsedLevel : null;
-    } else {
-      approverTargets.value = [];
-      assigneeExpression.value = node.assigneeValue ?? '';
-      assigneeLevel.value = null;
-    }
-
-    if (!node.voteWeight || node.voteWeight < 1) {
-      node.voteWeight = 1;
-    }
-    if (!node.votePassRate || node.votePassRate < 1 || node.votePassRate > 100) {
-      node.votePassRate = 60;
-    }
-
-    // 初始化表单权限
-    formPermMap.value = {};
-    if (props.formFields) {
-      props.formFields.forEach(f => {
-        const fieldId = f.id || f.fieldId;
-        const perm = node.formPermissionConfig?.fields?.find(p => p.fieldId === fieldId)?.perm;
-        formPermMap.value[fieldId] = perm || 'E'; // 默认可编辑
-      });
-    }
-
-    // 初始化通知配置
-    if (node.noticeConfig) {
-      noticeChannels.value = node.noticeConfig.channelIds || [];
-      noticeTemplateId.value = node.noticeConfig.templateId;
-    } else {
-      noticeChannels.value = [1]; // 默认站内信
-      noticeTemplateId.value = undefined;
-    }
-
-    // 初始化 AI 配置 (如果 approveForm.value 是 reactive 的，应该已经有了)
-    if (!approveForm.value.callAi) approveForm.value.callAi = false;
-    if (!approveForm.value.aiConfig) approveForm.value.aiConfig = '';
-      
-  } else if (isCopyNode(current)) {
-    const node = current as CopyNode;
-    copyForm.value = node;
-    
-    // 初始化表单权限
-    formPermMap.value = {};
-    if (props.formFields) {
-      props.formFields.forEach(f => {
-        const fieldId = f.id || f.fieldId;
-        const perm = node.formPermissionConfig?.fields?.find(p => p.fieldId === fieldId)?.perm;
-        formPermMap.value[fieldId] = perm || 'R'; // 默认只读
-      });
-    }
-
-  } else if (isConditionBranch(current)) {
-    // 迁移旧版 conditionRule 到 conditionGroups
-    let groups = current.conditionGroups ? structuredClone(current.conditionGroups) : [];
-    if (groups.length === 0 && current.conditionRule) {
-      groups = [{
-        conditions: [{
-          field: current.conditionRule.field,
-          operator: current.conditionRule.operator,
-          value: current.conditionRule.value as any
-        }]
-      }];
-    }
-
-    branchForm.value = {
-      id: current.id,
-      branchName: current.branchName,
-      isDefault: current.isDefault,
-      conditionRule: current.conditionRule
-        ? { ...current.conditionRule, value: current.conditionRule.value as unknown }
-        : undefined,
-      conditionGroups: groups,
-      conditionExpr: extractConditionExpr(current.conditionRule)
-    };
-  } else if (isInclusiveNode(current)) {
-    inclusiveForm.value = current;
-  } else if (isRouteNode(current)) {
-    routeForm.value = current;
-  } else if (isCallProcessNode(current)) {
-    callProcessForm.value = current;
-  } else if (isTimerNode(current)) {
-    timerForm.value = current;
-    if (!timerForm.value.timerConfig) {
-        timerForm.value.timerConfig = { type: 'duration', duration: 0 };
-    }
-  } else if (isTriggerNode(current)) {
-    triggerForm.value = current;
-  } else if (isStartNode(current)) {
-    startForm.value = current;
-  }
-}
-
-function clearRefs() {
-  approveForm.value = null;
-  copyForm.value = null;
-  branchForm.value = null;
-  inclusiveForm.value = null;
-  routeForm.value = null;
-  callProcessForm.value = null;
-  timerForm.value = null;
-  triggerForm.value = null;
-  startForm.value = null;
-  activeTab.value = 'approver';
-  approverTargets.value = [];
-  assigneeExpression.value = '';
-  assigneeLevel.value = null;
-  formPermMap.value = {};
-  noticeChannels.value = [];
-  noticeTemplateId.value = undefined;
-}
 
 // ── Event handlers ──
 function onApproverTypeChange() {
@@ -802,7 +687,7 @@ function handleSave() {
     branch.branchName = branchForm.value.branchName;
     branch.isDefault = branchForm.value.isDefault;
     // 保存 conditionGroups
-    branch.conditionGroups = branchForm.value.conditionGroups;
+    branch.conditionGroups = (branchForm.value.conditionGroups ?? []) as ConditionGroup[];
     // 同时也更新旧版字段以保持兼容（取第一个条件的第一个规则）
     const celExpr = branchForm.value.conditionExpr?.trim();
     if (celExpr) {
@@ -822,7 +707,8 @@ function handleSave() {
     }
   }
 
-  emit('update', formData.value);
+  if (!formData.value) return;
+  emit('update', formData.value as TreeNode | ConditionBranch);
   handleClose();
 }
 
@@ -869,9 +755,6 @@ function extractConditionExpr(conditionRule: unknown): string | undefined {
   return undefined;
 }
 
-function isPickerAssigneeType(type: ApproveNode['assigneeType']): boolean {
-  return type === 0 || type === 1;
-}
 
 function getAssigneeTypeHint(type: ApproveNode['assigneeType']): string {
   switch (type) {
@@ -892,34 +775,7 @@ function getAssigneeTypeHint(type: ApproveNode['assigneeType']): string {
   }
 }
 
-// ── 类型守卫 ──
-function isApproveNode(n: TreeNode | ConditionBranch): n is ApproveNode {
-  return 'nodeType' in n && n.nodeType === 'approve';
-}
-function isCopyNode(n: TreeNode | ConditionBranch): n is CopyNode {
-  return 'nodeType' in n && n.nodeType === 'copy';
-}
-function isStartNode(n: TreeNode | ConditionBranch): n is StartNode {
-  return 'nodeType' in n && n.nodeType === 'start';
-}
-function isConditionBranch(n: TreeNode | ConditionBranch): n is ConditionBranch {
-  return 'branchName' in n;
-}
-function isInclusiveNode(n: TreeNode | ConditionBranch): n is InclusiveNode {
-  return 'nodeType' in n && n.nodeType === 'inclusive';
-}
-function isRouteNode(n: TreeNode | ConditionBranch): n is RouteNode {
-  return 'nodeType' in n && n.nodeType === 'route';
-}
-function isCallProcessNode(n: TreeNode | ConditionBranch): n is CallProcessNode {
-  return 'nodeType' in n && n.nodeType === 'callProcess';
-}
-function isTimerNode(n: TreeNode | ConditionBranch): n is TimerNode {
-  return 'nodeType' in n && n.nodeType === 'timer';
-}
-function isTriggerNode(n: TreeNode | ConditionBranch): n is TriggerNode {
-  return 'nodeType' in n && n.nodeType === 'trigger';
-}
+// ── 类型守卫（来自 @/utils/workflow-node-guards）──
 </script>
 
 <style scoped>

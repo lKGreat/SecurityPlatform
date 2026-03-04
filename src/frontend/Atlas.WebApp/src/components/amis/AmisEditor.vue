@@ -104,13 +104,28 @@ const renderFallbackEditor = (container: HTMLElement) => {
 
   const header = document.createElement("div");
   header.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
-  header.innerHTML = `
-    <span style="font-size:14px;font-weight:500;">amis JSON Schema 编辑器</span>
-    <div style="display:flex;gap:8px;">
-      <button id="amis-format-btn" style="padding:4px 12px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;cursor:pointer;font-size:12px;">格式化</button>
-      <button id="amis-save-btn" style="padding:4px 12px;border:1px solid #1890ff;border-radius:4px;background:#1890ff;color:#fff;cursor:pointer;font-size:12px;">保存</button>
-    </div>
-  `;
+
+  const titleSpan = document.createElement("span");
+  titleSpan.style.cssText = "font-size:14px;font-weight:500;";
+  titleSpan.textContent = "amis JSON Schema 编辑器";
+
+  const btnGroup = document.createElement("div");
+  btnGroup.style.cssText = "display:flex;gap:8px;";
+
+  const formatBtn = document.createElement("button");
+  formatBtn.id = "amis-format-btn";
+  formatBtn.style.cssText = "padding:4px 12px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;cursor:pointer;font-size:12px;";
+  formatBtn.textContent = "格式化";
+
+  const saveBtn = document.createElement("button");
+  saveBtn.id = "amis-save-btn";
+  saveBtn.style.cssText = "padding:4px 12px;border:1px solid #1890ff;border-radius:4px;background:#1890ff;color:#fff;cursor:pointer;font-size:12px;";
+  saveBtn.textContent = "保存";
+
+  btnGroup.appendChild(formatBtn);
+  btnGroup.appendChild(saveBtn);
+  header.appendChild(titleSpan);
+  header.appendChild(btnGroup);
 
   const textarea = document.createElement("textarea");
   textarea.id = "amis-schema-textarea";
@@ -131,11 +146,7 @@ const renderFallbackEditor = (container: HTMLElement) => {
   wrapper.appendChild(textarea);
   container.appendChild(wrapper);
 
-  // Bind buttons
-  const formatBtn = container.querySelector("#amis-format-btn");
-  const saveBtn = container.querySelector("#amis-save-btn");
-
-  formatBtn?.addEventListener("click", () => {
+  formatBtn.addEventListener("click", () => {
     try {
       const parsed = JSON.parse(textarea.value);
       textarea.value = JSON.stringify(parsed, null, 2);
@@ -144,7 +155,7 @@ const renderFallbackEditor = (container: HTMLElement) => {
     }
   });
 
-  saveBtn?.addEventListener("click", () => {
+  saveBtn.addEventListener("click", () => {
     try {
       const parsed = JSON.parse(textarea.value) as Record<string, unknown>;
       emit("save", parsed);
