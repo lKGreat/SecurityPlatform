@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Atlas.Core.Models;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Atlas.SecurityPlatform.Tests.Integration.Infrastructure;
 using Xunit;
 
 namespace Atlas.SecurityPlatform.Tests.Integration;
@@ -10,16 +10,19 @@ namespace Atlas.SecurityPlatform.Tests.Integration;
 /// 多租户隔离集成测试
 /// 验证租户数据隔离、跨租户访问防护等安全要求
 /// </summary>
-public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public sealed class MultiTenancyTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly AtlasWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     // 测试租户ID
     private const string TenantA = "00000000-0000-0000-0000-000000000001";
     private const string TenantB = "00000000-0000-0000-0000-000000000002";
+    private const string AdminUsername = IntegrationAuthHelper.DefaultUsername;
+    private const string AdminPassword = IntegrationAuthHelper.DefaultPassword;
 
-    public MultiTenancyTests(WebApplicationFactory<Program> factory)
+    public MultiTenancyTests(AtlasWebApplicationFactory factory)
     {
         _factory = factory;
         _client = factory.CreateClient();
@@ -29,8 +32,8 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
     public async Task GetAssets_ShouldNotReturnOtherTenantsData()
     {
         // Arrange: 为租户A和租户B分别创建资产
-        var tokenA = await GetAccessTokenAsync(TenantA, "admin", "Admin@123");
-        var tokenB = await GetAccessTokenAsync(TenantB, "admin", "Admin@123");
+        var tokenA = await GetAccessTokenAsync(TenantA, AdminUsername, AdminPassword);
+        var tokenB = await GetAccessTokenAsync(TenantB, AdminUsername, AdminPassword);
 
         // 租户A创建资产
         var assetA = new
@@ -77,7 +80,7 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
     public async Task UpdateAsset_WithWrongTenantId_ShouldReturn403()
     {
         // Arrange: 租户B创建一个资产
-        var tokenB = await GetAccessTokenAsync(TenantB, "admin", "Admin@123");
+        var tokenB = await GetAccessTokenAsync(TenantB, AdminUsername, AdminPassword);
         var assetB = new
         {
             name = "Tenant B Confidential Asset",
@@ -87,7 +90,7 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
         var assetId = await CreateAssetAsync(TenantB, tokenB, assetB);
 
         // 租户A尝试获取token
-        var tokenA = await GetAccessTokenAsync(TenantA, "admin", "Admin@123");
+        var tokenA = await GetAccessTokenAsync(TenantA, AdminUsername, AdminPassword);
 
         // Act: 租户A尝试修改租户B的资产
         _client.DefaultRequestHeaders.Clear();
@@ -114,8 +117,8 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
     public async Task QueryUsers_ShouldIsolateTenantData()
     {
         // Arrange: 为两个租户分别创建用户
-        var tokenA = await GetAccessTokenAsync(TenantA, "admin", "Admin@123");
-        var tokenB = await GetAccessTokenAsync(TenantB, "admin", "Admin@123");
+        var tokenA = await GetAccessTokenAsync(TenantA, AdminUsername, AdminPassword);
+        var tokenB = await GetAccessTokenAsync(TenantB, AdminUsername, AdminPassword);
 
         // 租户A创建用户
         var userA = new
@@ -163,8 +166,8 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
     public async Task AuditLog_ShouldOnlyShowOwnTenantRecords()
     {
         // Arrange: 两个租户分别进行操作（会生成审计日志）
-        var tokenA = await GetAccessTokenAsync(TenantA, "admin", "Admin@123");
-        var tokenB = await GetAccessTokenAsync(TenantB, "admin", "Admin@123");
+        var tokenA = await GetAccessTokenAsync(TenantA, AdminUsername, AdminPassword);
+        var tokenB = await GetAccessTokenAsync(TenantB, AdminUsername, AdminPassword);
 
         // 租户A进行操作（触发审计日志）
         await GetCurrentUserAsync(TenantA, tokenA);
@@ -192,7 +195,7 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
     public async Task TenantHeaderMismatch_ShouldReturn403()
     {
         // Arrange: 租户A登录获取token
-        var tokenA = await GetAccessTokenAsync(TenantA, "admin", "Admin@123");
+        var tokenA = await GetAccessTokenAsync(TenantA, AdminUsername, AdminPassword);
 
         // Act: 使用租户A的token，但header中指定租户B
         _client.DefaultRequestHeaders.Clear();
@@ -208,7 +211,7 @@ public sealed class MultiTenancyTests : IClassFixture<WebApplicationFactory<Prog
     public async Task CreateResource_AutomaticallySetsTenantId()
     {
         // Arrange
-        var tokenA = await GetAccessTokenAsync(TenantA, "admin", "Admin@123");
+        var tokenA = await GetAccessTokenAsync(TenantA, AdminUsername, AdminPassword);
 
         // Act: 创建资产（不手动指定TenantId，应该自动从context获取）
         var asset = new

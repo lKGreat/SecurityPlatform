@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Atlas.Application.Audit.Models;
 using Atlas.Core.Models;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Atlas.SecurityPlatform.Tests.Integration.Infrastructure;
 using Xunit;
 
 namespace Atlas.SecurityPlatform.Tests.Integration;
@@ -11,17 +11,18 @@ namespace Atlas.SecurityPlatform.Tests.Integration;
 /// 审计日志集成测试
 /// 验证所有关键操作都正确记录审计日志，满足等保2.0审计要求
 /// </summary>
-public sealed class AuditRecordTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public sealed class AuditRecordTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly AtlasWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     // 测试租户ID
     private const string TestTenantId = "00000000-0000-0000-0000-000000000001";
     private const string DefaultUsername = "admin";
-    private const string DefaultPassword = "Admin@123";
+    private const string DefaultPassword = IntegrationAuthHelper.DefaultPassword;
 
-    public AuditRecordTests(WebApplicationFactory<Program> factory)
+    public AuditRecordTests(AtlasWebApplicationFactory factory)
     {
         _factory = factory;
         _client = factory.CreateClient();

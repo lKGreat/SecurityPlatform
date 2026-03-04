@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Atlas.Core.Models;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Atlas.SecurityPlatform.Tests.Integration.Infrastructure;
 using Xunit;
 
 namespace Atlas.SecurityPlatform.Tests.Integration;
@@ -10,17 +10,18 @@ namespace Atlas.SecurityPlatform.Tests.Integration;
 /// 权限控制集成测试
 /// 验证RBAC权限系统正确工作，防止越权访问
 /// </summary>
-public sealed class AuthorizationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public sealed class AuthorizationTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly AtlasWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     // 测试租户ID
     private const string TestTenantId = "00000000-0000-0000-0000-000000000001";
     private const string AdminUsername = "admin";
-    private const string AdminPassword = "Admin@123";
+    private const string AdminPassword = IntegrationAuthHelper.DefaultPassword;
 
-    public AuthorizationTests(WebApplicationFactory<Program> factory)
+    public AuthorizationTests(AtlasWebApplicationFactory factory)
     {
         _factory = factory;
         _client = factory.CreateClient();
