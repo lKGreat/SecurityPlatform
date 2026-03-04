@@ -341,13 +341,12 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         return System.Text.Encoding.UTF8.GetBytes(builder.ToString());
     }
 
+    /// <summary>
+    /// 解析 CSV 导出时的字段值。优先使用类型化值（Int/Long/Decimal 等）以保证输出一致；
+    /// 仅当无类型化值时使用 StringValue，并 Trim 去除首尾空格。
+    /// </summary>
     private static string ResolveCsvValue(DynamicFieldValueDto value)
     {
-        if (!string.IsNullOrWhiteSpace(value.StringValue))
-        {
-            return value.StringValue;
-        }
-
         if (value.IntValue.HasValue)
         {
             return value.IntValue.Value.ToString();
@@ -376,6 +375,11 @@ public sealed class DynamicRecordQueryService : IDynamicRecordQueryService
         if (value.DateValue.HasValue)
         {
             return value.DateValue.Value.ToString("yyyy-MM-dd");
+        }
+
+        if (!string.IsNullOrWhiteSpace(value.StringValue))
+        {
+            return value.StringValue.Trim();
         }
 
         return string.Empty;

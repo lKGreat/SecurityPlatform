@@ -16,15 +16,37 @@ internal static class MigrationScriptValidator
     private const int MaxScriptLength = 65536;
 
     /// <summary>
-    /// 允许的列类型（SQLite 常用）。
+    /// 允许的列类型。覆盖 SQLite、SqlServer、MySql、PostgreSql 的常用类型，
+    /// 与 DynamicSqlBuilder.MapToSqlType 及各库 ALTER ADD COLUMN 语法兼容。
     /// </summary>
     private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
+        // SQLite
         "INTEGER",
         "TEXT",
         "REAL",
         "BLOB",
-        "NUMERIC"
+        "NUMERIC",
+        // SqlServer / MySql / PostgreSQL 常用
+        "INT",
+        "BIGINT",
+        "SMALLINT",
+        "TINYINT",
+        "VARCHAR",
+        "NVARCHAR",
+        "CHAR",
+        "NCHAR",
+        "DECIMAL",
+        "FLOAT",
+        "DOUBLE",
+        "BIT",
+        "BOOLEAN",
+        "DATETIME",
+        "DATE",
+        "TIMESTAMP",
+        "TIME",
+        "DATETIME2",
+        "DATETIMEOFFSET"
     };
 
     /// <summary>
@@ -106,11 +128,14 @@ internal static class MigrationScriptValidator
     /// 检测脚本中是否包含危险关键字。仅匹配整词（非标识符子串），避免 created_at、user_grants 等误报。
     /// 使用 \b 词边界，确保 CREATE 不匹配 created_at，GRANT 不匹配 user_grants。
     /// 仅检查可执行 SQL 部分，忽略注释内容，避免 -- TODO: DROP COLUMN 等注释导致误报。
+    /// 在检查前将引号/方括号/反引号内的标识符替换为占位符，避免用户定义的表名或列名（如 select、copy、update）
+    /// 被误判为危险关键字。
     /// </summary>
     private static bool ContainsDangerousKeyword(string script)
     {
         var withoutComments = StripSqlComments(script);
-        var upper = withoutComments.ToUpperInvariant();
+        var masked = MaskQuotedIdentifiers(withoutComments);
+        var upper = masked.ToUpperInvariant();
         foreach (var kw in DangerousKeywords)
         {
             var pattern = $@"\b{Regex.Escape(kw)}\b";
@@ -121,6 +146,15 @@ internal static class MigrationScriptValidator
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// 将 SQL 中的引用标识符（双引号、方括号、反引号）替换为占位符，避免用户定义的表名/列名
+    /// 与危险关键字重合时产生误报（如字段名 select、表名 copy）。
+    /// </summary>
+    private static string MaskQuotedIdentifiers(string sql)
+    {
+        return Regex.Replace(sql, @"""([^""]*)""|\[([^\]]+)\]|`([^`]+)`", "X");
     }
 
     /// <summary>
@@ -207,7 +241,7 @@ internal static class MigrationScriptValidator
         var typeName = match.Groups[9].Value;
         if (!AllowedTypes.Contains(typeName) && !typeName.StartsWith("NUMERIC", StringComparison.OrdinalIgnoreCase))
         {
-            return $"列类型 '{typeName}' 不在允许列表中（INTEGER/TEXT/REAL/BLOB/NUMERIC）。";
+            return $"列类型 '{typeName}' 不在允许列表中，仅支持 SQLite/SqlServer/MySql/PostgreSql 的常用类型。";
         }
 
         return null;

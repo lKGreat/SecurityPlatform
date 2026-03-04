@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Atlas.Application.LowCode.Abstractions;
 using Atlas.Application.LowCode.Models;
+using Atlas.Core.Exceptions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 
@@ -224,24 +226,44 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
 
         try
         {
-            var vars = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(variablesJson);
-            if (vars is null || vars.Count == 0)
+            using var doc = JsonDocument.Parse(variablesJson);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
             {
-                return schema;
+                throw new BusinessException(
+                    "环境变量配置必须是 JSON 对象。",
+                    ErrorCodes.ValidationError);
             }
 
             var result = schema;
-            foreach (var item in vars)
+            foreach (var prop in root.EnumerateObject())
             {
-                result = result.Replace($"{{{{{item.Key}}}}}", item.Value ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+                var valueStr = JsonValueToString(prop.Value);
+                result = result.Replace($"{{{{{prop.Name}}}}}", valueStr, StringComparison.OrdinalIgnoreCase);
             }
 
             return result;
         }
-        catch
+        catch (JsonException ex)
         {
-            return schema;
+            throw new BusinessException(
+                $"环境变量配置 JSON 解析失败：{ex.Message}",
+                ErrorCodes.ValidationError);
         }
+    }
+
+    private static string JsonValueToString(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString() ?? string.Empty,
+            JsonValueKind.Number => element.GetRawText(),
+            JsonValueKind.True => "true",
+            JsonValueKind.False => "false",
+            JsonValueKind.Null => string.Empty,
+            JsonValueKind.Object or JsonValueKind.Array => element.GetRawText(),
+            _ => string.Empty
+        };
     }
 
     private static LowCodeAppDetail MapToDetail(

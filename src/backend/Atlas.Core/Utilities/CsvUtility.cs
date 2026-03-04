@@ -17,10 +17,10 @@ public static class CsvUtility
             return string.Empty;
         }
 
+        // RFC 4180: escape " as ""
         var escaped = value.Replace("\"", "\"\"");
         // RFC 4180: fields containing ", comma, or newline must be enclosed in quotes
-        return escaped.Contains('"') || escaped.Contains(',') || escaped.Contains('\n') || escaped.Contains('\r')
-            ? $"\"{escaped}\""
-            : escaped;
+        bool needsQuotes = value.Contains('"') || value.Contains(',') || value.Contains('\n') || value.Contains('\r');
+        return needsQuotes ? $"\"{escaped}\"" : escaped;
     }
 }

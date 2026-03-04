@@ -175,6 +175,8 @@ public sealed class MigrationService : IMigrationService
         var downSql = new StringBuilder();
         var isDestructive = false;
 
+        var hasExecutableUp = false;
+
         foreach (var field in request.AddFields)
         {
             if (existing.ContainsKey(field.Name))
@@ -185,7 +187,8 @@ public sealed class MigrationService : IMigrationService
 
             var addSql = BuildAddColumnSql(table, field);
             upSql.AppendLine(addSql);
-            downSql.AppendLine($"-- SQLite 需重建表: 新增字段 {field.Name} 的回滚需手动执行");
+            hasExecutableUp = true;
+            downSql.AppendLine("-- SQLite 需重建表，新增列的回退需手动执行");
         }
 
         foreach (var field in request.UpdateFields)
@@ -200,8 +203,8 @@ public sealed class MigrationService : IMigrationService
             {
                 isDestructive = true;
                 warnings.Add($"字段 {field.Name} 涉及结构修改，SQLite 需重建表。");
-                upSql.AppendLine($"-- SQLite 需重建表: 字段 {field.Name} 的修改需手动执行");
-                downSql.AppendLine($"-- SQLite 需重建表: 字段 {field.Name} 的回滚需手动执行");
+                upSql.AppendLine("-- SQLite 需重建表，字段修改需手动执行");
+                downSql.AppendLine("-- SQLite 需重建表，字段回退需手动执行");
             }
         }
 
@@ -215,8 +218,8 @@ public sealed class MigrationService : IMigrationService
 
             isDestructive = true;
             warnings.Add($"字段 {fieldName} 删除属于破坏性变更，SQLite 需重建表。");
-            upSql.AppendLine($"-- SQLite 需重建表: 字段 {fieldName} 的删除需手动执行");
-            downSql.AppendLine($"-- SQLite 需重建表: 字段 {fieldName} 的还原需手动执行");
+            upSql.AppendLine("-- SQLite 需重建表，字段删除需手动执行");
+            downSql.AppendLine("-- SQLite 需重建表，字段恢复需手动执行");
         }
 
         var upScript = upSql.ToString().Trim();
@@ -224,11 +227,19 @@ public sealed class MigrationService : IMigrationService
         {
             upScript = "-- no-op: 未检测到可执行的结构变更";
         }
+        else if (!hasExecutableUp)
+        {
+            upScript = "-- no-op: SQLite 需重建表的变更需手动执行";
+        }
 
         var downScript = downSql.ToString().Trim();
         if (string.IsNullOrWhiteSpace(downScript))
         {
-            downScript = "-- no-op: 无回滚脚本";
+            downScript = "-- no-op: 无回退脚本";
+        }
+        else if (!hasExecutableUp)
+        {
+            downScript = "-- no-op: SQLite 需重建表的回退需手动执行";
         }
 
         return new MigrationScriptPreview(
