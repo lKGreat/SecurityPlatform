@@ -42,8 +42,7 @@ public sealed class LowCodeEnvironmentRepository : ILowCodeEnvironmentRepository
     {
         return await _db.Queryable<LowCodeEnvironment>()
             .Where(x => x.TenantIdValue == tenantId.Value && x.AppId == appId)
-            .OrderByDescending(x => x.IsDefault)
-            .OrderBy(x => x.UpdatedAt, OrderByType.Desc)
+            .OrderBy(x => new { isDefault = SqlFunc.Desc(x.IsDefault), updatedAt = SqlFunc.Desc(x.UpdatedAt) })
             .ToListAsync(cancellationToken);
     }
 
