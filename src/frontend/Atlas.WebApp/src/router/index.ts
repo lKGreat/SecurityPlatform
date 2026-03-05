@@ -16,6 +16,8 @@ const AppListPage = () => import("@/pages/lowcode/AppListPage.vue");
 const AppBuilderPage = () => import("@/pages/lowcode/AppBuilderPage.vue");
 const FormListPage = () => import("@/pages/lowcode/FormListPage.vue");
 const FormDesignerPage = () => import("@/pages/lowcode/FormDesignerPage.vue");
+const DictTypesPage = () => import("@/pages/system/DictTypesPage.vue");
+const SystemConfigsPage = () => import("@/pages/system/SystemConfigsPage.vue");
 
 declare module "vue-router" {
   interface RouteMeta {
@@ -31,6 +33,10 @@ const router = createRouter({
     { path: "/login", name: "login", component: LoginPage, meta: { title: "登录" } },
     { path: "/register", name: "register", component: RegisterPage, meta: { title: "注册" } },
     { path: "/profile", name: "profile", component: ProfilePage, meta: { requiresAuth: true, title: "个人中心" } },
+    { path: "/settings/system/dict-types", name: "settings-system-dict-types", component: DictTypesPage, meta: { requiresAuth: true, title: "字典管理", requiresPermission: "dict:type:view" } },
+    { path: "/settings/system/configs", name: "settings-system-configs", component: SystemConfigsPage, meta: { requiresAuth: true, title: "参数配置", requiresPermission: "config:view" } },
+    { path: "/system/dict-types", name: "system-dict-types-legacy", redirect: "/settings/system/dict-types", meta: { requiresAuth: true, title: "字典管理" } },
+    { path: "/system/configs", name: "system-configs-legacy", redirect: "/settings/system/configs", meta: { requiresAuth: true, title: "参数配置" } },
     { path: "/lowcode/apps", name: "app-list", component: AppListPage, meta: { requiresAuth: true, title: "低代码应用", requiresPermission: "apps:view" } },
     { path: "/lowcode/apps/:id/builder", name: "app-builder", component: AppBuilderPage, meta: { requiresAuth: true, title: "应用设计器", requiresPermission: "apps:update" } },
     { path: "/lowcode/forms", name: "apps-form-list", component: FormListPage, meta: { requiresAuth: true, title: "表单管理", requiresPermission: "apps:view" } },

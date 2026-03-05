@@ -14,7 +14,11 @@ const pathComponentFallbackMap: Record<string, string> = {
   "/settings/auth/roles": "../pages/system/RolesPage.vue",
   "/settings/auth/menus": "../pages/system/MenusPage.vue",
   "/settings/projects": "../pages/system/ProjectsPage.vue",
-  "/settings/system/datasources": "../pages/system/TenantDataSourcesPage.vue"
+  "/settings/system/datasources": "../pages/system/TenantDataSourcesPage.vue",
+  "/settings/system/dict-types": "../pages/system/DictTypesPage.vue",
+  "/settings/system/configs": "../pages/system/SystemConfigsPage.vue",
+  "/system/dict-types": "../pages/system/DictTypesPage.vue",
+  "/system/configs": "../pages/system/SystemConfigsPage.vue"
 };
 
 function resolveByPathFallback(path?: string) {

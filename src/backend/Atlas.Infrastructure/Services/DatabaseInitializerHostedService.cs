@@ -102,6 +102,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(ApprovalOperationRecord),
             typeof(ApprovalFlowButtonConfig),
             typeof(ApprovalTimeoutReminder),
+            typeof(ApprovalCopyRecord),
             typeof(ApprovalExternalCallbackRecord),
             typeof(ApprovalParallelToken),
             typeof(ApprovalTimerJob),
@@ -463,6 +464,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             ("菜单管理", "/settings/auth/menus", "/system", 33, "C", "system/MenusPage", "menu", PermissionCodes.MenusView, null, false, true, "0", "0", PermissionCodes.MenusView, false),
             ("项目管理", "/settings/projects", "/system", 34, "C", "system/ProjectsPage", "project", PermissionCodes.ProjectsView, null, false, true, "0", "0", PermissionCodes.ProjectsView, false),
             ("数据源管理", "/settings/system/datasources", "/system", 35, "C", "system/TenantDataSourcesPage", "database", PermissionCodes.SystemAdmin, null, false, true, "0", "0", PermissionCodes.SystemAdmin, false),
+            ("字典管理", "/settings/system/dict-types", "/system", 36, "C", "system/DictTypesPage", "book", PermissionCodes.DictTypeView, null, false, true, "0", "0", PermissionCodes.DictTypeView, false),
+            ("参数配置", "/settings/system/configs", "/system", 37, "C", "system/SystemConfigsPage", "tool", PermissionCodes.ConfigView, null, false, true, "0", "0", PermissionCodes.ConfigView, false),
 
             ("用户查询", "/settings/org/users:query", "/settings/org/users", 1, "F", null, null, PermissionCodes.UsersView, null, false, false, "0", "0", PermissionCodes.UsersView, true),
             ("用户新增", "/settings/org/users:create", "/settings/org/users", 2, "F", null, null, PermissionCodes.UsersCreate, null, false, false, "0", "0", PermissionCodes.UsersCreate, true),
@@ -659,7 +662,9 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             "/settings/auth/roles",
             "/settings/auth/menus",
             "/settings/projects",
-            "/settings/system/datasources"
+            "/settings/system/datasources",
+            "/settings/system/dict-types",
+            "/settings/system/configs"
         };
         var menuIds = requiredMenuPaths
             .Select(path => menuIdMap.TryGetValue(path, out var menuId) ? menuId : 0)
