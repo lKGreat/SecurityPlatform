@@ -57,9 +57,9 @@ export async function getDictTypesPaged(params: {
   keyword?: string;
 }): Promise<PagedResult<DictTypeDto>> {
   const query = new URLSearchParams();
-  query.set("pageIndex", String(params.pageIndex ?? 1));
-  query.set("pageSize", String(params.pageSize ?? 20));
-  if (params.keyword) query.set("keyword", params.keyword);
+  query.set("PageIndex", String(params.pageIndex ?? 1));
+  query.set("PageSize", String(params.pageSize ?? 20));
+  if (params.keyword) query.set("Keyword", params.keyword);
   const response = await requestApi<ApiResponse<PagedResult<DictTypeDto>>>(`/dict-types?${query}`);
   if (!response.data) throw new Error(response.message || "查询失败");
   return response.data;
@@ -76,9 +76,9 @@ export async function getDictDataPaged(
   params: { pageIndex?: number; pageSize?: number; keyword?: string }
 ): Promise<PagedResult<DictDataDto>> {
   const query = new URLSearchParams();
-  query.set("pageIndex", String(params.pageIndex ?? 1));
-  query.set("pageSize", String(params.pageSize ?? 20));
-  if (params.keyword) query.set("keyword", params.keyword);
+  query.set("PageIndex", String(params.pageIndex ?? 1));
+  query.set("PageSize", String(params.pageSize ?? 20));
+  if (params.keyword) query.set("Keyword", params.keyword);
   const response = await requestApi<ApiResponse<PagedResult<DictDataDto>>>(`/dict-types/${code}/data?${query}`);
   if (!response.data) throw new Error(response.message || "查询失败");
   return response.data;

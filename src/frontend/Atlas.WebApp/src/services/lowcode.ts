@@ -32,9 +32,9 @@ export async function getFormDefinitionsPaged(
   params: PagedRequest & { category?: string }
 ): Promise<PagedResult<FormDefinitionListItem>> {
   const query = new URLSearchParams({
-    pageIndex: params.pageIndex.toString(),
-    pageSize: params.pageSize.toString(),
-    keyword: params.keyword ?? ""
+    PageIndex: params.pageIndex.toString(),
+    PageSize: params.pageSize.toString(),
+    Keyword: params.keyword ?? ""
   });
   if (params.category) {
     query.set("category", params.category);
@@ -134,9 +134,9 @@ export async function getLowCodeAppsPaged(
   params: PagedRequest & { category?: string }
 ): Promise<PagedResult<LowCodeAppListItem>> {
   const query = new URLSearchParams({
-    pageIndex: params.pageIndex.toString(),
-    pageSize: params.pageSize.toString(),
-    keyword: params.keyword ?? ""
+    PageIndex: params.pageIndex.toString(),
+    PageSize: params.pageSize.toString(),
+    Keyword: params.keyword ?? ""
   });
   if (params.category) {
     query.set("category", params.category);
@@ -244,11 +244,11 @@ export async function getLowCodeAppVersionsPaged(
   params: PagedRequest
 ): Promise<PagedResult<LowCodeAppVersionListItem>> {
   const query = new URLSearchParams({
-    pageIndex: params.pageIndex.toString(),
-    pageSize: params.pageSize.toString()
+    PageIndex: params.pageIndex.toString(),
+    PageSize: params.pageSize.toString()
   });
   if (params.keyword) {
-    query.set("keyword", params.keyword);
+    query.set("Keyword", params.keyword);
   }
   const response = await requestApi<ApiResponse<PagedResult<LowCodeAppVersionListItem>>>(
     `/lowcode-apps/${appId}/versions?${query.toString()}`

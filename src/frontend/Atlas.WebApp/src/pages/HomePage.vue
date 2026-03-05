@@ -180,17 +180,15 @@ type QuickEntrySource = {
 };
 
 const organizationEntriesSource: QuickEntrySource[] = [
-  { title: "员工管理", description: "人员信息 / 角色与权限 / 账号状态", path: "/system/users", permissions: ["users:view"] },
-  { title: "部门管理", description: "组织层级 / 负责人 / 可见范围", path: "/system/departments", permissions: ["departments:view"] },
-  { title: "职位管理", description: "岗位序列 / 影响面提示 / 状态", path: "/system/positions", permissions: ["positions:view"] },
-  { title: "角色管理", description: "成员 / 权限 / 数据范围", path: "/system/roles", permissions: ["roles:view"] }
+  { title: "员工管理", description: "人员信息 / 角色与权限 / 账号状态", path: "/settings/org/users", permissions: ["users:view"] },
+  { title: "角色管理", description: "成员 / 权限 / 数据范围", path: "/settings/auth/roles", permissions: ["roles:view"] },
+  { title: "菜单管理", description: "菜单层级 / 权限绑定 / 隐藏", path: "/settings/auth/menus", permissions: ["menus:view"] },
+  { title: "项目管理", description: "成员分配 / 数据隔离", path: "/settings/projects", permissions: ["projects:view"] }
 ];
 
 const businessEntriesSource: QuickEntrySource[] = [
-  { title: "权限管理", description: "功能权限 + 数据权限配置", path: "/system/permissions", permissions: ["permissions:view"] },
-  { title: "菜单管理", description: "菜单层级 / 权限绑定 / 隐藏", path: "/system/menus", permissions: ["menus:view"] },
-  { title: "项目管理", description: "成员分配 / 数据隔离", path: "/system/projects", permissions: ["projects:view"] },
-  { title: "应用配置", description: "可见范围 / 项目模式 / 状态", path: "/system/apps", permissions: ["apps:view"] }
+  { title: "数据源管理", description: "租户数据源接入与测试", path: "/settings/system/datasources", permissions: ["*:*:*"] },
+  { title: "工作流设计", description: "流程建模与发布", path: "/workflow/designer", permissions: ["workflow:view"] }
 ];
 
 const securityEntriesSource: QuickEntrySource[] = [

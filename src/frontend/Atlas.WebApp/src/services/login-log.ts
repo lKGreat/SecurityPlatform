@@ -36,12 +36,12 @@ export async function exportLoginLogs(params: LoginLogQueryParams): Promise<Blob
 
 function buildQuery(params: LoginLogQueryParams): string {
   const query = new URLSearchParams();
-  query.set("pageIndex", String(params.pageIndex ?? 1));
-  query.set("pageSize", String(params.pageSize ?? 20));
-  if (params.username) query.set("username", params.username);
-  if (params.ipAddress) query.set("ipAddress", params.ipAddress);
-  if (typeof params.loginStatus === "boolean") query.set("loginStatus", String(params.loginStatus));
-  if (params.from) query.set("from", params.from);
-  if (params.to) query.set("to", params.to);
+  query.set("PageIndex", String(params.pageIndex ?? 1));
+  query.set("PageSize", String(params.pageSize ?? 20));
+  if (params.username) query.set("Username", params.username);
+  if (params.ipAddress) query.set("IpAddress", params.ipAddress);
+  if (typeof params.loginStatus === "boolean") query.set("LoginStatus", String(params.loginStatus));
+  if (params.from) query.set("From", params.from);
+  if (params.to) query.set("To", params.to);
   return query.toString();
 }

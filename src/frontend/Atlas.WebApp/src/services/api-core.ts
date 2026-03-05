@@ -77,11 +77,11 @@ export interface ClientErrorReportPayload {
 
 export function toQuery(pagedRequest: PagedRequest, extra?: Record<string, string | undefined>) {
   const query = new URLSearchParams({
-    pageIndex: pagedRequest.pageIndex.toString(),
-    pageSize: pagedRequest.pageSize.toString(),
-    keyword: pagedRequest.keyword ?? "",
-    sortBy: pagedRequest.sortBy ?? "",
-    sortDesc: pagedRequest.sortDesc ? "true" : "false"
+    PageIndex: pagedRequest.pageIndex.toString(),
+    PageSize: pagedRequest.pageSize.toString(),
+    Keyword: pagedRequest.keyword ?? "",
+    SortBy: pagedRequest.sortBy ?? "",
+    SortDesc: pagedRequest.sortDesc ? "true" : "false"
   });
 
   if (extra) {

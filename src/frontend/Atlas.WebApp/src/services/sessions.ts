@@ -18,9 +18,9 @@ export async function getOnlineUsers(params: {
   keyword?: string;
 }): Promise<PagedResult<OnlineUserDto>> {
   const query = new URLSearchParams();
-  query.set("pageIndex", String(params.pageIndex ?? 1));
-  query.set("pageSize", String(params.pageSize ?? 20));
-  if (params.keyword) query.set("keyword", params.keyword);
+  query.set("PageIndex", String(params.pageIndex ?? 1));
+  query.set("PageSize", String(params.pageSize ?? 20));
+  if (params.keyword) query.set("Keyword", params.keyword);
   const response = await requestApi<ApiResponse<PagedResult<OnlineUserDto>>>(`/sessions?${query}`);
   if (!response.data) throw new Error(response.message || "查询失败");
   return response.data;

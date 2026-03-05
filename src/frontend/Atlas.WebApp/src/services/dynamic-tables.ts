@@ -15,9 +15,9 @@ import { requestApi } from "@/services/api";
 
 export async function getDynamicTablesPaged(pagedRequest: PagedRequest) {
   const query = new URLSearchParams({
-    pageIndex: pagedRequest.pageIndex.toString(),
-    pageSize: pagedRequest.pageSize.toString(),
-    keyword: pagedRequest.keyword ?? ""
+    PageIndex: pagedRequest.pageIndex.toString(),
+    PageSize: pagedRequest.pageSize.toString(),
+    Keyword: pagedRequest.keyword ?? ""
   }).toString();
   const response = await requestApi<ApiResponse<PagedResult<DynamicTableListItem>>>(`/dynamic-tables?${query}`);
   if (!response.data) {
