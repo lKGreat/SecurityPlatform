@@ -9,7 +9,6 @@ using Atlas.WebApi.Authorization;
 using Atlas.WebApi.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
 
 namespace Atlas.WebApi.Controllers;
 
@@ -57,13 +56,6 @@ public sealed class NotificationsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         var currentUser = _currentUserAccessor.GetCurrentUser()
             ?? throw new UnauthorizedAccessException();
-        #region agent log
-        AgentDebugLog(
-            "H4",
-            "NotificationsController.cs:GetMyNotifications:entry",
-            "get my notifications entry",
-            new { userId = currentUser.UserId, tenantId = tenantId.ToString(), pageIndex, pageSize, isRead });
-        #endregion
 
         var query = new UserNotificationPagedQuery(pageIndex, pageSize, isRead);
         var result = await _queryService.GetUserNotificationsAsync(tenantId, currentUser.UserId, query, cancellationToken);
@@ -77,13 +69,6 @@ public sealed class NotificationsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         var currentUser = _currentUserAccessor.GetCurrentUser()
             ?? throw new UnauthorizedAccessException();
-        #region agent log
-        AgentDebugLog(
-            "H4",
-            "NotificationsController.cs:GetUnreadCount:entry",
-            "get unread count entry",
-            new { userId = currentUser.UserId, tenantId = tenantId.ToString() });
-        #endregion
 
         var count = await _queryService.GetUnreadCountAsync(tenantId, currentUser.UserId, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { count }, HttpContext.TraceIdentifier));
@@ -202,23 +187,4 @@ public sealed class NotificationsController : ControllerBase
         await _auditRecorder.RecordAsync(auditContext, cancellationToken);
     }
 
-    private static void AgentDebugLog(string hypothesisId, string location, string message, object data)
-    {
-        try
-        {
-            var payload = new
-            {
-                hypothesisId,
-                location,
-                message,
-                data,
-                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            };
-            global::System.IO.File.AppendAllText("/opt/cursor/logs/debug.log", JsonSerializer.Serialize(payload) + Environment.NewLine);
-        }
-        catch
-        {
-            // ignore debug log failures
-        }
-    }
 }

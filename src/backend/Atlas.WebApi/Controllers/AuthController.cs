@@ -21,7 +21,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
-using System.Text.Json;
 
 namespace Atlas.WebApi.Controllers;
 
@@ -212,19 +211,6 @@ public sealed class AuthController : ControllerBase
                 clientContext.ClientAgent.ToString())
         };
 
-        #region agent log
-        AgentDebugLog(
-            "H3",
-            "AuthController.cs:Me:exit",
-            "auth profile loaded",
-            new
-            {
-                userId = currentUser.UserId,
-                rolesCount = payloadProfile.Roles?.Count ?? 0,
-                permissionsCount = payloadProfile.Permissions?.Count ?? 0
-            });
-        #endregion
-
         return Ok(ApiResponse<AuthProfileResult>.Ok(payloadProfile, HttpContext.TraceIdentifier));
     }
 
@@ -285,32 +271,12 @@ public sealed class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
-        #region agent log
-        AgentDebugLog(
-            "H2",
-            "AuthController.cs:GetRouters:entry",
-            "get routers entry",
-            new { userId = currentUser.UserId, tenantId = currentUser.TenantId.ToString() });
-        #endregion
 
         var menus = await _menuQueryService.SelectMenuTreeByUserIdAsync(
             currentUser.TenantId,
             currentUser.UserId,
             cancellationToken);
         var routers = _menuQueryService.BuildMenus(menus);
-
-        #region agent log
-        AgentDebugLog(
-            "H2",
-            "AuthController.cs:GetRouters:exit",
-            "get routers exit",
-            new
-            {
-                menusCount = menus.Count,
-                routersCount = routers.Count,
-                nullChildrenCount = routers.Sum(CountNullChildrenNodes)
-            });
-        #endregion
 
         return Ok(ApiResponse<IReadOnlyList<Atlas.Application.Identity.Models.RouterVo>>.Ok(routers, HttpContext.TraceIdentifier));
     }
@@ -434,44 +400,6 @@ public sealed class AuthController : ControllerBase
         ClearAuthCookies();
 
         return Ok(ApiResponse<object>.Ok(new { Success = true }, HttpContext.TraceIdentifier));
-    }
-
-    /// <summary>
-    /// 设置认证相关的httpOnly cookie
-    /// </summary>
-    private static int CountNullChildrenNodes(Atlas.Application.Identity.Models.RouterVo router)
-    {
-        if (router.Children is null)
-        {
-            return 1;
-        }
-
-        var total = 0;
-        foreach (var child in router.Children)
-        {
-            total += CountNullChildrenNodes(child);
-        }
-        return total;
-    }
-
-    private static void AgentDebugLog(string hypothesisId, string location, string message, object data)
-    {
-        try
-        {
-            var payload = new
-            {
-                hypothesisId,
-                location,
-                message,
-                data,
-                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            };
-            global::System.IO.File.AppendAllText("/opt/cursor/logs/debug.log", JsonSerializer.Serialize(payload) + Environment.NewLine);
-        }
-        catch
-        {
-            // ignore debug log failures
-        }
     }
 
     /// <summary>
