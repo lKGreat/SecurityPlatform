@@ -5,6 +5,7 @@ const pageModules = import.meta.glob("../pages/**/*.vue");
 
 const pathComponentFallbackMap: Record<string, string> = {
   "/": "../pages/HomePage.vue",
+  "/approval/flows": "../pages/ApprovalFlowsPage.vue",
   "/assets": "../pages/AssetsPage.vue",
   "/audit": "../pages/AuditPage.vue",
   "/alert": "../pages/AlertPage.vue",

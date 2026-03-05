@@ -59,7 +59,7 @@ router.beforeEach(async (to, from, next) => {
       return;
     }
 
-    if (!permissionStore.routeLoaded || userStore.roles.length === 0) {
+    if (!permissionStore.routeLoaded || !userStore.profile) {
       try {
         await userStore.getInfo();
         await permissionStore.generateRoutes();
