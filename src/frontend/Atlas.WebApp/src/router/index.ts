@@ -64,7 +64,13 @@ router.beforeEach(async (to, from, next) => {
         await userStore.getInfo();
         await permissionStore.generateRoutes();
         permissionStore.registerRoutes(router);
-        next({ ...to, replace: true });
+        // 仅按 URL 重放，避免携带 not-found 名称导致动态路由注册后仍落入 404。
+        next({
+          path: to.path,
+          query: to.query,
+          hash: to.hash,
+          replace: true
+        });
         return;
       } catch (err) {
         console.error(err);
