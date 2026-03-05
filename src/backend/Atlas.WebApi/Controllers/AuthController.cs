@@ -210,6 +210,7 @@ public sealed class AuthController : ControllerBase
                 clientContext.ClientChannel.ToString(),
                 clientContext.ClientAgent.ToString())
         };
+
         return Ok(ApiResponse<AuthProfileResult>.Ok(payloadProfile, HttpContext.TraceIdentifier));
     }
 
@@ -270,11 +271,13 @@ public sealed class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
+
         var menus = await _menuQueryService.SelectMenuTreeByUserIdAsync(
             currentUser.TenantId,
             currentUser.UserId,
             cancellationToken);
         var routers = _menuQueryService.BuildMenus(menus);
+
         return Ok(ApiResponse<IReadOnlyList<Atlas.Application.Identity.Models.RouterVo>>.Ok(routers, HttpContext.TraceIdentifier));
     }
 

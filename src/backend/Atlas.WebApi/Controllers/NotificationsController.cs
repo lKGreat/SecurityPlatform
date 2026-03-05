@@ -186,4 +186,5 @@ public sealed class NotificationsController : ControllerBase
             _clientContextAccessor.GetCurrent());
         await _auditRecorder.RecordAsync(auditContext, cancellationToken);
     }
+
 }
