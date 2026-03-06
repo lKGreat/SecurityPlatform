@@ -64,6 +64,12 @@ const dataSource = ref<ApprovalTaskResponse[]>([]);
 const loading = ref(false);
 const keyword = ref('');
 const statusFilter = ref<ApprovalTaskStatus | 'all'>('all');
+const doneStatusSet = new Set<ApprovalTaskStatus>([
+  ApprovalTaskStatus.Approved,
+  ApprovalTaskStatus.Rejected,
+  ApprovalTaskStatus.Canceled,
+  ApprovalTaskStatus.Delegated
+]);
 const statusOptions = [
   { label: '全部', value: 'all' },
   { label: '已同意', value: ApprovalTaskStatus.Approved },
@@ -87,10 +93,13 @@ const fetchData = async () => {
         pageSize: pagination.pageSize ?? 10,
         keyword: keyword.value || undefined,
       },
-      statusValue ?? ApprovalTaskStatus.Approved,
+      statusValue,
     );
-    dataSource.value = result.items;
-    pagination.total = result.total;
+    const items = statusValue === undefined
+      ? result.items.filter((item) => doneStatusSet.has(item.status))
+      : result.items;
+    dataSource.value = items;
+    pagination.total = statusValue === undefined ? items.length : result.total;
   } catch (err) {
     message.error(err instanceof Error ? err.message : '查询失败');
   } finally {

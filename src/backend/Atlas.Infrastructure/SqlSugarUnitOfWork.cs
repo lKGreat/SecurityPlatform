@@ -15,11 +15,16 @@ public sealed class SqlSugarUnitOfWork : IUnitOfWork
         _db = db;
     }
 
-    public Task ExecuteInTransactionAsync(Func<Task> action, CancellationToken cancellationToken = default)
+    public async Task ExecuteInTransactionAsync(Func<Task> action, CancellationToken cancellationToken = default)
     {
-        return _db.Ado.UseTranAsync(async () =>
+        var result = await _db.Ado.UseTranAsync(async () =>
         {
             await action();
         });
+
+        if (!result.IsSuccess)
+        {
+            throw result.ErrorException ?? new InvalidOperationException("数据库事务执行失败。");
+        }
     }
 }

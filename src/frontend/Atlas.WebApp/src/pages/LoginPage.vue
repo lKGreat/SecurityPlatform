@@ -172,6 +172,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getCaptcha } from "@/services/api";
 import { useUserStore } from "@/stores/user";
+import { usePermissionStore } from "@/stores/permission";
 import type { RequestOptions } from "@/services/api";
 import {
   clearAuthStorage,
@@ -185,6 +186,12 @@ import {
 interface TenantHistoryItem {
   id: string;
   label: string;
+}
+
+interface SidebarRouteNode {
+  path?: string;
+  hidden?: boolean;
+  children?: SidebarRouteNode[];
 }
 
 interface LoginApiError extends Error {
@@ -203,6 +210,7 @@ const COOLDOWN_THRESHOLD = 5;
 const COOLDOWN_DURATION = 30;
 
 const userStore = useUserStore();
+const permissionStore = usePermissionStore();
 const route = useRoute();
 const router = useRouter();
 const loading = ref(false);
@@ -274,6 +282,29 @@ const persistTenantHistory = (tenantId: string) => {
   tenantHistory.value.unshift(item);
   tenantHistory.value = tenantHistory.value.slice(0, 5);
   localStorage.setItem(TENANT_HISTORY_KEY, JSON.stringify(tenantHistory.value));
+};
+
+const pickFirstAccessiblePath = (nodes: SidebarRouteNode[] | undefined): string | null => {
+  if (!Array.isArray(nodes)) {
+    return null;
+  }
+
+  for (const node of nodes) {
+    if (!node || node.hidden) {
+      continue;
+    }
+
+    const childPath = pickFirstAccessiblePath(node.children);
+    if (childPath) {
+      return childPath;
+    }
+
+    if (node.path && !node.path.includes(":")) {
+      return node.path;
+    }
+  }
+
+  return null;
 };
 
 const handleCapsLockEvent = (event: KeyboardEvent) => {
@@ -366,13 +397,20 @@ const handleSubmit = async () => {
       }
     );
     await userStore.getInfo();
+    const routes = await permissionStore.generateRoutes();
+    permissionStore.registerRoutes(router);
     persistTenantHistory(form.tenantId);
     localStorage.setItem(REMEMBER_ME_KEY, String(form.rememberMe));
     failedAttempts.value = 0;
     cooldownSeconds.value = 0;
     errorMessage.value = "";
     const redirect = route.query.redirect as string;
-    router.push(redirect || "/");
+    const targetPath = redirect || "/";
+    const canNavigate = routes.some((item) => typeof item.path === "string" && targetPath.startsWith(item.path));
+    const firstAccessiblePath = pickFirstAccessiblePath(permissionStore.sidebarRouters as SidebarRouteNode[]);
+    const fallbackPath = firstAccessiblePath ?? "/profile";
+    const staticAllowedTargets = new Set(["/profile"]);
+    router.push(canNavigate || staticAllowedTargets.has(targetPath) ? targetPath : fallbackPath);
   } catch (error) {
     clearAuthStorage();
     failedAttempts.value += 1;

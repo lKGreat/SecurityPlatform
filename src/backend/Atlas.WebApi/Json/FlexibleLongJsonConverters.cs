@@ -17,7 +17,7 @@ public sealed class FlexibleLongJsonConverter : JsonConverter<long>
 
     public override void Write(Utf8JsonWriter writer, long value, JsonSerializerOptions options)
     {
-        writer.WriteNumberValue(value);
+        writer.WriteStringValue(value.ToString());
     }
 
     private static long ParseLong(string? raw)
@@ -53,7 +53,7 @@ public sealed class FlexibleNullableLongJsonConverter : JsonConverter<long?>
     {
         if (value.HasValue)
         {
-            writer.WriteNumberValue(value.Value);
+            writer.WriteStringValue(value.Value.ToString());
         }
         else
         {

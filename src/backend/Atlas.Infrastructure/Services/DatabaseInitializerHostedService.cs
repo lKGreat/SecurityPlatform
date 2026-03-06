@@ -102,6 +102,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(ApprovalOperationRecord),
             typeof(ApprovalFlowButtonConfig),
             typeof(ApprovalTimeoutReminder),
+            typeof(ApprovalAgentConfig),
             typeof(ApprovalCopyRecord),
             typeof(ApprovalExternalCallbackRecord),
             typeof(ApprovalParallelToken),
@@ -140,6 +141,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(LowCodePage),
             typeof(LowCodeAppVersion),
             typeof(FormDefinition));
+        await EnsureApprovalSchemaAsync(db, cancellationToken);
 
         // 创建审批模块数据库索引
         var indexInitializer = scope.ServiceProvider.GetRequiredService<ApprovalIndexInitializer>();
@@ -791,6 +793,328 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         if (!result.IsSuccess)
         {
             throw result.ErrorException ?? new InvalidOperationException("修复 AuthSession 表结构失败。");
+        }
+    }
+
+    private static async Task EnsureApprovalSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        await EnsureApprovalFlowDefinitionSchemaAsync(db, cancellationToken);
+        await EnsureApprovalProcessInstanceSchemaAsync(db, cancellationToken);
+        await EnsureApprovalTaskSchemaAsync(db, cancellationToken);
+        await EnsureApprovalHistoryEventSchemaAsync(db, cancellationToken);
+        await EnsureApprovalNodeExecutionSchemaAsync(db, cancellationToken);
+        await EnsureApprovalCopyRecordSchemaAsync(db, cancellationToken);
+    }
+
+    private static async Task EnsureApprovalFlowDefinitionSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("ApprovalFlowDefinition", false))
+        {
+            return;
+        }
+
+        var schema = await db.Ado.GetDataTableAsync("PRAGMA table_info('ApprovalFlowDefinition');");
+        if (!IsColumnNotNull(schema, "PublishedAt")
+            && !IsColumnNotNull(schema, "PublishedByUserId")
+            && !IsColumnNotNull(schema, "VisibilityScopeJson")
+            && !IsColumnNotNull(schema, "Category")
+            && !IsColumnNotNull(schema, "Description"))
+        {
+            return;
+        }
+
+        await RebuildTableAsync(
+            db,
+            "ApprovalFlowDefinition",
+            """
+            CREATE TABLE ApprovalFlowDefinition (
+                Name TEXT NOT NULL,
+                DefinitionJson TEXT NOT NULL,
+                Version INTEGER NOT NULL,
+                Status INTEGER NOT NULL,
+                PublishedAt TEXT NULL,
+                PublishedByUserId INTEGER NULL,
+                VisibilityScopeJson TEXT NULL,
+                Category TEXT NULL,
+                Description TEXT NULL,
+                IsQuickEntry INTEGER NOT NULL,
+                TenantIdValue TEXT NOT NULL,
+                Id INTEGER NOT NULL
+            );
+            """,
+            """
+            INSERT INTO ApprovalFlowDefinition (
+                Name, DefinitionJson, Version, Status, PublishedAt, PublishedByUserId,
+                VisibilityScopeJson, Category, Description, IsQuickEntry, TenantIdValue, Id
+            )
+            SELECT
+                Name, DefinitionJson, Version, Status, PublishedAt, PublishedByUserId,
+                VisibilityScopeJson, Category, Description, IsQuickEntry, TenantIdValue, Id
+            FROM ApprovalFlowDefinition_old;
+            """,
+            cancellationToken);
+    }
+
+    private static async Task EnsureApprovalProcessInstanceSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("ApprovalProcessInstance", false))
+        {
+            return;
+        }
+
+        var schema = await db.Ado.GetDataTableAsync("PRAGMA table_info('ApprovalProcessInstance');");
+        if (!IsColumnNotNull(schema, "DataJson")
+            && !IsColumnNotNull(schema, "EndedAt")
+            && !IsColumnNotNull(schema, "CurrentNodeId")
+            && !IsColumnNotNull(schema, "ParentInstanceId")
+            && !IsColumnNotNull(schema, "Priority")
+            && !IsColumnNotNull(schema, "InstanceNo")
+            && !IsColumnNotNull(schema, "CurrentNodeName"))
+        {
+            return;
+        }
+
+        await RebuildTableAsync(
+            db,
+            "ApprovalProcessInstance",
+            """
+            CREATE TABLE ApprovalProcessInstance (
+                DefinitionId INTEGER NOT NULL,
+                BusinessKey TEXT NOT NULL,
+                InitiatorUserId INTEGER NOT NULL,
+                DataJson TEXT NULL,
+                Status INTEGER NOT NULL,
+                StartedAt TEXT NOT NULL,
+                EndedAt TEXT NULL,
+                CurrentNodeId TEXT NULL,
+                TenantIdValue TEXT NOT NULL,
+                Id INTEGER NOT NULL,
+                RowVersion INTEGER NULL,
+                ParentInstanceId INTEGER NULL,
+                Priority INTEGER NULL,
+                InstanceNo TEXT NULL,
+                CurrentNodeName TEXT NULL
+            );
+            """,
+            """
+            INSERT INTO ApprovalProcessInstance (
+                DefinitionId, BusinessKey, InitiatorUserId, DataJson, Status, StartedAt,
+                EndedAt, CurrentNodeId, TenantIdValue, Id, RowVersion, ParentInstanceId,
+                Priority, InstanceNo, CurrentNodeName
+            )
+            SELECT
+                DefinitionId, BusinessKey, InitiatorUserId, DataJson, Status, StartedAt,
+                EndedAt, CurrentNodeId, TenantIdValue, Id, RowVersion, ParentInstanceId,
+                Priority, InstanceNo, CurrentNodeName
+            FROM ApprovalProcessInstance_old;
+            """,
+            cancellationToken);
+    }
+
+    private static async Task EnsureApprovalTaskSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("ApprovalTask", false))
+        {
+            return;
+        }
+
+        var schema = await db.Ado.GetDataTableAsync("PRAGMA table_info('ApprovalTask');");
+        if (!IsColumnNotNull(schema, "DecisionByUserId")
+            && !IsColumnNotNull(schema, "DecisionAt")
+            && !IsColumnNotNull(schema, "Comment")
+            && !IsColumnNotNull(schema, "OriginalAssigneeValue")
+            && !IsColumnNotNull(schema, "Weight")
+            && !IsColumnNotNull(schema, "ParentTaskId")
+            && !IsColumnNotNull(schema, "DelegatorUserId")
+            && !IsColumnNotNull(schema, "ViewedAt")
+            && !IsColumnNotNull(schema, "TaskType"))
+        {
+            return;
+        }
+
+        await RebuildTableAsync(
+            db,
+            "ApprovalTask",
+            """
+            CREATE TABLE ApprovalTask (
+                InstanceId INTEGER NOT NULL,
+                NodeId TEXT NOT NULL,
+                Title TEXT NOT NULL,
+                AssigneeType INTEGER NOT NULL,
+                AssigneeValue TEXT NOT NULL,
+                Status INTEGER NOT NULL,
+                DecisionByUserId INTEGER NULL,
+                DecisionAt TEXT NULL,
+                Comment TEXT NULL,
+                CreatedAt TEXT NOT NULL,
+                OriginalAssigneeValue TEXT NULL,
+                "Order" INTEGER NOT NULL,
+                TenantIdValue TEXT NOT NULL,
+                Id INTEGER NOT NULL,
+                RowVersion INTEGER NULL,
+                Weight INTEGER NULL,
+                ParentTaskId INTEGER NULL,
+                DelegatorUserId INTEGER NULL,
+                ViewedAt TEXT NULL,
+                TaskType INTEGER NULL
+            );
+            """,
+            """
+            INSERT INTO ApprovalTask (
+                InstanceId, NodeId, Title, AssigneeType, AssigneeValue, Status,
+                DecisionByUserId, DecisionAt, Comment, CreatedAt, OriginalAssigneeValue,
+                "Order", TenantIdValue, Id, RowVersion, Weight, ParentTaskId,
+                DelegatorUserId, ViewedAt, TaskType
+            )
+            SELECT
+                InstanceId, NodeId, Title, AssigneeType, AssigneeValue, Status,
+                DecisionByUserId, DecisionAt, Comment, CreatedAt, OriginalAssigneeValue,
+                "Order", TenantIdValue, Id, RowVersion, Weight, ParentTaskId,
+                DelegatorUserId, ViewedAt, TaskType
+            FROM ApprovalTask_old;
+            """,
+            cancellationToken);
+    }
+
+    private static async Task EnsureApprovalHistoryEventSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("ApprovalHistoryEvent", false))
+        {
+            return;
+        }
+
+        var schema = await db.Ado.GetDataTableAsync("PRAGMA table_info('ApprovalHistoryEvent');");
+        if (!IsColumnNotNull(schema, "FromNode")
+            && !IsColumnNotNull(schema, "ToNode")
+            && !IsColumnNotNull(schema, "PayloadJson")
+            && !IsColumnNotNull(schema, "ActorUserId"))
+        {
+            return;
+        }
+
+        await RebuildTableAsync(
+            db,
+            "ApprovalHistoryEvent",
+            """
+            CREATE TABLE ApprovalHistoryEvent (
+                InstanceId INTEGER NOT NULL,
+                EventType INTEGER NOT NULL,
+                FromNode TEXT NULL,
+                ToNode TEXT NULL,
+                PayloadJson TEXT NULL,
+                ActorUserId INTEGER NULL,
+                OccurredAt TEXT NOT NULL,
+                TenantIdValue TEXT NOT NULL,
+                Id INTEGER NOT NULL
+            );
+            """,
+            """
+            INSERT INTO ApprovalHistoryEvent (
+                InstanceId, EventType, FromNode, ToNode, PayloadJson, ActorUserId, OccurredAt, TenantIdValue, Id
+            )
+            SELECT
+                InstanceId, EventType, FromNode, ToNode, PayloadJson, ActorUserId, OccurredAt, TenantIdValue, Id
+            FROM ApprovalHistoryEvent_old;
+            """,
+            cancellationToken);
+    }
+
+    private static async Task EnsureApprovalNodeExecutionSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("ApprovalNodeExecution", false))
+        {
+            return;
+        }
+
+        var schema = await db.Ado.GetDataTableAsync("PRAGMA table_info('ApprovalNodeExecution');");
+        if (!IsColumnNotNull(schema, "CompletedAt"))
+        {
+            return;
+        }
+
+        await RebuildTableAsync(
+            db,
+            "ApprovalNodeExecution",
+            """
+            CREATE TABLE ApprovalNodeExecution (
+                InstanceId INTEGER NOT NULL,
+                NodeId TEXT NOT NULL,
+                Status INTEGER NOT NULL,
+                StartedAt TEXT NOT NULL,
+                CompletedAt TEXT NULL,
+                TenantIdValue TEXT NOT NULL,
+                Id INTEGER NOT NULL,
+                RowVersion INTEGER NULL
+            );
+            """,
+            """
+            INSERT INTO ApprovalNodeExecution (
+                InstanceId, NodeId, Status, StartedAt, CompletedAt, TenantIdValue, Id, RowVersion
+            )
+            SELECT
+                InstanceId, NodeId, Status, StartedAt, CompletedAt, TenantIdValue, Id, RowVersion
+            FROM ApprovalNodeExecution_old;
+            """,
+            cancellationToken);
+    }
+
+    private static async Task EnsureApprovalCopyRecordSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("ApprovalCopyRecord", false))
+        {
+            return;
+        }
+
+        var schema = await db.Ado.GetDataTableAsync("PRAGMA table_info('ApprovalCopyRecord');");
+        if (!IsColumnNotNull(schema, "ReadAt"))
+        {
+            return;
+        }
+
+        await RebuildTableAsync(
+            db,
+            "ApprovalCopyRecord",
+            """
+            CREATE TABLE ApprovalCopyRecord (
+                InstanceId INTEGER NOT NULL,
+                NodeId TEXT NOT NULL,
+                RecipientUserId INTEGER NOT NULL,
+                IsRead INTEGER NOT NULL,
+                CreatedAt TEXT NOT NULL,
+                ReadAt TEXT NULL,
+                TenantIdValue TEXT NOT NULL,
+                Id INTEGER NOT NULL
+            );
+            """,
+            """
+            INSERT INTO ApprovalCopyRecord (
+                InstanceId, NodeId, RecipientUserId, IsRead, CreatedAt, ReadAt, TenantIdValue, Id
+            )
+            SELECT
+                InstanceId, NodeId, RecipientUserId, IsRead, CreatedAt, ReadAt, TenantIdValue, Id
+            FROM ApprovalCopyRecord_old;
+            """,
+            cancellationToken);
+    }
+
+    private static async Task RebuildTableAsync(
+        ISqlSugarClient db,
+        string tableName,
+        string createSql,
+        string copySql,
+        CancellationToken cancellationToken)
+    {
+        var result = await db.Ado.UseTranAsync(async () =>
+        {
+            await db.Ado.ExecuteCommandAsync($"ALTER TABLE {tableName} RENAME TO {tableName}_old;");
+            await db.Ado.ExecuteCommandAsync(createSql);
+            await db.Ado.ExecuteCommandAsync(copySql);
+            await db.Ado.ExecuteCommandAsync($"DROP TABLE {tableName}_old;");
+        });
+
+        if (!result.IsSuccess)
+        {
+            throw result.ErrorException ?? new InvalidOperationException($"修复 {tableName} 表结构失败。");
         }
     }
 

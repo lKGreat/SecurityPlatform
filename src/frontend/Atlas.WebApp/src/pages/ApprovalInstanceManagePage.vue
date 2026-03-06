@@ -147,6 +147,24 @@ const statusText = (status: ApprovalInstanceStatus) => {
       return '已驳回';
     case ApprovalInstanceStatus.Canceled:
       return '已取消';
+    case ApprovalInstanceStatus.Suspended:
+      return '已挂起';
+    case ApprovalInstanceStatus.Draft:
+      return '草稿';
+    case ApprovalInstanceStatus.TimedOut:
+      return '已超时';
+    case ApprovalInstanceStatus.Terminated:
+      return '已终止';
+    case ApprovalInstanceStatus.AutoApproved:
+      return '自动通过';
+    case ApprovalInstanceStatus.AutoRejected:
+      return '自动驳回';
+    case ApprovalInstanceStatus.AiProcessing:
+      return 'AI处理中';
+    case ApprovalInstanceStatus.AiManualReview:
+      return 'AI转人工';
+    case ApprovalInstanceStatus.Destroy:
+      return '已作废';
     default:
       return '未知';
   }
@@ -161,6 +179,24 @@ const statusColor = (status: ApprovalInstanceStatus) => {
     case ApprovalInstanceStatus.Rejected:
       return 'error';
     case ApprovalInstanceStatus.Canceled:
+      return 'default';
+    case ApprovalInstanceStatus.Suspended:
+      return 'orange';
+    case ApprovalInstanceStatus.Draft:
+      return 'purple';
+    case ApprovalInstanceStatus.TimedOut:
+      return 'volcano';
+    case ApprovalInstanceStatus.Terminated:
+      return 'magenta';
+    case ApprovalInstanceStatus.AutoApproved:
+      return 'cyan';
+    case ApprovalInstanceStatus.AutoRejected:
+      return 'geekblue';
+    case ApprovalInstanceStatus.AiProcessing:
+      return 'processing';
+    case ApprovalInstanceStatus.AiManualReview:
+      return 'gold';
+    case ApprovalInstanceStatus.Destroy:
       return 'default';
     default:
       return 'default';

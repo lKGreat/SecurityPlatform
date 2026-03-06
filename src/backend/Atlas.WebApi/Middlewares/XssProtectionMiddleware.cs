@@ -116,13 +116,13 @@ public sealed class XssProtectionMiddleware
         }
     }
 
-    private static object? SanitizeJsonElement(JsonElement element)
+    private static object? SanitizeJsonElement(JsonElement element, string? propertyName = null)
     {
         return element.ValueKind switch
         {
             JsonValueKind.Object => SanitizeObject(element),
             JsonValueKind.Array => SanitizeArray(element),
-            JsonValueKind.String => SanitizeString(element.GetString() ?? string.Empty),
+            JsonValueKind.String => SanitizeStringValue(element.GetString() ?? string.Empty, propertyName),
             JsonValueKind.Number => element.TryGetInt64(out var l) ? l
                                   : element.TryGetDouble(out var d) ? d
                                   : (object?)element.GetRawText(),
@@ -138,7 +138,7 @@ public sealed class XssProtectionMiddleware
         var result = new Dictionary<string, object?>();
         foreach (var property in element.EnumerateObject())
         {
-            result[property.Name] = SanitizeJsonElement(property.Value);
+            result[property.Name] = SanitizeJsonElement(property.Value, property.Name);
         }
         return result;
     }
@@ -151,6 +151,49 @@ public sealed class XssProtectionMiddleware
             result.Add(SanitizeJsonElement(item));
         }
         return result;
+    }
+
+    private static object SanitizeStringValue(string input, string? propertyName)
+    {
+        if (ShouldPreserveStructuredJson(propertyName)
+            && TrySanitizeStructuredJson(input, out var sanitizedJson))
+        {
+            return sanitizedJson;
+        }
+
+        return SanitizeString(input);
+    }
+
+    private static bool ShouldPreserveStructuredJson(string? propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return false;
+        }
+
+        return propertyName.EndsWith("Json", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(propertyName, "aiConfig", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TrySanitizeStructuredJson(string input, out string sanitizedJson)
+    {
+        sanitizedJson = string.Empty;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(input);
+            var sanitized = SanitizeJsonElement(doc.RootElement);
+            sanitizedJson = JsonSerializer.Serialize(sanitized);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
