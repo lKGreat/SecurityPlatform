@@ -25,6 +25,8 @@ public static class ServiceCollectionExtensions
 
         // 注册多数据源相关服务
         services.AddScoped<Atlas.Infrastructure.Repositories.TenantDataSourceRepository>();
+        services.AddScoped<Atlas.Application.System.Abstractions.ITenantDataSourceService,
+            Atlas.Infrastructure.Services.TenantDataSourceService>();
         services.AddScoped<Atlas.Application.System.Abstractions.ITenantDbConnectionFactory,
             Atlas.Infrastructure.Services.TenantDbConnectionFactory>();
         services.AddSingleton<IPluginCatalogService, Atlas.Infrastructure.Services.PluginCatalogService>();
@@ -75,6 +77,12 @@ public static class ServiceCollectionExtensions
                             {
                                 column.IsNullable = true;
                             }
+                        }
+
+                        if (property.DeclaringType == typeof(Atlas.Domain.Approval.Entities.ApprovalTask)
+                            && property.Name == nameof(Atlas.Domain.Approval.Entities.ApprovalTask.RowVersion))
+                        {
+                            column.IsEnableUpdateVersionValidation = true;
                         }
                     }
                 }

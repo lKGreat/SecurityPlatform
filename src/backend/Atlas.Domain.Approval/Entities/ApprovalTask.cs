@@ -1,7 +1,6 @@
 using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.Approval.Enums;
-using SqlSugar;
 
 namespace Atlas.Domain.Approval.Entities;
 
@@ -94,7 +93,6 @@ public sealed class ApprovalTask : TenantEntity
     public int TaskType { get; private set; }
 
     /// <summary>乐观并发版本号（SqlSugar 自动校验）</summary>
-    [SugarColumn(IsEnableUpdateVersionValidation = true)]
     public long RowVersion { get; private set; }
 
     public ApprovalTask(
