@@ -247,7 +247,7 @@ public sealed class FormDefinitionsController : ControllerBase
     /// 回滚到指定版本
     /// </summary>
     [HttpPost("{id:long}/rollback/{versionId:long}")]
-    [Authorize(Roles = "system:admin,apps:update")]
+    [Authorize(Policy = PermissionPolicies.AppsUpdate)]
     public async Task<ActionResult<ApiResponse<object>>> RollbackToVersion(
         long id,
         long versionId,
@@ -266,7 +266,7 @@ public sealed class FormDefinitionsController : ControllerBase
 
     /// <summary>弃用表单定义 — 弃用后不允许新引用此版本</summary>
     [HttpPost("{id:long}/deprecate")]
-    [Authorize(Roles = "system:admin,lowcode:admin")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<IActionResult> Deprecate(
         long id,
         CancellationToken cancellationToken)

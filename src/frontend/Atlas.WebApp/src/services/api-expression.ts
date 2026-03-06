@@ -26,14 +26,14 @@ export interface ExpressionEvaluateResponse {
 }
 
 export const validateExpression = (body: ExpressionValidateRequest) =>
-  requestApi<ExpressionValidateResponse>('/api/v1/expressions/validate', {
+  requestApi<ExpressionValidateResponse>('/expressions/validate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
 
 export const evaluateExpression = (body: ExpressionEvaluateRequest) =>
-  requestApi<ExpressionEvaluateResponse>('/api/v1/expressions/evaluate', {
+  requestApi<ExpressionEvaluateResponse>('/expressions/evaluate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

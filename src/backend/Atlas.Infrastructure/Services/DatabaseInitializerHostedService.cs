@@ -473,6 +473,12 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             ("审计日志", "/audit", "/security", 12, "C", "AuditPage", "file-search", PermissionCodes.AuditView, null, false, true, "0", "0", PermissionCodes.AuditView, false),
             ("告警管理", "/alert", "/security", 13, "C", "AlertPage", "bell", PermissionCodes.AlertView, null, false, true, "0", "0", PermissionCodes.AlertView, false),
 
+            ("低代码中心", "/lowcode", null, 15, "M", "Layout", "appstore", null, null, false, false, "0", "0", null, false),
+            ("应用管理", "/lowcode/apps", "/lowcode", 16, "C", "lowcode/AppListPage", "appstore-add", PermissionCodes.AppsView, null, false, true, "0", "0", PermissionCodes.AppsView, false),
+            ("表单管理", "/lowcode/forms", "/lowcode", 17, "C", "lowcode/FormListPage", "form", PermissionCodes.AppsView, null, false, true, "0", "0", PermissionCodes.AppsView, false),
+            ("插件市场", "/lowcode/plugin-market", "/lowcode", 18, "C", "lowcode/PluginMarketPage", "shopping", PermissionCodes.AppsView, null, false, true, "0", "0", PermissionCodes.AppsView, false),
+            ("回写监控", "/monitor/writeback-failures", "/lowcode", 19, "C", "lowcode/WritebackMonitorPage", "warning", PermissionCodes.SystemAdmin, null, false, true, "0", "0", PermissionCodes.SystemAdmin, false),
+
             ("流程中心", "/process", null, 20, "M", "Layout", "cluster", null, null, false, false, "0", "0", null, false),
             ("流程定义", "/approval/flows", "/process", 21, "C", "ApprovalFlowsPage", "apartment", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, false),
             ("发起审批", "/process/start", "/process", 22, "C", "ApprovalStartPage", "send", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, false),
@@ -488,6 +494,9 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             ("流程实例管理", "/process/manage/instances", "/process", 32, "C", "ApprovalInstanceManagePage", "appstore", PermissionCodes.ApprovalFlowView, null, false, true, "0", "0", PermissionCodes.ApprovalFlowView, false),
             ("工作流设计", "/workflow/designer", "/process", 33, "C", "WorkflowDesignerPage", "branches", workflowPermission.Code, null, false, true, "0", "0", workflowPermission.Code, false),
 
+            ("运维监控", "/monitor", null, 35, "M", "Layout", "monitor", null, null, false, false, "0", "0", null, false),
+            ("消息队列监控", "/monitor/message-queue", "/monitor", 36, "C", "monitor/MessageQueuePage", "deployment-unit", PermissionCodes.SystemAdmin, null, false, true, "0", "0", PermissionCodes.SystemAdmin, false),
+
             ("系统管理", "/system", null, 30, "M", "Layout", "setting", null, null, false, false, "0", "0", null, false),
             ("用户管理", "/settings/org/users", "/system", 31, "C", "system/UsersPage", "user", PermissionCodes.UsersView, null, false, true, "0", "0", PermissionCodes.UsersView, false),
             ("角色管理", "/settings/auth/roles", "/system", 32, "C", "system/RolesPage", "team", PermissionCodes.RolesView, null, false, true, "0", "0", PermissionCodes.RolesView, false),
@@ -496,6 +505,9 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             ("数据源管理", "/settings/system/datasources", "/system", 35, "C", "system/TenantDataSourcesPage", "database", PermissionCodes.SystemAdmin, null, false, true, "0", "0", PermissionCodes.SystemAdmin, false),
             ("字典管理", "/settings/system/dict-types", "/system", 36, "C", "system/DictTypesPage", "book", PermissionCodes.DictTypeView, null, false, true, "0", "0", PermissionCodes.DictTypeView, false),
             ("参数配置", "/settings/system/configs", "/system", 37, "C", "system/SystemConfigsPage", "tool", PermissionCodes.ConfigView, null, false, true, "0", "0", PermissionCodes.ConfigView, false),
+            ("通知中心", "/system/notifications", "/system", 38, "C", "system/NotificationsPage", "notification", PermissionCodes.NotificationView, null, false, true, "0", "0", PermissionCodes.NotificationView, false),
+            ("插件管理", "/settings/system/plugins", "/system", 39, "C", "system/PluginManagePage", "api", PermissionCodes.SystemAdmin, null, false, true, "0", "0", PermissionCodes.SystemAdmin, false),
+            ("Webhook管理", "/settings/system/webhooks", "/system", 40, "C", "system/WebhooksPage", "link", PermissionCodes.SystemAdmin, null, false, true, "0", "0", PermissionCodes.SystemAdmin, false),
 
             ("用户查询", "/settings/org/users:query", "/settings/org/users", 1, "F", null, null, PermissionCodes.UsersView, null, false, false, "0", "0", PermissionCodes.UsersView, true),
             ("用户新增", "/settings/org/users:create", "/settings/org/users", 2, "F", null, null, PermissionCodes.UsersCreate, null, false, false, "0", "0", PermissionCodes.UsersCreate, true),
@@ -673,6 +685,11 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             "/assets",
             "/audit",
             "/alert",
+            "/lowcode",
+            "/lowcode/apps",
+            "/lowcode/forms",
+            "/lowcode/plugin-market",
+            "/monitor/writeback-failures",
             "/process",
             "/approval/flows",
             "/process/start",
@@ -687,6 +704,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             "/process/manage/flows",
             "/process/manage/instances",
             "/workflow/designer",
+            "/monitor",
+            "/monitor/message-queue",
             "/system",
             "/settings/org/users",
             "/settings/auth/roles",
@@ -694,7 +713,10 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             "/settings/projects",
             "/settings/system/datasources",
             "/settings/system/dict-types",
-            "/settings/system/configs"
+            "/settings/system/configs",
+            "/system/notifications",
+            "/settings/system/plugins",
+            "/settings/system/webhooks"
         };
         var menuIds = requiredMenuPaths
             .Select(path => menuIdMap.TryGetValue(path, out var menuId) ? menuId : 0)
