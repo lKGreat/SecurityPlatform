@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Atlas.Application.Assets.Models;
 using Atlas.Domain.Assets.Entities;
 using Atlas.Core.Tenancy;

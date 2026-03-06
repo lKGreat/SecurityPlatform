@@ -32,13 +32,12 @@ public sealed class EvidenceChainService
     {
         var approvalResult = await _approvalQuery.GetInstancesPagedAsync(
             tenantId,
-            new PagedRequest { PageIndex = 1, PageSize = 100 },
+            new PagedRequest(1, 100, null, null, false),
             businessKey: businessKey,
             cancellationToken: cancellationToken);
 
-        var tenantIdStr = tenantId.Value.ToString();
         var auditRecords = await _db.Queryable<AuditRecord>()
-            .Where(r => r.TenantId == tenantIdStr && r.Target.Contains(businessKey))
+            .Where(r => r.TenantIdValue == tenantId.Value && r.Target.Contains(businessKey))
             .OrderBy(r => r.OccurredAt)
             .ToListAsync(cancellationToken);
 

@@ -1,4 +1,4 @@
-﻿using Atlas.Core.Tenancy;
+using Atlas.Core.Tenancy;
 
 namespace Atlas.Core.Abstractions;
 

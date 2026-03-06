@@ -37,7 +37,7 @@ public sealed class WebhookService : IWebhookService
     {
         var tenantId = _tenantProvider.TenantId.Value;
         return await _db.Queryable<WebhookSubscription>()
-            .Where(s => s.TenantId == tenantId)
+            .Where(s => s.TenantIdValue == tenantId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -46,16 +46,14 @@ public sealed class WebhookService : IWebhookService
     {
         var tenantId = _tenantProvider.TenantId.Value;
         return await _db.Queryable<WebhookSubscription>()
-            .Where(s => s.Id == id && s.TenantId == tenantId)
+            .Where(s => s.Id == id && s.TenantIdValue == tenantId)
             .FirstAsync(cancellationToken);
     }
 
     public async Task<long> CreateAsync(CreateWebhookRequest request, CancellationToken cancellationToken)
     {
-        var subscription = new WebhookSubscription
+        var subscription = new WebhookSubscription(_tenantProvider.TenantId, _idGen.Generator.NextId())
         {
-            Id = _idGen.Generator.NextId(),
-            TenantId = _tenantProvider.TenantId.Value,
             Name = request.Name,
             EventTypes = JsonSerializer.Serialize(request.EventTypes),
             TargetUrl = request.TargetUrl,
@@ -71,6 +69,9 @@ public sealed class WebhookService : IWebhookService
     public async Task UpdateAsync(long id, UpdateWebhookRequest request, CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.TenantId.Value;
+        var headersJson = request.Headers != null && request.Headers.Count > 0
+            ? JsonSerializer.Serialize(request.Headers)
+            : null;
         await _db.Updateable<WebhookSubscription>()
             .SetColumns(s => new WebhookSubscription
             {
@@ -78,9 +79,9 @@ public sealed class WebhookService : IWebhookService
                 EventTypes = JsonSerializer.Serialize(request.EventTypes),
                 TargetUrl = request.TargetUrl,
                 IsActive = request.IsActive,
-                Headers = request.Headers is { Count: > 0 } ? JsonSerializer.Serialize(request.Headers) : null
+                Headers = headersJson
             })
-            .Where(s => s.Id == id && s.TenantId == tenantId)
+            .Where(s => s.Id == id && s.TenantIdValue == tenantId)
             .ExecuteCommandAsync(cancellationToken);
     }
 
@@ -88,7 +89,7 @@ public sealed class WebhookService : IWebhookService
     {
         var tenantId = _tenantProvider.TenantId.Value;
         await _db.Deleteable<WebhookSubscription>()
-            .Where(s => s.Id == id && s.TenantId == tenantId)
+            .Where(s => s.Id == id && s.TenantIdValue == tenantId)
             .ExecuteCommandAsync(cancellationToken);
     }
 
@@ -106,7 +107,7 @@ public sealed class WebhookService : IWebhookService
     {
         var tenantId = _tenantProvider.TenantId.Value;
         var subscriptions = await _db.Queryable<WebhookSubscription>()
-            .Where(s => s.IsActive && s.TenantId == tenantId)
+            .Where(s => s.IsActive && s.TenantIdValue == tenantId)
             .ToListAsync(cancellationToken);
 
         var matching = subscriptions.Where(s =>
@@ -123,7 +124,7 @@ public sealed class WebhookService : IWebhookService
     {
         var tenantId = _tenantProvider.TenantId.Value;
         var subscription = await _db.Queryable<WebhookSubscription>()
-            .Where(s => s.Id == subscriptionId && s.TenantId == tenantId)
+            .Where(s => s.Id == subscriptionId && s.TenantIdValue == tenantId)
             .FirstAsync(cancellationToken);
 
         if (subscription is null) return;

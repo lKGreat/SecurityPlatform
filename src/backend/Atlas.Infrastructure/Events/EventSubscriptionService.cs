@@ -23,7 +23,7 @@ public sealed class EventSubscriptionService : IEventSubscriptionService
     {
         var tenantId = _tenantProvider.TenantId.Value;
         return await _db.Queryable<EventSubscription>()
-            .Where(s => s.TenantId == tenantId)
+            .Where(s => s.TenantIdValue == tenantId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -32,17 +32,15 @@ public sealed class EventSubscriptionService : IEventSubscriptionService
     {
         var tenantId = _tenantProvider.TenantId.Value;
         return await _db.Queryable<EventSubscription>()
-            .Where(s => s.Id == id && s.TenantId == tenantId)
+            .Where(s => s.Id == id && s.TenantIdValue == tenantId)
             .FirstAsync(cancellationToken);
     }
 
     public async Task<long> CreateAsync(CreateEventSubscriptionRequest request, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        var sub = new EventSubscription
+        var sub = new EventSubscription(_tenantProvider.TenantId, _idGen.Generator.NextId())
         {
-            Id = _idGen.Generator.NextId(),
-            TenantId = _tenantProvider.TenantId.Value,
             Name = request.Name,
             EventTypePattern = request.EventTypePattern,
             TargetType = request.TargetType,
@@ -70,21 +68,21 @@ public sealed class EventSubscriptionService : IEventSubscriptionService
                 IsActive = request.IsActive,
                 UpdatedAt = DateTimeOffset.UtcNow
             })
-            .Where(s => s.Id == id && s.TenantId == tenantId)
+            .Where(s => s.Id == id && s.TenantIdValue == tenantId)
             .ExecuteCommandAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(long id, CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.TenantId.Value;
-        await _db.Deleteable<EventSubscription>().Where(s => s.Id == id && s.TenantId == tenantId).ExecuteCommandAsync(cancellationToken);
+        await _db.Deleteable<EventSubscription>().Where(s => s.Id == id && s.TenantIdValue == tenantId).ExecuteCommandAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<EventSubscription>> GetMatchingAsync(string eventType, CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.TenantId.Value;
         var all = await _db.Queryable<EventSubscription>()
-            .Where(s => s.IsActive && s.TenantId == tenantId)
+            .Where(s => s.IsActive && s.TenantIdValue == tenantId)
             .ToListAsync(cancellationToken);
 
         return all.Where(s =>
