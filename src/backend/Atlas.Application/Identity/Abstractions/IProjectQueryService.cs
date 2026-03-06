@@ -17,4 +17,10 @@ public interface IProjectQueryService
         TenantId tenantId,
         long userId,
         CancellationToken cancellationToken);
+
+    Task<PagedResult<ProjectListItem>> QueryMyProjectsPagedAsync(
+        PagedRequest request,
+        TenantId tenantId,
+        long userId,
+        CancellationToken cancellationToken);
 }

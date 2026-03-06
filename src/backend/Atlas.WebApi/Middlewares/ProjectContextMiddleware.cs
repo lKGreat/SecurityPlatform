@@ -33,11 +33,11 @@ public sealed class ProjectContextMiddleware
         var allowAnonymous = endpoint?.Metadata.GetMetadata<IAllowAnonymous>() is not null;
         var path = context.Request.Path.Value ?? string.Empty;
         var skipProjectCheck = allowAnonymous
-            || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/api/apps", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/api/projects", StringComparison.OrdinalIgnoreCase);
+            || StartsWithAny(path, "/health", "/api/v1/health")
+            || StartsWithAny(path, "/openapi")
+            || StartsWithAny(path, "/api/auth", "/api/v1/auth")
+            || StartsWithAny(path, "/api/apps", "/api/v1/apps")
+            || StartsWithAny(path, "/api/projects", "/api/v1/projects");
 
         if (skipProjectCheck)
         {
@@ -123,5 +123,10 @@ public sealed class ProjectContextMiddleware
         return roleCodes.Any(role =>
             string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase)
             || string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool StartsWithAny(string path, params string[] prefixes)
+    {
+        return prefixes.Any(prefix => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 }

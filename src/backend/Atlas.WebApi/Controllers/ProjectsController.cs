@@ -68,6 +68,23 @@ public sealed class ProjectsController : ControllerBase
         return Ok(ApiResponse<IReadOnlyList<ProjectListItem>>.Ok(items, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("my/paged")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<PagedResult<ProjectListItem>>>> GetMyProjectsPaged(
+        [FromQuery] PagedRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<PagedResult<ProjectListItem>>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        }
+
+        var result = await _queryService.QueryMyProjectsPagedAsync(request, tenantId, currentUser.UserId, cancellationToken);
+        return Ok(ApiResponse<PagedResult<ProjectListItem>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("{id:long}")]
     [Authorize(Policy = PermissionPolicies.ProjectsView)]
     public async Task<ActionResult<ApiResponse<ProjectDetail>>> GetById(long id, CancellationToken cancellationToken)

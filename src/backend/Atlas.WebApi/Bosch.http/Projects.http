@@ -28,12 +28,17 @@ X-Tenant-Id: {{tenantId}}
 @csrfToken = {{antiforgery.response.body.$.data.token}}
 
 ### Get Projects (Paged)
-GET {{baseUrl}}/api/v1/projects?pageIndex=1&pageSize=10
+GET {{baseUrl}}/api/v1/projects?PageIndex=1&PageSize=10
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
 ### Get My Projects
 GET {{baseUrl}}/api/v1/projects/my
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### Get My Projects (Paged + Keyword)
+GET {{baseUrl}}/api/v1/projects/my/paged?PageIndex=1&PageSize=20&Keyword=项目
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 

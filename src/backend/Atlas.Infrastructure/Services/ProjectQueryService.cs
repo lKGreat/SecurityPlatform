@@ -89,4 +89,46 @@ public sealed class ProjectQueryService : IProjectQueryService
         var projects = await _projectRepository.QueryByIdsAsync(tenantId, projectIds.Distinct().ToArray(), cancellationToken);
         return projects.Select(x => _mapper.Map<ProjectListItem>(x)).ToArray();
     }
+
+    public async Task<PagedResult<ProjectListItem>> QueryMyProjectsPagedAsync(
+        PagedRequest request,
+        TenantId tenantId,
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
+        var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+
+        var projectIds = await _projectUserRepository.QueryProjectIdsByUserIdAsync(
+            tenantId,
+            userId,
+            cancellationToken);
+        if (projectIds.Count == 0)
+        {
+            return new PagedResult<ProjectListItem>(
+                Array.Empty<ProjectListItem>(),
+                0,
+                pageIndex,
+                pageSize);
+        }
+
+        var projects = await _projectRepository.QueryByIdsAsync(tenantId, projectIds.Distinct().ToArray(), cancellationToken);
+        var query = projects.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            query = query.Where(x =>
+                x.Code.Contains(request.Keyword, StringComparison.OrdinalIgnoreCase)
+                || x.Name.Contains(request.Keyword, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var ordered = query.OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToArray();
+        var total = ordered.Length;
+        var items = ordered
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => _mapper.Map<ProjectListItem>(x))
+            .ToArray();
+
+        return new PagedResult<ProjectListItem>(items, total, pageIndex, pageSize);
+    }
 }

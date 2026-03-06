@@ -1485,7 +1485,7 @@ JWT Claims（新增）：
 
 ### 项目
 
-- `GET /api/v1/projects?pageIndex=1&pageSize=10&keyword=核心`：分页查询项目
+- `GET /api/v1/projects?PageIndex=1&PageSize=10&Keyword=核心`：分页查询项目
 - `GET /api/v1/projects/{id}`：项目详情
 - `POST /api/v1/projects`：新增项目
 - `PUT /api/v1/projects/{id}`：更新项目
@@ -1494,6 +1494,7 @@ JWT Claims（新增）：
 - `PUT /api/v1/projects/{id}/departments`：项目分配部门
 - `PUT /api/v1/projects/{id}/positions`：项目分配职位
 - `GET /api/v1/projects/my`：当前用户可切换项目列表
+- `GET /api/v1/projects/my/paged?PageIndex=1&PageSize=20&Keyword=核心`：当前用户可切换项目分页列表（用于下拉远程检索，默认返回 20 条）
 
 说明：
 
