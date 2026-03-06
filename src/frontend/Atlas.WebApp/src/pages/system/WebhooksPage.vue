@@ -152,6 +152,12 @@ async function fetchWebhooks() {
   try {
     const res = await getWebhooks()
     if (res.success) webhooks.value = res.data ?? []
+  } catch (error) {
+    webhooks.value = []
+    const status = (error as { status?: number })?.status
+    if (status !== 401) {
+      message.error('加载 Webhook 列表失败')
+    }
   } finally {
     loading.value = false
   }

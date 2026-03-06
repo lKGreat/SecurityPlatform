@@ -169,6 +169,13 @@ async function fetchAll() {
     ])
     if (queuesRes.success) queues.value = queuesRes.data ?? []
     if (statsRes.success) globalStats.value = statsRes.data ?? null
+  } catch (error) {
+    queues.value = []
+    globalStats.value = null
+    const status = (error as { status?: number })?.status
+    if (status !== 401) {
+      message.error('加载消息队列监控数据失败')
+    }
   } finally {
     loading.value = false
   }
