@@ -17,6 +17,7 @@ public sealed class PluginCatalogService : IPluginCatalogService
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly List<LoadedPluginContext> _loadedContexts = new();
     private readonly List<PluginDescriptor> _descriptors = new();
+    private readonly HashSet<string> _disabledCodes = new(StringComparer.OrdinalIgnoreCase);
     private bool _initialized;
 
     public PluginCatalogService(
@@ -58,6 +59,98 @@ public sealed class PluginCatalogService : IPluginCatalogService
         }
     }
 
+    public async Task EnableAsync(string pluginCode, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            _disabledCodes.Remove(pluginCode);
+            var descriptor = _descriptors.FirstOrDefault(d => d.Code == pluginCode);
+            if (descriptor is not null)
+            {
+                var index = _descriptors.IndexOf(descriptor);
+                _descriptors[index] = descriptor with { State = "Loaded" };
+            }
+
+            _logger.LogInformation("Plugin {Code} enabled", pluginCode);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task DisableAsync(string pluginCode, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            _disabledCodes.Add(pluginCode);
+            var descriptor = _descriptors.FirstOrDefault(d => d.Code == pluginCode);
+            if (descriptor is not null)
+            {
+                var index = _descriptors.IndexOf(descriptor);
+                _descriptors[index] = descriptor with { State = "Disabled" };
+            }
+
+            _logger.LogInformation("Plugin {Code} disabled", pluginCode);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task UnloadAsync(string pluginCode, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var loaded = _loadedContexts.FirstOrDefault(c => c.Plugin.Code == pluginCode);
+            if (loaded is null)
+            {
+                return;
+            }
+
+            try
+            {
+                await loaded.Plugin.OnUnloadingAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Plugin unloading callback failed: {Code}", pluginCode);
+            }
+
+            loaded.LoadContext.Unload();
+            _loadedContexts.Remove(loaded);
+
+            var descriptor = _descriptors.FirstOrDefault(d => d.Code == pluginCode);
+            if (descriptor is not null)
+            {
+                var index = _descriptors.IndexOf(descriptor);
+                _descriptors[index] = descriptor with { State = "Unloaded" };
+            }
+
+            _logger.LogInformation("Plugin {Code} unloaded", pluginCode);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task InstallFromPackageAsync(string packagePath, CancellationToken cancellationToken)
+    {
+        var pluginRoot = ResolvePluginRoot();
+        var destPath = Path.Combine(pluginRoot, Path.GetFileName(packagePath));
+        File.Copy(packagePath, destPath, overwrite: true);
+        _logger.LogInformation("Plugin package installed from {Source} to {Dest}", packagePath, destPath);
+        await ReloadAsync(cancellationToken);
+    }
+
+    /// <summary>判断插件是否已启用（供事件总线等使用）</summary>
+    public bool IsEnabled(string pluginCode) => !_disabledCodes.Contains(pluginCode);
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
         if (_initialized)
@@ -90,6 +183,7 @@ public sealed class PluginCatalogService : IPluginCatalogService
         var assemblyFiles = Directory.GetFiles(pluginRoot, "*.dll", SearchOption.TopDirectoryOnly)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
         foreach (var file in assemblyFiles)
         {
             var loadedAt = DateTimeOffset.UtcNow;
@@ -100,12 +194,20 @@ public sealed class PluginCatalogService : IPluginCatalogService
                 var pluginType = assembly
                     .GetTypes()
                     .FirstOrDefault(type => !type.IsAbstract && typeof(IAtlasPlugin).IsAssignableFrom(type));
+
                 if (pluginType is null)
                 {
                     _descriptors.Add(new PluginDescriptor(
                         Path.GetFileNameWithoutExtension(file),
                         Path.GetFileNameWithoutExtension(file),
                         "Unknown",
+                        string.Empty,
+                        string.Empty,
+                        null,
+                        PluginCategory.General,
+                        [],
+                        [],
+                        null,
                         assembly.GetName().Name ?? Path.GetFileNameWithoutExtension(file),
                         file,
                         "NoEntryPoint",
@@ -122,6 +224,13 @@ public sealed class PluginCatalogService : IPluginCatalogService
                         pluginType.Name,
                         pluginType.Name,
                         "Unknown",
+                        string.Empty,
+                        string.Empty,
+                        null,
+                        PluginCategory.General,
+                        [],
+                        [],
+                        null,
                         assembly.GetName().Name ?? pluginType.Assembly.GetName().Name ?? pluginType.Name,
                         file,
                         "Failed",
@@ -133,13 +242,21 @@ public sealed class PluginCatalogService : IPluginCatalogService
 
                 await plugin.OnLoadedAsync(cancellationToken);
                 _loadedContexts.Add(new LoadedPluginContext(loadContext, plugin));
+                var state = _disabledCodes.Contains(plugin.Code) ? "Disabled" : "Loaded";
                 _descriptors.Add(new PluginDescriptor(
                     plugin.Code,
                     plugin.Name,
                     plugin.Version,
+                    plugin.Description,
+                    plugin.Author,
+                    plugin.IconUrl,
+                    plugin.Category,
+                    plugin.Dependencies,
+                    plugin.RequiredPermissions,
+                    plugin.ConfigSchema,
                     assembly.GetName().Name ?? pluginType.Name,
                     file,
-                    "Loaded",
+                    state,
                     loadedAt,
                     null));
             }
@@ -150,6 +267,13 @@ public sealed class PluginCatalogService : IPluginCatalogService
                     Path.GetFileNameWithoutExtension(file),
                     Path.GetFileNameWithoutExtension(file),
                     "Unknown",
+                    string.Empty,
+                    string.Empty,
+                    null,
+                    PluginCategory.General,
+                    [],
+                    [],
+                    null,
                     Path.GetFileNameWithoutExtension(file),
                     file,
                     "Failed",

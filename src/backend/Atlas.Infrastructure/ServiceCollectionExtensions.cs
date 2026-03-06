@@ -31,6 +31,59 @@ public static class ServiceCollectionExtensions
             Atlas.Infrastructure.Services.TenantDbConnectionFactory>();
         services.AddSingleton<IPluginCatalogService, Atlas.Infrastructure.Services.PluginCatalogService>();
 
+        // Plugin Configuration
+        services.AddScoped<Atlas.Application.Plugins.Repositories.IPluginConfigRepository, Atlas.Infrastructure.Repositories.PluginConfigRepository>();
+        services.AddScoped<Atlas.Application.Plugins.Abstractions.IPluginConfigService, Atlas.Infrastructure.Services.PluginConfigService>();
+
+        // Plugin Package (install from .atpkg upload)
+        services.AddScoped<Atlas.Infrastructure.Plugins.PluginPackageService>();
+
+        // Plugin Market
+        services.AddScoped<Atlas.Application.Plugins.Abstractions.IPluginMarketQueryService, Atlas.Infrastructure.Services.PluginMarketQueryService>();
+        services.AddScoped<Atlas.Application.Plugins.Abstractions.IPluginMarketCommandService, Atlas.Infrastructure.Services.PluginMarketCommandService>();
+
+        // Component Templates
+        services.AddScoped<Atlas.Application.Templates.IComponentTemplateQueryService, Atlas.Infrastructure.Services.ComponentTemplateQueryService>();
+        services.AddScoped<Atlas.Application.Templates.IComponentTemplateCommandService, Atlas.Infrastructure.Services.ComponentTemplateCommandService>();
+
+        // Webhooks
+        services.AddScoped<Atlas.Application.Integration.IWebhookService, Atlas.Infrastructure.Services.WebhookService>();
+        services.AddHttpClient("Webhook").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
+
+        // API Connectors
+        services.AddScoped<Atlas.Application.Integration.IApiConnectorService, Atlas.Infrastructure.Services.ApiConnectorService>();
+
+        // Integration API Key validation
+        services.AddScoped<Atlas.Application.Integration.IIntegrationApiKeyRepository, Atlas.Infrastructure.Repositories.IntegrationApiKeyRepository>();
+        services.AddScoped<Atlas.Application.Integration.IApiKeyValidationService, Atlas.Infrastructure.Services.ApiKeyValidationService>();
+
+        // Data Source Connector Registry (singleton for lifetime of app)
+        services.AddSingleton<Atlas.Application.DataSource.IDataSourceConnectorRegistry>(sp =>
+        {
+            var registry = new Atlas.Infrastructure.DataSource.DataSourceConnectorRegistry();
+            registry.Register(new Atlas.Infrastructure.DataSource.SqliteDataSourceConnector());
+            return registry;
+        });
+
+        // Message Queue (SQLite-backed)
+        services.AddScoped<Atlas.Core.Messaging.IMessageQueue, Atlas.Infrastructure.Messaging.SqliteMessageQueue>();
+        services.AddHostedService<Atlas.Infrastructure.Messaging.MessageQueueProcessorHostedService>();
+
+        // Approval Event Consumer (async mode, activated when Messaging:ApprovalEvents:AsyncEnabled = true)
+        services.AddScoped<Atlas.Infrastructure.Messaging.IQueueMessageHandler, Atlas.Infrastructure.Services.ApprovalFlow.ApprovalEventConsumer>();
+
+        // Saga Orchestrator
+        services.AddScoped<Atlas.Core.Saga.ISagaOrchestrator, Atlas.Infrastructure.Saga.SagaOrchestrator>();
+
+        // Event Subscriptions
+        services.AddScoped<Atlas.Application.Events.IEventSubscriptionService, Atlas.Infrastructure.Events.EventSubscriptionService>();
+
+        // Plugin Metrics
+        services.AddSingleton<Atlas.Infrastructure.Plugins.PluginMetricsStore>();
+
+        // Evidence Chain
+        services.AddScoped<Atlas.Infrastructure.Services.EvidenceChainService>();
+
         // SqlSugar client (shared across all modules)
         services.AddScoped<ISqlSugarClient>(sp =>
         {

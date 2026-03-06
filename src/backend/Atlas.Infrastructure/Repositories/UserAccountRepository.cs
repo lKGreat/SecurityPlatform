@@ -36,6 +36,13 @@ public sealed class UserAccountRepository : RepositoryBase<UserAccount>, IUserAc
         return result;
     }
 
+    public async Task<UserAccount?> FindByEmailAsync(TenantId tenantId, string email, CancellationToken cancellationToken)
+    {
+        return await Db.Queryable<UserAccount>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Email == email)
+            .FirstAsync(cancellationToken);
+    }
+
     public async Task<(IReadOnlyList<UserAccount> Items, int TotalCount)> QueryPageAsync(
         TenantId tenantId,
         int pageIndex,
