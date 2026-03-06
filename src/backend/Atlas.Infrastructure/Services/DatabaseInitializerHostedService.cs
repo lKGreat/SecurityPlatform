@@ -14,7 +14,8 @@ using Atlas.Domain.DynamicTables.Entities;
 using Atlas.Domain.Identity.Entities;
 using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.System.Entities;
-using Atlas.Domain.Workflow.Entities;
+using Atlas.Domain.Plugins;
+using Atlas.Domain.Events;
 using Atlas.Infrastructure.Repositories;
 using Atlas.Infrastructure.Options;
 using Microsoft.Extensions.DependencyInjection;
@@ -140,7 +141,28 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(LowCodeApp),
             typeof(LowCodePage),
             typeof(LowCodeAppVersion),
-            typeof(FormDefinition));
+            typeof(FormDefinition),
+            // Events / Outbox
+            typeof(OutboxMessage),
+            // Plugin configuration
+            typeof(PluginConfig),
+            // Plugin market
+            typeof(PluginMarketEntry),
+            typeof(PluginMarketVersion),
+            // Component templates
+            typeof(Atlas.Domain.Templates.ComponentTemplate),
+            // Webhooks
+            typeof(Atlas.Domain.Integration.WebhookSubscription),
+            typeof(Atlas.Domain.Integration.WebhookDeliveryLog),
+            // API Connectors
+            typeof(Atlas.Domain.Integration.ApiConnector),
+            typeof(Atlas.Domain.Integration.ApiConnectorOperation),
+            // Message Queue
+            typeof(Atlas.Domain.Messaging.QueueMessage),
+            // Saga
+            typeof(Atlas.Domain.Saga.SagaInstance),
+            // Event Subscriptions
+            typeof(Atlas.Domain.Events.EventSubscription));
         await EnsureApprovalSchemaAsync(db, cancellationToken);
 
         // 创建审批模块数据库索引

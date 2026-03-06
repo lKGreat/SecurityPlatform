@@ -16,3 +16,5 @@ export * from "@/services/api-approval";
 export * from "@/services/api-workflow";
 export * from "@/services/api-visualization";
 export * from "@/services/api-system";
+export * from "@/services/api-plugin";
+export * from "@/services/api-webhook";

@@ -88,6 +88,32 @@ builder.Services.Configure<IdempotencyOptions>(builder.Configuration.GetSection(
 builder.Services.Configure<TableViewDefaultOptions>(builder.Configuration.GetSection("TableViewDefaults"));
 builder.Services.Configure<Atlas.WebApi.Identity.AppOptions>(builder.Configuration.GetSection("App"));
 
+// OIDC 支持（可选，通过 Oidc:Enabled 控制）
+builder.Services.Configure<Atlas.Infrastructure.Security.OidcOptions>(builder.Configuration.GetSection("Oidc"));
+builder.Services.AddScoped<Atlas.Infrastructure.Security.OidcAccountMapper>();
+var oidcEnabled = builder.Configuration.GetValue<bool>("Oidc:Enabled");
+if (oidcEnabled)
+{
+    var oidcAuthority = builder.Configuration["Oidc:Authority"] ?? string.Empty;
+    var oidcClientId = builder.Configuration["Oidc:ClientId"] ?? string.Empty;
+
+    builder.Services.AddAuthentication()
+        .AddOpenIdConnect("oidc", options =>
+        {
+            options.Authority = oidcAuthority;
+            options.ClientId = oidcClientId;
+            options.ClientSecret = builder.Configuration["Oidc:ClientSecret"];
+            options.CallbackPath = builder.Configuration["Oidc:CallbackPath"] ?? "/auth/oidc/callback";
+            options.ResponseType = "code";
+            options.SaveTokens = false;
+            var scopes = builder.Configuration.GetSection("Oidc:Scopes").Get<string[]>() ?? ["openid", "profile", "email"];
+            foreach (var scope in scopes)
+            {
+                options.Scope.Add(scope);
+            }
+        });
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("WebAppCors", policy =>

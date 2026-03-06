@@ -21,6 +21,10 @@ const NotificationsPage = () => import("@/pages/system/NotificationsPage.vue");
 const DictTypesPage = () => import("@/pages/system/DictTypesPage.vue");
 const SystemConfigsPage = () => import("@/pages/system/SystemConfigsPage.vue");
 const RolesPage = () => import("@/pages/system/RolesPage.vue");
+const PluginMarketPage = () => import("@/pages/lowcode/PluginMarketPage.vue");
+const PluginManagePage = () => import("@/pages/system/PluginManagePage.vue");
+const WebhooksPage = () => import("@/pages/system/WebhooksPage.vue");
+const MessageQueuePage = () => import("@/pages/monitor/MessageQueuePage.vue");
 
 declare module "vue-router" {
   interface RouteMeta {
@@ -42,7 +46,10 @@ const router = createRouter({
     { path: "/settings/system/dict-types", name: "settings-system-dict-types", component: DictTypesPage, meta: { requiresAuth: true, title: "字典管理", requiresPermission: "dict:type:view" } },
     { path: "/settings/system/configs", name: "settings-system-configs", component: SystemConfigsPage, meta: { requiresAuth: true, title: "参数配置", requiresPermission: "config:view" } },
     { path: "/settings/auth/roles", name: "SettingsAuthRoles", component: RolesPage, meta: { requiresAuth: true, title: "角色管理", requiresPermission: "roles:view" } },
-    { path: "/system/dict-types", name: "system-dict-types-legacy", redirect: "/settings/system/dict-types", meta: { requiresAuth: true, title: "字典管理" } },
+    { path: "/lowcode/plugin-market", name: "plugin-market", component: PluginMarketPage, meta: { requiresAuth: true, title: "插件市场" } },
+    { path: "/settings/system/plugins", name: "settings-plugins", component: PluginManagePage, meta: { requiresAuth: true, title: "插件管理", requiresPermission: "system:admin" } },
+    { path: "/settings/system/webhooks", name: "settings-webhooks", component: WebhooksPage, meta: { requiresAuth: true, title: "Webhook 管理" } },
+    { path: "/monitor/message-queue", name: "monitor-message-queue", component: MessageQueuePage, meta: { requiresAuth: true, title: "消息队列监控", requiresPermission: "system:admin" } },    { path: "/system/dict-types", name: "system-dict-types-legacy", redirect: "/settings/system/dict-types", meta: { requiresAuth: true, title: "字典管理" } },
     { path: "/system/configs", name: "system-configs-legacy", redirect: "/settings/system/configs", meta: { requiresAuth: true, title: "参数配置" } },
     { path: "/alerts", name: "alerts-legacy", redirect: "/alert", meta: { requiresAuth: true, title: "告警" } },
     { path: "/lowcode/apps", name: "app-list", component: AppListPage, meta: { requiresAuth: true, title: "低代码应用", requiresPermission: "apps:view" } },

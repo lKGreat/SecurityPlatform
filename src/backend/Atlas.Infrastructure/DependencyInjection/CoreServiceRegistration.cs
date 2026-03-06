@@ -6,6 +6,8 @@ using Atlas.Application.System.Abstractions;
 using Atlas.Application.TableViews.Abstractions;
 using Atlas.Application.TableViews.Repositories;
 using Atlas.Core.Abstractions;
+using Atlas.Core.Events;
+using Atlas.Infrastructure.Events;
 using Atlas.Infrastructure.IdGen;
 using Atlas.Infrastructure.Options;
 using Atlas.Infrastructure.Repositories;
@@ -35,6 +37,15 @@ public static class CoreServiceRegistration
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IIdGeneratorProvider, SnowflakeIdGeneratorProvider>();
         services.AddScoped<IIdGeneratorAccessor, DefaultIdGeneratorAccessor>();
+
+        // Event Bus (in-process, resolves all IDomainEventHandler<T> registrations)
+        services.AddScoped<IEventBus, InProcessEventBus>();
+
+        // Outbox (at-least-once integration event delivery)
+        services.AddScoped<Atlas.Application.Events.IOutboxRepository, Atlas.Infrastructure.Repositories.OutboxRepository>();
+        services.AddScoped<Atlas.Application.Events.IOutboxManagementService, Atlas.Infrastructure.Events.OutboxManagementService>();
+        services.AddScoped<Atlas.Infrastructure.Events.OutboxPublisher>();
+        services.AddHostedService<Atlas.Infrastructure.Events.OutboxProcessorHostedService>();
 
         // Unit of Work
         services.AddScoped<IUnitOfWork, SqlSugarUnitOfWork>();

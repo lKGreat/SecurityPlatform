@@ -1,0 +1,138 @@
+using Atlas.Application.Approval.Abstractions;
+using Atlas.Application.Approval.Models;
+using Atlas.Application.Integration;
+using Atlas.Core.Models;
+using Atlas.Core.Tenancy;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Atlas.WebApi.Controllers;
+
+/// <summary>
+/// 跨系统审批集成 API
+/// 外部系统使用 API Key 认证（X-Api-Key header）发起/查询/取消审批
+/// </summary>
+[ApiController]
+[Route("api/v1/integration/approvals")]
+public sealed class IntegrationApprovalController : ControllerBase
+{
+    private readonly IApprovalRuntimeCommandService _commandService;
+    private readonly IApprovalRuntimeQueryService _queryService;
+    private readonly IWebhookService _webhookService;
+
+    public IntegrationApprovalController(
+        IApprovalRuntimeCommandService commandService,
+        IApprovalRuntimeQueryService queryService,
+        IWebhookService webhookService)
+    {
+        _commandService = commandService;
+        _queryService = queryService;
+        _webhookService = webhookService;
+    }
+
+    /// <summary>外部系统发起审批</summary>
+    [HttpPost("start")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> Start(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        [FromHeader(Name = "X-Tenant-Id")] string? tenantIdHeader,
+        [FromBody] IntegrationStartApprovalRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "需要 X-Api-Key", HttpContext.TraceIdentifier));
+        }
+
+        if (!Guid.TryParse(tenantIdHeader, out var tenantGuid))
+        {
+            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", "X-Tenant-Id 格式无效", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = new TenantId(tenantGuid);
+        var startRequest = new ApprovalStartRequest
+        {
+            DefinitionId = request.FlowDefinitionId,
+            BusinessKey = request.Title,
+            DataJson = request.FormData
+        };
+
+        var instance = await _commandService.StartAsync(tenantId, startRequest, request.InitiatorUserId, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            InstanceId = instance.Id,
+            Status = instance.Status,
+            BusinessKey = instance.BusinessKey
+        }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>查询审批实例状态</summary>
+    [HttpGet("{instanceId:long}/status")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> GetStatus(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        [FromHeader(Name = "X-Tenant-Id")] string? tenantIdHeader,
+        long instanceId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "需要 X-Api-Key", HttpContext.TraceIdentifier));
+        }
+
+        if (!Guid.TryParse(tenantIdHeader, out var tenantGuid))
+        {
+            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", "X-Tenant-Id 格式无效", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = new TenantId(tenantGuid);
+        var instance = await _queryService.GetInstanceByIdAsync(tenantId, instanceId, cancellationToken);
+        if (instance is null)
+        {
+            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", "审批实例不存在", HttpContext.TraceIdentifier));
+        }
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            InstanceId = instance.Id,
+            Status = instance.Status,
+            instance.BusinessKey,
+            StartedAt = instance.StartedAt,
+            EndedAt = instance.EndedAt
+        }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>取消审批</summary>
+    [HttpPost("{instanceId:long}/cancel")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> Cancel(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        [FromHeader(Name = "X-Tenant-Id")] string? tenantIdHeader,
+        long instanceId,
+        [FromBody] IntegrationCancelRequest? request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "需要 X-Api-Key", HttpContext.TraceIdentifier));
+        }
+
+        if (!Guid.TryParse(tenantIdHeader, out var tenantGuid))
+        {
+            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", "X-Tenant-Id 格式无效", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = new TenantId(tenantGuid);
+        await _commandService.CancelInstanceAsync(tenantId, instanceId, request?.CancelledByUserId ?? 0, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(null, HttpContext.TraceIdentifier));
+    }
+}
+
+public sealed record IntegrationStartApprovalRequest(
+    long FlowDefinitionId,
+    string Title,
+    long InitiatorUserId,
+    string? FormData,
+    string? ExtraData);
+
+public sealed record IntegrationCancelRequest(long CancelledByUserId);
