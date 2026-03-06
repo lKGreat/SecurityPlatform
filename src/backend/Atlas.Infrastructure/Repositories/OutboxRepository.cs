@@ -57,30 +57,39 @@ public sealed class OutboxRepository : IOutboxRepository
     public async Task<IReadOnlyList<OutboxMessage>> LockPendingAsync(
         int batchSize, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var messages = await _db.Queryable<OutboxMessage>()
+        // 先取候选 ID（SQLite 不支持 UPDATE...LIMIT，需两步实现原子锁）
+        var candidateIds = await _db.Queryable<OutboxMessage>()
             .Where(m => (m.Status == OutboxMessageStatus.Pending || m.Status == OutboxMessageStatus.Failed)
                 && (m.NextRetryAt == null || m.NextRetryAt <= now))
             .OrderBy(m => m.CreatedAt)
             .Take(batchSize)
+            .Select(m => m.Id)
             .ToListAsync(cancellationToken);
 
-        if (messages.Count == 0)
+        if (candidateIds.Count == 0)
         {
-            return messages;
+            return [];
         }
 
-        var ids = messages.Select(m => m.Id).ToList();
-        await _db.Updateable<OutboxMessage>()
-            .SetColumns(m => m.Status == OutboxMessageStatus.Processing)
-            .Where(m => ids.Contains(m.Id))
+        // 原子更新：WHERE 条件包含原始状态，确保只有仍处于待处理状态的行被锁定。
+        // 并发时多个实例竞争同一批 ID，但 SQLite 的行锁保证每行只被一个更新成功写入。
+        var updatedCount = await _db.Updateable<OutboxMessage>()
+            .SetColumns(m => new OutboxMessage { Status = OutboxMessageStatus.Processing })
+            .Where(m => candidateIds.Contains(m.Id)
+                && (m.Status == OutboxMessageStatus.Pending || m.Status == OutboxMessageStatus.Failed))
             .ExecuteCommandAsync(cancellationToken);
 
-        foreach (var msg in messages)
+        if (updatedCount == 0)
         {
-            msg.Status = OutboxMessageStatus.Processing;
+            return [];
         }
 
-        return messages;
+        // 只返回本次实际被锁定（更新成功）的消息，过滤掉被其他竞争者抢先锁定的行。
+        var locked = await _db.Queryable<OutboxMessage>()
+            .Where(m => candidateIds.Contains(m.Id) && m.Status == OutboxMessageStatus.Processing)
+            .ToListAsync(cancellationToken);
+
+        return locked;
     }
 
     public async Task<OutboxMessage?> FindByIdAsync(long id, CancellationToken cancellationToken)

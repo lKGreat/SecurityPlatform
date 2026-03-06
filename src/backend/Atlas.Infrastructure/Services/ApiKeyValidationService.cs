@@ -52,8 +52,8 @@ public sealed class ApiKeyValidationService : IApiKeyValidationService
                 return false;
             }
 
-            // 异步更新最后使用时间，不阻塞响应
-            _ = UpdateLastUsedAtSilentlyAsync(record.Id, cancellationToken);
+            // 异步更新最后使用时间，不阻塞响应；使用 CancellationToken.None 避免请求取消信号中断后台写入
+            _ = UpdateLastUsedAtSilentlyAsync(record.Id);
             return true;
         }
 
@@ -61,11 +61,11 @@ public sealed class ApiKeyValidationService : IApiKeyValidationService
         return false;
     }
 
-    private async Task UpdateLastUsedAtSilentlyAsync(long id, CancellationToken cancellationToken)
+    private async Task UpdateLastUsedAtSilentlyAsync(long id)
     {
         try
         {
-            await _repository.UpdateLastUsedAtAsync(id, DateTimeOffset.UtcNow, cancellationToken);
+            await _repository.UpdateLastUsedAtAsync(id, DateTimeOffset.UtcNow, CancellationToken.None);
         }
         catch (Exception ex)
         {

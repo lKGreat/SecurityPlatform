@@ -1,6 +1,8 @@
 using Atlas.Core.DataSource;
+using Atlas.Core.Exceptions;
 using Atlas.Core.Models;
 using Atlas.Core.Plugins;
+using System.Text.RegularExpressions;
 
 namespace Atlas.Infrastructure.DataSource;
 
@@ -9,6 +11,16 @@ namespace Atlas.Infrastructure.DataSource;
 /// </summary>
 public sealed class SqliteDataSourceConnector : IDataSourceConnector
 {
+    // 禁止的 SQL 关键字：写操作与 DDL，防止非 SELECT 语句被执行
+    private static readonly Regex DangerousStatementPattern = new(
+        @"(^\s*|;\s*)(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|REPLACE|ATTACH|DETACH|PRAGMA|VACUUM)\s",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // 多语句分隔符检测（分号后跟非空内容视为多语句）
+    private static readonly Regex MultiStatementPattern = new(
+        @";\s*\S",
+        RegexOptions.Compiled);
+
     public string Code => "datasource.sqlite";
     public string Name => "SQLite";
     public string Version => "1.0.0";
@@ -66,9 +78,12 @@ public sealed class SqliteDataSourceConnector : IDataSourceConnector
         int pageSize,
         CancellationToken cancellationToken)
     {
+        ValidateReadOnlySql(sql);
+
         using var conn = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
         await conn.OpenAsync(cancellationToken);
 
+        // pageSize 和 pageIndex 均为强类型 int，不存在注入风险
         var countSql = $"SELECT COUNT(*) FROM ({sql}) __count";
         using var countCmd = conn.CreateCommand();
         countCmd.CommandText = countSql;
@@ -107,6 +122,33 @@ public sealed class SqliteDataSourceConnector : IDataSourceConnector
         cmd.CommandText = sql;
         AddParameters(cmd, parameters);
         return await cmd.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// 校验 SQL 是否为纯只读查询（仅允许 SELECT）。
+    /// 阻止多语句、DDL 及写操作，防止通过数据源连接器执行破坏性指令。
+    /// </summary>
+    private static void ValidateReadOnlySql(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql))
+            throw new BusinessException("查询语句不能为空", "SQL_EMPTY");
+
+        var trimmed = sql.Trim();
+
+        // 必须以 SELECT（包括注释清理后的有效起始）开头
+        if (!trimmed.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) &&
+            !trimmed.StartsWith("WITH", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new BusinessException("数据源查询仅允许 SELECT 或 CTE（WITH...SELECT）语句", "SQL_NOT_READONLY");
+        }
+
+        // 禁止危险语句关键字
+        if (DangerousStatementPattern.IsMatch(sql))
+            throw new BusinessException("查询语句包含不允许的操作（INSERT/UPDATE/DELETE/DDL/PRAGMA 等）", "SQL_FORBIDDEN_STATEMENT");
+
+        // 禁止多语句（分号后跟有效内容）
+        if (MultiStatementPattern.IsMatch(sql))
+            throw new BusinessException("查询语句不允许包含多条语句（分号分隔）", "SQL_MULTI_STATEMENT");
     }
 
     private static async Task<IReadOnlyList<ColumnInfo>> GetColumnsAsync(

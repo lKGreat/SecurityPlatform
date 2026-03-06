@@ -104,8 +104,9 @@ public sealed class WebhookService : IWebhookService
 
     public async Task DispatchAsync(string eventType, string payload, CancellationToken cancellationToken)
     {
+        var tenantId = _tenantProvider.TenantId.Value;
         var subscriptions = await _db.Queryable<WebhookSubscription>()
-            .Where(s => s.IsActive)
+            .Where(s => s.IsActive && s.TenantId == tenantId)
             .ToListAsync(cancellationToken);
 
         var matching = subscriptions.Where(s =>
