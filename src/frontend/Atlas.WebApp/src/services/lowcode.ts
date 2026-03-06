@@ -23,8 +23,7 @@ import type {
   LowCodePageCreateRequest,
   LowCodePageUpdateRequest
 } from "@/types/lowcode";
-import { requestApi } from "@/services/api";
-import { requestApiBlob } from "@/services/api-core";
+import { requestApi, requestApiBlob } from "@/services/api-core";
 
 // ─── 表单定义 API ───
 

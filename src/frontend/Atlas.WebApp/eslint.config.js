@@ -1,10 +1,13 @@
-﻿import vue from "eslint-plugin-vue";
+import vue from "eslint-plugin-vue";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import vueParser from "vue-eslint-parser";
 import prettier from "eslint-config-prettier";
 
 export default [
+  {
+    ignores: ["dist/**", "coverage/**", "node_modules/**"]
+  },
   {
     files: ["**/*.ts", "**/*.vue"],
     languageOptions: {

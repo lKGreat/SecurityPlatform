@@ -11,7 +11,7 @@ import type {
   DynamicRecordQueryRequest,
   DynamicRecordListResult
 } from "@/types/dynamic-tables";
-import { requestApi } from "@/services/api";
+import { requestApi } from "@/services/api-core";
 
 export async function getDynamicTablesPaged(pagedRequest: PagedRequest) {
   const query = new URLSearchParams({

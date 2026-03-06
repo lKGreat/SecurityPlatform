@@ -1,7 +1,7 @@
 import { message, Modal } from "ant-design-vue";
 import type { ApiResponse, JsonValue } from "@/types/api";
 import type { AmisEnv, AmisFetcherConfig, AmisFetcherResult } from "@/types/amis";
-import { requestApi } from "@/services/api";
+import { requestApi } from "@/services/api-core";
 import { i18n } from "@/i18n";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api/v1";

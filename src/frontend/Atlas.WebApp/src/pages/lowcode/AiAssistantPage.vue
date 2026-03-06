@@ -41,7 +41,7 @@
 import { computed, nextTick, reactive, ref } from "vue";
 import { FormOutlined, CodeOutlined, BranchesOutlined } from "@ant-design/icons-vue";
 import { message } from "ant-design-vue";
-import { requestApi } from "@/services/api";
+import { requestApi } from "@/services/api-core";
 import type { ApiResponse } from "@/types/api";
 
 interface ChatMessage { id: string; role: "user" | "assistant"; content: string; resultJson?: string; }

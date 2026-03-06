@@ -14,7 +14,7 @@
     <template v-if="fetching" #notFoundContent>
       <a-spin size="small" />
     </template>
-    <template #option="{ value, label, avatar }">
+    <template #option="{ label, avatar }">
       <div class="picker-option">
         <a-avatar v-if="mode === 'user'" size="small" :src="avatar" style="margin-right: 8px">
           {{ label?.[0]?.toUpperCase() }}

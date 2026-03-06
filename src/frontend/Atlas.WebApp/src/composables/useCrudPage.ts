@@ -67,7 +67,7 @@ export function useCrudPage<TList, TDetail, TCreate extends object, TUpdate exte
   const keyword = ref("");
   const pagination = reactive<TablePaginationConfig>({
     current: 1,
-    pageSize: 10,
+    pageSize: 20,
     total: 0,
     showTotal: (total: number) => `共 ${total} 条`
   });
@@ -100,7 +100,7 @@ export function useCrudPage<TList, TDetail, TCreate extends object, TUpdate exte
     try {
       const baseParams: PagedRequest = {
         pageIndex: pagination.current ?? 1,
-        pageSize: pagination.pageSize ?? 10,
+        pageSize: pagination.pageSize ?? 20,
         keyword: keyword.value || undefined
       };
       const params = buildListParams ? buildListParams(baseParams) : baseParams;

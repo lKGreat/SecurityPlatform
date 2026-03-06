@@ -63,8 +63,14 @@ export async function getCurrentAppConfig(): Promise<AppConfigDetail | null> {
 }
 
 export async function getProjectsPaged(pagedRequest: PagedRequest) {
-  const query = toQuery(pagedRequest);
-  const response = await requestApi<ApiResponse<PagedResult<ProjectListItem>>>(`/projects?${query}`);
+  const query = new URLSearchParams({
+    PageIndex: String(pagedRequest.pageIndex),
+    PageSize: String(pagedRequest.pageSize),
+    Keyword: pagedRequest.keyword ?? "",
+    SortBy: pagedRequest.sortBy ?? "",
+    SortDesc: String(Boolean(pagedRequest.sortDesc))
+  });
+  const response = await requestApi<ApiResponse<PagedResult<ProjectListItem>>>(`/projects?${query.toString()}`);
   if (!response.data) {
     throw new Error(response.message || "查询失败");
   }
@@ -145,6 +151,21 @@ export async function updateProjectPositions(id: string, request: ProjectAssignP
 
 export async function getMyProjects() {
   const response = await requestApi<ApiResponse<ProjectListItem[]>>("/projects/my");
+  if (!response.data) {
+    throw new Error(response.message || "查询失败");
+  }
+  return response.data;
+}
+
+export async function getMyProjectsPaged(pagedRequest: PagedRequest) {
+  const query = new URLSearchParams({
+    PageIndex: String(pagedRequest.pageIndex),
+    PageSize: String(pagedRequest.pageSize),
+    Keyword: pagedRequest.keyword ?? "",
+    SortBy: pagedRequest.sortBy ?? "",
+    SortDesc: String(Boolean(pagedRequest.sortDesc))
+  });
+  const response = await requestApi<ApiResponse<PagedResult<ProjectListItem>>>(`/projects/my/paged?${query.toString()}`);
   if (!response.data) {
     throw new Error(response.message || "查询失败");
   }

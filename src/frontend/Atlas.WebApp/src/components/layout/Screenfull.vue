@@ -16,6 +16,10 @@ import { message } from 'ant-design-vue';
 import screenfull from 'screenfull';
 import { FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons-vue';
 
+defineOptions({
+  name: 'ScreenfullToggle'
+});
+
 const isFullscreen = ref(false);
 
 const click = () => {

@@ -91,7 +91,7 @@
 import { onMounted, reactive, ref } from "vue";
 import type { TablePaginationConfig } from "ant-design-vue";
 import { message } from "ant-design-vue";
-import { requestApi } from "@/services/api";
+import { requestApi } from "@/services/api-core";
 import type { ApiResponse, PagedResult } from "@/types/api";
 
 interface TemplateItem {

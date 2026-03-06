@@ -9,8 +9,10 @@
         show-search
         allow-clear
         placeholder="选择项目"
-        option-filter-prop="label"
+        :filter-option="false"
         style="min-width: 200px"
+        @search="handleSearch"
+        @focus="handleFocus"
         @change="handleChange"
       />
     </a-space>
@@ -20,7 +22,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 import { message } from "ant-design-vue";
-import { getCurrentAppConfig, getMyProjects } from "@/services/api";
+import { getCurrentAppConfig, getMyProjectsPaged } from "@/services/api";
 import type { ProjectListItem } from "@/types/api";
 import { clearProjectId, getProjectId, setProjectId, setProjectScopeEnabled } from "@/utils/auth";
 
@@ -28,6 +30,19 @@ const enabled = ref(false);
 const loading = ref(false);
 const options = ref<{ label: string; value: string }[]>([]);
 const selectedProjectId = ref<string | undefined>(undefined);
+let searchTimer: number | undefined;
+
+const loadProjects = async (keyword?: string) => {
+  const result = await getMyProjectsPaged({
+    pageIndex: 1,
+    pageSize: 20,
+    keyword: keyword?.trim() || undefined
+  });
+  options.value = result.items.map((item: ProjectListItem) => ({
+    label: `${item.name}（${item.code}）`,
+    value: item.id
+  }));
+};
 
 const loadProjectContext = async () => {
   loading.value = true;
@@ -43,11 +58,7 @@ const loadProjectContext = async () => {
       return;
     }
 
-    const projects = await getMyProjects();
-    options.value = projects.map((item: ProjectListItem) => ({
-      label: `${item.name}（${item.code}）`,
-      value: item.id
-    }));
+    await loadProjects();
 
     const stored = getProjectId();
     const hasStored = stored && options.value.some((item) => item.value === stored);
@@ -70,6 +81,41 @@ const loadProjectContext = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const handleSearch = (value: string) => {
+  if (!enabled.value) {
+    return;
+  }
+
+  if (searchTimer) {
+    window.clearTimeout(searchTimer);
+  }
+  searchTimer = window.setTimeout(() => {
+    loading.value = true;
+    void loadProjects(value)
+      .catch((error) => {
+        message.error((error as Error).message || "加载项目失败");
+      })
+      .finally(() => {
+        loading.value = false;
+      });
+  }, 250);
+};
+
+const handleFocus = () => {
+  if (!enabled.value || options.value.length > 0) {
+    return;
+  }
+
+  loading.value = true;
+  void loadProjects()
+    .catch((error) => {
+      message.error((error as Error).message || "加载项目失败");
+    })
+    .finally(() => {
+      loading.value = false;
+    });
 };
 
 const handleChange = (value?: string) => {
@@ -100,6 +146,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("app-config-changed", loadProjectContext);
+  if (searchTimer) {
+    window.clearTimeout(searchTimer);
+    searchTimer = undefined;
+  }
 });
 </script>
 

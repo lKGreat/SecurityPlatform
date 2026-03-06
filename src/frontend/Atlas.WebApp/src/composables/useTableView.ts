@@ -183,7 +183,7 @@ const toColumnConfig = <TRecord>(items: NormalizedColumn<TRecord>[]): TableViewC
 
 export function useTableView<TRecord>(options: UseTableViewOptions<TRecord>) {
   const { tableKey, columns, pagination, onRefresh } = options;
-  const defaultConfig = buildDefaultConfig(columns, pagination.pageSize ?? 10);
+  const defaultConfig = buildDefaultConfig(columns, pagination.pageSize ?? 20);
   const config = ref<TableViewConfig>({ ...defaultConfig });
   const state = reactive<TableViewState>({
     views: [],
