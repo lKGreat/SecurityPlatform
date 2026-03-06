@@ -19,15 +19,18 @@ public sealed class IntegrationApprovalController : ControllerBase
     private readonly IApprovalRuntimeCommandService _commandService;
     private readonly IApprovalRuntimeQueryService _queryService;
     private readonly IWebhookService _webhookService;
+    private readonly IApiKeyValidationService _apiKeyValidation;
 
     public IntegrationApprovalController(
         IApprovalRuntimeCommandService commandService,
         IApprovalRuntimeQueryService queryService,
-        IWebhookService webhookService)
+        IWebhookService webhookService,
+        IApiKeyValidationService apiKeyValidation)
     {
         _commandService = commandService;
         _queryService = queryService;
         _webhookService = webhookService;
+        _apiKeyValidation = apiKeyValidation;
     }
 
     /// <summary>外部系统发起审批</summary>
@@ -50,6 +53,12 @@ public sealed class IntegrationApprovalController : ControllerBase
         }
 
         var tenantId = new TenantId(tenantGuid);
+
+        if (!await _apiKeyValidation.ValidateAsync(tenantId, apiKey, "approval:write", cancellationToken))
+        {
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "API Key 无效或无权限", HttpContext.TraceIdentifier));
+        }
+
         var startRequest = new ApprovalStartRequest
         {
             DefinitionId = request.FlowDefinitionId,
@@ -86,6 +95,12 @@ public sealed class IntegrationApprovalController : ControllerBase
         }
 
         var tenantId = new TenantId(tenantGuid);
+
+        if (!await _apiKeyValidation.ValidateAsync(tenantId, apiKey, "approval:read", cancellationToken))
+        {
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "API Key 无效或无权限", HttpContext.TraceIdentifier));
+        }
+
         var instance = await _queryService.GetInstanceByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance is null)
         {
@@ -123,6 +138,12 @@ public sealed class IntegrationApprovalController : ControllerBase
         }
 
         var tenantId = new TenantId(tenantGuid);
+
+        if (!await _apiKeyValidation.ValidateAsync(tenantId, apiKey, "approval:write", cancellationToken))
+        {
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "API Key 无效或无权限", HttpContext.TraceIdentifier));
+        }
+
         await _commandService.CancelInstanceAsync(tenantId, instanceId, request?.CancelledByUserId ?? 0, cancellationToken);
         return Ok(ApiResponse<object>.Ok(null, HttpContext.TraceIdentifier));
     }

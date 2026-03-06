@@ -157,6 +157,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             // API Connectors
             typeof(Atlas.Domain.Integration.ApiConnector),
             typeof(Atlas.Domain.Integration.ApiConnectorOperation),
+            // Integration API Keys
+            typeof(Atlas.Domain.Integration.IntegrationApiKey),
             // Message Queue
             typeof(Atlas.Domain.Messaging.QueueMessage),
             // Saga

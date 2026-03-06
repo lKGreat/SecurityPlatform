@@ -4,7 +4,6 @@ using Atlas.Core.Models;
 using Atlas.Domain.Plugins;
 using Atlas.Infrastructure.Options;
 using Atlas.Infrastructure.Plugins;
-using Atlas.Infrastructure.Services;
 using Atlas.WebApi.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

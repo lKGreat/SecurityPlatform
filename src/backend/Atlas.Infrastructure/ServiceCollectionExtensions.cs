@@ -53,6 +53,10 @@ public static class ServiceCollectionExtensions
         // API Connectors
         services.AddScoped<Atlas.Application.Integration.IApiConnectorService, Atlas.Infrastructure.Services.ApiConnectorService>();
 
+        // Integration API Key validation
+        services.AddScoped<Atlas.Application.Integration.IIntegrationApiKeyRepository, Atlas.Infrastructure.Repositories.IntegrationApiKeyRepository>();
+        services.AddScoped<Atlas.Application.Integration.IApiKeyValidationService, Atlas.Infrastructure.Services.ApiKeyValidationService>();
+
         // Data Source Connector Registry (singleton for lifetime of app)
         services.AddSingleton<Atlas.Application.DataSource.IDataSourceConnectorRegistry>(sp =>
         {
@@ -79,9 +83,6 @@ public static class ServiceCollectionExtensions
 
         // Evidence Chain
         services.AddScoped<Atlas.Infrastructure.Services.EvidenceChainService>();
-
-        // Plugin Package (install from .atpkg)
-        services.AddScoped<Atlas.Infrastructure.Services.PluginPackageService>();
 
         // SqlSugar client (shared across all modules)
         services.AddScoped<ISqlSugarClient>(sp =>

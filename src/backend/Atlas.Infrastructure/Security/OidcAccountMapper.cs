@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Atlas.Application.Abstractions;
 using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
@@ -60,7 +62,12 @@ public sealed class OidcAccountMapper
         // 尝试按 email 查找
         if (!string.IsNullOrEmpty(email))
         {
-            var allUsers = await _userRepo.QueryByIdsAsync(tenantId, [], cancellationToken);
+            var existingByEmail = await _userRepo.FindByEmailAsync(tenantId, email, cancellationToken);
+            if (existingByEmail is not null)
+            {
+                _logger.LogInformation("OIDC user {Sub} matched existing account {Id} by email", sub, existingByEmail.Id);
+                return existingByEmail;
+            }
         }
 
         // 创建新账号（空密码哈希，仅 OIDC 登录）
@@ -78,7 +85,8 @@ public sealed class OidcAccountMapper
 
     private static string BuildOidcUsername(string sub)
     {
-        var hash = Math.Abs(sub.GetHashCode()).ToString("x8");
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(sub));
+        var hash = Convert.ToHexString(bytes)[..16].ToLowerInvariant();
         return $"oidc_{hash}";
     }
 }
