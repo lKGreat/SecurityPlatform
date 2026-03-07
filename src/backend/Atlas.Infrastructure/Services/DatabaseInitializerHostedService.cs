@@ -119,6 +119,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(FieldPermission),
             typeof(MigrationRecord),
             typeof(LowCodeApp),
+            typeof(AppEntityAlias),
             typeof(LowCodePage),
             typeof(LowCodePageVersion),
             typeof(LowCodeEnvironment),

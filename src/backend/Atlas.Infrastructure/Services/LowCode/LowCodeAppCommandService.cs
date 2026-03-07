@@ -4,7 +4,12 @@ using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.LowCode.Enums;
+using Atlas.Infrastructure.Options;
+using Atlas.Infrastructure.Repositories;
+using Microsoft.Extensions.Options;
 using SqlSugar;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace Atlas.Infrastructure.Services.LowCode;
@@ -22,6 +27,8 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
     private readonly ILowCodePageVersionRepository _pageVersionRepository;
     private readonly IIdGeneratorAccessor _idGenerator;
     private readonly ISqlSugarClient _db;
+    private readonly TenantDataSourceRepository _tenantDataSourceRepository;
+    private readonly DatabaseEncryptionOptions _databaseEncryptionOptions;
 
     public LowCodeAppCommandService(
         ILowCodeAppRepository appRepository,
@@ -29,7 +36,9 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         ILowCodeAppVersionRepository versionRepository,
         ILowCodePageVersionRepository pageVersionRepository,
         IIdGeneratorAccessor idGenerator,
-        ISqlSugarClient db)
+        ISqlSugarClient db,
+        TenantDataSourceRepository tenantDataSourceRepository,
+        IOptions<DatabaseEncryptionOptions> databaseEncryptionOptions)
     {
         _appRepository = appRepository;
         _pageRepository = pageRepository;
@@ -37,6 +46,8 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         _pageVersionRepository = pageVersionRepository;
         _idGenerator = idGenerator;
         _db = db;
+        _tenantDataSourceRepository = tenantDataSourceRepository;
+        _databaseEncryptionOptions = databaseEncryptionOptions.Value;
     }
 
     public async Task<long> CreateAsync(
@@ -54,6 +65,10 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         var entity = new LowCodeApp(
             tenantId, request.AppKey, request.Name,
             request.Description, request.Category, request.Icon,
+            request.DataSourceId,
+            request.UseSharedUsers,
+            request.UseSharedRoles,
+            request.UseSharedDepartments,
             userId, id, now);
 
         await _appRepository.InsertAsync(entity, cancellationToken);
@@ -71,6 +86,95 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         entity.Update(request.Name, request.Description, request.Category, request.Icon, userId, now);
 
         await _appRepository.UpdateAsync(entity, cancellationToken);
+    }
+
+    public async Task UpdateSharingPolicyAsync(
+        TenantId tenantId,
+        long userId,
+        long appId,
+        AppSharingPolicyUpdateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var app = await _appRepository.GetByIdAsync(tenantId, appId, cancellationToken)
+            ?? throw new InvalidOperationException($"应用 ID={appId} 不存在");
+
+        if ((!request.UseSharedUsers || !request.UseSharedRoles || !request.UseSharedDepartments) && !app.DataSourceId.HasValue)
+        {
+            throw new InvalidOperationException("启用独立基础数据策略前必须先绑定应用数据源。");
+        }
+
+        app.UpdateSharingPolicy(
+            request.UseSharedUsers,
+            request.UseSharedRoles,
+            request.UseSharedDepartments,
+            userId,
+            DateTimeOffset.UtcNow);
+
+        await _appRepository.UpdateAsync(app, cancellationToken);
+    }
+
+    public async Task UpdateEntityAliasesAsync(
+        TenantId tenantId,
+        long appId,
+        AppEntityAliasUpdateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var app = await _appRepository.GetByIdAsync(tenantId, appId, cancellationToken)
+            ?? throw new InvalidOperationException($"应用 ID={appId} 不存在");
+
+        var normalizedAliases = request.Aliases
+            .GroupBy(x => x.EntityType.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.First())
+            .Select(alias => new AppEntityAlias(
+                app.Id,
+                alias.EntityType.Trim().ToLowerInvariant(),
+                alias.SingularAlias.Trim(),
+                string.IsNullOrWhiteSpace(alias.PluralAlias) ? null : alias.PluralAlias.Trim(),
+                _idGenerator.NextId()))
+            .ToList();
+
+        var result = await _db.Ado.UseTranAsync(async () =>
+        {
+            await _db.Deleteable<AppEntityAlias>()
+                .Where(x => x.AppId == app.Id)
+                .ExecuteCommandAsync(cancellationToken);
+
+            if (normalizedAliases.Count > 0)
+            {
+                await _db.Insertable(normalizedAliases).ExecuteCommandAsync(cancellationToken);
+            }
+        });
+
+        if (!result.IsSuccess)
+        {
+            throw result.ErrorException ?? new InvalidOperationException("更新应用实体别名失败");
+        }
+    }
+
+    public async Task<bool> TestAppDataSourceAsync(
+        TenantId tenantId,
+        long appId,
+        CancellationToken cancellationToken = default)
+    {
+        var app = await _appRepository.GetByIdAsync(tenantId, appId, cancellationToken)
+            ?? throw new InvalidOperationException($"应用 ID={appId} 不存在");
+
+        if (!app.DataSourceId.HasValue)
+        {
+            return false;
+        }
+
+        var dataSource = await _tenantDataSourceRepository.FindByIdAsync(tenantId.Value.ToString(), app.DataSourceId.Value, cancellationToken)
+            ?? throw new InvalidOperationException($"数据源 ID={app.DataSourceId.Value} 不存在");
+
+        var connectionString = _databaseEncryptionOptions.Enabled
+            ? Decrypt(dataSource.EncryptedConnectionString, _databaseEncryptionOptions.Key)
+            : dataSource.EncryptedConnectionString;
+
+        var success = await TestConnectionAsync(connectionString, dataSource.DbType, cancellationToken);
+        dataSource.RecordTestResult(success);
+        await _tenantDataSourceRepository.UpdateAsync(dataSource, cancellationToken);
+        return success;
     }
 
     public async Task PublishAsync(
@@ -301,6 +405,10 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
             package.Description,
             package.Category,
             package.Icon,
+            null,
+            true,
+            true,
+            true,
             userId,
             appId,
             now);
@@ -544,4 +652,68 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         bool IsPublished,
         string? PermissionCode,
         string? DataTableKey);
+
+    private static async Task<bool> TestConnectionAsync(
+        string connectionString,
+        string dbType,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = new SqlSugarClient(new ConnectionConfig
+            {
+                ConnectionString = connectionString,
+                DbType = ParseDbType(dbType),
+                IsAutoCloseConnection = true
+            });
+
+            _ = await client.Ado.GetIntAsync("SELECT 1");
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static DbType ParseDbType(string dbType)
+    {
+        return dbType.Trim().ToLowerInvariant() switch
+        {
+            "sqlite" => DbType.Sqlite,
+            "sqlserver" => DbType.SqlServer,
+            "mysql" => DbType.MySql,
+            "postgresql" => DbType.PostgreSQL,
+            _ => DbType.Sqlite
+        };
+    }
+
+    private static string Decrypt(string cipherText, string key)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return cipherText;
+        }
+
+        try
+        {
+            var keyBytes = SHA256.HashData(Encoding.UTF8.GetBytes(key));
+            var allBytes = Convert.FromBase64String(cipherText);
+            using var aes = Aes.Create();
+            aes.Key = keyBytes;
+            var ivLength = aes.BlockSize / 8;
+            var iv = new byte[ivLength];
+            Buffer.BlockCopy(allBytes, 0, iv, 0, ivLength);
+            var encryptedBytes = new byte[allBytes.Length - ivLength];
+            Buffer.BlockCopy(allBytes, ivLength, encryptedBytes, 0, encryptedBytes.Length);
+            aes.IV = iv;
+            using var decryptor = aes.CreateDecryptor();
+            var decrypted = decryptor.TransformFinalBlock(encryptedBytes, 0, encryptedBytes.Length);
+            return Encoding.UTF8.GetString(decrypted);
+        }
+        catch
+        {
+            return cipherText;
+        }
+    }
 }
