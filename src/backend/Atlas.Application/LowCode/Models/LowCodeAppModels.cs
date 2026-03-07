@@ -37,7 +37,7 @@ public sealed record LowCodeAppCreateRequest(
     string? Description,
     string? Category,
     string? Icon,
-    long? DataSourceId,
+    string? DataSourceId,
     bool UseSharedUsers = true,
     bool UseSharedRoles = true,
     bool UseSharedDepartments = true);

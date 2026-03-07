@@ -25,8 +25,10 @@ public sealed class LowCodeAppCreateRequestValidator : AbstractValidator<LowCode
             .MaximumLength(100).WithMessage(localizer["LowCodeAppCategoryMaxLength"].Value);
 
         RuleFor(x => x.DataSourceId)
-            .NotNull()
+            .NotEmpty()
             .WithMessage("当存在独立基础数据策略时，必须绑定应用数据源。")
+            .Must(id => long.TryParse(id, out _))
+            .WithMessage("数据源 ID 格式无效。")
             .When(x => !x.UseSharedUsers || !x.UseSharedRoles || !x.UseSharedDepartments);
     }
 }

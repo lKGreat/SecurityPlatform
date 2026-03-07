@@ -60,10 +60,12 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         var id = _idGenerator.NextId();
         var now = DateTimeOffset.UtcNow;
 
+        long? dataSourceId = long.TryParse(request.DataSourceId, out var parsedDsId) ? parsedDsId : null;
+
         var entity = new LowCodeApp(
             tenantId, request.AppKey, request.Name,
             request.Description, request.Category, request.Icon,
-            request.DataSourceId,
+            dataSourceId,
             request.UseSharedUsers,
             request.UseSharedRoles,
             request.UseSharedDepartments,

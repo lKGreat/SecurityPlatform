@@ -1287,7 +1287,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
                 PublishedBy INTEGER NULL,
                 ConfigJson TEXT NULL,
                 TenantIdValue TEXT NOT NULL,
-                Id INTEGER NOT NULL,
+                Id INTEGER NOT NULL PRIMARY KEY,
                 DataSourceId INTEGER NULL,
                 UseSharedUsers INTEGER NOT NULL DEFAULT 1,
                 UseSharedRoles INTEGER NOT NULL DEFAULT 1,

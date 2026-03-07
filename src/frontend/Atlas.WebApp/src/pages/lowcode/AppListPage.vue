@@ -80,8 +80,6 @@
       title="新建应用"
       width="920px"
       :mask-closable="false"
-      :confirm-loading="creating"
-      @ok="handleWizardPrimaryAction"
       @cancel="closeWizard"
     >
       <a-steps :current="wizardStep" style="margin-bottom: 20px;">
