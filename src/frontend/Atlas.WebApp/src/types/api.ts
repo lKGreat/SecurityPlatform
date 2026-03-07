@@ -1046,3 +1046,36 @@ export interface VisualizationMetricsResponse {
   alertsToday: number;
   auditEventsToday: number;
 }
+
+// ==================== License ====================
+
+export type LicenseEdition = "Trial" | "Pro" | "Enterprise";
+export type LicenseStatusCode = "None" | "Active" | "Expired" | "Invalid";
+
+export interface LicenseStatus {
+  status: LicenseStatusCode;
+  edition: LicenseEdition;
+  isPermanent: boolean;
+  issuedAt: string | null;
+  expiresAt: string | null;
+  remainingDays: number | null;
+  machineMatched: boolean;
+  features: Record<string, boolean>;
+  limits: Record<string, number>;
+}
+
+export interface LicenseActivateRequest {
+  licenseContent: string;
+}
+
+export interface LicenseActivateResult {
+  message: string;
+  edition: LicenseEdition;
+  isPermanent: boolean;
+  expiresAt: string | null;
+  remainingDays: number | null;
+}
+
+export interface LicenseFingerprintResult {
+  fingerprint: string;
+}
