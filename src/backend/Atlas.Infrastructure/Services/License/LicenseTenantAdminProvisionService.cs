@@ -110,12 +110,6 @@ public sealed class LicenseTenantAdminProvisionService
                 changed = true;
             }
 
-            if (!account.IsSystem)
-            {
-                account.MarkSystemAccount();
-                changed = true;
-            }
-
             if (changed)
             {
                 await _userAccountRepository.UpdateAsync(account, cancellationToken);
