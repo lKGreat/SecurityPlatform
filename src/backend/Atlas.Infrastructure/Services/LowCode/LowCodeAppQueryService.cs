@@ -4,6 +4,9 @@ using Atlas.Application.LowCode.Models;
 using Atlas.Core.Exceptions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Domain.LowCode.Entities;
+using Atlas.Domain.System.Entities;
+using SqlSugar;
 
 namespace Atlas.Infrastructure.Services.LowCode;
 
@@ -14,19 +17,22 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
     private readonly ILowCodeAppVersionRepository _versionRepository;
     private readonly ILowCodePageVersionRepository _pageVersionRepository;
     private readonly ILowCodeEnvironmentRepository _environmentRepository;
+    private readonly ISqlSugarClient _db;
 
     public LowCodeAppQueryService(
         ILowCodeAppRepository appRepository,
         ILowCodePageRepository pageRepository,
         ILowCodeAppVersionRepository versionRepository,
         ILowCodePageVersionRepository pageVersionRepository,
-        ILowCodeEnvironmentRepository environmentRepository)
+        ILowCodeEnvironmentRepository environmentRepository,
+        ISqlSugarClient db)
     {
         _appRepository = appRepository;
         _pageRepository = pageRepository;
         _versionRepository = versionRepository;
         _pageVersionRepository = pageVersionRepository;
         _environmentRepository = environmentRepository;
+        _db = db;
     }
 
     public async Task<PagedResult<LowCodeAppListItem>> QueryAsync(
@@ -43,6 +49,10 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
             e.Description,
             e.Category,
             e.Icon,
+            e.DataSourceId?.ToString(),
+            e.UseSharedUsers,
+            e.UseSharedRoles,
+            e.UseSharedDepartments,
             e.Version,
             e.Status.ToString(),
             e.CreatedAt,
@@ -71,6 +81,78 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
 
         var pages = await _pageRepository.GetByAppIdAsync(tenantId, entity.Id, cancellationToken);
         return MapToDetail(entity, pages);
+    }
+
+    public async Task<LowCodeAppSharingPolicy?> GetSharingPolicyAsync(
+        TenantId tenantId,
+        long appId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await _appRepository.GetByIdAsync(tenantId, appId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        return new LowCodeAppSharingPolicy(
+            entity.Id.ToString(),
+            entity.UseSharedUsers,
+            entity.UseSharedRoles,
+            entity.UseSharedDepartments);
+    }
+
+    public async Task<IReadOnlyList<LowCodeAppEntityAliasItem>> GetEntityAliasesAsync(
+        TenantId tenantId,
+        long appId,
+        CancellationToken cancellationToken = default)
+    {
+        var aliases = await _db.Queryable<AppEntityAlias>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.AppId == appId)
+            .OrderBy(x => x.EntityType, OrderByType.Asc)
+            .ToListAsync(cancellationToken);
+
+        return aliases
+            .Select(x => new LowCodeAppEntityAliasItem(x.EntityType, x.SingularAlias, x.PluralAlias))
+            .ToArray();
+    }
+
+    public async Task<LowCodeAppDataSourceInfo?> GetDataSourceInfoAsync(
+        TenantId tenantId,
+        long appId,
+        CancellationToken cancellationToken = default)
+    {
+        var app = await _appRepository.GetByIdAsync(tenantId, appId, cancellationToken);
+        if (app is null)
+        {
+            return null;
+        }
+
+        if (!app.DataSourceId.HasValue)
+        {
+            return new LowCodeAppDataSourceInfo(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+        }
+
+        var dataSource = await _db.Queryable<TenantDataSource>()
+            .Where(x => x.TenantIdValue == tenantId.Value.ToString() && x.Id == app.DataSourceId.Value)
+            .FirstAsync(cancellationToken);
+
+        return new LowCodeAppDataSourceInfo(
+            app.DataSourceId.Value.ToString(),
+            dataSource?.Name,
+            dataSource?.DbType,
+            dataSource?.MaxPoolSize,
+            dataSource?.ConnectionTimeoutSeconds,
+            dataSource?.LastTestSuccess,
+            dataSource?.LastTestedAt,
+            dataSource?.LastTestMessage);
     }
 
     public async Task<PagedResult<LowCodeAppVersionListItem>> GetVersionsAsync(
@@ -324,6 +406,10 @@ public sealed class LowCodeAppQueryService : ILowCodeAppQueryService
             entity.Description,
             entity.Category,
             entity.Icon,
+            entity.DataSourceId?.ToString(),
+            entity.UseSharedUsers,
+            entity.UseSharedRoles,
+            entity.UseSharedDepartments,
             entity.Version,
             entity.Status.ToString(),
             entity.ConfigJson,

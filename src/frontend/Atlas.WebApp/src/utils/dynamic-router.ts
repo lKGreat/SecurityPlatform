@@ -5,6 +5,14 @@ const pageModules = import.meta.glob("../pages/**/*.vue");
 
 const pathComponentFallbackMap: Record<string, string> = {
   "/": "../pages/HomePage.vue",
+  "/console": "../pages/console/ConsolePage.vue",
+  "/console/apps": "../pages/console/ConsolePage.vue",
+  "/console/datasources": "../pages/system/TenantDataSourcesPage.vue",
+  "/console/settings/system/configs": "../pages/system/SystemConfigsPage.vue",
+  "/apps/:appId/dashboard": "../pages/apps/AppDashboardPage.vue",
+  "/apps/:appId/settings": "../pages/apps/AppSettingsPage.vue",
+  "/apps/:appId/builder": "../pages/lowcode/AppBuilderPage.vue",
+  "/apps/:appId/run/:pageKey": "../pages/runtime/PageRuntimeRenderer.vue",
   "/approval/flows": "../pages/ApprovalFlowsPage.vue",
   "/assets": "../pages/AssetsPage.vue",
   "/audit": "../pages/AuditPage.vue",

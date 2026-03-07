@@ -14,6 +14,44 @@ public sealed class LowCodeApp : TenantEntity
     {
         Name = string.Empty;
         AppKey = string.Empty;
+        UseSharedUsers = true;
+        UseSharedRoles = true;
+        UseSharedDepartments = true;
+    }
+
+    public LowCodeApp(
+        TenantId tenantId,
+        string appKey,
+        string name,
+        string? description,
+        string? category,
+        string? icon,
+        long? dataSourceId,
+        bool useSharedUsers,
+        bool useSharedRoles,
+        bool useSharedDepartments,
+        long createdBy,
+        long id,
+        DateTimeOffset now)
+        : base(tenantId)
+    {
+        Id = id;
+        AppKey = appKey;
+        Name = name;
+        Description = description ?? string.Empty;
+        Category = category ?? string.Empty;
+        Icon = icon ?? string.Empty;
+        DataSourceId = dataSourceId;
+        UseSharedUsers = useSharedUsers;
+        UseSharedRoles = useSharedRoles;
+        UseSharedDepartments = useSharedDepartments;
+        ConfigJson = "{}";
+        Version = 1;
+        Status = LowCodeAppStatus.Draft;
+        CreatedAt = now;
+        UpdatedAt = now;
+        CreatedBy = createdBy;
+        UpdatedBy = createdBy;
     }
 
     public LowCodeApp(
@@ -26,20 +64,21 @@ public sealed class LowCodeApp : TenantEntity
         long createdBy,
         long id,
         DateTimeOffset now)
-        : base(tenantId)
+        : this(
+            tenantId,
+            appKey,
+            name,
+            description,
+            category,
+            icon,
+            null,
+            true,
+            true,
+            true,
+            createdBy,
+            id,
+            now)
     {
-        Id = id;
-        AppKey = appKey;
-        Name = name;
-        Description = description;
-        Category = category;
-        Icon = icon;
-        Version = 1;
-        Status = LowCodeAppStatus.Draft;
-        CreatedAt = now;
-        UpdatedAt = now;
-        CreatedBy = createdBy;
-        UpdatedBy = createdBy;
     }
 
     /// <summary>应用唯一标识</summary>
@@ -56,6 +95,18 @@ public sealed class LowCodeApp : TenantEntity
 
     /// <summary>图标</summary>
     public string? Icon { get; private set; }
+
+    /// <summary>绑定的数据源 ID（创建后不可变）</summary>
+    public long? DataSourceId { get; private set; }
+
+    /// <summary>是否复用平台用户</summary>
+    public bool UseSharedUsers { get; private set; }
+
+    /// <summary>是否复用平台角色</summary>
+    public bool UseSharedRoles { get; private set; }
+
+    /// <summary>是否复用平台部门</summary>
+    public bool UseSharedDepartments { get; private set; }
 
     /// <summary>版本号</summary>
     public int Version { get; private set; }
@@ -93,9 +144,9 @@ public sealed class LowCodeApp : TenantEntity
         DateTimeOffset now)
     {
         Name = name;
-        Description = description;
-        Category = category;
-        Icon = icon;
+        Description = description ?? string.Empty;
+        Category = category ?? string.Empty;
+        Icon = icon ?? string.Empty;
         UpdatedBy = updatedBy;
         UpdatedAt = now;
     }
@@ -104,6 +155,20 @@ public sealed class LowCodeApp : TenantEntity
     {
         ConfigJson = configJson;
         Version += 1;
+        UpdatedBy = updatedBy;
+        UpdatedAt = now;
+    }
+
+    public void UpdateSharingPolicy(
+        bool useSharedUsers,
+        bool useSharedRoles,
+        bool useSharedDepartments,
+        long updatedBy,
+        DateTimeOffset now)
+    {
+        UseSharedUsers = useSharedUsers;
+        UseSharedRoles = useSharedRoles;
+        UseSharedDepartments = useSharedDepartments;
         UpdatedBy = updatedBy;
         UpdatedAt = now;
     }
@@ -155,10 +220,10 @@ public sealed class LowCodeApp : TenantEntity
         DateTimeOffset now)
     {
         Name = name;
-        Description = description;
-        Category = category;
-        Icon = icon;
-        ConfigJson = configJson;
+        Description = description ?? string.Empty;
+        Category = category ?? string.Empty;
+        Icon = icon ?? string.Empty;
+        ConfigJson = configJson ?? "{}";
         Publish(version, updatedBy, now);
     }
 }

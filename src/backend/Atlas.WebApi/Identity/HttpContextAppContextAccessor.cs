@@ -1,7 +1,6 @@
 using Atlas.Core.Identity;
 using Atlas.Core.Tenancy;
 using Microsoft.Extensions.Options;
-using System.Security.Claims;
 
 namespace Atlas.WebApi.Identity;
 
@@ -59,25 +58,37 @@ public sealed class HttpContextAppContextAccessor : IAppContextAccessor
             return _options.DefaultAppId;
         }
 
-        var claimAppId = TryResolveAppIdFromClaims(context.User);
-        if (!string.IsNullOrWhiteSpace(claimAppId))
-        {
-            return claimAppId;
-        }
-
         if (context.Items.TryGetValue(AppIdItemKey, out var value) && value is string cached)
         {
             return cached;
         }
 
-        if (context.User?.Identity?.IsAuthenticated != true)
+        // Mirror AppContextMiddleware priority: when AllowHeaderOverrideWhenAuthenticated is true,
+        // the header takes precedence over JWT claims for authenticated requests.
+        var isAuthenticated = context.User?.Identity?.IsAuthenticated == true;
+        if (isAuthenticated)
         {
-            var headerName = _options.HeaderName;
-            if (!string.IsNullOrWhiteSpace(headerName)
-                && context.Request.Headers.TryGetValue(headerName, out var raw)
-                && !string.IsNullOrWhiteSpace(raw))
+            if (_options.AllowHeaderOverrideWhenAuthenticated)
             {
-                return raw.ToString();
+                var headerAppId = AppIdResolver.TryResolveFromHeader(context, _options);
+                if (!string.IsNullOrWhiteSpace(headerAppId))
+                {
+                    return headerAppId;
+                }
+            }
+
+            var claimAppId = AppIdResolver.TryResolveFromClaims(context.User);
+            if (!string.IsNullOrWhiteSpace(claimAppId))
+            {
+                return claimAppId;
+            }
+        }
+        else
+        {
+            var headerAppId = AppIdResolver.TryResolveFromHeader(context, _options);
+            if (!string.IsNullOrWhiteSpace(headerAppId))
+            {
+                return headerAppId;
             }
         }
 
@@ -89,17 +100,6 @@ public sealed class HttpContextAppContextAccessor : IAppContextAccessor
         var previous = OverrideContext.Value;
         OverrideContext.Value = context;
         return new Scope(() => OverrideContext.Value = previous);
-    }
-
-    private static string? TryResolveAppIdFromClaims(ClaimsPrincipal? user)
-    {
-        if (user?.Identity?.IsAuthenticated != true)
-        {
-            return null;
-        }
-
-        var appId = user.FindFirst("app_id")?.Value ?? user.FindFirst("appId")?.Value;
-        return string.IsNullOrWhiteSpace(appId) ? null : appId;
     }
 
     private sealed class Scope : IDisposable

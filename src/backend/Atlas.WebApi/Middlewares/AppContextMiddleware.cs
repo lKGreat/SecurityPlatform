@@ -1,5 +1,3 @@
-using System;
-using System.Security.Claims;
 using Atlas.Core.Identity;
 using Atlas.WebApi.Helpers;
 using Atlas.WebApi.Identity;
@@ -22,23 +20,27 @@ public sealed class AppContextMiddleware
     {
         if (!context.Items.ContainsKey(HttpContextAppContextAccessor.AppIdItemKey))
         {
-            var claimAppId = TryResolveAppIdFromClaims(context.User);
-            if (!string.IsNullOrWhiteSpace(claimAppId))
-            {
-                context.Items[HttpContextAppContextAccessor.AppIdItemKey] = claimAppId;
-                return _next(context);
-            }
+            var claimAppId = AppIdResolver.TryResolveFromClaims(context.User);
+            var headerAppId = AppIdResolver.TryResolveFromHeader(context, _options);
 
-            if (context.User?.Identity?.IsAuthenticated != true)
+            if (context.User?.Identity?.IsAuthenticated == true)
             {
-                var headerName = _options.HeaderName;
-                if (!string.IsNullOrWhiteSpace(headerName)
-                    && context.Request.Headers.TryGetValue(headerName, out var raw)
-                    && !string.IsNullOrWhiteSpace(raw))
+                if (_options.AllowHeaderOverrideWhenAuthenticated && !string.IsNullOrWhiteSpace(headerAppId))
                 {
-                    context.Items[HttpContextAppContextAccessor.AppIdItemKey] = raw.ToString();
+                    context.Items[HttpContextAppContextAccessor.AppIdItemKey] = headerAppId;
                     return _next(context);
                 }
+
+                if (!string.IsNullOrWhiteSpace(claimAppId))
+                {
+                    context.Items[HttpContextAppContextAccessor.AppIdItemKey] = claimAppId;
+                    return _next(context);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(headerAppId))
+            {
+                context.Items[HttpContextAppContextAccessor.AppIdItemKey] = headerAppId;
+                return _next(context);
             }
 
             var clientContext = ControllerHelper.GetClientContext(context);
@@ -46,17 +48,6 @@ public sealed class AppContextMiddleware
         }
 
         return _next(context);
-    }
-
-    private static string? TryResolveAppIdFromClaims(ClaimsPrincipal? user)
-    {
-        if (user?.Identity?.IsAuthenticated != true)
-        {
-            return null;
-        }
-
-        var appId = user.FindFirst("app_id")?.Value ?? user.FindFirst("appId")?.Value;
-        return string.IsNullOrWhiteSpace(appId) ? null : appId;
     }
 
     private string ResolveAppIdByClientType(ClientContext clientContext)
@@ -78,4 +69,5 @@ public sealed class AppContextMiddleware
 
         return _options.DefaultAppId;
     }
+
 }

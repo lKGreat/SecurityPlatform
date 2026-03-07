@@ -7,6 +7,10 @@ public sealed record LowCodeAppListItem(
     string? Description,
     string? Category,
     string? Icon,
+    string? DataSourceId,
+    bool UseSharedUsers,
+    bool UseSharedRoles,
+    bool UseSharedDepartments,
     int Version,
     string Status,
     DateTimeOffset CreatedAt,
@@ -20,6 +24,10 @@ public sealed record LowCodeAppDetail(
     string? Description,
     string? Category,
     string? Icon,
+    string? DataSourceId,
+    bool UseSharedUsers,
+    bool UseSharedRoles,
+    bool UseSharedDepartments,
     int Version,
     string Status,
     string? ConfigJson,
@@ -36,13 +44,46 @@ public sealed record LowCodeAppCreateRequest(
     string Name,
     string? Description,
     string? Category,
-    string? Icon);
+    string? Icon,
+    long? DataSourceId,
+    bool UseSharedUsers = true,
+    bool UseSharedRoles = true,
+    bool UseSharedDepartments = true);
 
 public sealed record LowCodeAppUpdateRequest(
     string Name,
     string? Description,
     string? Category,
     string? Icon);
+
+public sealed record LowCodeAppSharingPolicy(
+    string AppId,
+    bool UseSharedUsers,
+    bool UseSharedRoles,
+    bool UseSharedDepartments);
+
+public sealed record LowCodeAppSharingPolicyUpdateRequest(
+    bool UseSharedUsers,
+    bool UseSharedRoles,
+    bool UseSharedDepartments);
+
+public sealed record LowCodeAppEntityAliasItem(
+    string EntityType,
+    string SingularAlias,
+    string PluralAlias);
+
+public sealed record LowCodeAppEntityAliasesUpdateRequest(
+    IReadOnlyList<LowCodeAppEntityAliasItem> Items);
+
+public sealed record LowCodeAppDataSourceInfo(
+    string? DataSourceId,
+    string? Name,
+    string? DbType,
+    int? MaxPoolSize,
+    int? ConnectionTimeoutSeconds,
+    bool? LastTestSuccess,
+    DateTimeOffset? LastTestedAt,
+    string? LastTestMessage);
 
 public sealed record LowCodeAppVersionListItem(
     string Id,

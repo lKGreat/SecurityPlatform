@@ -118,6 +118,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(FieldPermission),
             typeof(MigrationRecord),
             typeof(LowCodeApp),
+            typeof(AppEntityAlias),
             typeof(LowCodePage),
             typeof(LowCodePageVersion),
             typeof(LowCodeEnvironment),
@@ -139,11 +140,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(UserNotification),
             typeof(FileRecord),
             typeof(TenantDataSource),
-            // Low code module
-            typeof(LowCodeApp),
-            typeof(LowCodePage),
+            // Low code module (types already registered above: LowCodeApp, AppEntityAlias, LowCodePage, FormDefinition)
             typeof(LowCodeAppVersion),
-            typeof(FormDefinition),
             typeof(FormDefinitionVersion),
             // Events / Outbox
             typeof(OutboxMessage),
@@ -463,6 +461,11 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             bool IsHidden)[]
         {
             ("首页", "/", null, 0, "C", "home", "dashboard", PermissionCodes.SystemAdmin, null, false, false, "0", "0", PermissionCodes.SystemAdmin, false),
+
+            ("平台控制台", "/console", null, 5, "M", "Layout", "dashboard", null, null, false, false, "0", "0", null, false),
+            ("控制台首页", "/console/apps", "/console", 6, "C", "console/ConsolePage", "appstore", PermissionCodes.AppsView, null, false, true, "0", "0", PermissionCodes.AppsView, false),
+            ("控制台数据源", "/console/datasources", "/console", 7, "C", "system/TenantDataSourcesPage", "database", PermissionCodes.SystemAdmin, null, false, true, "0", "0", PermissionCodes.SystemAdmin, false),
+            ("控制台系统设置", "/console/settings/system/configs", "/console", 8, "C", "system/SystemConfigsPage", "tool", PermissionCodes.ConfigView, null, false, true, "0", "0", PermissionCodes.ConfigView, false),
 
             ("安全中心", "/security", null, 10, "M", "Layout", "safety-certificate", null, null, false, false, "0", "0", null, false),
             ("资产管理", "/assets", "/security", 11, "C", "AssetsPage", "database", PermissionCodes.AssetsView, null, false, true, "0", "0", PermissionCodes.AssetsView, false),
