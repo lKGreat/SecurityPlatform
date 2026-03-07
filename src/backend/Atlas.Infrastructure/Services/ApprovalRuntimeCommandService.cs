@@ -454,6 +454,10 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId, cancellationToken);
         if (task == null) throw new BusinessException("TASK_NOT_FOUND", "任务不存在");
         if (task.Status != ApprovalTaskStatus.Pending) throw new BusinessException("TASK_NOT_PENDING", "任务状态不正确");
+        if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != delegatorUserId.ToString())
+        {
+            throw new BusinessException("FORBIDDEN", "您无权委派此任务");
+        }
 
         // 标记原任务为已委派
         task.Delegate(delegatorUserId, delegateeUserId.ToString());
@@ -497,6 +501,10 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
     {
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId, cancellationToken);
         if (task == null) throw new BusinessException("TASK_NOT_FOUND", "任务不存在");
+        if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != resolverUserId.ToString())
+        {
+            throw new BusinessException("FORBIDDEN", "您无权处理此委派任务");
+        }
         
         // 只有委派任务可以被"解决"（归还）
         if (task.TaskType != 11) throw new BusinessException("INVALID_OPERATION", "非委派任务不能归还");
@@ -900,4 +908,3 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
 
     #endregion
 }
-
