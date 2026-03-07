@@ -151,6 +151,7 @@ public sealed partial class NewLicenseForm : Form
                 Revision = payload.Revision,
                 Edition = edition,
                 Action = _renewFrom is null ? "NEW" : "RENEW",
+                Operator = Environment.UserName,
                 IssuedAt = DateTimeOffset.UtcNow.ToString("o"),
                 ExpiresAt = expiresAt?.ToString("o"),
                 IsPermanent = isPermanent,

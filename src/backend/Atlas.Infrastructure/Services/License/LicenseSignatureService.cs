@@ -18,8 +18,8 @@ public sealed class LicenseSignatureService : ILicenseSignatureService
     // ⚠️ 此为开发期占位符。发布前必须替换为颁发工具导出的实际公钥，否则生产启动将失败。
     private const string EmbeddedPublicKeyPem = """
         -----BEGIN PUBLIC KEY-----
-        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPLAeG/ADI5HmfBGNNY3Y7v0bS5zx
-        Xo7Fp3tGKY6sU5Y+RJnGNMvY0Gh+wXMpq3DhKnF+sDqFZmKR7v0HdLPZpA==
+        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEde+5r1leDIqy9JoSSCPIVkpXIj3F
+        sY6fOqdLi6wb6Q9HXJP7xN8D1QcjiAhWdxhclVTJtsWHjFFrmRtPzdCZWQ==
         -----END PUBLIC KEY-----
         """;
 

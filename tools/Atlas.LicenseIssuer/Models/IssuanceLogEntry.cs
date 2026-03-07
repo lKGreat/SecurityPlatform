@@ -14,7 +14,7 @@ public sealed class IssuanceLogEntry
 
     /// <summary>NEW / RENEW / UPGRADE / REVOKE</summary>
     public string Action { get; set; } = "NEW";
-    public string? Operator { get; set; }
+    public string Operator { get; set; } = string.Empty;
     public string IssuedAt { get; set; } = DateTimeOffset.UtcNow.ToString("o");
     public string? ExpiresAt { get; set; }
     public bool IsPermanent { get; set; }

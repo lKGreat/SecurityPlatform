@@ -41,6 +41,7 @@ let refreshPromise: Promise<boolean> | null = null;
 let antiforgeryPromise: Promise<string | null> | null = null;
 let missingProjectWarningAt = 0;
 const inFlightWriteRequests = new Map<string, Promise<unknown>>();
+const globalErrorShownAt = new Map<string, number>();
 
 const ErrorCodes = {
   AccountLocked: "ACCOUNT_LOCKED",
@@ -115,6 +116,25 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
 
   if (tenantId && !headers.has("X-Tenant-Id")) {
     headers.set("X-Tenant-Id", tenantId);
+  }
+
+  if (shouldRequireTenantContext(path) && !headers.has("X-Tenant-Id")) {
+    const missingTenantMessage = shouldAttachSecurityHeaders
+      ? "登录租户上下文已失效，请重新登录"
+      : "请先输入有效的租户 / 组织ID（GUID）";
+    if (!options?.suppressErrorMessage) {
+      showError(missingTenantMessage);
+    }
+    if (shouldAttachSecurityHeaders) {
+      clearAuthStorage();
+      if (router.currentRoute.value.name !== "login") {
+        void router.push({ name: "login" });
+      }
+    }
+    throw buildApiError(missingTenantMessage, 400, {
+      code: "VALIDATION_ERROR",
+      message: missingTenantMessage
+    }, missingTenantMessage);
   }
 
   const clientHeaders = getClientContextHeaders();
@@ -251,6 +271,24 @@ export async function requestApiBlob(path: string, init?: RequestInit, options?:
   }
   if (tenantId && !headers.has("X-Tenant-Id")) {
     headers.set("X-Tenant-Id", tenantId);
+  }
+  if (shouldRequireTenantContext(path) && !headers.has("X-Tenant-Id")) {
+    const missingTenantMessage = shouldAttachSecurityHeaders
+      ? "登录租户上下文已失效，请重新登录"
+      : "请先输入有效的租户 / 组织ID（GUID）";
+    if (!options?.suppressErrorMessage) {
+      showError(missingTenantMessage);
+    }
+    if (shouldAttachSecurityHeaders) {
+      clearAuthStorage();
+      if (router.currentRoute.value.name !== "login") {
+        void router.push({ name: "login" });
+      }
+    }
+    throw buildApiError(missingTenantMessage, 400, {
+      code: "VALIDATION_ERROR",
+      message: missingTenantMessage
+    }, missingTenantMessage);
   }
 
   const clientHeaders = getClientContextHeaders();
@@ -425,6 +463,11 @@ function shouldRequireProjectContext(path: string): boolean {
   return !exemptPrefixes.some((prefix) => path.startsWith(prefix));
 }
 
+function shouldRequireTenantContext(path: string): boolean {
+  const exemptPrefixes = ["/health", "/openapi"];
+  return !exemptPrefixes.some((prefix) => path.startsWith(prefix));
+}
+
 function generateIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -550,14 +593,51 @@ function buildApiError(messageText: string, status: number, payload?: ApiErrorPa
 }
 
 const GLOBAL_ERROR_KEY = "global-error";
+const GLOBAL_ERROR_DEDUP_WINDOW_MS = 2500;
+const GLOBAL_ERROR_DEDUP_LONG_WINDOW_MS = 6000;
+const GLOBAL_ERROR_CACHE_MAX = 100;
 
 function showError(content: string) {
+  const dedupKey = toErrorDedupKey(content);
+  const now = Date.now();
+  const dedupWindow = getErrorDedupWindow(dedupKey);
+  const lastShownAt = globalErrorShownAt.get(dedupKey) ?? 0;
+  // 避免并发请求在短时间内重复弹出完全相同的错误。
+  if (now - lastShownAt <= dedupWindow) {
+    return;
+  }
+  if (globalErrorShownAt.size >= GLOBAL_ERROR_CACHE_MAX) {
+    for (const [key, timestamp] of globalErrorShownAt.entries()) {
+      if (now - timestamp > GLOBAL_ERROR_DEDUP_LONG_WINDOW_MS) {
+        globalErrorShownAt.delete(key);
+      }
+    }
+    if (globalErrorShownAt.size >= GLOBAL_ERROR_CACHE_MAX) {
+      const oldestKey = globalErrorShownAt.keys().next().value as string | undefined;
+      if (oldestKey) {
+        globalErrorShownAt.delete(oldestKey);
+      }
+    }
+  }
+  globalErrorShownAt.set(dedupKey, now);
   message.open({
     key: GLOBAL_ERROR_KEY,
     type: "error",
     content,
     duration: 4
   });
+}
+
+function toErrorDedupKey(content: string) {
+  // traceId 每次请求都不同，去重时忽略该片段，保证同类错误只提示一次。
+  return content.replace(/（\s*traceId:\s*[^）]+\s*）/gi, "").trim();
+}
+
+function getErrorDedupWindow(dedupKey: string) {
+  if (dedupKey.includes("无效或缺失租户标识") || dedupKey.includes("租户上下文已失效")) {
+    return GLOBAL_ERROR_DEDUP_LONG_WINDOW_MS;
+  }
+  return GLOBAL_ERROR_DEDUP_WINDOW_MS;
 }
 
 function formatErrorMessage(payload: ApiErrorPayload | null, fallback: string): string {

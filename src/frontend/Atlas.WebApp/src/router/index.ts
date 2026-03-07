@@ -8,6 +8,11 @@ import "nprogress/nprogress.css";
 
 NProgress.configure({ showSpinner: false });
 
+interface ApiRequestErrorLike extends Error {
+  status?: number;
+  payload?: unknown;
+}
+
 const LoginPage = () => import("@/pages/LoginPage.vue");
 const RegisterPage = () => import("@/pages/RegisterPage.vue");
 const ProfilePage = () => import("@/pages/ProfilePage.vue");
@@ -101,7 +106,12 @@ router.beforeEach(async (to, from, next) => {
       } catch (err) {
         console.error(err);
         await userStore.logout();
-        message.error((err as Error)?.message || "登录失败，请重新登录");
+        const requestError = err as ApiRequestErrorLike;
+        const alreadyHandledByApiCore = typeof requestError?.status === "number" || requestError?.payload !== undefined;
+        if (!alreadyHandledByApiCore) {
+          // 仅兜底提示非 API 异常，避免与 api-core 全局错误提示重复弹窗。
+          message.error(requestError?.message || "登录失败，请重新登录");
+        }
         next({ path: "/login" });
         NProgress.done();
         return;

@@ -109,30 +109,6 @@
               </div>
             </a-form-item>
 
-            <a-form-item
-              v-if="isCaptchaVisible"
-              label="图片验证码"
-              name="captcha"
-              :rules="[{ required: true, message: '请输入验证码' }]"
-            >
-              <div class="captcha-row">
-                <a-input
-                  v-model:value="form.captcha"
-                  placeholder="请输入验证码"
-                  autocomplete="off"
-                  @focus="errorMessage = ''"
-                />
-                <div
-                  class="captcha-image"
-                  @click="refreshCaptcha"
-                  :style="captchaStyle"
-                >
-                  <span>验证码</span>
-                  <span class="captcha-tips">点击刷新</span>
-                </div>
-              </div>
-            </a-form-item>
-
             <a-form-item style="margin-bottom: 8px">
               <div class="remember-row">
                 <a-checkbox v-model:checked="form.rememberMe">记住我（30天内保持登录）</a-checkbox>
@@ -202,28 +178,18 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { UploadOutlined } from "@ant-design/icons-vue";
-import { getCaptcha, getLicenseStatus, activateLicense } from "@/services/api";
+import { getLicenseStatus, activateLicense } from "@/services/api";
 import { useUserStore } from "@/stores/user";
 import { usePermissionStore } from "@/stores/permission";
 import type { RequestOptions } from "@/services/api";
 import {
   clearAuthStorage,
-  getTenantId,
-  setAccessToken,
-  setAuthProfile,
-  setRefreshToken,
-  setTenantId
+  getTenantId
 } from "@/utils/auth";
 
 interface TenantHistoryItem {
   id: string;
   label: string;
-}
-
-interface SidebarRouteNode {
-  path?: string;
-  hidden?: boolean;
-  children?: SidebarRouteNode[];
 }
 
 interface LoginApiError extends Error {
@@ -237,7 +203,8 @@ interface LoginApiError extends Error {
 
 const TENANT_HISTORY_KEY = "atlas-login-tenant-history";
 const DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
-const CAPTCHA_THRESHOLD = 3;
+const TENANT_ID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const COOLDOWN_THRESHOLD = 5;
 const COOLDOWN_DURATION = 30;
 
@@ -250,7 +217,6 @@ const errorMessage = ref("");
 const failedAttempts = ref(0);
 const capsLockOn = ref(false);
 const cooldownSeconds = ref(0);
-const captchaSeed = ref(Date.now());
 const tenantHistory = ref<TenantHistoryItem[]>([]);
 let cooldownTimer: number | undefined;
 
@@ -260,13 +226,8 @@ const form = reactive({
   tenantId: getTenantId() ?? DEFAULT_TENANT_ID,
   username: "",
   password: "",
-  captcha: "",
   rememberMe: localStorage.getItem(REMEMBER_ME_KEY) === "true"
 });
-
-// 验证码 API 返回的 key 和图片
-const captchaKey = ref<string>("");
-const captchaImageSrc = ref<string>("");
 
 // 授权证书相关
 const licenseCollapseKey = ref<string[]>([]);
@@ -280,20 +241,14 @@ const licenseCollapseHeader = computed(() => {
   return "授权证书管理";
 });
 
-const isCaptchaVisible = computed(() => failedAttempts.value >= CAPTCHA_THRESHOLD);
 const isSubmitDisabled = computed(
   () =>
     loading.value ||
     cooldownSeconds.value > 0 ||
     !form.username.trim() ||
-    !form.password ||
-    (isCaptchaVisible.value && !form.captcha.trim())
+    !form.password
 );
 const tenantHistoryOptions = computed(() => tenantHistory.value);
-const captchaStyle = computed(() => ({
-  backgroundImage: captchaImageSrc.value ? `url('${captchaImageSrc.value}')` : `url('https://dummyimage.com/120x40/ced4da/6c757d.png&text=%E9%AA%8C%E8%AF%81%E7%A0%81&seed=${captchaSeed.value}')`,
-  backgroundSize: "cover"
-}));
 
 const loadTenantHistory = () => {
   const raw = localStorage.getItem(TENANT_HISTORY_KEY);
@@ -328,29 +283,6 @@ const persistTenantHistory = (tenantId: string) => {
   localStorage.setItem(TENANT_HISTORY_KEY, JSON.stringify(tenantHistory.value));
 };
 
-const pickFirstAccessiblePath = (nodes: SidebarRouteNode[] | undefined): string | null => {
-  if (!Array.isArray(nodes)) {
-    return null;
-  }
-
-  for (const node of nodes) {
-    if (!node || node.hidden) {
-      continue;
-    }
-
-    const childPath = pickFirstAccessiblePath(node.children);
-    if (childPath) {
-      return childPath;
-    }
-
-    if (node.path && !node.path.includes(":")) {
-      return node.path;
-    }
-  }
-
-  return null;
-};
-
 const handleCapsLockEvent = (event: KeyboardEvent) => {
   if (typeof event.getModifierState === "function") {
     capsLockOn.value = event.getModifierState("CapsLock");
@@ -367,22 +299,6 @@ const startCooldown = () => {
       cooldownSeconds.value = 0;
     }
   }, 1000);
-};
-
-const refreshCaptcha = async () => {
-  captchaSeed.value = Date.now();
-  const tenantId = form.tenantId.trim();
-  if (!tenantId) return;
-  try {
-    const result = await getCaptcha(tenantId);
-    captchaKey.value = result.captchaKey;
-    captchaImageSrc.value = result.captchaImage;
-  } catch {
-    // 降级显示占位图
-    captchaKey.value = "";
-    captchaImageSrc.value = "";
-  }
-  form.captcha = "";
 };
 
 const normalizeError = (error: unknown) => {
@@ -419,6 +335,9 @@ const handleSelectTenant = (tenantId: string) => {
   form.tenantId = tenantId;
 };
 
+const normalizeTenantId = () => form.tenantId.trim();
+const hasValidTenantId = (tenantId: string) => TENANT_ID_REGEX.test(tenantId);
+
 const handleSubmit = async () => {
   errorMessage.value = "";
   loading.value = true;
@@ -427,18 +346,12 @@ const handleSubmit = async () => {
     const tenantId = form.tenantId.trim();
     const tokenOptions: RequestOptions = { suppressErrorMessage: true };
 
-    if (isCaptchaVisible.value && !captchaKey.value) {
-      await refreshCaptcha();
-    }
-
     await userStore.login(
       tenantId,
       form.username.trim(),
       form.password,
       tokenOptions,
       {
-        captchaKey: isCaptchaVisible.value ? captchaKey.value : undefined,
-        captchaCode: isCaptchaVisible.value ? form.captcha.trim() : undefined,
         rememberMe: form.rememberMe
       }
     );
@@ -460,7 +373,6 @@ const handleSubmit = async () => {
     const targetPath = redirect ?? "/";
     const canNavigate = targetPath === "/"
       || routes.some((item) => typeof item.path === "string" && targetPath.startsWith(item.path));
-    const firstAccessiblePath = pickFirstAccessiblePath(permissionStore.sidebarRouters as SidebarRouteNode[]);
     const fallbackPath = "/";
     const staticAllowedTargets = new Set(["/"]);
     router.push(canNavigate || staticAllowedTargets.has(targetPath) ? targetPath : fallbackPath);
@@ -471,18 +383,22 @@ const handleSubmit = async () => {
     if (failedAttempts.value >= COOLDOWN_THRESHOLD) {
       startCooldown();
     }
-    if (isCaptchaVisible.value) {
-      await refreshCaptcha();
-    } else if (failedAttempts.value >= CAPTCHA_THRESHOLD) {
-      // 刚触发验证码阈值，立即加载
-      await refreshCaptcha();
-    }
   } finally {
     loading.value = false;
   }
 };
 
 async function handleLicenseFileSelect(file: File): Promise<false> {
+  const tenantId = normalizeTenantId();
+  if (!hasValidTenantId(tenantId)) {
+    licenseActivateResult.value = {
+      success: false,
+      message: "请先输入有效的租户 / 组织ID（GUID）后再上传证书"
+    };
+    licenseCollapseKey.value = ["license"];
+    return false;
+  }
+
   licenseActivating.value = true;
   licenseActivateResult.value = null;
 
@@ -499,7 +415,7 @@ async function handleLicenseFileSelect(file: File): Promise<false> {
   }
 
   try {
-    const resp = await activateLicense(content);
+    const resp = await activateLicense(content, tenantId);
     if (resp.success) {
       licenseActivateResult.value = {
         success: true,
@@ -537,8 +453,15 @@ function readFileAsText(file: File): Promise<string> {
 }
 
 async function loadLicenseStatus() {
+  const tenantId = normalizeTenantId();
+  if (!hasValidTenantId(tenantId)) {
+    licenseStatusCode.value = "None";
+    licenseCollapseKey.value = ["license"];
+    return;
+  }
+
   try {
-    const status = await getLicenseStatus();
+    const status = await getLicenseStatus(tenantId);
     licenseStatusCode.value = status.status;
     // 未激活或已过期时自动展开
     if (status.status === "None" || status.status === "Expired") {
@@ -713,35 +636,9 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-.captcha-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.captcha-image {
-  width: 120px;
-  height: 44px;
-  border-radius: var(--border-radius-md);
-  background: var(--color-bg-hover);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
 .remember-row {
   display: flex;
   align-items: center;
-}
-
-.captcha-tips {
-  margin-top: var(--spacing-xs);
-  font-size: 10px;
-  color: var(--color-text-tertiary);
 }
 
 .secondary-actions {

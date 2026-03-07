@@ -122,7 +122,7 @@ public sealed class LicenseGuardService : ILicenseService
                 record.IssuedAt,
                 record.ExpiresAt,
                 remainingDays,
-                record.MachineFingerprintHash is not null,
+                !string.IsNullOrWhiteSpace(record.MachineFingerprintHash),
                 machineMatched,
                 features,
                 limits);
@@ -157,7 +157,7 @@ public sealed class LicenseGuardService : ILicenseService
             record.IssuedAt,
             record.ExpiresAt,
             0,
-            record.MachineFingerprintHash is not null,
+            !string.IsNullOrWhiteSpace(record.MachineFingerprintHash),
             false,
             new Dictionary<string, bool>(),
             new Dictionary<string, int>());

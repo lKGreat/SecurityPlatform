@@ -146,6 +146,7 @@ import {
 } from '@ant-design/icons-vue'
 import type { LicenseStatus } from '@/types/api'
 import { getLicenseStatus, getMachineFingerprint, activateLicense } from '@/services/api-license'
+import { getTenantId } from '@/utils/auth'
 
 interface LicenseApiError extends Error {
   payload?: {
@@ -253,9 +254,10 @@ function formatDate(dateStr: string): string {
 async function loadStatus() {
   loading.value = true
   try {
-    licenseStatus.value = await getLicenseStatus()
-  } catch {
-    message.error('获取授权状态失败')
+    licenseStatus.value = await getLicenseStatus(getTenantId() ?? undefined)
+  } catch (error) {
+    const requestError = error as LicenseApiError
+    message.error(requestError?.payload?.message ?? requestError?.message ?? '获取授权状态失败')
   } finally {
     loading.value = false
   }
@@ -264,7 +266,7 @@ async function loadStatus() {
 async function loadFingerprint() {
   fingerprintLoading.value = true
   try {
-    fingerprint.value = await getMachineFingerprint()
+    fingerprint.value = await getMachineFingerprint(getTenantId() ?? undefined)
   } catch {
     // 忽略错误，机器码不影响主功能
   } finally {
@@ -283,6 +285,15 @@ async function copyFingerprint() {
 }
 
 async function handleFileSelect(file: File): Promise<false> {
+  const tenantId = getTenantId()?.trim();
+  if (!tenantId) {
+    activateResult.value = {
+      success: false,
+      message: '缺少租户上下文，请重新登录后重试',
+    }
+    return false
+  }
+
   activating.value = true
   activateResult.value = null
 
@@ -299,7 +310,7 @@ async function handleFileSelect(file: File): Promise<false> {
   }
 
   try {
-    const resp = await activateLicense(content)
+    const resp = await activateLicense(content, tenantId)
     if (resp.success) {
       activateResult.value = { success: true, message: resp.data?.message ?? resp.message ?? '证书激活成功' }
       await loadStatus()

@@ -31,7 +31,9 @@ public sealed class LicenseRecord : EntityBase
         IssuedAt = issuedAt;
         ExpiresAt = expiresAt;
         IsPermanent = isPermanent;
-        MachineFingerprintHash = machineFingerprintHash;
+        MachineFingerprintHash = string.IsNullOrWhiteSpace(machineFingerprintHash)
+            ? string.Empty
+            : machineFingerprintHash;
         PayloadHash = payloadHash;
         RawLicenseCiphertext = rawLicenseCiphertext;
         FeaturesJson = featuresJson;
@@ -60,7 +62,7 @@ public sealed class LicenseRecord : EntityBase
     /// <summary>是否永久授权</summary>
     public bool IsPermanent { get; private set; }
 
-    /// <summary>绑定机器码哈希（不绑定时为 null）</summary>
+    /// <summary>绑定机器码哈希（不绑定时为空字符串）</summary>
     public string? MachineFingerprintHash { get; private set; }
 
     /// <summary>Payload 内容哈希，防止替换攻击</summary>

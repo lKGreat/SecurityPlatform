@@ -8,8 +8,20 @@ public sealed class IssuanceLogService
     public void Append(IssuanceLogEntry entry)
     {
         entry.IssuedAt = DateTimeOffset.UtcNow.ToString("o");
+        entry.Operator = ResolveOperator(entry.Operator);
         using var db = AppDbContext.Create();
         db.Insertable(entry).ExecuteCommand();
+    }
+
+    private static string ResolveOperator(string? rawOperator)
+    {
+        if (!string.IsNullOrWhiteSpace(rawOperator))
+        {
+            return rawOperator.Trim();
+        }
+
+        var currentUser = Environment.UserName?.Trim();
+        return string.IsNullOrWhiteSpace(currentUser) ? "system" : currentUser;
     }
 
     public List<IssuanceLogEntry> GetByCustomer(string customerId)
