@@ -18,6 +18,24 @@
 - `Idempotency-Key: <uuid>`：关键写接口必填（创建/提交/开通/触发任务），幂等键冲突返回 409。
 - `X-CSRF-TOKEN: <token>`：已登录 Web 写请求必填，需先获取 Anti-Forgery Token。
 
+## 平台控制台与应用工作台路由约定（前端）
+
+- 平台控制台入口：`/console`
+- 控制台应用视图：`/console/apps`
+- 控制台数据源：`/console/datasources`
+- 控制台系统配置：`/console/settings/system/configs`
+- 应用工作台根路由：`/apps/:appId`（重定向至 `/apps/:appId/dashboard`）
+- 应用工作台页面：
+  - `/apps/:appId/dashboard`
+  - `/apps/:appId/builder`
+  - `/apps/:appId/settings`
+  - `/apps/:appId/run/:pageKey`
+
+说明：
+
+- 登录成功默认跳转 `/console`（若 `redirect` 参数存在且可访问则优先）。
+- 旧有 `/settings/*` 与 `/lowcode/*` 路由保持兼容。
+
 ## 幂等与 Anti-Forgery
 
 ### 幂等（Idempotency-Key）

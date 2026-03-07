@@ -464,6 +464,11 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         {
             ("首页", "/", null, 0, "C", "home", "dashboard", PermissionCodes.SystemAdmin, null, false, false, "0", "0", PermissionCodes.SystemAdmin, false),
 
+            ("平台控制台", "/console", null, 5, "M", "Layout", "dashboard", null, null, false, false, "0", "0", null, false),
+            ("控制台首页", "/console/apps", "/console", 6, "C", "console/ConsolePage", "appstore", PermissionCodes.AppsView, null, false, true, "0", "0", PermissionCodes.AppsView, false),
+            ("控制台数据源", "/console/datasources", "/console", 7, "C", "system/TenantDataSourcesPage", "database", PermissionCodes.SystemAdmin, null, false, true, "0", "0", PermissionCodes.SystemAdmin, false),
+            ("控制台系统设置", "/console/settings/system/configs", "/console", 8, "C", "system/SystemConfigsPage", "tool", PermissionCodes.ConfigView, null, false, true, "0", "0", PermissionCodes.ConfigView, false),
+
             ("安全中心", "/security", null, 10, "M", "Layout", "safety-certificate", null, null, false, false, "0", "0", null, false),
             ("资产管理", "/assets", "/security", 11, "C", "AssetsPage", "database", PermissionCodes.AssetsView, null, false, true, "0", "0", PermissionCodes.AssetsView, false),
             ("审计日志", "/audit", "/security", 12, "C", "AuditPage", "file-search", PermissionCodes.AuditView, null, false, true, "0", "0", PermissionCodes.AuditView, false),

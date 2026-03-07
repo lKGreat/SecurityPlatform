@@ -17,6 +17,10 @@ const LoginPage = () => import("@/pages/LoginPage.vue");
 const RegisterPage = () => import("@/pages/RegisterPage.vue");
 const ProfilePage = () => import("@/pages/ProfilePage.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
+const ConsolePage = () => import("@/pages/console/ConsolePage.vue");
+const AppDashboardPage = () => import("@/pages/apps/AppDashboardPage.vue");
+const AppSettingsPage = () => import("@/pages/apps/AppSettingsPage.vue");
+const PageRuntimeRenderer = () => import("@/pages/runtime/PageRuntimeRenderer.vue");
 const AppListPage = () => import("@/pages/lowcode/AppListPage.vue");
 const AppBuilderPage = () => import("@/pages/lowcode/AppBuilderPage.vue");
 const FormListPage = () => import("@/pages/lowcode/FormListPage.vue");
@@ -26,6 +30,7 @@ const ApprovalInstanceDetailPage = () => import("@/pages/ApprovalInstanceDetailP
 const NotificationsPage = () => import("@/pages/system/NotificationsPage.vue");
 const DictTypesPage = () => import("@/pages/system/DictTypesPage.vue");
 const SystemConfigsPage = () => import("@/pages/system/SystemConfigsPage.vue");
+const TenantDataSourcesPage = () => import("@/pages/system/TenantDataSourcesPage.vue");
 const RolesPage = () => import("@/pages/system/RolesPage.vue");
 const PluginMarketPage = () => import("@/pages/lowcode/PluginMarketPage.vue");
 const PluginManagePage = () => import("@/pages/system/PluginManagePage.vue");
@@ -47,6 +52,15 @@ const router = createRouter({
     { path: "/login", name: "login", component: LoginPage, meta: { title: "登录" } },
     { path: "/register", name: "register", component: RegisterPage, meta: { title: "注册" } },
     { path: "/profile", name: "profile", component: ProfilePage, meta: { requiresAuth: true, title: "个人中心" } },
+    { path: "/console", name: "console-home", component: ConsolePage, meta: { requiresAuth: true, title: "平台控制台", requiresPermission: "apps:view" } },
+    { path: "/console/apps", name: "console-apps", component: ConsolePage, meta: { requiresAuth: true, title: "应用中心", requiresPermission: "apps:view" } },
+    { path: "/console/datasources", name: "console-datasources", component: TenantDataSourcesPage, meta: { requiresAuth: true, title: "数据源管理", requiresPermission: "system:admin" } },
+    { path: "/console/settings/system/configs", name: "console-system-configs", component: SystemConfigsPage, meta: { requiresAuth: true, title: "系统设置", requiresPermission: "config:view" } },
+    { path: "/apps/:appId", name: "app-workspace-root", redirect: to => `/apps/${to.params.appId}/dashboard`, meta: { requiresAuth: true, title: "应用工作台", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/dashboard", name: "app-workspace-dashboard", component: AppDashboardPage, meta: { requiresAuth: true, title: "应用仪表盘", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/builder", name: "app-workspace-builder", component: AppBuilderPage, meta: { requiresAuth: true, title: "应用设计器", requiresPermission: "apps:update" } },
+    { path: "/apps/:appId/settings", name: "app-workspace-settings", component: AppSettingsPage, meta: { requiresAuth: true, title: "应用设置", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/run/:pageKey", name: "app-workspace-runtime", component: PageRuntimeRenderer, meta: { requiresAuth: true, title: "应用运行态", requiresPermission: "apps:view" } },
     { path: "/process/instances/:id", name: "process-instance-detail", component: ApprovalInstanceDetailPage, meta: { requiresAuth: true, title: "流程详情", requiresPermission: "approval:flow:view" } },
     { path: "/system/notifications", name: "system-notifications", component: NotificationsPage, meta: { requiresAuth: true, title: "通知中心" } },
     { path: "/notifications", name: "system-notifications-legacy", redirect: "/system/notifications", meta: { requiresAuth: true, title: "通知中心" } },
@@ -85,7 +99,7 @@ router.beforeEach(async (to, from, next) => {
 
   if (token && tenantId) {
     if (to.path === "/login") {
-      next({ path: "/lowcode/apps" });
+      next({ path: "/console" });
       NProgress.done();
       return;
     }
@@ -123,7 +137,7 @@ router.beforeEach(async (to, from, next) => {
         || userStore.permissions.includes("*:*:*")
         || userStore.roles.some((role: string) => ["admin", "superadmin"].includes(role.toLowerCase()));
       if (!has) {
-        next({ path: "/" });
+        next({ path: "/console" });
         NProgress.done();
         return;
       }

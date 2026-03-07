@@ -253,7 +253,7 @@ const handleOpenApp = (id: string) => {
     message.warning("当前账号无应用编辑权限");
     return;
   }
-  router.push(`/lowcode/apps/${id}/builder`);
+  router.push(`/apps/${id}`);
 };
 
 const handlePublish = async (id: string) => {

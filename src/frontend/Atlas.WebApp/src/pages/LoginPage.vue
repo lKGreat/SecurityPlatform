@@ -386,11 +386,15 @@ const handleSubmit = async () => {
       !rawRedirect.startsWith("//")
         ? rawRedirect
         : null;
-    const targetPath = redirect ?? "/lowcode/apps";
+    const targetPath = redirect ?? "/console";
     const canNavigate = routes.some((item) => typeof item.path === "string" && targetPath.startsWith(item.path));
-    const fallbackPath = "/lowcode/apps";
-    const staticAllowedTargets = new Set(["/lowcode/apps", "/"]);
-    router.push(canNavigate || staticAllowedTargets.has(targetPath) ? targetPath : fallbackPath);
+    const fallbackPath = "/console";
+    const staticAllowedTargets = new Set(["/console"]);
+    const isUnsafeRedirect =
+      targetPath === "/" ||
+      targetPath.startsWith("/login") ||
+      targetPath.startsWith("/register");
+    router.push(!isUnsafeRedirect && (canNavigate || staticAllowedTargets.has(targetPath)) ? targetPath : fallbackPath);
   } catch (error) {
     clearAuthStorage();
     failedAttempts.value += 1;
