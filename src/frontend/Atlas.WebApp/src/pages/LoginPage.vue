@@ -404,15 +404,18 @@ const handleSubmit = async () => {
     failedAttempts.value = 0;
     cooldownSeconds.value = 0;
     errorMessage.value = "";
-    const redirectParam = typeof route.query.redirect === "string" ? route.query.redirect : null;
-    const targetPath =
-      redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
-        ? redirectParam
-        : "/console";
+    const rawRedirect = route.query.redirect;
+    const redirect =
+      typeof rawRedirect === "string" &&
+      rawRedirect.startsWith("/") &&
+      !rawRedirect.startsWith("//")
+        ? rawRedirect
+        : null;
+    const targetPath = redirect ?? "/";
     const canNavigate = routes.some((item) => typeof item.path === "string" && targetPath.startsWith(item.path));
     const firstAccessiblePath = pickFirstAccessiblePath(permissionStore.sidebarRouters as SidebarRouteNode[]);
-    const fallbackPath = firstAccessiblePath ?? "/console";
-    const staticAllowedTargets = new Set(["/profile", "/console"]);
+    const fallbackPath = firstAccessiblePath ?? "/profile";
+    const staticAllowedTargets = new Set(["/profile"]);
     router.push(canNavigate || staticAllowedTargets.has(targetPath) ? targetPath : fallbackPath);
   } catch (error) {
     clearAuthStorage();
