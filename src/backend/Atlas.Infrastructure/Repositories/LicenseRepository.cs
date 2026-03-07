@@ -38,4 +38,25 @@ public sealed class LicenseRepository : ILicenseRepository
     {
         await _db.Updateable(record).ExecuteCommandAsync(cancellationToken);
     }
+
+    public async Task SaveActivatedAsync(
+        LicenseRecord activatedRecord,
+        LicenseRecord? previousActiveRecord,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _db.Ado.UseTranAsync(async () =>
+        {
+            if (previousActiveRecord is not null)
+            {
+                await _db.Updateable(previousActiveRecord).ExecuteCommandAsync(cancellationToken);
+            }
+
+            await _db.Insertable(activatedRecord).ExecuteCommandAsync(cancellationToken);
+        });
+
+        if (!result.IsSuccess)
+        {
+            throw result.ErrorException ?? new InvalidOperationException("保存激活证书失败。");
+        }
+    }
 }

@@ -8,4 +8,8 @@ public interface ILicenseRepository
     Task<LicenseRecord?> GetByLicenseIdAsync(Guid licenseId, CancellationToken cancellationToken = default);
     Task AddAsync(LicenseRecord record, CancellationToken cancellationToken = default);
     Task UpdateAsync(LicenseRecord record, CancellationToken cancellationToken = default);
+    Task SaveActivatedAsync(
+        LicenseRecord activatedRecord,
+        LicenseRecord? previousActiveRecord,
+        CancellationToken cancellationToken = default);
 }

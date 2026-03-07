@@ -72,13 +72,40 @@ public sealed class LicenseSignatureService : ILicenseSignatureService
     {
         try
         {
-            var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(rawContent.Trim()));
-            return JsonSerializer.Deserialize<LicenseEnvelope>(decoded, _jsonOptions);
+            var normalized = rawContent.Trim();
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return null;
+            }
+
+            // 兼容两种证书文件格式：
+            // 1) 直接存放 JSON envelope；2) 以 Base64 封装 JSON envelope。
+            if (TryDeserializeEnvelope(normalized, out var envelope))
+            {
+                return envelope;
+            }
+
+            var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(normalized));
+            return TryDeserializeEnvelope(decoded, out envelope) ? envelope : null;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "证书解析失败");
             return null;
+        }
+    }
+
+    private static bool TryDeserializeEnvelope(string json, out LicenseEnvelope? envelope)
+    {
+        try
+        {
+            envelope = JsonSerializer.Deserialize<LicenseEnvelope>(json, _jsonOptions);
+            return envelope is not null;
+        }
+        catch
+        {
+            envelope = null;
+            return false;
         }
     }
 

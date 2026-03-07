@@ -80,7 +80,15 @@ public sealed partial class NewLicenseForm : Form
     {
         var edition = _editionCombo.SelectedItem?.ToString() ?? "Trial";
         var isPermanent = _permanentRadio.Checked;
-        DateTimeOffset? expiresAt = isPermanent ? null : new DateTimeOffset(_expiryPicker.Value.Date.AddDays(1).AddTicks(-1), TimeSpan.Zero);
+        DateTimeOffset? expiresAt = null;
+        if (!isPermanent)
+        {
+            // DateTimePicker 返回本地日期；先构造本地“当日 23:59:59.9999999”，再转 UTC 统一落库/签发
+            var localEndOfDay = DateTime.SpecifyKind(
+                _expiryPicker.Value.Date.AddDays(1).AddTicks(-1),
+                DateTimeKind.Local);
+            expiresAt = new DateTimeOffset(localEndOfDay).ToUniversalTime();
+        }
 
         var payload = new LicensePayload
         {

@@ -18,9 +18,9 @@ public interface ILicenseService
     int GetLimit(string limitKey);
 
     /// <summary>
-    /// 校验当前数量是否超出限额；超出时抛出 BusinessException。
+    /// 校验当前数量（包含本次新增后的数量）是否超出限额；超出时抛出 BusinessException。
     /// </summary>
-    void EnsureWithinLimit(string limitKey, int currentCount);
+    void EnsureWithinLimit(string limitKey, int currentCountIncludingPending);
 
     /// <summary>激活或刷新后重新加载授权状态</summary>
     Task ReloadAsync(CancellationToken cancellationToken = default);

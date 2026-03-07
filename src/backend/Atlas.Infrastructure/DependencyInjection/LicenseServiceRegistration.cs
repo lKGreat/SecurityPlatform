@@ -21,8 +21,8 @@ public static class LicenseServiceRegistration
         services.AddSingleton<LicenseGuardService>();
         services.AddSingleton<ILicenseService>(sp => sp.GetRequiredService<LicenseGuardService>());
 
-        // Validation service (transient: 每次校验独立)
-        services.AddTransient<LicenseValidationService>();
+        // Validation service (singleton: 仅依赖无状态单例服务)
+        services.AddSingleton<LicenseValidationService>();
 
         // Activation service (scoped: 需要 ILicenseRepository)
         services.AddScoped<ILicenseActivationService, LicenseActivationService>();

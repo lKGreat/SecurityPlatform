@@ -94,15 +94,17 @@ public sealed class LicenseActivationService : ILicenseActivationService
             now);
 
         // 将旧的同 licenseId 记录标记失效（同 revision 重激活也需要失效旧 Active，避免双 Active）
+        LicenseRecord? previousActiveRecord = null;
         if (existingRecord is not null
             && existingRecord.Status == LicenseStatus.Active
             && payload.Revision >= existingRecord.Revision)
         {
             existingRecord.MarkInvalid();
-            await _repository.UpdateAsync(existingRecord, cancellationToken);
+            previousActiveRecord = existingRecord;
         }
 
-        await _repository.AddAsync(record, cancellationToken);
+        // 事务内完成“旧记录失效 + 新记录写入”，确保提交后再刷新内存授权状态。
+        await _repository.SaveActivatedAsync(record, previousActiveRecord, cancellationToken);
 
         // 更新本地密封状态
         var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
@@ -129,11 +131,39 @@ public sealed class LicenseActivationService : ILicenseActivationService
     {
         try
         {
-            var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(rawContent.Trim()));
-            return JsonSerializer.Deserialize<Atlas.Application.License.Models.LicenseEnvelope>(decoded,
-                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            var normalized = rawContent.Trim();
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return null;
+            }
+
+            var serializerOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            if (TryDeserializeEnvelope(normalized, serializerOptions, out var envelope))
+            {
+                return envelope;
+            }
+
+            var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(normalized));
+            return TryDeserializeEnvelope(decoded, serializerOptions, out envelope) ? envelope : null;
         }
         catch { return null; }
+    }
+
+    private static bool TryDeserializeEnvelope(
+        string content,
+        JsonSerializerOptions serializerOptions,
+        out Atlas.Application.License.Models.LicenseEnvelope? envelope)
+    {
+        try
+        {
+            envelope = JsonSerializer.Deserialize<Atlas.Application.License.Models.LicenseEnvelope>(content, serializerOptions);
+            return envelope is not null;
+        }
+        catch
+        {
+            envelope = null;
+            return false;
+        }
     }
 
     private static string EncryptContent(string rawContent)

@@ -52,7 +52,7 @@ public sealed class LicenseGuardService : ILicenseService
         return status.Limits.TryGetValue(limitKey, out var limit) ? limit : -1;
     }
 
-    public void EnsureWithinLimit(string limitKey, int currentCount)
+    public void EnsureWithinLimit(string limitKey, int currentCountIncludingPending)
     {
         var status = _currentStatus;
         ThrowIfLicenseInactive(status);
@@ -60,10 +60,10 @@ public sealed class LicenseGuardService : ILicenseService
         if (!status.Limits.TryGetValue(limitKey, out var limit) || limit < 0)
             return; // 限额不存在或 -1 均表示不限制
 
-        if (currentCount >= limit)
+        if (currentCountIncludingPending > limit)
         {
             throw new BusinessException(
-                $"已达到授权限额：{limitKey} = {limit}，当前已有 {currentCount} 条记录",
+                $"已达到授权限额：{limitKey} = {limit}，当前计数 {currentCountIncludingPending}",
                 ErrorCodes.LicenseLimitExceeded);
         }
     }
@@ -82,11 +82,14 @@ public sealed class LicenseGuardService : ILicenseService
 
     public async Task ReloadAsync(CancellationToken cancellationToken = default)
     {
-        await _reloadLock.WaitAsync(cancellationToken);
         var previousStatus = _currentStatus;
+        var lockAcquired = false;
 
         try
         {
+            await _reloadLock.WaitAsync(cancellationToken);
+            lockAcquired = true;
+
             await using var scope = _scopeFactory.CreateAsyncScope();
             var repository = scope.ServiceProvider.GetRequiredService<ILicenseRepository>();
             var record = await repository.GetActiveAsync(cancellationToken);
@@ -127,6 +130,10 @@ public sealed class LicenseGuardService : ILicenseService
             _logger.LogInformation("授权证书加载成功：{Edition}，{Status}",
                 record.Edition, record.IsPermanent ? "永久" : $"到期日：{record.ExpiresAt:yyyy-MM-dd}");
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             // 刷新失败时保留当前内存状态，避免瞬时故障导致已激活平台被误判为未激活。
@@ -135,7 +142,10 @@ public sealed class LicenseGuardService : ILicenseService
         }
         finally
         {
-            _reloadLock.Release();
+            if (lockAcquired)
+            {
+                _reloadLock.Release();
+            }
         }
     }
 
