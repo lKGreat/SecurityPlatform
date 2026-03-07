@@ -38,6 +38,7 @@ export interface ColumnSettingItem {
   visible: boolean;
   canHide: boolean;
   order: number;
+  pinned?: "left" | "right";
 }
 
 export interface TableViewState {

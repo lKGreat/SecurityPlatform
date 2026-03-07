@@ -95,7 +95,7 @@ const columns = [
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await requestApi<ApiResponse<WritebackFailureDto[]>>('/api/v1/approval/writeback-failures?limit=100')
+    const res = await requestApi<ApiResponse<WritebackFailureDto[]>>('/approval/writeback-failures?limit=100')
     failureList.value = res.data ?? []
   } catch (e) {
     message.error((e as Error)?.message || '加载失败')
@@ -107,7 +107,7 @@ const loadData = async () => {
 const handleRetry = async (record: WritebackFailureDto) => {
   retryingIds.value.add(record.id)
   try {
-    await requestApi(`/api/v1/approval/writeback-failures/${record.id}/retry`, { method: 'POST' })
+    await requestApi(`/approval/writeback-failures/${record.id}/retry`, { method: 'POST' })
     message.success('重试成功')
     await loadData()
   } catch (e) {

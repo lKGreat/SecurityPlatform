@@ -27,14 +27,14 @@ public sealed class ApprovalWritebackFailureRepository : IApprovalWritebackFailu
     public async Task<ApprovalWritebackFailure?> GetByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
     {
         return await _db.Queryable<ApprovalWritebackFailure>()
-            .Where(x => x.TenantId == tenantId.Value && x.Id == id)
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Id == id)
             .FirstAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<ApprovalWritebackFailure>> GetUnresolvedAsync(TenantId tenantId, int limit, CancellationToken cancellationToken)
     {
         return await _db.Queryable<ApprovalWritebackFailure>()
-            .Where(x => x.TenantId == tenantId.Value && !x.IsResolved)
+            .Where(x => x.TenantIdValue == tenantId.Value && !x.IsResolved)
             .OrderByDescending(x => x.LastAttemptAt)
             .Take(limit)
             .ToListAsync(cancellationToken);
@@ -43,7 +43,7 @@ public sealed class ApprovalWritebackFailureRepository : IApprovalWritebackFailu
     public async Task<int> CountUnresolvedAsync(TenantId tenantId, CancellationToken cancellationToken)
     {
         return await _db.Queryable<ApprovalWritebackFailure>()
-            .Where(x => x.TenantId == tenantId.Value && !x.IsResolved)
+            .Where(x => x.TenantIdValue == tenantId.Value && !x.IsResolved)
             .CountAsync(cancellationToken);
     }
 }

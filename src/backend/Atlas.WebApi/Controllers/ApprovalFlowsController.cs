@@ -363,7 +363,7 @@ public sealed class ApprovalFlowsController : ControllerBase
     /// 回滚审批流到指定版本
     /// </summary>
     [HttpPost("{id}/rollback/{versionId:long}")]
-    [Authorize(Roles = "system:admin,apps:update")]
+    [Authorize(Policy = PermissionPolicies.ApprovalFlowUpdate)]
     public async Task<ApiResponse<object>> RollbackAsync(
         long id,
         long versionId,
@@ -382,7 +382,7 @@ public sealed class ApprovalFlowsController : ControllerBase
 
     /// <summary>弃用审批流定义 — 弃用后不允许新发起实例，但运行中实例可继续完成。</summary>
     [HttpPost("{id:long}/deprecate")]
-    [Authorize(Roles = "system:admin,approval:admin")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ApiResponse<object>> Deprecate(
         long id,
         CancellationToken cancellationToken)

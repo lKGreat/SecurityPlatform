@@ -33,7 +33,9 @@ public sealed class ApprovalMappingProfile : Profile
             .ForMember(dest => dest.VisibilityScopeJson, opt => opt.Ignore())
             .ForMember(dest => dest.Category, opt => opt.Ignore())
             .ForMember(dest => dest.Description, opt => opt.Ignore())
-            .ForMember(dest => dest.IsQuickEntry, opt => opt.Ignore());
+            .ForMember(dest => dest.IsQuickEntry, opt => opt.Ignore())
+            .ForMember(dest => dest.DeprecatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.DeprecatedByUserId, opt => opt.Ignore());
 
         CreateMap<ApprovalFlowDefinition, ApprovalFlowDefinitionResponse>();
 

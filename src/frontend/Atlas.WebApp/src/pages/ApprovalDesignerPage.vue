@@ -619,12 +619,10 @@ const handleFlowRollback = async (versionId: string) => {
 
     // 重新加载流程定义
     try {
-      const parsed = JSON.parse(versionDetail.definitionJson) as Record<string, unknown>;
-      const converter = new ApprovalTreeConverter();
-      const loadedTree = converter.jsonToTree(parsed);
+      const loadedTree = ApprovalTreeConverter.definitionJsonToTree(versionDetail.definitionJson);
       if (loadedTree) {
-        Object.assign(flowTree, loadedTree);
-        pushState();
+        flowTree.value = loadedTree;
+        pushState(flowTree.value);
       }
     } catch {
       // 保持现有状态
