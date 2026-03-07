@@ -85,7 +85,7 @@ router.beforeEach(async (to, from, next) => {
 
   if (token && tenantId) {
     if (to.path === "/login") {
-      next({ path: "/" });
+      next({ path: "/lowcode/apps" });
       NProgress.done();
       return;
     }

@@ -540,6 +540,27 @@ async function ensureFreshTokens(): Promise<boolean> {
   return refreshPromise;
 }
 
+/**
+ * 应用启动阶段静默恢复会话：
+ * - 新标签页场景下 sessionStorage 为空，但 localStorage 仍有 refresh_token
+ * - 先尝试刷新 access token，避免首批业务请求先出现 401 再重试
+ */
+export async function warmupAuthSession(): Promise<void> {
+  if (getAccessToken()) {
+    return;
+  }
+
+  if (!getRefreshToken() || !getTenantId()) {
+    return;
+  }
+
+  try {
+    await ensureFreshTokens();
+  } catch {
+    // 预热失败不打断页面启动，后续由路由守卫/请求链路兜底处理
+  }
+}
+
 /** Internal token refresh - used by ensureFreshTokens */
 async function refreshTokenInternal(): Promise<AuthTokenResult> {
   const refreshTokenValue = getRefreshToken();

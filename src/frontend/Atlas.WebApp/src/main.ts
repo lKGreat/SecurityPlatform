@@ -13,7 +13,7 @@ import "element-plus/dist/index.css";
 import { i18n } from "./i18n";
 import { createPinia } from "pinia";
 import { hasPermi, hasRole } from "@/directives/permission";
-import { reportClientErrorSilently } from "@/services/api-core";
+import { reportClientErrorSilently, warmupAuthSession } from "@/services/api-core";
 
 // 默认租户ID：用于本地开发/体验时免输入（后端仍会校验租户头）
 // 建议在 .env.local 中配置 VITE_DEFAULT_TENANT_ID
@@ -50,6 +50,8 @@ window.addEventListener("unhandledrejection", (event) => {
 
 const app = createApp(App);
 const pinia = createPinia();
+
+await warmupAuthSession();
 
 app.use(pinia);
 app.use(router);

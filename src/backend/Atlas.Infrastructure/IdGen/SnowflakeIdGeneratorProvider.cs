@@ -35,9 +35,14 @@ public sealed class SnowflakeIdGeneratorProvider : IIdGeneratorProvider
         var key = (tenantId.Value, resolvedAppId);
         if (!_mapping.TryGetValue(key, out var generatorId))
         {
-            throw new BusinessException(
-                $"未配置租户({tenantId.Value:D})与应用({resolvedAppId})的GeneratorId。",
-                ErrorCodes.ValidationError);
+            if (_options.FallbackGeneratorId is null)
+            {
+                throw new BusinessException(
+                    $"未配置租户({tenantId.Value:D})与应用({resolvedAppId})的GeneratorId。",
+                    ErrorCodes.ValidationError);
+            }
+
+            generatorId = _options.FallbackGeneratorId.Value;
         }
 
         var generator = _generators.GetOrAdd(key, _ => new SnowflakeIdGenerator(generatorId, _generatorOptions));

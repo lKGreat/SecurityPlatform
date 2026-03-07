@@ -48,7 +48,10 @@ public sealed class LicenseRepository : ILicenseRepository
         {
             if (previousActiveRecord is not null)
             {
-                await _db.Updateable(previousActiveRecord).ExecuteCommandAsync(cancellationToken);
+                await _db.Updateable<LicenseRecord>()
+                    .SetColumns(x => x.Status == LicenseStatus.Invalid)
+                    .Where(x => x.Id == previousActiveRecord.Id)
+                    .ExecuteCommandAsync(cancellationToken);
             }
 
             await _db.Insertable(activatedRecord).ExecuteCommandAsync(cancellationToken);

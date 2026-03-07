@@ -54,7 +54,16 @@ public sealed class AppsController : ControllerBase
         var detail = await _queryService.GetByAppIdAsync(appId, tenantId, cancellationToken);
         if (detail is null)
         {
-            return NotFound(ApiResponse<AppConfigDetail>.Fail(ErrorCodes.NotFound, "App not found.", HttpContext.TraceIdentifier));
+            // 对未配置应用返回默认配置，避免前端初始化阶段出现 404 干扰。
+            var fallback = new AppConfigDetail(
+                Id: "0",
+                AppId: appId,
+                Name: appId,
+                IsActive: true,
+                EnableProjectScope: false,
+                Description: "Default app configuration",
+                SortOrder: 0);
+            return Ok(ApiResponse<AppConfigDetail>.Ok(fallback, HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AppConfigDetail>.Ok(detail, HttpContext.TraceIdentifier));
