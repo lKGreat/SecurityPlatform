@@ -304,6 +304,10 @@ const newDatasourceTestPassed = ref(false);
 const datasourceMode = ref<"platform" | "existing" | "new">("platform");
 const selectedDatasourceId = ref<string>();
 const datasourceOptions = ref<{ label: string; value: string }[]>([]);
+// Tracks resources created in a previous (failed) attempt so retries can resume
+// without creating orphaned duplicates.
+const pendingDataSourceId = ref<string | undefined>(undefined);
+const pendingAppId = ref<string | undefined>(undefined);
 
 const wizardBasic = reactive({
   appKey: "",
@@ -421,6 +425,8 @@ const resetWizard = () => {
   wizardBasic.icon = "";
   datasourceMode.value = "platform";
   selectedDatasourceId.value = undefined;
+  pendingDataSourceId.value = undefined;
+  pendingAppId.value = undefined;
   newDatasource.name = "";
   newDatasource.dbType = "SQLite";
   newDatasource.filePath = "";
@@ -478,20 +484,39 @@ const onDatasourceModeChange = () => {
   }
 };
 
+/**
+ * Escape a connection string value per ADO.NET rules:
+ * single quotes are doubled, and the result is wrapped in single quotes
+ * when the value contains any character that could break the key=value format
+ * (semicolons, equals signs, curly braces, quotes, commas, whitespace).
+ */
+const escapeConnectionStringValue = (value: string): string => {
+  const escaped = value.replace(/'/g, "''");
+  if (/[;={}()'",\s]/.test(value)) {
+    return `'${escaped}'`;
+  }
+  return escaped;
+};
+
 const buildConnectionString = () => {
   if (newDatasource.dbType === "SQLite") {
     return `Data Source=${newDatasource.filePath || "app.db"}`;
   }
 
+  const server = escapeConnectionStringValue(newDatasource.server);
+  const database = escapeConnectionStringValue(newDatasource.database);
+  const username = escapeConnectionStringValue(newDatasource.username);
+  const password = escapeConnectionStringValue(newDatasource.password);
+
   if (newDatasource.dbType === "SqlServer") {
-    return `Server=${newDatasource.server},${newDatasource.port || "1433"};Database=${newDatasource.database};User Id=${newDatasource.username};Password=${newDatasource.password};TrustServerCertificate=True;`;
+    return `Server=${server},${newDatasource.port || "1433"};Database=${database};User Id=${username};Password=${password};TrustServerCertificate=True;`;
   }
 
   if (newDatasource.dbType === "MySql") {
-    return `Server=${newDatasource.server};Port=${newDatasource.port || "3306"};Database=${newDatasource.database};Uid=${newDatasource.username};Pwd=${newDatasource.password};`;
+    return `Server=${server};Port=${newDatasource.port || "3306"};Database=${database};Uid=${username};Pwd=${password};`;
   }
 
-  return `Host=${newDatasource.server};Port=${newDatasource.port || "5432"};Database=${newDatasource.database};Username=${newDatasource.username};Password=${newDatasource.password};`;
+  return `Host=${server};Port=${newDatasource.port || "5432"};Database=${database};Username=${username};Password=${password};`;
 };
 
 const validateStepOne = () => {
@@ -564,6 +589,11 @@ const resolveDataSourceId = async (): Promise<string | undefined> => {
     return selectedDatasourceId.value;
   }
 
+  // Reuse datasource created in a previous (failed) attempt to avoid orphans on retry.
+  if (pendingDataSourceId.value) {
+    return pendingDataSourceId.value;
+  }
+
   const tenantId = getTenantId();
   if (!tenantId) {
     throw new Error("缺少租户上下文，无法创建数据源");
@@ -574,6 +604,7 @@ const resolveDataSourceId = async (): Promise<string | undefined> => {
     connectionString: buildConnectionString(),
     dbType: newDatasource.dbType
   });
+  pendingDataSourceId.value = result.id;
   return result.id;
 };
 
@@ -591,36 +622,59 @@ const handleWizardPrimaryAction = async () => {
 
   creating.value = true;
   try {
-    const dataSourceId = await resolveDataSourceId();
+    // Step A: resolve (or reuse) the datasource — idempotent via pendingDataSourceId.
+    let dataSourceId: string | undefined;
+    try {
+      dataSourceId = await resolveDataSourceId();
+    } catch (error) {
+      message.error((error as Error).message || "创建数据源失败，请重试");
+      return;
+    }
+
     const hasIndependentPolicy = !sharingPolicy.useSharedUsers || !sharingPolicy.useSharedRoles || !sharingPolicy.useSharedDepartments;
     if (hasIndependentPolicy && !dataSourceId) {
       message.warning("启用独立策略时必须绑定应用数据源");
       return;
     }
 
-    const app = await createLowCodeApp({
-      appKey: wizardBasic.appKey.trim(),
-      name: wizardBasic.name.trim(),
-      description: wizardBasic.description || undefined,
-      category: wizardBasic.category || undefined,
-      icon: wizardBasic.icon || undefined,
-      dataSourceId,
-      useSharedUsers: sharingPolicy.useSharedUsers,
-      useSharedRoles: sharingPolicy.useSharedRoles,
-      useSharedDepartments: sharingPolicy.useSharedDepartments
-    });
+    // Step B: create the app — skipped on retry if already created (pendingAppId set).
+    let appId = pendingAppId.value;
+    if (!appId) {
+      try {
+        const app = await createLowCodeApp({
+          appKey: wizardBasic.appKey.trim(),
+          name: wizardBasic.name.trim(),
+          description: wizardBasic.description || undefined,
+          category: wizardBasic.category || undefined,
+          icon: wizardBasic.icon || undefined,
+          dataSourceId,
+          useSharedUsers: sharingPolicy.useSharedUsers,
+          useSharedRoles: sharingPolicy.useSharedRoles,
+          useSharedDepartments: sharingPolicy.useSharedDepartments
+        });
+        pendingAppId.value = app.id;
+        appId = app.id;
+      } catch (error) {
+        message.error((error as Error).message || "创建应用失败，请重试");
+        return;
+      }
+    }
 
-    await updateAppEntityAliases(app.id, aliases.value.map(item => ({
-      entityType: item.entityType,
-      singularAlias: item.singularAlias.trim(),
-      pluralAlias: item.pluralAlias?.trim() || undefined
-    })));
+    // Step C: set entity aliases — safe to retry since PUT is idempotent.
+    try {
+      await updateAppEntityAliases(appId, aliases.value.map(item => ({
+        entityType: item.entityType,
+        singularAlias: item.singularAlias.trim(),
+        pluralAlias: item.pluralAlias?.trim() || undefined
+      })));
+    } catch (error) {
+      message.error((error as Error).message || "应用已创建，但保存实体别名失败，请点击确定重试");
+      return;
+    }
 
     message.success("应用创建成功");
     wizardVisible.value = false;
     await fetchData();
-  } catch (error) {
-    message.error((error as Error).message || "创建应用失败");
   } finally {
     creating.value = false;
   }
