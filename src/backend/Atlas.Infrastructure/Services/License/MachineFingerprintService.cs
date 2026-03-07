@@ -71,12 +71,14 @@ public sealed class MachineFingerprintService : IMachineFingerprintService
                 return false;
 
             // 次指纹（MachineName、MAC 地址等）允许 1 项不同。
-            // 额外分量也必须计为不匹配，避免通过长度差异绕过机器绑定校验。
-            var comparableLength = Math.Min(storedParts.Length, currentParts.Length);
-            var mismatches = Math.Abs(storedParts.Length - currentParts.Length);
-            for (var i = 1; i < comparableLength; i++)
+            // 逐项比对到最长长度，任一侧缺失分量也按不匹配计数，避免长度差异绕过校验。
+            var mismatches = 0;
+            var maxSecondaryLength = Math.Max(storedParts.Length, currentParts.Length);
+            for (var i = 1; i < maxSecondaryLength; i++)
             {
-                if (!string.Equals(storedParts[i], currentParts[i], StringComparison.OrdinalIgnoreCase))
+                var storedPart = i < storedParts.Length ? storedParts[i] : null;
+                var currentPart = i < currentParts.Length ? currentParts[i] : null;
+                if (!string.Equals(storedPart, currentPart, StringComparison.OrdinalIgnoreCase))
                     mismatches++;
             }
 

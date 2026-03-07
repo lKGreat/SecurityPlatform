@@ -10,16 +10,25 @@ namespace Atlas.WebApi.Middlewares;
 /// </summary>
 public sealed class LicenseEnforcementMiddleware
 {
-    // 不受授权限制的路径前缀（激活接口、认证接口、健康检查）
-    // 使用 PathString + StartsWithSegments，避免 /api/v1/license 误匹配 /api/v1/licensing-admin。
-    private static readonly PathString[] WhitelistedPrefixes =
+    // 白名单按“精确路径 + 带尾斜杠前缀”匹配，避免误放行同前缀但不同资源的路由。
+    private static readonly string[] WhitelistedExactPaths =
     [
-        new PathString("/api/v1/license"),
-        new PathString("/api/v1/auth"),
-        new PathString("/api/v1/health"),
-        new PathString("/health"),
-        new PathString("/openapi"),
-        new PathString("/swagger"),
+        "/api/v1/license",
+        "/api/v1/auth",
+        "/api/v1/health",
+        "/health",
+        "/openapi",
+        "/swagger"
+    ];
+
+    private static readonly string[] WhitelistedPrefixes =
+    [
+        "/api/v1/license/",
+        "/api/v1/auth/",
+        "/api/v1/health/",
+        "/health/",
+        "/openapi/",
+        "/swagger/"
     ];
 
     private readonly RequestDelegate _next;
@@ -71,10 +80,26 @@ public sealed class LicenseEnforcementMiddleware
 
     private static bool IsWhitelisted(PathString path)
     {
+        var value = path.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        foreach (var exactPath in WhitelistedExactPaths)
+        {
+            if (string.Equals(value, exactPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
         foreach (var prefix in WhitelistedPrefixes)
         {
-            if (path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase))
+            if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
                 return true;
+            }
         }
 
         return false;

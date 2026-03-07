@@ -3,24 +3,12 @@ using Atlas.LicenseIssuer.Services;
 
 namespace Atlas.LicenseIssuer.Forms;
 
-public sealed class NewLicenseForm : Form
+public sealed partial class NewLicenseForm : Form
 {
     private readonly LicenseSigningService _signingService;
     private readonly IssuanceLogService _logService;
     private readonly CustomerRecord _customer;
     private readonly LicensePayload? _renewFrom;
-
-    // 控件
-    private ComboBox _editionCombo = null!;
-    private RadioButton _fixedRadio = null!;
-    private RadioButton _permanentRadio = null!;
-    private DateTimePicker _expiryPicker = null!;
-    private CheckBox _chkLowCode = null!, _chkWorkflow = null!, _chkApproval = null!,
-                    _chkAlert = null!, _chkOffline = null!, _chkMultiTenant = null!;
-    private NumericUpDown _maxApps = null!, _maxUsers = null!, _maxTenants = null!;
-    private RadioButton _noBindRadio = null!, _bindRadio = null!;
-    private TextBox _fingerprintBox = null!;
-    private TextBox _remarkBox = null!;
 
     public NewLicenseForm(
         LicenseSigningService signingService,
@@ -33,91 +21,17 @@ public sealed class NewLicenseForm : Form
         _customer = customer;
         _renewFrom = renewFrom;
         InitializeComponent();
-        ApplyDefaults();
-    }
-
-    private void InitializeComponent()
-    {
-        Text = _renewFrom is null ? $"新建证书 — {_customer.Name}" : $"续签证书 — {_customer.Name}";
-        Size = new Size(560, 600);
-        StartPosition = FormStartPosition.CenterParent;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
-
-        var panel = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.TopDown,
-            Padding = new Padding(16),
-            AutoScroll = true,
-            WrapContents = false
-        };
-
-        panel.Controls.Add(MakeLabel("套餐版本："));
-        _editionCombo = new ComboBox { Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
-        _editionCombo.Items.AddRange(["Trial", "Pro", "Enterprise"]);
-        _editionCombo.SelectedIndex = 0;
         _editionCombo.SelectedIndexChanged += OnEditionChanged;
-        panel.Controls.Add(_editionCombo);
-
-        panel.Controls.Add(MakeLabel("有效期类型："));
-        _permanentRadio = new RadioButton { Text = "永久", AutoSize = true };
-        _fixedRadio = new RadioButton { Text = "固定期限", AutoSize = true, Checked = true };
-        var radioPanel = new FlowLayoutPanel { AutoSize = true };
-        radioPanel.Controls.AddRange([_fixedRadio, _permanentRadio]);
-        panel.Controls.Add(radioPanel);
-        _permanentRadio.CheckedChanged += (s, e) => _expiryPicker.Enabled = !_permanentRadio.Checked;
-
-        panel.Controls.Add(MakeLabel("到期日期："));
-        _expiryPicker = new DateTimePicker { Width = 200, Value = DateTime.Today.AddYears(1) };
-        panel.Controls.Add(_expiryPicker);
-
-        panel.Controls.Add(new Label { Text = "── 功能开关 ──", AutoSize = true, ForeColor = Color.Gray });
-        var featurePanel = new FlowLayoutPanel { AutoSize = true };
-        _chkLowCode = new CheckBox { Text = "低代码", AutoSize = true, Checked = true };
-        _chkWorkflow = new CheckBox { Text = "工作流", AutoSize = true };
-        _chkApproval = new CheckBox { Text = "审批流", AutoSize = true };
-        _chkAlert = new CheckBox { Text = "告警管理", AutoSize = true };
-        _chkOffline = new CheckBox { Text = "离线部署", AutoSize = true };
-        _chkMultiTenant = new CheckBox { Text = "多租户", AutoSize = true };
-        featurePanel.Controls.AddRange([_chkLowCode, _chkWorkflow, _chkApproval,
-                                         _chkAlert, _chkOffline, _chkMultiTenant]);
-        panel.Controls.Add(featurePanel);
-
-        panel.Controls.Add(new Label { Text = "── 数量限制（0 或 -1 表示不限）──", AutoSize = true, ForeColor = Color.Gray });
-        panel.Controls.Add(MakeLimitRow("最大应用数：", out _maxApps, 3));
-        panel.Controls.Add(MakeLimitRow("最大用户数：", out _maxUsers, 10));
-        panel.Controls.Add(MakeLimitRow("最大租户数：", out _maxTenants, 1));
-
-        panel.Controls.Add(new Label { Text = "── 机器绑定 ──", AutoSize = true, ForeColor = Color.Gray });
-        _noBindRadio = new RadioButton { Text = "不绑定", AutoSize = true, Checked = true };
-        _bindRadio = new RadioButton { Text = "绑定指定机器码", AutoSize = true };
-        var bindPanel = new FlowLayoutPanel { AutoSize = true };
-        bindPanel.Controls.AddRange([_noBindRadio, _bindRadio]);
-        panel.Controls.Add(bindPanel);
-        _bindRadio.CheckedChanged += (s, e) => _fingerprintBox.Enabled = _bindRadio.Checked;
-
-        _fingerprintBox = new TextBox { Width = 480, Multiline = true, Height = 40,
-            PlaceholderText = "粘贴来自平台「获取机器码」接口的机器码", Enabled = false };
-        panel.Controls.Add(_fingerprintBox);
-
-        panel.Controls.Add(MakeLabel("颁发备注（内部可见）："));
-        _remarkBox = new TextBox { Width = 480, Multiline = true, Height = 40 };
-        panel.Controls.Add(_remarkBox);
-
-        var btnRow = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
-        var signBtn = new Button { Text = "生成并导出证书", Width = 120, Height = 32 };
-        var cancelBtn = new Button { Text = "取消", Width = 70, Height = 32 };
-        signBtn.Click += OnSign;
-        cancelBtn.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
-        btnRow.Controls.AddRange([signBtn, cancelBtn]);
-        panel.Controls.Add(btnRow);
-
-        Controls.Add(panel);
+        _permanentRadio.CheckedChanged += PermanentRadio_CheckedChanged;
+        _bindRadio.CheckedChanged += BindRadio_CheckedChanged;
+        _signBtn.Click += OnSign;
+        _cancelBtn.Click += CancelBtn_Click;
+        ApplyDefaults();
     }
 
     private void ApplyDefaults()
     {
+        Text = _renewFrom is null ? $"新建证书 — {_customer.Name}" : $"续签证书 — {_customer.Name}";
         if (_renewFrom is null) return;
 
         _editionCombo.SelectedItem = _renewFrom.Edition;
@@ -247,15 +161,16 @@ public sealed class NewLicenseForm : Form
         }
     }
 
-    private static Label MakeLabel(string text) => new() { Text = text, AutoSize = true };
-
-    private static Panel MakeLimitRow(string label, out NumericUpDown updown, decimal defaultValue)
+    private void PermanentRadio_CheckedChanged(object? sender, EventArgs e)
     {
-        var panel = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
-        panel.Controls.Add(new Label { Text = label, Width = 120, TextAlign = ContentAlignment.MiddleLeft });
-        var ud = new NumericUpDown { Minimum = -1, Maximum = 999999, Value = defaultValue, Width = 100 };
-        panel.Controls.Add(ud);
-        updown = ud;
-        return panel;
+        _expiryPicker.Enabled = !_permanentRadio.Checked;
+    }
+
+    private void BindRadio_CheckedChanged(object? sender, EventArgs e) => _fingerprintBox.Enabled = _bindRadio.Checked;
+
+    private void CancelBtn_Click(object? sender, EventArgs e)
+    {
+        DialogResult = DialogResult.Cancel;
+        Close();
     }
 }

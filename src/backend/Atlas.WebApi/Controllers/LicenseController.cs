@@ -48,6 +48,7 @@ public sealed class LicenseController : ControllerBase
     /// <summary>获取当前机器码（供颁发工具绑定机器使用）</summary>
     [HttpGet("fingerprint")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public ActionResult<ApiResponse<object>> GetFingerprint()
     {
         var fingerprint = _fingerprintService.GetCurrentFingerprint();

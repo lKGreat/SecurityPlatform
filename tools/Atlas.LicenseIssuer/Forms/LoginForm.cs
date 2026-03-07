@@ -2,75 +2,15 @@ using Atlas.LicenseIssuer.Services;
 
 namespace Atlas.LicenseIssuer.Forms;
 
-public sealed class LoginForm : Form
+public sealed partial class LoginForm : Form
 {
     private readonly KeyManagementService _keyMgmt;
-    private TextBox _passwordBox = null!;
-    private Button _loginBtn = null!;
-    private Button _initBtn = null!;
-    private Label _statusLabel = null!;
 
     public LoginForm(KeyManagementService keyMgmt)
     {
         _keyMgmt = keyMgmt;
         InitializeComponent();
-    }
-
-    private void InitializeComponent()
-    {
-        Text = "Atlas License Issuer — 验证颁发密码";
-        Size = new Size(400, 220);
-        StartPosition = FormStartPosition.CenterScreen;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
-        MinimizeBox = false;
-
-        var titleLabel = new Label
-        {
-            Text = "Atlas 证书颁发工具",
-            Font = new Font("Microsoft YaHei UI", 12, FontStyle.Bold),
-            AutoSize = true,
-            Location = new Point(20, 15)
-        };
-
-        var pwdLabel = new Label { Text = "颁发密码：", AutoSize = true, Location = new Point(20, 55) };
-
-        _passwordBox = new TextBox
-        {
-            PasswordChar = '●',
-            Location = new Point(20, 75),
-            Width = 340,
-            Height = 28
-        };
-        _passwordBox.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) TryLogin(); };
-
-        _statusLabel = new Label
-        {
-            ForeColor = Color.Red,
-            AutoSize = true,
-            Location = new Point(20, 110)
-        };
-
-        _loginBtn = new Button
-        {
-            Text = "进入",
-            Location = new Point(220, 140),
-            Width = 70,
-            Height = 30
-        };
-        _loginBtn.Click += (s, e) => TryLogin();
-
-        _initBtn = new Button
-        {
-            Text = "初始化密钥",
-            Location = new Point(300, 140),
-            Width = 80,
-            Height = 30,
-            Visible = !_keyMgmt.IsKeyInitialized()
-        };
-        _initBtn.Click += OnInitKey;
-
-        Controls.AddRange([titleLabel, pwdLabel, _passwordBox, _statusLabel, _loginBtn, _initBtn]);
+        _initBtn.Visible = !_keyMgmt.IsKeyInitialized();
     }
 
     private void TryLogin()
@@ -111,4 +51,14 @@ public sealed class LoginForm : Form
             _statusLabel.ForeColor = Color.Green;
         }
     }
+
+    private void PasswordBox_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Enter)
+        {
+            TryLogin();
+        }
+    }
+
+    private void LoginBtn_Click(object? sender, EventArgs e) => TryLogin();
 }

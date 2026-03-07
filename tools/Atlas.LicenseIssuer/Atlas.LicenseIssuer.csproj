@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AntdUI" Version="2.3.2" />
     <PackageReference Include="SqlSugarCore" Version="5.1.4.169" />
   </ItemGroup>
 

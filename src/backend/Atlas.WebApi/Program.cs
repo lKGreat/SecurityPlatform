@@ -427,9 +427,9 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<AntiforgeryValidationMiddleware>();
 app.UseMiddleware<TenantContextMiddleware>();
-app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseMiddleware<ProjectContextMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<LicenseEnforcementMiddleware>();
 
 app.MapControllers();
 

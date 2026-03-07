@@ -93,8 +93,10 @@ public sealed class LicenseActivationService : ILicenseActivationService
             limitsJson,
             now);
 
-        // 将旧的同 licenseId 记录标记失效（revision 更高时）
-        if (existingRecord is not null && payload.Revision > existingRecord.Revision)
+        // 将旧的同 licenseId 记录标记失效（同 revision 重激活也需要失效旧 Active，避免双 Active）
+        if (existingRecord is not null
+            && existingRecord.Status == LicenseStatus.Active
+            && payload.Revision >= existingRecord.Revision)
         {
             existingRecord.MarkInvalid();
             await _repository.UpdateAsync(existingRecord, cancellationToken);

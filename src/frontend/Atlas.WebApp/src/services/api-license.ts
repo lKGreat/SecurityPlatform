@@ -7,6 +7,14 @@ import type {
 } from "@/types/api";
 import { requestApi } from "@/services/api-core";
 
+interface ApiRequestErrorLike extends Error {
+  payload?: {
+    code?: string;
+    message?: string;
+    traceId?: string;
+  } | null;
+}
+
 /** 获取当前授权状态 */
 export async function getLicenseStatus(): Promise<LicenseStatus> {
   const resp = await requestApi<ApiResponse<LicenseStatus>>(
@@ -44,13 +52,27 @@ export async function getMachineFingerprint(): Promise<string> {
 export async function activateLicense(
   licenseContent: string
 ): Promise<ApiResponse<LicenseActivateResult>> {
-  return requestApi<ApiResponse<LicenseActivateResult>>(
-    "/license/activate",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseContent }),
-    },
-    { disableAutoRefresh: true }
-  );
+  try {
+    return await requestApi<ApiResponse<LicenseActivateResult>>(
+      "/license/activate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseContent }),
+      },
+      {
+        disableAutoRefresh: true,
+        suppressErrorMessage: true,
+      }
+    );
+  } catch (error) {
+    const requestError = error as ApiRequestErrorLike;
+    const payload = requestError?.payload ?? null;
+    return {
+      success: false,
+      code: payload?.code ?? "LICENSE_ACTIVATE_FAILED",
+      message: payload?.message ?? requestError?.message ?? "证书激活失败",
+      traceId: payload?.traceId ?? "",
+    };
+  }
 }

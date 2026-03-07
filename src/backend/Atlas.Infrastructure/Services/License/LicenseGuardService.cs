@@ -81,6 +81,8 @@ public sealed class LicenseGuardService : ILicenseService
 
     public async Task ReloadAsync(CancellationToken cancellationToken = default)
     {
+        var previousStatus = _currentStatus;
+
         try
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
@@ -125,8 +127,9 @@ public sealed class LicenseGuardService : ILicenseService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "加载授权证书失败");
-            _currentStatus = LicenseStatusDto.None();
+            // 刷新失败时保留当前内存状态，避免瞬时故障导致已激活平台被误判为未激活。
+            _currentStatus = previousStatus;
+            _logger.LogError(ex, "加载授权证书失败，已保留上次授权状态：{Status}", previousStatus.Status);
         }
     }
 
