@@ -404,8 +404,14 @@ const handleSubmit = async () => {
     failedAttempts.value = 0;
     cooldownSeconds.value = 0;
     errorMessage.value = "";
-    const redirect = route.query.redirect as string;
-    const targetPath = redirect || "/";
+    const rawRedirect = route.query.redirect;
+    const redirect =
+      typeof rawRedirect === "string" &&
+      rawRedirect.startsWith("/") &&
+      !rawRedirect.startsWith("//")
+        ? rawRedirect
+        : null;
+    const targetPath = redirect ?? "/";
     const canNavigate = routes.some((item) => typeof item.path === "string" && targetPath.startsWith(item.path));
     const firstAccessiblePath = pickFirstAccessiblePath(permissionStore.sidebarRouters as SidebarRouteNode[]);
     const fallbackPath = firstAccessiblePath ?? "/profile";
