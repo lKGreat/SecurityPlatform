@@ -147,6 +147,12 @@ import {
 import type { LicenseStatus } from '@/types/api'
 import { getLicenseStatus, getMachineFingerprint, activateLicense } from '@/services/api-license'
 
+interface LicenseApiError extends Error {
+  payload?: {
+    message?: string
+  } | null
+}
+
 const loading = ref(false)
 const fingerprintLoading = ref(false)
 const activating = ref(false)
@@ -288,8 +294,15 @@ async function handleFileSelect(file: File): Promise<false> {
     } else {
       activateResult.value = { success: false, message: resp.message || '证书激活失败' }
     }
-  } catch (err) {
-    activateResult.value = { success: false, message: '文件读取或上传失败，请重试' }
+  } catch (error) {
+    const requestError = error as LicenseApiError
+    const detailMessage =
+      requestError?.payload?.message ??
+      (error instanceof Error ? error.message : '')
+    activateResult.value = {
+      success: false,
+      message: detailMessage || '文件读取或上传失败，请重试',
+    }
   } finally {
     activating.value = false
   }

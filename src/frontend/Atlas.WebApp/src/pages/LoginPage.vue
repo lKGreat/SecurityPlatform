@@ -493,8 +493,15 @@ async function handleLicenseFileSelect(file: File): Promise<false> {
     } else {
       licenseActivateResult.value = { success: false, message: resp.message || "激活失败" };
     }
-  } catch {
-    licenseActivateResult.value = { success: false, message: "文件读取失败，请重试" };
+  } catch (error) {
+    const requestError = error as LoginApiError;
+    const detailMessage =
+      requestError?.payload?.message ??
+      (error instanceof Error ? error.message : "");
+    licenseActivateResult.value = {
+      success: false,
+      message: detailMessage || "文件读取失败，请重试"
+    };
   } finally {
     licenseActivating.value = false;
   }

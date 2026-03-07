@@ -11,14 +11,15 @@ namespace Atlas.WebApi.Middlewares;
 public sealed class LicenseEnforcementMiddleware
 {
     // 不受授权限制的路径前缀（激活接口、认证接口、健康检查）
-    private static readonly string[] WhitelistedPrefixes =
+    // 使用 PathString + StartsWithSegments，避免 /api/v1/license 误匹配 /api/v1/licensing-admin。
+    private static readonly PathString[] WhitelistedPrefixes =
     [
-        "/api/v1/license",
-        "/api/v1/auth",
-        "/api/v1/health",
-        "/health",
-        "/openapi",
-        "/swagger",
+        new PathString("/api/v1/license"),
+        new PathString("/api/v1/auth"),
+        new PathString("/api/v1/health"),
+        new PathString("/health"),
+        new PathString("/openapi"),
+        new PathString("/swagger"),
     ];
 
     private readonly RequestDelegate _next;
@@ -31,7 +32,7 @@ public sealed class LicenseEnforcementMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         // 白名单路径直接放行
-        var path = context.Request.Path.Value ?? string.Empty;
+        var path = context.Request.Path;
         if (IsWhitelisted(path))
         {
             await _next(context);
@@ -68,11 +69,11 @@ public sealed class LicenseEnforcementMiddleware
         await context.Response.WriteAsJsonAsync(payload);
     }
 
-    private static bool IsWhitelisted(string path)
+    private static bool IsWhitelisted(PathString path)
     {
         foreach (var prefix in WhitelistedPrefixes)
         {
-            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            if (path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase))
                 return true;
         }
 
