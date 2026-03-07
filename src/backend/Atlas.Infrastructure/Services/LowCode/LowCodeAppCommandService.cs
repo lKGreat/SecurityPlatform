@@ -4,6 +4,7 @@ using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.LowCode.Enums;
+using Atlas.Domain.System.Entities;
 using SqlSugar;
 using System.Text.Json;
 
@@ -48,12 +49,28 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
             throw new InvalidOperationException($"应用标识 '{request.AppKey}' 已存在");
         }
 
+        if (request.DataSourceId.HasValue)
+        {
+            var hasDataSource = await _db.Queryable<TenantDataSource>()
+                .AnyAsync(
+                    x => x.TenantIdValue == tenantId.Value.ToString() && x.Id == request.DataSourceId.Value,
+                    cancellationToken);
+            if (!hasDataSource)
+            {
+                throw new InvalidOperationException($"数据源 ID={request.DataSourceId.Value} 不存在");
+            }
+        }
+
         var id = _idGenerator.NextId();
         var now = DateTimeOffset.UtcNow;
 
         var entity = new LowCodeApp(
             tenantId, request.AppKey, request.Name,
             request.Description, request.Category, request.Icon,
+            request.DataSourceId,
+            request.UseSharedUsers,
+            request.UseSharedRoles,
+            request.UseSharedDepartments,
             userId, id, now);
 
         await _appRepository.InsertAsync(entity, cancellationToken);
@@ -234,6 +251,112 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         await _appRepository.UpdateAsync(entity, cancellationToken);
     }
 
+    public async Task UpdateSharingPolicyAsync(
+        TenantId tenantId,
+        long userId,
+        long id,
+        LowCodeAppSharingPolicyUpdateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
+            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+
+        var now = DateTimeOffset.UtcNow;
+        entity.UpdateSharingPolicy(
+            request.UseSharedUsers,
+            request.UseSharedRoles,
+            request.UseSharedDepartments,
+            userId,
+            now);
+        await _appRepository.UpdateAsync(entity, cancellationToken);
+    }
+
+    public async Task UpdateEntityAliasesAsync(
+        TenantId tenantId,
+        long userId,
+        long id,
+        LowCodeAppEntityAliasesUpdateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _ = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
+            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+
+        var now = DateTimeOffset.UtcNow;
+        var tenantIdValue = tenantId.Value;
+        var normalizedItems = request.Items
+            .Where(x => !string.IsNullOrWhiteSpace(x.EntityType))
+            .Select(x => new LowCodeAppEntityAliasItem(
+                x.EntityType.Trim(),
+                x.SingularAlias.Trim(),
+                x.PluralAlias.Trim()))
+            .GroupBy(x => x.EntityType, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.First())
+            .ToArray();
+
+        var existingAliases = await _db.Queryable<AppEntityAlias>()
+            .Where(x => x.TenantIdValue == tenantIdValue && x.AppId == id)
+            .ToListAsync(cancellationToken);
+        var existingMap = existingAliases.ToDictionary(x => x.EntityType, StringComparer.OrdinalIgnoreCase);
+
+        var aliasesToInsert = new List<AppEntityAlias>();
+        var aliasesToUpdate = new List<AppEntityAlias>();
+        foreach (var item in normalizedItems)
+        {
+            if (existingMap.TryGetValue(item.EntityType, out var existing))
+            {
+                existing.UpdateAlias(item.SingularAlias, item.PluralAlias, userId, now);
+                aliasesToUpdate.Add(existing);
+                existingMap.Remove(item.EntityType);
+                continue;
+            }
+
+            aliasesToInsert.Add(new AppEntityAlias(
+                tenantId,
+                id,
+                item.EntityType,
+                item.SingularAlias,
+                item.PluralAlias,
+                userId,
+                _idGenerator.NextId(),
+                now));
+        }
+
+        var removeIds = existingMap.Values.Select(x => x.Id).ToArray();
+        var result = await _db.Ado.UseTranAsync(async () =>
+        {
+            if (aliasesToInsert.Count > 0)
+            {
+                await _db.Insertable(aliasesToInsert).ExecuteCommandAsync(cancellationToken);
+            }
+
+            if (aliasesToUpdate.Count > 0)
+            {
+                await _db.Updateable(aliasesToUpdate)
+                    .WhereColumns(x => new { x.Id })
+                    .UpdateColumns(x => new
+                    {
+                        x.SingularAlias,
+                        x.PluralAlias,
+                        x.UpdatedBy,
+                        x.UpdatedAt
+                    })
+                    .ExecuteCommandAsync(cancellationToken);
+            }
+
+            if (removeIds.Length > 0)
+            {
+                await _db.Deleteable<AppEntityAlias>()
+                    .Where(x => x.TenantIdValue == tenantIdValue && x.AppId == id && SqlFunc.ContainsArray(removeIds, x.Id))
+                    .ExecuteCommandAsync(cancellationToken);
+            }
+        });
+
+        if (!result.IsSuccess)
+        {
+            throw result.ErrorException ?? new InvalidOperationException("更新实体别名失败");
+        }
+    }
+
     public async Task DeleteAsync(
         TenantId tenantId, long userId, long id,
         CancellationToken cancellationToken = default)
@@ -301,6 +424,10 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
             package.Description,
             package.Category,
             package.Icon,
+            null,
+            true,
+            true,
+            true,
             userId,
             appId,
             now);

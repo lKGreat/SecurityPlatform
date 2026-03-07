@@ -36,6 +36,24 @@
 - 登录成功默认跳转 `/console`（若 `redirect` 参数存在且可访问则优先）。
 - 旧有 `/settings/*` 与 `/lowcode/*` 路由保持兼容。
 
+## LowCodeApp 扩展字段与应用设置 API（Sprint 2）
+
+### `LowCodeApp` 扩展字段
+
+- `dataSourceId: string | null`（创建时可设置，后续只读）
+- `useSharedUsers: boolean`
+- `useSharedRoles: boolean`
+- `useSharedDepartments: boolean`
+
+### 应用设置 API
+
+- `GET /api/v1/lowcode-apps/{id}/sharing-policy`
+- `PUT /api/v1/lowcode-apps/{id}/sharing-policy`
+- `GET /api/v1/lowcode-apps/{id}/entity-aliases`
+- `PUT /api/v1/lowcode-apps/{id}/entity-aliases`
+- `GET /api/v1/lowcode-apps/{id}/datasource`
+- `POST /api/v1/lowcode-apps/{id}/datasource/test`
+
 ## 幂等与 Anti-Forgery
 
 ### 幂等（Idempotency-Key）

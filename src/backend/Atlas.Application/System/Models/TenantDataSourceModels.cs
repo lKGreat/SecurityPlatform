@@ -5,6 +5,12 @@ public sealed record TenantDataSourceDto(
     string TenantIdValue,
     string Name,
     string DbType,
+    string? AppId,
+    int MaxPoolSize,
+    int ConnectionTimeoutSeconds,
+    bool? LastTestSuccess,
+    DateTimeOffset? LastTestedAt,
+    string? LastTestMessage,
     bool IsActive,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
@@ -13,12 +19,17 @@ public sealed record TenantDataSourceCreateRequest(
     string TenantIdValue,
     string Name,
     string ConnectionString,
-    string DbType = "SQLite");
+    string DbType = "SQLite",
+    string? AppId = null,
+    int MaxPoolSize = 50,
+    int ConnectionTimeoutSeconds = 15);
 
 public sealed record TenantDataSourceUpdateRequest(
     string Name,
     string ConnectionString,
-    string DbType);
+    string DbType,
+    int MaxPoolSize = 50,
+    int ConnectionTimeoutSeconds = 15);
 
 public sealed record TestConnectionRequest(string ConnectionString, string DbType = "SQLite");
 

@@ -23,6 +23,10 @@ public sealed class LowCodeAppCreateRequestValidator : AbstractValidator<LowCode
 
         RuleFor(x => x.Category)
             .MaximumLength(100).WithMessage(localizer["LowCodeAppCategoryMaxLength"].Value);
+
+        RuleFor(x => x.DataSourceId)
+            .GreaterThan(0).WithMessage("DataSourceId 必须为正整数")
+            .When(x => x.DataSourceId.HasValue);
     }
 }
 
@@ -71,5 +75,38 @@ public sealed class LowCodeAppImportRequestValidator : AbstractValidator<LowCode
             .MaximumLength(32).WithMessage("后缀长度不能超过32")
             .Matches(@"^[a-zA-Z0-9_-]+$").WithMessage("后缀仅支持字母数字下划线连字符")
             .When(x => !string.IsNullOrWhiteSpace(x.KeySuffix));
+    }
+}
+
+public sealed class LowCodeAppSharingPolicyUpdateRequestValidator : AbstractValidator<LowCodeAppSharingPolicyUpdateRequest>
+{
+    public LowCodeAppSharingPolicyUpdateRequestValidator()
+    {
+        RuleFor(x => x).NotNull();
+    }
+}
+
+public sealed class LowCodeAppEntityAliasesUpdateRequestValidator : AbstractValidator<LowCodeAppEntityAliasesUpdateRequest>
+{
+    public LowCodeAppEntityAliasesUpdateRequestValidator()
+    {
+        RuleFor(x => x.Items)
+            .NotNull().WithMessage("实体别名集合不能为空")
+            .Must(x => x.Count <= 20).WithMessage("实体别名数量不能超过20");
+
+        RuleForEach(x => x.Items).ChildRules(item =>
+        {
+            item.RuleFor(i => i.EntityType)
+                .NotEmpty().WithMessage("实体类型不能为空")
+                .MaximumLength(64).WithMessage("实体类型长度不能超过64");
+
+            item.RuleFor(i => i.SingularAlias)
+                .NotEmpty().WithMessage("单数别名不能为空")
+                .MaximumLength(64).WithMessage("单数别名长度不能超过64");
+
+            item.RuleFor(i => i.PluralAlias)
+                .NotEmpty().WithMessage("复数别名不能为空")
+                .MaximumLength(64).WithMessage("复数别名长度不能超过64");
+        });
     }
 }

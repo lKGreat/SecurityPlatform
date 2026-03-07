@@ -11,6 +11,11 @@ import type {
   LowCodeAppVersionListItem,
   LowCodeAppCreateRequest,
   LowCodeAppUpdateRequest,
+  LowCodeAppSharingPolicy,
+  LowCodeAppSharingPolicyUpdateRequest,
+  LowCodeAppEntityAliasItem,
+  LowCodeAppEntityAliasesUpdateRequest,
+  LowCodeAppDataSourceInfo,
   LowCodeEnvironmentListItem,
   LowCodeEnvironmentDetail,
   LowCodeEnvironmentCreateRequest,
@@ -254,6 +259,68 @@ export async function updateLowCodeApp(
     }
   );
   if (!response.success) throw new Error(response.message || "更新失败");
+}
+
+export async function getLowCodeAppSharingPolicy(id: string): Promise<LowCodeAppSharingPolicy | null> {
+  const response = await requestApi<ApiResponse<LowCodeAppSharingPolicy | null>>(
+    `/lowcode-apps/${id}/sharing-policy`
+  );
+  return response.data ?? null;
+}
+
+export async function updateLowCodeAppSharingPolicy(
+  id: string,
+  request: LowCodeAppSharingPolicyUpdateRequest
+): Promise<void> {
+  const response = await requestApi<ApiResponse<{ id: string }>>(
+    `/lowcode-apps/${id}/sharing-policy`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    }
+  );
+  if (!response.success) throw new Error(response.message || "更新共享策略失败");
+}
+
+export async function getLowCodeAppEntityAliases(id: string): Promise<LowCodeAppEntityAliasItem[]> {
+  const response = await requestApi<ApiResponse<LowCodeAppEntityAliasItem[]>>(
+    `/lowcode-apps/${id}/entity-aliases`
+  );
+  return response.data ?? [];
+}
+
+export async function updateLowCodeAppEntityAliases(
+  id: string,
+  request: LowCodeAppEntityAliasesUpdateRequest
+): Promise<void> {
+  const response = await requestApi<ApiResponse<{ id: string }>>(
+    `/lowcode-apps/${id}/entity-aliases`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    }
+  );
+  if (!response.success) throw new Error(response.message || "更新实体别名失败");
+}
+
+export async function getLowCodeAppDataSourceInfo(id: string): Promise<LowCodeAppDataSourceInfo | null> {
+  const response = await requestApi<ApiResponse<LowCodeAppDataSourceInfo | null>>(
+    `/lowcode-apps/${id}/datasource`
+  );
+  return response.data ?? null;
+}
+
+export async function testLowCodeAppDataSource(id: string): Promise<{ success: boolean; errorMessage?: string | null }> {
+  const response = await requestApi<ApiResponse<{ success: boolean; errorMessage?: string | null }>>(
+    `/lowcode-apps/${id}/datasource/test`,
+    { method: "POST" }
+  );
+  if (!response.data) {
+    throw new Error(response.message || "测试数据源失败");
+  }
+  return response.data;
 }
 
 export async function publishLowCodeApp(id: string): Promise<void> {

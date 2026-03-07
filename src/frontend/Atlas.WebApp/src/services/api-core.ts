@@ -42,6 +42,7 @@ let antiforgeryPromise: Promise<string | null> | null = null;
 let missingProjectWarningAt = 0;
 const inFlightWriteRequests = new Map<string, Promise<unknown>>();
 const globalErrorShownAt = new Map<string, number>();
+const APP_ID_HEADER = "X-App-Id";
 
 const ErrorCodes = {
   AccountLocked: "ACCOUNT_LOCKED",
@@ -118,6 +119,11 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
     headers.set("X-Tenant-Id", tenantId);
   }
 
+  const appId = resolveCurrentAppId();
+  if (appId && !headers.has(APP_ID_HEADER)) {
+    headers.set(APP_ID_HEADER, appId);
+  }
+
   if (shouldRequireTenantContext(path) && !headers.has("X-Tenant-Id")) {
     const missingTenantMessage = shouldAttachSecurityHeaders
       ? "登录租户上下文已失效，请重新登录"
@@ -170,7 +176,7 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
   }
 
   const writeRequestSignature = shouldEnableWriteRequestDeduplication(method, shouldAttachSecurityHeaders, options)
-    ? buildWriteRequestSignature(path, method, init?.body, tenantId, projectId)
+    ? buildWriteRequestSignature(path, method, init?.body, tenantId, projectId, appId)
     : null;
   if (writeRequestSignature) {
     const inFlight = inFlightWriteRequests.get(writeRequestSignature);
@@ -272,6 +278,10 @@ export async function requestApiBlob(path: string, init?: RequestInit, options?:
   if (tenantId && !headers.has("X-Tenant-Id")) {
     headers.set("X-Tenant-Id", tenantId);
   }
+  const appId = resolveCurrentAppId();
+  if (appId && !headers.has(APP_ID_HEADER)) {
+    headers.set(APP_ID_HEADER, appId);
+  }
   if (shouldRequireTenantContext(path) && !headers.has("X-Tenant-Id")) {
     const missingTenantMessage = shouldAttachSecurityHeaders
       ? "登录租户上下文已失效，请重新登录"
@@ -315,7 +325,7 @@ export async function requestApiBlob(path: string, init?: RequestInit, options?:
   }
 
   const writeRequestSignature = shouldEnableWriteRequestDeduplication(method, shouldAttachSecurityHeaders, options)
-    ? buildWriteRequestSignature(path, method, init?.body, tenantId, projectId, "blob")
+    ? buildWriteRequestSignature(path, method, init?.body, tenantId, projectId, appId, "blob")
     : null;
   if (writeRequestSignature) {
     const inFlight = inFlightWriteRequests.get(writeRequestSignature);
@@ -410,10 +420,11 @@ function buildWriteRequestSignature(
   body: BodyInit | null | undefined,
   tenantId: string | null,
   projectId: string | null | undefined,
+  appId: string | null,
   responseType: "json" | "blob" = "json"
 ) {
   const normalizedBody = normalizeRequestBodyForSignature(body);
-  return [tenantId ?? "", projectId ?? "", method.toUpperCase(), path, normalizedBody, responseType].join("|");
+  return [tenantId ?? "", projectId ?? "", appId ?? "", method.toUpperCase(), path, normalizedBody, responseType].join("|");
 }
 
 function normalizeRequestBodyForSignature(body: BodyInit | null | undefined) {
@@ -461,6 +472,19 @@ function normalizeRequestBodyForSignature(body: BodyInit | null | undefined) {
 function shouldRequireProjectContext(path: string): boolean {
   const exemptPrefixes = ["/apps", "/projects", "/auth", "/secure"];
   return !exemptPrefixes.some((prefix) => path.startsWith(prefix));
+}
+
+function resolveCurrentAppId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const match = window.location.pathname.match(/^\/apps\/([^/]+)/);
+  if (!match || !match[1]) {
+    return null;
+  }
+
+  return decodeURIComponent(match[1]);
 }
 
 function shouldRequireTenantContext(path: string): boolean {

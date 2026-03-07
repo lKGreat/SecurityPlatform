@@ -118,6 +118,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(FieldPermission),
             typeof(MigrationRecord),
             typeof(LowCodeApp),
+            typeof(AppEntityAlias),
             typeof(LowCodePage),
             typeof(LowCodePageVersion),
             typeof(LowCodeEnvironment),
@@ -141,6 +142,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(TenantDataSource),
             // Low code module
             typeof(LowCodeApp),
+            typeof(AppEntityAlias),
             typeof(LowCodePage),
             typeof(LowCodeAppVersion),
             typeof(FormDefinition),

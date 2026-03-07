@@ -23,22 +23,26 @@ public sealed class AppContextMiddleware
         if (!context.Items.ContainsKey(HttpContextAppContextAccessor.AppIdItemKey))
         {
             var claimAppId = TryResolveAppIdFromClaims(context.User);
-            if (!string.IsNullOrWhiteSpace(claimAppId))
-            {
-                context.Items[HttpContextAppContextAccessor.AppIdItemKey] = claimAppId;
-                return _next(context);
-            }
+            var headerAppId = TryResolveAppIdFromHeader(context);
 
-            if (context.User?.Identity?.IsAuthenticated != true)
+            if (context.User?.Identity?.IsAuthenticated == true)
             {
-                var headerName = _options.HeaderName;
-                if (!string.IsNullOrWhiteSpace(headerName)
-                    && context.Request.Headers.TryGetValue(headerName, out var raw)
-                    && !string.IsNullOrWhiteSpace(raw))
+                if (_options.AllowHeaderOverrideWhenAuthenticated && !string.IsNullOrWhiteSpace(headerAppId))
                 {
-                    context.Items[HttpContextAppContextAccessor.AppIdItemKey] = raw.ToString();
+                    context.Items[HttpContextAppContextAccessor.AppIdItemKey] = headerAppId;
                     return _next(context);
                 }
+
+                if (!string.IsNullOrWhiteSpace(claimAppId))
+                {
+                    context.Items[HttpContextAppContextAccessor.AppIdItemKey] = claimAppId;
+                    return _next(context);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(headerAppId))
+            {
+                context.Items[HttpContextAppContextAccessor.AppIdItemKey] = headerAppId;
+                return _next(context);
             }
 
             var clientContext = ControllerHelper.GetClientContext(context);
@@ -77,5 +81,24 @@ public sealed class AppContextMiddleware
         }
 
         return _options.DefaultAppId;
+    }
+
+    private string? TryResolveAppIdFromHeader(HttpContext context)
+    {
+        var headerName = _options.HeaderName;
+        if (string.IsNullOrWhiteSpace(headerName)
+            || !context.Request.Headers.TryGetValue(headerName, out var raw)
+            || string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var value = raw.ToString().Trim();
+        if (!_options.RequireHeaderAppIdNumeric)
+        {
+            return value;
+        }
+
+        return long.TryParse(value, out var parsed) && parsed > 0 ? value : null;
     }
 }

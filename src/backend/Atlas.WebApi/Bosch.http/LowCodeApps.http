@@ -82,6 +82,65 @@ Content-Type: application/json
   "icon": "team"
 }
 
+### 查询应用共享策略
+GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/sharing-policy
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 更新应用共享策略（需幂等+CSRF）
+PUT {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/sharing-policy
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "useSharedUsers": true,
+  "useSharedRoles": true,
+  "useSharedDepartments": false
+}
+
+### 查询应用实体别名
+GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/entity-aliases
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 更新应用实体别名（需幂等+CSRF）
+PUT {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/entity-aliases
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "entityType": "users",
+      "singularAlias": "成员",
+      "pluralAlias": "成员列表"
+    },
+    {
+      "entityType": "departments",
+      "singularAlias": "组织单元",
+      "pluralAlias": "组织单元列表"
+    }
+  ]
+}
+
+### 查询应用绑定数据源
+GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/datasource
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 测试应用绑定数据源连接（需幂等+CSRF）
+POST {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/datasource/test
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
 ###############################################
 # 页面管理
 ###############################################

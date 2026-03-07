@@ -101,7 +101,7 @@ public sealed class TenantDbConnectionFactory : ITenantDbConnectionFactory
         return Convert.ToBase64String(result);
     }
 
-    private static string Decrypt(string cipherText, string key)
+    public static string Decrypt(string cipherText, string key)
     {
         if (string.IsNullOrEmpty(key)) return cipherText;
         var keyBytes = GetKeyBytes(key);

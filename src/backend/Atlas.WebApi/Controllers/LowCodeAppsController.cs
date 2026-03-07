@@ -1,5 +1,7 @@
 using Atlas.Application.LowCode.Abstractions;
 using Atlas.Application.LowCode.Models;
+using Atlas.Application.System.Abstractions;
+using Atlas.Application.System.Models;
 using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
@@ -19,11 +21,14 @@ public sealed class LowCodeAppsController : ControllerBase
     private readonly ILowCodeAppCommandService _commandService;
     private readonly ILowCodePageCommandService _pageCommandService;
     private readonly ILowCodeEnvironmentService _environmentService;
+    private readonly ITenantDataSourceService _tenantDataSourceService;
     private readonly ITenantProvider _tenantProvider;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IValidator<LowCodeAppCreateRequest> _createValidator;
     private readonly IValidator<LowCodeAppUpdateRequest> _updateValidator;
     private readonly IValidator<LowCodeAppImportRequest> _importValidator;
+    private readonly IValidator<LowCodeAppSharingPolicyUpdateRequest> _sharingPolicyValidator;
+    private readonly IValidator<LowCodeAppEntityAliasesUpdateRequest> _entityAliasesValidator;
     private readonly IValidator<LowCodePageCreateRequest> _pageCreateValidator;
     private readonly IValidator<LowCodePageUpdateRequest> _pageUpdateValidator;
     private readonly IValidator<LowCodeEnvironmentCreateRequest> _environmentCreateValidator;
@@ -34,11 +39,14 @@ public sealed class LowCodeAppsController : ControllerBase
         ILowCodeAppCommandService commandService,
         ILowCodePageCommandService pageCommandService,
         ILowCodeEnvironmentService environmentService,
+        ITenantDataSourceService tenantDataSourceService,
         ITenantProvider tenantProvider,
         ICurrentUserAccessor currentUserAccessor,
         IValidator<LowCodeAppCreateRequest> createValidator,
         IValidator<LowCodeAppUpdateRequest> updateValidator,
         IValidator<LowCodeAppImportRequest> importValidator,
+        IValidator<LowCodeAppSharingPolicyUpdateRequest> sharingPolicyValidator,
+        IValidator<LowCodeAppEntityAliasesUpdateRequest> entityAliasesValidator,
         IValidator<LowCodePageCreateRequest> pageCreateValidator,
         IValidator<LowCodePageUpdateRequest> pageUpdateValidator,
         IValidator<LowCodeEnvironmentCreateRequest> environmentCreateValidator,
@@ -48,11 +56,14 @@ public sealed class LowCodeAppsController : ControllerBase
         _commandService = commandService;
         _pageCommandService = pageCommandService;
         _environmentService = environmentService;
+        _tenantDataSourceService = tenantDataSourceService;
         _tenantProvider = tenantProvider;
         _currentUserAccessor = currentUserAccessor;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _importValidator = importValidator;
+        _sharingPolicyValidator = sharingPolicyValidator;
+        _entityAliasesValidator = entityAliasesValidator;
         _pageCreateValidator = pageCreateValidator;
         _pageUpdateValidator = pageUpdateValidator;
         _environmentCreateValidator = environmentCreateValidator;
@@ -86,6 +97,119 @@ public sealed class LowCodeAppsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         var detail = await _queryService.GetByIdAsync(tenantId, id, cancellationToken);
         return Ok(ApiResponse<LowCodeAppDetail?>.Ok(detail, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 查询应用共享策略
+    /// </summary>
+    [HttpGet("{id:long}/sharing-policy")]
+    [Authorize(Policy = PermissionPolicies.AppsView)]
+    public async Task<ActionResult<ApiResponse<LowCodeAppSharingPolicy?>>> GetSharingPolicy(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.GetSharingPolicyAsync(tenantId, id, cancellationToken);
+        return Ok(ApiResponse<LowCodeAppSharingPolicy?>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 更新应用共享策略
+    /// </summary>
+    [HttpPut("{id:long}/sharing-policy")]
+    [Authorize(Policy = PermissionPolicies.AppsUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateSharingPolicy(
+        long id,
+        [FromBody] LowCodeAppSharingPolicyUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        _sharingPolicyValidator.ValidateAndThrow(request);
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        await _commandService.UpdateSharingPolicyAsync(tenantId, currentUser.UserId, id, request, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 查询应用实体别名
+    /// </summary>
+    [HttpGet("{id:long}/entity-aliases")]
+    [Authorize(Policy = PermissionPolicies.AppsView)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<LowCodeAppEntityAliasItem>>>> GetEntityAliases(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.GetEntityAliasesAsync(tenantId, id, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<LowCodeAppEntityAliasItem>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 更新应用实体别名
+    /// </summary>
+    [HttpPut("{id:long}/entity-aliases")]
+    [Authorize(Policy = PermissionPolicies.AppsUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateEntityAliases(
+        long id,
+        [FromBody] LowCodeAppEntityAliasesUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        _entityAliasesValidator.ValidateAndThrow(request);
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        await _commandService.UpdateEntityAliasesAsync(tenantId, currentUser.UserId, id, request, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 查询应用绑定的数据源
+    /// </summary>
+    [HttpGet("{id:long}/datasource")]
+    [Authorize(Policy = PermissionPolicies.AppsView)]
+    public async Task<ActionResult<ApiResponse<LowCodeAppDataSourceInfo?>>> GetDataSource(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.GetDataSourceInfoAsync(tenantId, id, cancellationToken);
+        return Ok(ApiResponse<LowCodeAppDataSourceInfo?>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// 测试应用绑定数据源连接
+    /// </summary>
+    [HttpPost("{id:long}/datasource/test")]
+    [Authorize(Policy = PermissionPolicies.AppsUpdate)]
+    public async Task<ActionResult<ApiResponse<TestConnectionResult>>> TestDataSource(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var dataSource = await _queryService.GetDataSourceInfoAsync(tenantId, id, cancellationToken);
+        if (dataSource is null)
+        {
+            return NotFound(ApiResponse<TestConnectionResult>.Fail(ErrorCodes.NotFound, "应用不存在", HttpContext.TraceIdentifier));
+        }
+
+        if (!long.TryParse(dataSource.DataSourceId, out var dataSourceId))
+        {
+            return Ok(ApiResponse<TestConnectionResult>.Ok(
+                new TestConnectionResult(false, "应用未绑定数据源"),
+                HttpContext.TraceIdentifier));
+        }
+
+        var result = await _tenantDataSourceService.TestConnectionByDataSourceIdAsync(dataSourceId, cancellationToken);
+        return Ok(ApiResponse<TestConnectionResult>.Ok(result, HttpContext.TraceIdentifier));
     }
 
     /// <summary>

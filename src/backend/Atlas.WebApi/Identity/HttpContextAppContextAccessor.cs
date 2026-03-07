@@ -59,25 +59,23 @@ public sealed class HttpContextAppContextAccessor : IAppContextAccessor
             return _options.DefaultAppId;
         }
 
+        if (context.Items.TryGetValue(AppIdItemKey, out var value) && value is string cached)
+        {
+            return cached;
+        }
+
         var claimAppId = TryResolveAppIdFromClaims(context.User);
         if (!string.IsNullOrWhiteSpace(claimAppId))
         {
             return claimAppId;
         }
 
-        if (context.Items.TryGetValue(AppIdItemKey, out var value) && value is string cached)
-        {
-            return cached;
-        }
-
         if (context.User?.Identity?.IsAuthenticated != true)
         {
-            var headerName = _options.HeaderName;
-            if (!string.IsNullOrWhiteSpace(headerName)
-                && context.Request.Headers.TryGetValue(headerName, out var raw)
-                && !string.IsNullOrWhiteSpace(raw))
+            var headerAppId = TryResolveAppIdFromHeader(context);
+            if (!string.IsNullOrWhiteSpace(headerAppId))
             {
-                return raw.ToString();
+                return headerAppId;
             }
         }
 
@@ -100,6 +98,25 @@ public sealed class HttpContextAppContextAccessor : IAppContextAccessor
 
         var appId = user.FindFirst("app_id")?.Value ?? user.FindFirst("appId")?.Value;
         return string.IsNullOrWhiteSpace(appId) ? null : appId;
+    }
+
+    private string? TryResolveAppIdFromHeader(HttpContext context)
+    {
+        var headerName = _options.HeaderName;
+        if (string.IsNullOrWhiteSpace(headerName)
+            || !context.Request.Headers.TryGetValue(headerName, out var raw)
+            || string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var value = raw.ToString().Trim();
+        if (!_options.RequireHeaderAppIdNumeric)
+        {
+            return value;
+        }
+
+        return long.TryParse(value, out var parsed) && parsed > 0 ? value : null;
     }
 
     private sealed class Scope : IDisposable

@@ -77,6 +77,10 @@ export interface LowCodeAppListItem {
   description?: string;
   category?: string;
   icon?: string;
+  dataSourceId?: string;
+  useSharedUsers: boolean;
+  useSharedRoles: boolean;
+  useSharedDepartments: boolean;
   version: number;
   status: string;
   createdAt: string;
@@ -91,6 +95,10 @@ export interface LowCodeAppDetail {
   description?: string;
   category?: string;
   icon?: string;
+  dataSourceId?: string;
+  useSharedUsers: boolean;
+  useSharedRoles: boolean;
+  useSharedDepartments: boolean;
   version: number;
   status: string;
   configJson?: string;
@@ -109,6 +117,10 @@ export interface LowCodeAppCreateRequest {
   description?: string;
   category?: string;
   icon?: string;
+  dataSourceId?: number;
+  useSharedUsers?: boolean;
+  useSharedRoles?: boolean;
+  useSharedDepartments?: boolean;
 }
 
 export interface LowCodeAppUpdateRequest {
@@ -116,6 +128,40 @@ export interface LowCodeAppUpdateRequest {
   description?: string;
   category?: string;
   icon?: string;
+}
+
+export interface LowCodeAppSharingPolicy {
+  appId: string;
+  useSharedUsers: boolean;
+  useSharedRoles: boolean;
+  useSharedDepartments: boolean;
+}
+
+export interface LowCodeAppSharingPolicyUpdateRequest {
+  useSharedUsers: boolean;
+  useSharedRoles: boolean;
+  useSharedDepartments: boolean;
+}
+
+export interface LowCodeAppEntityAliasItem {
+  entityType: string;
+  singularAlias: string;
+  pluralAlias: string;
+}
+
+export interface LowCodeAppEntityAliasesUpdateRequest {
+  items: LowCodeAppEntityAliasItem[];
+}
+
+export interface LowCodeAppDataSourceInfo {
+  dataSourceId?: string;
+  name?: string;
+  dbType?: string;
+  maxPoolSize?: number;
+  connectionTimeoutSeconds?: number;
+  lastTestSuccess?: boolean;
+  lastTestedAt?: string;
+  lastTestMessage?: string;
 }
 
 export interface LowCodeAppVersionListItem {
