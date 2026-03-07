@@ -21,6 +21,7 @@ const ConsolePage = () => import("@/pages/console/ConsolePage.vue");
 const AppDashboardPage = () => import("@/pages/apps/AppDashboardPage.vue");
 const AppSettingsPage = () => import("@/pages/apps/AppSettingsPage.vue");
 const PageRuntimeRenderer = () => import("@/pages/runtime/PageRuntimeRenderer.vue");
+const RuntimeDeliveryPage = () => import("@/pages/runtime/RuntimeDeliveryPage.vue");
 const AppListPage = () => import("@/pages/lowcode/AppListPage.vue");
 const AppBuilderPage = () => import("@/pages/lowcode/AppBuilderPage.vue");
 const FormListPage = () => import("@/pages/lowcode/FormListPage.vue");
@@ -57,22 +58,28 @@ const router = createRouter({
     { path: "/console/apps", name: "console-apps", component: ConsolePage, meta: { requiresAuth: true, title: "应用中心", requiresPermission: "apps:view" } },
     { path: "/console/datasources", name: "console-datasources", component: TenantDataSourcesPage, meta: { requiresAuth: true, title: "数据源管理", requiresPermission: "system:admin" } },
     { path: "/console/settings/system/configs", name: "console-system-configs", component: SystemConfigsPage, meta: { requiresAuth: true, title: "系统设置", requiresPermission: "config:view" } },
+    { path: "/console/settings/system/dict-types", name: "console-settings-system-dict-types", component: DictTypesPage, meta: { requiresAuth: true, title: "字典管理", requiresPermission: "dict:type:view" } },
+    { path: "/console/settings/auth/roles", name: "console-settings-auth-roles", component: RolesPage, meta: { requiresAuth: true, title: "角色管理", requiresPermission: "roles:view" } },
+    { path: "/console/settings/system/plugins", name: "console-settings-plugins", component: PluginManagePage, meta: { requiresAuth: true, title: "插件管理", requiresPermission: "system:admin" } },
+    { path: "/console/settings/system/webhooks", name: "console-settings-webhooks", component: WebhooksPage, meta: { requiresAuth: true, title: "Webhook 管理" } },
+    { path: "/console/settings/license", name: "console-settings-license", component: LicensePage, meta: { requiresAuth: true, title: "授权管理", requiresPermission: "system:license:view" } },
     { path: "/apps/:appId", name: "app-workspace-root", redirect: to => `/apps/${to.params.appId}/dashboard`, meta: { requiresAuth: true, title: "应用工作台", requiresPermission: "apps:view" } },
     { path: "/apps/:appId/dashboard", name: "app-workspace-dashboard", component: AppDashboardPage, meta: { requiresAuth: true, title: "应用仪表盘", requiresPermission: "apps:view" } },
     { path: "/apps/:appId/builder", name: "app-workspace-builder", component: AppBuilderPage, meta: { requiresAuth: true, title: "应用设计器", requiresPermission: "apps:update" } },
     { path: "/apps/:appId/settings", name: "app-workspace-settings", component: AppSettingsPage, meta: { requiresAuth: true, title: "应用设置", requiresPermission: "apps:view" } },
     { path: "/apps/:appId/run/:pageKey", name: "app-workspace-runtime", component: PageRuntimeRenderer, meta: { requiresAuth: true, title: "应用运行态", requiresPermission: "apps:view" } },
+    { path: "/r/:appKey/:pageKey", name: "runtime-delivery-page", component: RuntimeDeliveryPage, meta: { requiresAuth: true, title: "运行交付面" } },
     { path: "/process/instances/:id", name: "process-instance-detail", component: ApprovalInstanceDetailPage, meta: { requiresAuth: true, title: "流程详情", requiresPermission: "approval:flow:view" } },
     { path: "/system/notifications", name: "system-notifications", component: NotificationsPage, meta: { requiresAuth: true, title: "通知中心" } },
     { path: "/notifications", name: "system-notifications-legacy", redirect: "/system/notifications", meta: { requiresAuth: true, title: "通知中心" } },
-    { path: "/settings/system/dict-types", name: "settings-system-dict-types", component: DictTypesPage, meta: { requiresAuth: true, title: "字典管理", requiresPermission: "dict:type:view" } },
-    { path: "/settings/system/configs", name: "settings-system-configs", component: SystemConfigsPage, meta: { requiresAuth: true, title: "参数配置", requiresPermission: "config:view" } },
-    { path: "/settings/auth/roles", name: "SettingsAuthRoles", component: RolesPage, meta: { requiresAuth: true, title: "角色管理", requiresPermission: "roles:view" } },
+    { path: "/settings/system/dict-types", name: "settings-system-dict-types", redirect: "/console/settings/system/dict-types", meta: { requiresAuth: true, title: "字典管理（Deprecated）", requiresPermission: "dict:type:view" } },
+    { path: "/settings/system/configs", name: "settings-system-configs", redirect: "/console/settings/system/configs", meta: { requiresAuth: true, title: "参数配置（Deprecated）", requiresPermission: "config:view" } },
+    { path: "/settings/auth/roles", name: "SettingsAuthRoles", redirect: "/console/settings/auth/roles", meta: { requiresAuth: true, title: "角色管理（Deprecated）", requiresPermission: "roles:view" } },
     { path: "/lowcode/plugin-market", name: "plugin-market", component: PluginMarketPage, meta: { requiresAuth: true, title: "插件市场" } },
-    { path: "/settings/system/plugins", name: "settings-plugins", component: PluginManagePage, meta: { requiresAuth: true, title: "插件管理", requiresPermission: "system:admin" } },
-    { path: "/settings/system/webhooks", name: "settings-webhooks", component: WebhooksPage, meta: { requiresAuth: true, title: "Webhook 管理" } },
+    { path: "/settings/system/plugins", name: "settings-plugins", redirect: "/console/settings/system/plugins", meta: { requiresAuth: true, title: "插件管理（Deprecated）", requiresPermission: "system:admin" } },
+    { path: "/settings/system/webhooks", name: "settings-webhooks", redirect: "/console/settings/system/webhooks", meta: { requiresAuth: true, title: "Webhook 管理（Deprecated）" } },
     { path: "/monitor/message-queue", name: "monitor-message-queue", component: MessageQueuePage, meta: { requiresAuth: true, title: "消息队列监控", requiresPermission: "system:admin" } },
-    { path: "/settings/license", name: "settings-license", component: LicensePage, meta: { requiresAuth: true, title: "授权管理", requiresPermission: "system:license:view" } },
+    { path: "/settings/license", name: "settings-license", redirect: "/console/settings/license", meta: { requiresAuth: true, title: "授权管理（Deprecated）", requiresPermission: "system:license:view" } },
     { path: "/system/dict-types", name: "system-dict-types-legacy", redirect: "/settings/system/dict-types", meta: { requiresAuth: true, title: "字典管理" } },
     { path: "/system/configs", name: "system-configs-legacy", redirect: "/settings/system/configs", meta: { requiresAuth: true, title: "参数配置" } },
     { path: "/alerts", name: "alerts-legacy", redirect: "/alert", meta: { requiresAuth: true, title: "告警" } },

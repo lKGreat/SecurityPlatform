@@ -8,6 +8,7 @@ namespace Atlas.WebApi.Controllers;
 
 [ApiController]
 [Route("api/v1/license")]
+[Obsolete("Deprecated since Sprint 1. Use /api/v1/licenses APIs instead.")]
 public sealed class LicenseController : ControllerBase
 {
     private readonly ILicenseService _licenseService;

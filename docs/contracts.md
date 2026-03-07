@@ -21,22 +21,15 @@
 
 ## 平台控制面/应用工作台/运行交付面路由约定（前端）
 
-- 平台控制台入口：`/console`
-- 控制台应用视图：`/console/apps`
-- 控制台数据源：`/console/datasources`
-- 控制台系统配置：`/console/settings/system/configs`
-- 应用工作台根路由：`/apps/:appId`（重定向至 `/apps/:appId/dashboard`）
-- 应用工作台页面：
-  - `/apps/:appId/dashboard`
-  - `/apps/:appId/builder`
-  - `/apps/:appId/settings`
-  - `/apps/:appId/run/:pageKey`
-- 运行交付面入口：`/r/:appKey/:pageKey`
+- 平台控制面：`/console`（平台首页、应用中心、资源中心、发布中心、治理中心）
+- 应用工作台：`/apps/:appId/*`
+- 运行交付面：`/r/:appKey/:pageKey`
+- 兼容入口（Deprecated）：`/settings/* -> /console/settings/*`（弃用窗口 6 个月）
 
 说明：
 
 - 登录成功默认跳转 `/console`（若 `redirect` 参数存在且可访问则优先）。
-- 旧有 `/settings/*` 与 `/lowcode/*` 路由保持兼容并标记 `Deprecated`（弃用窗口 6 个月）。
+- `/settings/*` 仅保留兼容重定向能力，不再承载新功能。
 
 ## 产品化重构 v1 契约增量（12 Sprint 基线）
 
@@ -60,32 +53,31 @@
 
 ### 新增 API 分组（后端，`api/v1`）
 
+> Sprint 1 仅冻结路由与契约类型名，占位如下（实现见后续 Sprint）。
+
 - 平台面：
-  - `GET /api/v1/platform/overview`
-  - `GET /api/v1/platform/resources`
-  - `GET /api/v1/platform/releases`
+  - `GET /api/v1/platform/overview` -> `ApiResponse<PlatformOverviewResponse>`
+  - `GET /api/v1/platform/resources` -> `ApiResponse<PlatformResourcesResponse>`
+  - `GET /api/v1/platform/releases` -> `ApiResponse<PagedResult<PlatformReleaseListItem>>`
 - 应用面：
-  - `GET /api/v1/app-manifests`
-  - `POST /api/v1/app-manifests`
-  - `GET /api/v1/app-manifests/{id}`
-  - `PUT /api/v1/app-manifests/{id}`
-  - `GET /api/v1/app-manifests/{id}/workspace/{module}`
+  - `POST /api/v1/app-manifests` -> `ApiResponse<IdResponse>`（body: `AppManifestCreateRequest`）
+  - `GET /api/v1/app-manifests/{id}` -> `ApiResponse<AppManifestDetailResponse>`
+  - `PUT /api/v1/app-manifests/{id}` -> `ApiResponse<IdResponse>`（body: `AppManifestUpdateRequest`）
+  - `POST /api/v1/app-manifests/{id}/releases` -> `ApiResponse<IdResponse>`（body: `AppReleaseCreateRequest`）
+  - `GET /api/v1/app-manifests/{id}/workspace/*` -> `ApiResponse<object>`（按模块拆分具体 DTO）
 - 运行面：
-  - `GET /api/v1/runtime/apps/{appKey}/pages/{pageKey}`
-  - `POST /api/v1/runtime/apps/{appKey}/pages/{pageKey}/actions`
-  - `GET /api/v1/runtime/tasks/inbox`
-  - `GET /api/v1/runtime/tasks/done`
+  - `GET /api/v1/runtime/apps/{appKey}/pages/{pageKey}` -> `ApiResponse<RuntimePageResponse>`
+  - `GET /api/v1/runtime/tasks` -> `ApiResponse<PagedResult<RuntimeTaskListItem>>`
+  - `POST /api/v1/runtime/tasks/{id}/actions` -> `ApiResponse<IdResponse>`（body: `RuntimeTaskActionRequest`）
 - 治理面：
-  - `POST /api/v1/packages/export`
-  - `POST /api/v1/packages/import`
-  - `POST /api/v1/licenses/offline-request`
-  - `POST /api/v1/licenses/import`
-  - `POST /api/v1/licenses/validate`
-  - `GET /api/v1/tools/authorization-policies`
-  - `PUT /api/v1/tools/authorization-policies/{id}`
-  - `POST /api/v1/tools/authorization-policies/simulate`
-  - `GET /api/v1/tools/authorization-policies/audit`
-  - `GET /api/v1/tools/authorization-audits`（兼容别名，后续弃用）
+  - `POST /api/v1/packages/export` -> `ApiResponse<PackageExportResponse>`（body: `PackageExportRequest`）
+  - `POST /api/v1/packages/import` -> `ApiResponse<PackageImportResponse>`（body: `PackageImportRequest`）
+  - `POST /api/v1/licenses/offline-request` -> `ApiResponse<LicenseOfflineRequestResponse>`（body: `LicenseOfflineRequestCreateRequest`）
+  - `POST /api/v1/licenses/import` -> `ApiResponse<LicenseImportResponse>`（body: `LicenseImportRequest`）
+  - `GET /api/v1/licenses/validate` -> `ApiResponse<LicenseValidateResponse>`
+  - `POST /api/v1/tools/authorization-policies` -> `ApiResponse<IdResponse>`（body: `ToolAuthorizationPolicyCreateRequest`）
+  - `POST /api/v1/tools/simulate` -> `ApiResponse<ToolAuthorizationSimulationResponse>`（body: `ToolAuthorizationSimulationRequest`）
+  - `GET /api/v1/tools/audit` -> `ApiResponse<PagedResult<ToolAuthorizationAuditListItem>>`
 
 ### 写接口安全约束（强制）
 

@@ -67,13 +67,22 @@
 - 旧接口保留 6 个月弃用窗口，仅允许安全修复与关键缺陷修复。
 - 新增 API 不复用旧 DTO，统一显式强类型 DTO + 强校验。
 
+### 2.6 元模型 ER 关系说明（Sprint 1 定稿）
+
+- `AppManifest (1) -> (N) AppRelease`：一个应用清单有多次发布记录。
+- `AppManifest (1) -> (N) RuntimeRoute`：一个应用清单可注册多个运行态页面路由。
+- `AppManifest (1) -> (N) PackageArtifact`：每次导入/导出产生对应包元数据记录。
+- `ToolAuthorizationPolicy (0..1) -> ApprovalFlowDefinition`：当策略为 `RequireApproval` 时可挂接审批流。
+- `AppRelease -> AuditRecord`：发布与回滚行为写入审计。
+- `LicenseGrant -> AuditRecord`：授权申请、导入、续期与校验行为写入审计。
+
 ---
 
 ## 三、12 Sprint 实施编排
 
 | Sprint | 核心目标 | 状态 |
 |---|---|---|
-| Sprint 1 | 重构基线冻结，统一元模型与领域边界定稿，接口命名与版本策略定稿，弃用清单发布 | [ ] |
+| Sprint 1 | 重构基线冻结，统一元模型与领域边界定稿，接口命名与版本策略定稿，弃用清单发布 | [x] |
 | Sprint 2 | 后端骨架与数据库迁移（Manifest/Release/Policy/License/Package），仓储与服务层空实现及契约占位 | [ ] |
 | Sprint 3 | 平台控制面 V1（平台首页、应用中心、资源中心）+ 对应聚合 API | [ ] |
 | Sprint 4 | 发布中心与审计主链路（发布、回滚点、影响分析基础能力）+ 平台层 e2e | [ ] |

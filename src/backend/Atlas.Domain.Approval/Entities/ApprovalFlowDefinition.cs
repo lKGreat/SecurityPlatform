@@ -14,6 +14,7 @@ public sealed class ApprovalFlowDefinition : TenantEntity
     {
         Name = string.Empty;
         DefinitionJson = string.Empty;
+        FlowKind = FlowKind.Approval;
     }
 
     public ApprovalFlowDefinition(TenantId tenantId, string name, string definitionJson, long id)
@@ -24,6 +25,7 @@ public sealed class ApprovalFlowDefinition : TenantEntity
         DefinitionJson = definitionJson;
         Version = 1;
         Status = ApprovalFlowStatus.Draft;
+        FlowKind = FlowKind.Approval;
         PublishedAt = null;
         PublishedByUserId = null;
     }
@@ -66,6 +68,9 @@ public sealed class ApprovalFlowDefinition : TenantEntity
 
     /// <summary>是否为快捷入口（系统推荐流程）</summary>
     public bool IsQuickEntry { get; private set; }
+
+    /// <summary>流程编排类型（审批流/工作流/混合流）</summary>
+    public FlowKind FlowKind { get; private set; }
 
     public void Update(string name, string definitionJson, string? description = null, string? category = null, string? visibilityScopeJson = null)
     {
@@ -113,6 +118,11 @@ public sealed class ApprovalFlowDefinition : TenantEntity
     public void SetQuickEntry(bool isQuickEntry)
     {
         IsQuickEntry = isQuickEntry;
+    }
+
+    public void SetFlowKind(FlowKind flowKind)
+    {
+        FlowKind = flowKind;
     }
 
     public void Publish(long publishedByUserId, DateTimeOffset now)

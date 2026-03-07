@@ -10,6 +10,7 @@ public static class ErrorCodes
     public const string ServerError = "SERVER_ERROR";
     public const string AccountLocked = "ACCOUNT_LOCKED";
     public const string PasswordExpired = "PASSWORD_EXPIRED";
+    public const string ConflictError = "CONFLICT_ERROR";
     public const string TokenExpired = "TOKEN_EXPIRED";
     public const string IdempotencyRequired = "IDEMPOTENCY_REQUIRED";
     public const string IdempotencyConflict = "IDEMPOTENCY_CONFLICT";
