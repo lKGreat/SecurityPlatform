@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -135,27 +136,54 @@ public sealed class LicenseActivationService : ILicenseActivationService
 
     private static string EncryptContent(string rawContent)
     {
-        // 对称加密存储（使用固定派生密钥，防止明文落库）
-        var key = DeriveStorageKey();
+        var plainBytes = Encoding.UTF8.GetBytes(rawContent);
+        var encrypted = OperatingSystem.IsWindows()
+            ? EncryptDpapi(plainBytes)
+            : EncryptAesGcm(plainBytes);
+        return Convert.ToBase64String(encrypted);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static byte[] EncryptDpapi(byte[] plainBytes) =>
+        // 机器级 DPAPI：密钥由 Windows LSA 管理，无法在其他机器上解密
+        ProtectedData.Protect(plainBytes, null, DataProtectionScope.LocalMachine);
+
+    private static byte[] EncryptAesGcm(byte[] plainBytes)
+    {
+        var key = DeriveLinuxStorageKey();
         var nonce = RandomNumberGenerator.GetBytes(AesGcm.NonceByteSizes.MaxSize);
         var tag = new byte[AesGcm.TagByteSizes.MaxSize];
-        var plainBytes = Encoding.UTF8.GetBytes(rawContent);
         var ciphertext = new byte[plainBytes.Length];
 
         using var aes = new AesGcm(key, AesGcm.TagByteSizes.MaxSize);
         aes.Encrypt(nonce, plainBytes, ciphertext, tag);
 
-        // nonce(12) + tag(16) + ciphertext
+        // 格式：nonce(12) + tag(16) + ciphertext
         var result = new byte[nonce.Length + tag.Length + ciphertext.Length];
         Buffer.BlockCopy(nonce, 0, result, 0, nonce.Length);
         Buffer.BlockCopy(tag, 0, result, nonce.Length, tag.Length);
         Buffer.BlockCopy(ciphertext, 0, result, nonce.Length + tag.Length, ciphertext.Length);
-        return Convert.ToBase64String(result);
+        return result;
     }
 
-    private static byte[] DeriveStorageKey()
+    /// <summary>
+    /// Linux 下从 /etc/machine-id 派生 AES 密钥（该文件由 systemd 生成，对普通用户只读）。
+    /// 使用与 LicenseStateSealService 不同的 domain 后缀，避免两处密文互相解密。
+    /// </summary>
+    private static byte[] DeriveLinuxStorageKey()
     {
-        const string seed = "atlas-license-storage-key-v1";
-        return SHA256.HashData(Encoding.UTF8.GetBytes(seed + Environment.MachineName));
+        string machineId;
+        try
+        {
+            machineId = File.Exists("/etc/machine-id")
+                ? File.ReadAllText("/etc/machine-id").Trim()
+                : Environment.MachineName;
+        }
+        catch
+        {
+            machineId = Environment.MachineName;
+        }
+
+        return SHA256.HashData(Encoding.UTF8.GetBytes(machineId + "|atlas-license-raw-v1"));
     }
 }

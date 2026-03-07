@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Atlas.Application.License.Abstractions;
 using Atlas.Application.License.Models;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Atlas.Infrastructure.Services.License;
@@ -13,14 +14,20 @@ namespace Atlas.Infrastructure.Services.License;
 /// </summary>
 public sealed class LicenseSignatureService : ILicenseSignatureService
 {
-    // 内嵌公钥（PEM 格式）。颁发工具生成密钥对后，将公钥嵌入此处。
-    // 使用占位公钥，正式发布时替换为实际公钥。
+    // 内嵌公钥（PEM 格式）。颁发工具生成密钥对后，将公钥嵌入此处再发布。
+    // ⚠️ 此为开发期占位符。发布前必须替换为颁发工具导出的实际公钥，否则生产启动将失败。
     private const string EmbeddedPublicKeyPem = """
         -----BEGIN PUBLIC KEY-----
         MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPLAeG/ADI5HmfBGNNY3Y7v0bS5zx
         Xo7Fp3tGKY6sU5Y+RJnGNMvY0Gh+wXMpq3DhKnF+sDqFZmKR7v0HdLPZpA==
         -----END PUBLIC KEY-----
         """;
+
+    // Base64 主体（去除 PEM 头尾与空白）对应上方占位公钥。
+    // 用于启动时与 EmbeddedPublicKeyPem 的实际内容比对，防止占位符流入生产。
+    private const string PlaceholderKeyBody =
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPLAeG/ADI5HmfBGNNY3Y7v0bS5zx" +
+        "Xo7Fp3tGKY6sU5Y+RJnGNMvY0Gh+wXMpq3DhKnF+sDqFZmKR7v0HdLPZpA==";
 
     private readonly ILogger<LicenseSignatureService> _logger;
 
@@ -30,9 +37,35 @@ public sealed class LicenseSignatureService : ILicenseSignatureService
         WriteIndented = false
     };
 
-    public LicenseSignatureService(ILogger<LicenseSignatureService> logger)
+    public LicenseSignatureService(ILogger<LicenseSignatureService> logger, IHostEnvironment environment)
     {
         _logger = logger;
+        GuardAgainstPlaceholderKey(environment.IsProduction());
+    }
+
+    /// <summary>
+    /// 检测 EmbeddedPublicKeyPem 是否仍为占位符。
+    /// 生产环境抛出异常阻止启动；开发环境记录警告允许继续运行。
+    /// </summary>
+    private void GuardAgainstPlaceholderKey(bool isProduction)
+    {
+        var pemBody = string.Concat(
+            EmbeddedPublicKeyPem
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Trim())
+                .Where(l => !l.StartsWith("-----")));
+
+        if (pemBody != PlaceholderKeyBody)
+            return;
+
+        const string guidance =
+            "EmbeddedPublicKeyPem 仍为开发期占位符公钥。" +
+            "请使用 Atlas.LicenseIssuer 生成密钥对，将导出的公钥替换 LicenseSignatureService 中的常量后重新编译发布。";
+
+        if (isProduction)
+            throw new InvalidOperationException($"[License] 生产环境安全检查失败：{guidance}");
+
+        _logger.LogWarning("[License] 开发环境警告：{Guidance}", guidance);
     }
 
     public LicenseEnvelope? Parse(string rawContent)

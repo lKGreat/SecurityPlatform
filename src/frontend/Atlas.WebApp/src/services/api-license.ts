@@ -22,6 +22,7 @@ export async function getLicenseStatus(): Promise<LicenseStatus> {
       issuedAt: null,
       expiresAt: null,
       remainingDays: null,
+      machineBound: false,
       machineMatched: false,
       features: {},
       limits: {},

@@ -18,9 +18,6 @@ public sealed class MachineFingerprintService : IMachineFingerprintService
     private readonly ILogger<MachineFingerprintService> _logger;
     private string? _cachedFingerprint;
 
-    // 时间回拨容忍：当前时间比机器最大已观测时间早超过此值时认为异常
-    private static readonly TimeSpan ClockSkewTolerance = TimeSpan.FromMinutes(10);
-
     public MachineFingerprintService(ILogger<MachineFingerprintService> logger)
     {
         _logger = logger;
@@ -32,8 +29,11 @@ public sealed class MachineFingerprintService : IMachineFingerprintService
             return _cachedFingerprint;
 
         var components = CollectFingerprintComponents();
-        var raw = string.Join("|", components.Where(c => !string.IsNullOrWhiteSpace(c)));
-        _cachedFingerprint = ComputeSha256(raw);
+        // 每个组件单独哈希后用 ':' 连接，保留各分量以支持模糊匹配
+        var partHashes = components
+            .Select(c => string.IsNullOrWhiteSpace(c) ? string.Empty : ComputeSha256(c))
+            .ToArray();
+        _cachedFingerprint = string.Join(":", partHashes);
         return _cachedFingerprint;
     }
 
@@ -52,19 +52,34 @@ public sealed class MachineFingerprintService : IMachineFingerprintService
             return true;
 
         // 容错：逐项比对，允许 1 项次指纹不匹配
-        return FuzzyMatch(storedFingerprint);
+        return FuzzyMatch(storedFingerprint, current);
     }
 
-    private bool FuzzyMatch(string storedFingerprint)
+    private bool FuzzyMatch(string storedFingerprint, string currentFingerprint)
     {
         try
         {
-            var currentComponents = CollectFingerprintComponents();
-            // 主指纹（索引 0）必须匹配；次指纹允许 1 项不同
-            // 无法反推存储的组件，退为精确比较
-            // 实际部署中，可将组件分别哈希存储
-            var current = ComputeSha256(string.Join("|", currentComponents.Where(c => !string.IsNullOrWhiteSpace(c))));
-            return string.Equals(current, storedFingerprint, StringComparison.OrdinalIgnoreCase);
+            var storedParts = storedFingerprint.Split(':');
+            var currentParts = currentFingerprint.Split(':');
+
+            // 旧格式（不含 ':'）无法逐项比对，只能精确匹配，此处已确认不匹配
+            if (storedParts.Length < 2 || currentParts.Length < 2)
+                return false;
+
+            // 主指纹（索引 0：MachineGuid / machine-id）必须完全一致
+            if (!string.Equals(storedParts[0], currentParts[0], StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // 次指纹（MachineName、MAC 地址等）允许 1 项不同
+            var length = Math.Min(storedParts.Length, currentParts.Length);
+            var mismatches = 0;
+            for (var i = 1; i < length; i++)
+            {
+                if (!string.Equals(storedParts[i], currentParts[i], StringComparison.OrdinalIgnoreCase))
+                    mismatches++;
+            }
+
+            return mismatches <= 1;
         }
         catch
         {

@@ -46,17 +46,18 @@ public sealed class LicenseGuardService : ILicenseService
     public int GetLimit(string limitKey)
     {
         var status = _currentStatus;
-        if (status.Status != "Active")
-            return 0;
+        ThrowIfLicenseInactive(status);
 
         return status.Limits.TryGetValue(limitKey, out var limit) ? limit : -1;
     }
 
     public void EnsureWithinLimit(string limitKey, int currentCount)
     {
-        var limit = GetLimit(limitKey);
-        if (limit < 0)
-            return; // -1 表示不限制
+        var status = _currentStatus;
+        ThrowIfLicenseInactive(status);
+
+        if (!status.Limits.TryGetValue(limitKey, out var limit) || limit < 0)
+            return; // 限额不存在或 -1 均表示不限制
 
         if (currentCount >= limit)
         {
@@ -64,6 +65,18 @@ public sealed class LicenseGuardService : ILicenseService
                 $"已达到授权限额：{limitKey} = {limit}，当前已有 {currentCount} 条记录",
                 ErrorCodes.LicenseLimitExceeded);
         }
+    }
+
+    private static void ThrowIfLicenseInactive(LicenseStatusDto status)
+    {
+        if (status.Status == "Active")
+            return;
+
+        var (message, code) = status.Status == "Expired"
+            ? ("授权证书已过期，请续签后再操作", ErrorCodes.LicenseExpired)
+            : ("授权证书无效或尚未激活，请先导入有效证书", ErrorCodes.LicenseInvalid);
+
+        throw new BusinessException(message, code);
     }
 
     public async Task ReloadAsync(CancellationToken cancellationToken = default)
