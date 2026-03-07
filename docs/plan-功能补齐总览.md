@@ -45,6 +45,22 @@
 - 现有 Phase 1~Phase 5 保留为能力池与历史追踪，不再作为主排期顺序。
 - 新增或变更接口统一以 `docs/contracts.md` 和对应 Sprint 契约段为准。
 
+### 产品化重构关键变更基线（与主计划同步）
+
+- 统一元模型：`AppManifest`、`AppRelease`、`RuntimeRoute`、`PackageArtifact`、`LicenseGrant`、`ToolAuthorizationPolicy`、`FlowDefinition`。
+- 统一入口：
+  - 平台：`/console`
+  - 应用：`/apps/:appId/*`
+  - 运行：`/r/:appKey/:pageKey`
+  - 兼容：`/settings/*`（Deprecated）
+- 新增 API 分组统一为 `api/v1`（平台/应用/运行/治理），并采用强类型 DTO 与校验。
+- 所有写接口强制 `Idempotency-Key + X-CSRF-TOKEN`，覆盖幂等冲突、跨租户拒绝、敏感字段脱敏契约。
+
+### 验收硬门禁（必须）
+
+- Gate-R1：完成 GUI 手工全链路测试并形成报告（平台 -> 应用 -> 运行 -> 任务/审批 -> 审计）。
+- Gate-R2：契约、`.http`、集成测试、e2e、上线文档与运维手册齐套。
+
 ---
 
 ## Phase 1 - 系统管理基础
