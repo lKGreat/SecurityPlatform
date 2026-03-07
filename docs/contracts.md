@@ -19,7 +19,7 @@
 - `Idempotency-Key: <uuid>`：关键写接口必填（创建/提交/开通/触发任务），幂等键冲突返回 409。
 - `X-CSRF-TOKEN: <token>`：已登录 Web 写请求必填，需先获取 Anti-Forgery Token。
 
-## 平台控制台与应用工作台路由约定（前端）
+## 平台控制面/应用工作台/运行交付面路由约定（前端）
 
 - 平台控制台入口：`/console`
 - 控制台应用视图：`/console/apps`
@@ -31,11 +31,12 @@
   - `/apps/:appId/builder`
   - `/apps/:appId/settings`
   - `/apps/:appId/run/:pageKey`
+- 运行交付面入口：`/r/:appKey/:pageKey`
 
 说明：
 
 - 登录成功默认跳转 `/console`（若 `redirect` 参数存在且可访问则优先）。
-- 旧有 `/settings/*` 与 `/lowcode/*` 路由保持兼容。
+- 旧有 `/settings/*` 与 `/lowcode/*` 路由保持兼容并标记 `Deprecated`（弃用窗口 6 个月）。
 
 ## 产品化重构 v1 契约增量（12 Sprint 基线）
 
@@ -83,7 +84,8 @@
   - `GET /api/v1/tools/authorization-policies`
   - `PUT /api/v1/tools/authorization-policies/{id}`
   - `POST /api/v1/tools/authorization-policies/simulate`
-  - `GET /api/v1/tools/authorization-audits`
+  - `GET /api/v1/tools/authorization-policies/audit`
+  - `GET /api/v1/tools/authorization-audits`（兼容别名，后续弃用）
 
 ### 写接口安全约束（强制）
 
@@ -93,6 +95,11 @@
 - 幂等语义：
   - 同 key + 同 payload：返回同一业务结果。
   - 同 key + 不同 payload：返回 `IDEMPOTENCY_CONFLICT`。
+- 访问控制语义：
+  - 跨租户访问必须拒绝并返回 `CROSS_TENANT_FORBIDDEN`。
+- 敏感字段语义：
+  - 涉及账号、联系方式、密钥片段等敏感字段时，返回值必须按脱敏规则处理。
+  - 审计日志写入禁止记录明文敏感值，仅允许记录脱敏摘要或哈希摘要。
 
 ### 兼容与弃用策略
 
@@ -177,6 +184,8 @@
 - `IDEMPOTENCY_CONFLICT`：幂等键冲突
 - `IDEMPOTENCY_IN_PROGRESS`：幂等键处理中
 - `ANTIFORGERY_TOKEN_INVALID`：CSRF 校验失败
+- `CROSS_TENANT_FORBIDDEN`：跨租户访问被拒绝
+- `SENSITIVE_DATA_POLICY_VIOLATION`：敏感数据策略违规
 
 ## 分页模型
 
