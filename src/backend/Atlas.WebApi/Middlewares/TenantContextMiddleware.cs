@@ -1,7 +1,9 @@
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Tenancy;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Diagnostics;
@@ -39,6 +41,16 @@ public sealed class TenantContextMiddleware
         }
 
         var isAuthenticated = context.User?.Identity?.IsAuthenticated == true;
+        if (!isAuthenticated && context.Request.Headers.ContainsKey("Authorization"))
+        {
+            var authResult = await context.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
+            if (authResult.Succeeded && authResult.Principal is not null)
+            {
+                context.User = authResult.Principal;
+                isAuthenticated = true;
+            }
+        }
+
         var hasHeaderTenant = TryResolveTenantFromHeader(context, out var headerTenantId);
         var hasClaimTenant = TryResolveTenantFromClaim(context, out var claimTenantId);
 
@@ -52,7 +64,7 @@ public sealed class TenantContextMiddleware
 
             if (hasHeaderTenant && headerTenantId != claimTenantId)
             {
-                await WriteTenantErrorAsync(context, StatusCodes.Status403Forbidden, ErrorCodes.Forbidden, "租户标识不一致");
+                await WriteTenantErrorAsync(context, StatusCodes.Status403Forbidden, ErrorCodes.CrossTenantForbidden, "租户标识不一致");
                 return;
             }
 

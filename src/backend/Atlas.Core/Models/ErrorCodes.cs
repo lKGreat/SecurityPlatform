@@ -16,6 +16,7 @@ public static class ErrorCodes
     public const string IdempotencyConflict = "IDEMPOTENCY_CONFLICT";
     public const string IdempotencyInProgress = "IDEMPOTENCY_IN_PROGRESS";
     public const string AntiforgeryTokenInvalid = "ANTIFORGERY_TOKEN_INVALID";
+    public const string CrossTenantForbidden = "CROSS_TENANT_FORBIDDEN";
     public const string MfaRequired = "MFA_REQUIRED";
     public const string LicenseExpired = "LICENSE_EXPIRED";
     public const string LicenseInvalid = "LICENSE_INVALID";
