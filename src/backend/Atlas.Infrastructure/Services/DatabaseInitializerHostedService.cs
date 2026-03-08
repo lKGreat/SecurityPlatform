@@ -13,6 +13,7 @@ using Atlas.Domain.Audit.Entities;
 using Atlas.Domain.DynamicTables.Entities;
 using Atlas.Domain.Identity.Entities;
 using Atlas.Domain.LowCode.Entities;
+using Atlas.Domain.Platform.Entities;
 using Atlas.Domain.System.Entities;
 using Atlas.Domain.Plugins;
 using Atlas.Domain.Events;
@@ -167,7 +168,14 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             // Event Subscriptions
             typeof(Atlas.Domain.Events.EventSubscription),
             // License
-            typeof(Atlas.Domain.License.LicenseRecord));
+            typeof(Atlas.Domain.License.LicenseRecord),
+            // Productization
+            typeof(AppManifest),
+            typeof(AppRelease),
+            typeof(RuntimeRoute),
+            typeof(PackageArtifact),
+            typeof(LicenseGrant),
+            typeof(ToolAuthorizationPolicy));
         await EnsureApprovalSchemaAsync(db, cancellationToken);
 
         // 初始化审批模块种子数据（使用 BootstrapAdmin 的 TenantId）

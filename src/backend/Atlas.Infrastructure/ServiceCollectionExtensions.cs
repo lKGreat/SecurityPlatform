@@ -23,6 +23,8 @@ public static class ServiceCollectionExtensions
         services.AddWorkflowInfrastructure();
         services.AddLowCodeInfrastructure();
         services.AddLicenseInfrastructure();
+        services.AddPlatformInfrastructure();
+        services.AddGovernanceInfrastructure();
 
         // 注册多数据源相关服务
         services.AddScoped<Atlas.Infrastructure.Repositories.TenantDataSourceRepository>();

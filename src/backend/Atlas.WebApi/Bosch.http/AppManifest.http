@@ -1,0 +1,77 @@
+### AppManifest API
+
+@baseUrl = http://localhost:5000
+@tenantId = 00000000-0000-0000-0000-000000000001
+@username = admin
+@password = P@ssw0rd!
+
+### 登录
+# @name login
+POST {{baseUrl}}/api/v1/auth/token
+Content-Type: application/json
+X-Tenant-Id: {{tenantId}}
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+###
+@accessToken = {{login.response.body.$.data.accessToken}}
+
+### 获取 CSRF
+# @name antiforgery
+GET {{baseUrl}}/api/v1/secure/antiforgery
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+###
+@csrfToken = {{antiforgery.response.body.$.data.token}}
+
+### 创建应用清单
+# @name createManifest
+POST {{baseUrl}}/api/v1/app-manifests
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "appKey": "productized_app_2026",
+  "name": "产品化应用示例",
+  "description": "用于产品化重构联调",
+  "category": "Demo",
+  "icon": "appstore",
+  "dataSourceId": 1
+}
+
+###
+@manifestId = {{createManifest.response.body.$.data.Id}}
+
+### 查询清单列表
+GET {{baseUrl}}/api/v1/app-manifests?pageIndex=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 查询清单详情
+GET {{baseUrl}}/api/v1/app-manifests/{{manifestId}}
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 发布应用（创建 release）
+POST {{baseUrl}}/api/v1/app-manifests/{{manifestId}}/releases
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "releaseNote": "Sprint4 first release"
+}
+
+### 工作台概览
+GET {{baseUrl}}/api/v1/app-manifests/{{manifestId}}/workspace/overview
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}

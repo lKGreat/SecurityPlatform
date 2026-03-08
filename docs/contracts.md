@@ -78,13 +78,15 @@
 - 治理面：
   - `POST /api/v1/packages/export`
   - `POST /api/v1/packages/import`
+  - `POST /api/v1/packages/analyze`
   - `POST /api/v1/licenses/offline-request`
   - `POST /api/v1/licenses/import`
-  - `POST /api/v1/licenses/validate`
+  - `GET /api/v1/licenses/validate`
   - `GET /api/v1/tools/authorization-policies`
+  - `POST /api/v1/tools/authorization-policies`
   - `PUT /api/v1/tools/authorization-policies/{id}`
-  - `POST /api/v1/tools/authorization-policies/simulate`
-  - `GET /api/v1/tools/authorization-policies/audit`
+  - `POST /api/v1/tools/simulate`
+  - `GET /api/v1/tools/audit`
   - `GET /api/v1/tools/authorization-audits`（兼容别名，后续弃用）
 
 ### 写接口安全约束（强制）
