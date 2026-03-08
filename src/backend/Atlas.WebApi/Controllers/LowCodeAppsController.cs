@@ -15,6 +15,7 @@ namespace Atlas.WebApi.Controllers;
 
 [ApiController]
 [Route("api/v1/lowcode-apps")]
+[Obsolete("Deprecated since Sprint 1. Please migrate to api/v1/app-manifests and api/v1/packages endpoints.")]
 public sealed class LowCodeAppsController : ControllerBase
 {
     private readonly ILowCodeAppQueryService _queryService;

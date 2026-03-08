@@ -19,3 +19,4 @@ export * from "@/services/api-system";
 export * from "@/services/api-plugin";
 export * from "@/services/api-webhook";
 export * from "@/services/api-license";
+export * from "@/services/api-productization";

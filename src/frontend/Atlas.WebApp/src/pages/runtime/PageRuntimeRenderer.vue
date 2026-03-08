@@ -13,7 +13,7 @@ import { useRoute } from "vue-router";
 import { message } from "ant-design-vue";
 import AmisRenderer from "@/components/amis/amis-renderer.vue";
 import type { AmisSchema } from "@/types/amis";
-import { getLowCodeAppDetail, getLowCodeRuntimePageSchemaByKey } from "@/services/lowcode";
+import { getLowCodeAppByKey, getLowCodeAppDetail, getLowCodeRuntimePageSchemaByKey } from "@/services/lowcode";
 
 const route = useRoute();
 const loading = ref(false);
@@ -22,6 +22,7 @@ const pageTitle = ref("运行态页面");
 const isMobile = computed(() => window.innerWidth <= 768 || route.query.deviceMode === "mobile");
 
 const appId = computed(() => String(route.params.appId ?? ""));
+const appKey = computed(() => String(route.params.appKey ?? ""));
 const pageKey = computed(() => String(route.params.pageKey ?? ""));
 
 function applyRuntimeSubmitApi(schemaNode: unknown, appKeyValue: string, pageKeyValue: string) {
@@ -44,14 +45,16 @@ function applyRuntimeSubmitApi(schemaNode: unknown, appKeyValue: string, pageKey
 }
 
 async function loadRuntime() {
-  if (!appId.value || !pageKey.value) {
+  if ((!appId.value && !appKey.value) || !pageKey.value) {
     schema.value = null;
     return;
   }
 
   loading.value = true;
   try {
-    const app = await getLowCodeAppDetail(appId.value);
+    const app = appId.value
+      ? await getLowCodeAppDetail(appId.value)
+      : await getLowCodeAppByKey(appKey.value);
     const page = app.pages.find((item) => item.pageKey === pageKey.value);
     if (!page) {
       schema.value = null;
@@ -72,7 +75,7 @@ async function loadRuntime() {
 }
 
 onMounted(loadRuntime);
-watch([appId, pageKey], () => {
+watch([appId, appKey, pageKey], () => {
   loadRuntime();
 });
 </script>

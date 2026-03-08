@@ -45,6 +45,7 @@ public sealed class ExceptionHandlingMiddleware
     {
         return code switch
         {
+            ErrorCodes.Conflict => HttpStatusCode.Conflict,
             ErrorCodes.Unauthorized => HttpStatusCode.Unauthorized,
             ErrorCodes.Forbidden => HttpStatusCode.Forbidden,
             ErrorCodes.AccountLocked => HttpStatusCode.Forbidden,

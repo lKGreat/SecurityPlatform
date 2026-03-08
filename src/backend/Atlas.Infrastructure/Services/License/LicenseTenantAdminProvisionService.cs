@@ -78,7 +78,7 @@ public sealed class LicenseTenantAdminProvisionService
             {
                 throw new BusinessException(
                     $"租户 {tenantId.Value} 中已存在同名账号 {username}，且非系统账号，拒绝自动提升权限。",
-                    ErrorCodes.ConflictError);
+                    ErrorCodes.Conflict);
             }
 
             var changed = false;
@@ -201,7 +201,7 @@ public sealed class LicenseTenantAdminProvisionService
         {
             throw new BusinessException(
                 $"租户 {tenantId.Value} 中已存在同名账号 {username}，且非系统账号，拒绝自动提升权限。",
-                ErrorCodes.ConflictError);
+                ErrorCodes.Conflict);
         }
 
         return account;
@@ -239,12 +239,27 @@ public sealed class LicenseTenantAdminProvisionService
         {
             return _idGeneratorAccessor.NextId();
         }
-        catch (BusinessException ex) when (ex.Code == ErrorCodes.ValidationError)
+        catch (BusinessException ex) when (IsIdGenerationValidationError(ex))
         {
             var seed = $"{purpose}:{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}:{Guid.NewGuid():N}";
             var hash = SHA256.HashData(Encoding.UTF8.GetBytes(seed));
             var fallbackId = BitConverter.ToInt64(hash, 0) & long.MaxValue;
             return fallbackId == 0 ? 1 : fallbackId;
         }
+    }
+
+    private static bool IsIdGenerationValidationError(BusinessException ex)
+    {
+        if (!string.Equals(ex.Code, ErrorCodes.ValidationError, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // 仅对雪花ID生成配置/上下文异常启用兜底，避免吞掉其他业务校验错误。
+        return ex.Message.Contains("无法生成ID", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("GeneratorId", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("IdGenerator", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("缺少应用标识", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("缺少租户标识", StringComparison.OrdinalIgnoreCase);
     }
 }
