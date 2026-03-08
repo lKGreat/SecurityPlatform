@@ -1,0 +1,353 @@
+{
+  "executedAt": "2026-03-08T09:31:33.327807+00:00",
+  "baseUrl": "http://localhost:5000",
+  "evidenceDir": "/workspace/docs/evidence/gate-r2-2026-03-08T09-13-49-550Z",
+  "checks": [
+    {
+      "name": "login",
+      "method": "POST",
+      "path": "/api/v1/auth/token",
+      "status": 200,
+      "success": true,
+      "code": "SUCCESS",
+      "message": "OK",
+      "raw": {
+        "success": true,
+        "code": "SUCCESS",
+        "message": "OK",
+        "traceId": "0HNJSU7T84447:00000001",
+        "data": {
+          "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsInRlbmFudF9pZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMSIsInNpZCI6IjE0ODAxMzU4ODAwMzg0MjA0ODAiLCJqdGkiOiIwYTFiM2E3NGUyOTE0ZDMyYjM2OWRjOTFiNmMxMmJjZiIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiMTQ4MDA3NTgwNjM4MTE4Mjk3NiIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJhZG1pbiIsImRpc3BsYXlfbmFtZSI6ImFkbWluIiwiYXBwX2lkIjoiU2VjdXJpdHlQbGF0Zm9ybSIsImNsaWVudF90eXBlIjoiV2ViSDUiLCJjbGllbnRfcGxhdGZvcm0iOiJXZWIiLCJjbGllbnRfY2hhbm5lbCI6IkJyb3dzZXIiLCJjbGllbnRfYWdlbnQiOiJPdGhlciIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6WyJBZG1pbiIsIlN1cGVyQWRtaW4iXSwibmJmIjoxNzcyOTYyMjkzLCJleHAiOjE3NzI5NjMxOTMsImlzcyI6IkF0bGFzLlNlY3VyaXR5UGxhdGZvcm0iLCJhdWQiOiJBdGxhcy5TZWN1cml0eVBsYXRmb3JtIn0.ylj_vVQK3RVzZCl0x5JdmJe21Y3h6Lh8Zsl1DYZ7jYs",
+          "expiresAt": "2026-03-08T09:46:33.3496026+00:00",
+          "refreshToken": "lpHn4C8sYUDuKfwcgHJzQ0Kkymz7xkszFbJ1K2cC7Aqon4adC6HQOpAvzX4LzxezAbvMkfgtFCITAMZKCeNeFQ",
+          "refreshExpiresAt": "2026-03-08T21:31:33.3496026+00:00",
+          "sessionId": "1480135880038420480"
+        }
+      }
+    },
+    {
+      "name": "antiforgery",
+      "method": "GET",
+      "path": "/api/v1/secure/antiforgery",
+      "status": 200,
+      "success": true,
+      "code": "SUCCESS",
+      "message": "OK",
+      "raw": {
+        "success": true,
+        "code": "SUCCESS",
+        "message": "OK",
+        "traceId": "0HNJSU7T84448:00000001",
+        "data": {
+          "token": "CfDJ8O2eDgXDHwVOkKH1DA1w_v5bi8YTqEhfMCh22Wdge670MRSjxOnCB7XS2xPuIMklSJ4Oz44IZZsaBjW5oUC1wAYWq93LHvfyJysCJDiioc4voH54iOQCTDtnCDzEwpK5k3YnFeDfPMzUdq1ugtDJMk3hVXclNxdyCBeLIkevfbrqkk7WeIGbkLR-JSNExRVVpg",
+          "headerName": "X-CSRF-TOKEN"
+        }
+      }
+    },
+    {
+      "name": "lowcode_apps_list_pageIndex_style",
+      "method": "GET",
+      "path": "/api/v1/lowcode-apps?pageIndex=1&pageSize=20",
+      "status": 400,
+      "success": null,
+      "code": null,
+      "message": null,
+      "raw": {
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+        "title": "One or more validation errors occurred.",
+        "status": 400,
+        "errors": {
+          "PageSize": [
+            "'Page Size' 必须在 1 (包含)和 200 (包含)之间， 您输入了 0。"
+          ],
+          "PageIndex": [
+            "'Page Index' 必须大于 '0'。"
+          ]
+        },
+        "traceId": "00-8c44bc0d8aa999f5e198e5a8a433271c-9b2da1bc8a0af1fd-01"
+      }
+    },
+    {
+      "name": "lowcode_apps_list_PageIndex_style",
+      "method": "GET",
+      "path": "/api/v1/lowcode-apps?PageIndex=1&PageSize=20&SortDesc=false",
+      "status": 200,
+      "success": true,
+      "code": "SUCCESS",
+      "message": "OK",
+      "raw": {
+        "success": true,
+        "code": "SUCCESS",
+        "message": "OK",
+        "traceId": "0HNJSU7T8444A:00000001",
+        "data": {
+          "items": [],
+          "total": "0",
+          "pageIndex": 1,
+          "pageSize": 20
+        }
+      }
+    },
+    {
+      "name": "lowcode_app_detail_id1",
+      "method": "GET",
+      "path": "/api/v1/lowcode-apps/1",
+      "status": 200,
+      "success": true,
+      "code": "SUCCESS",
+      "message": "OK",
+      "raw": {
+        "success": true,
+        "code": "SUCCESS",
+        "message": "OK",
+        "traceId": "0HNJSU7T8444B:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "lowcode_app_by_key_crm_demo",
+      "method": "GET",
+      "path": "/api/v1/lowcode-apps/by-key/crm_demo_2026",
+      "status": 200,
+      "success": true,
+      "code": "SUCCESS",
+      "message": "OK",
+      "raw": {
+        "success": true,
+        "code": "SUCCESS",
+        "message": "OK",
+        "traceId": "0HNJSU7T8444C:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "lowcode_app_create_attempt",
+      "method": "POST",
+      "path": "/api/v1/lowcode-apps",
+      "status": 500,
+      "success": false,
+      "code": "SERVER_ERROR",
+      "message": "服务器内部错误",
+      "raw": {
+        "success": false,
+        "code": "SERVER_ERROR",
+        "message": "服务器内部错误",
+        "traceId": "0HNJSU7T8444D:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "runtime_schema_crm_demo",
+      "method": "GET",
+      "path": "/api/v1/runtime/apps/crm_demo_2026/pages/customer-form/schema",
+      "status": 404,
+      "success": false,
+      "code": "NOT_FOUND",
+      "message": "应用 crm_demo_2026 不存在",
+      "raw": {
+        "success": false,
+        "code": "NOT_FOUND",
+        "message": "应用 crm_demo_2026 不存在",
+        "traceId": "0HNJSU7T8444E:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "runtime_menu_crm_demo",
+      "method": "GET",
+      "path": "/api/v1/runtime/apps/crm_demo_2026/menu",
+      "status": 200,
+      "success": true,
+      "code": "SUCCESS",
+      "message": "OK",
+      "raw": {
+        "success": true,
+        "code": "SUCCESS",
+        "message": "OK",
+        "traceId": "0HNJSU7T8444F:00000001",
+        "data": {
+          "appKey": "crm_demo_2026",
+          "items": []
+        }
+      }
+    },
+    {
+      "name": "runtime_tasks_pageIndex_style",
+      "method": "GET",
+      "path": "/api/v1/runtime/tasks?pageIndex=1&pageSize=20",
+      "status": 400,
+      "success": null,
+      "code": null,
+      "message": null,
+      "raw": {
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+        "title": "One or more validation errors occurred.",
+        "status": 400,
+        "errors": {
+          "PageSize": [
+            "'Page Size' 必须在 1 (包含)和 200 (包含)之间， 您输入了 0。"
+          ],
+          "PageIndex": [
+            "'Page Index' 必须大于 '0'。"
+          ]
+        },
+        "traceId": "00-d70082299eedad7d10dc5518e3c32a00-4cf3c9d7c095c2ab-01"
+      }
+    },
+    {
+      "name": "runtime_tasks_PageIndex_style",
+      "method": "GET",
+      "path": "/api/v1/runtime/tasks?PageIndex=1&PageSize=20&SortDesc=false",
+      "status": 200,
+      "success": true,
+      "code": "SUCCESS",
+      "message": "OK",
+      "raw": {
+        "success": true,
+        "code": "SUCCESS",
+        "message": "OK",
+        "traceId": "0HNJSU7T8444H:00000001",
+        "data": {
+          "items": [],
+          "total": "0",
+          "pageIndex": 1,
+          "pageSize": 20
+        }
+      }
+    },
+    {
+      "name": "runtime_schema_draft_expected_fail",
+      "method": "GET",
+      "path": "/api/v1/runtime/apps/crm_demo_2026/pages/draft-only-page/schema",
+      "status": 404,
+      "success": false,
+      "code": "NOT_FOUND",
+      "message": "应用 crm_demo_2026 不存在",
+      "raw": {
+        "success": false,
+        "code": "NOT_FOUND",
+        "message": "应用 crm_demo_2026 不存在",
+        "traceId": "0HNJSU7T8444I:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "runtime_records_missing_idempotency_csrf",
+      "method": "POST",
+      "path": "/api/v1/runtime/apps/crm_demo_2026/pages/customer-form/records",
+      "status": 400,
+      "success": false,
+      "code": "IDEMPOTENCY_REQUIRED",
+      "message": "缺少幂等键",
+      "raw": {
+        "success": false,
+        "code": "IDEMPOTENCY_REQUIRED",
+        "message": "缺少幂等键",
+        "traceId": "0HNJSU7T8444J:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "runtime_records_missing_idempotency_only",
+      "method": "POST",
+      "path": "/api/v1/runtime/apps/crm_demo_2026/pages/customer-form/records",
+      "status": 400,
+      "success": false,
+      "code": "IDEMPOTENCY_REQUIRED",
+      "message": "缺少幂等键",
+      "raw": {
+        "success": false,
+        "code": "IDEMPOTENCY_REQUIRED",
+        "message": "缺少幂等键",
+        "traceId": "0HNJSU7T8444K:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "runtime_records_missing_csrf_only",
+      "method": "POST",
+      "path": "/api/v1/runtime/apps/crm_demo_2026/pages/customer-form/records",
+      "status": 404,
+      "success": false,
+      "code": "NOT_FOUND",
+      "message": "应用 crm_demo_2026 不存在",
+      "raw": {
+        "success": false,
+        "code": "NOT_FOUND",
+        "message": "应用 crm_demo_2026 不存在",
+        "traceId": "0HNJSU7T8444L:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "runtime_records_with_headers",
+      "method": "POST",
+      "path": "/api/v1/runtime/apps/crm_demo_2026/pages/customer-form/records",
+      "status": 404,
+      "success": false,
+      "code": "NOT_FOUND",
+      "message": "应用 crm_demo_2026 不存在",
+      "raw": {
+        "success": false,
+        "code": "NOT_FOUND",
+        "message": "应用 crm_demo_2026 不存在",
+        "traceId": "0HNJSU7T8444M:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "cross_tenant_platform_overview",
+      "method": "GET",
+      "path": "/api/v1/platform/overview",
+      "status": 200,
+      "success": true,
+      "code": "SUCCESS",
+      "message": "OK",
+      "raw": {
+        "success": true,
+        "code": "SUCCESS",
+        "message": "OK",
+        "traceId": "0HNJSU7T8444N:00000001",
+        "data": {
+          "appCount": 0,
+          "releaseCount": 0,
+          "activeRouteCount": 0,
+          "policyCount": 0,
+          "licenseCount": 2
+        }
+      }
+    },
+    {
+      "name": "cross_tenant_lowcode_app_detail",
+      "method": "GET",
+      "path": "/api/v1/lowcode-apps/1",
+      "status": 403,
+      "success": false,
+      "code": "FORBIDDEN",
+      "message": "没有权限访问",
+      "raw": {
+        "success": false,
+        "code": "FORBIDDEN",
+        "message": "没有权限访问",
+        "traceId": "0HNJSU7T8444O:00000001",
+        "data": null
+      }
+    },
+    {
+      "name": "runtime_schema_unauthorized",
+      "method": "GET",
+      "path": "/api/v1/runtime/apps/crm_demo_2026/pages/customer-form/schema",
+      "status": 401,
+      "success": false,
+      "code": "UNAUTHORIZED",
+      "message": "未认证或认证失败",
+      "raw": {
+        "success": false,
+        "code": "UNAUTHORIZED",
+        "message": "未认证或认证失败",
+        "traceId": "0HNJSU7T8444P:00000001",
+        "data": null
+      }
+    }
+  ]
+}
