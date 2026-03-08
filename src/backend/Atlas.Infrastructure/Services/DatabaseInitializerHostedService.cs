@@ -68,6 +68,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         await EnsureAuthSessionSchemaAsync(db, cancellationToken);
         await EnsureRefreshTokenSchemaAsync(db, cancellationToken);
         await EnsureLowCodeAppSchemaAsync(db, cancellationToken);
+        await EnsureLowCodePageSchemaAsync(db, cancellationToken);
         await EnsureLoginLogSchemaAsync(db, cancellationToken);
         db.CodeFirst.InitTables(
         typeof(UserAccount),
@@ -1172,6 +1173,32 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         await RebuildLoginLogTableAsync(db, cancellationToken);
     }
 
+    private static async Task EnsureLowCodePageSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("LowCodePage", false))
+        {
+            return;
+        }
+
+        if (!RequiresNullableColumnFix<LowCodePage>(
+                db,
+                "RoutePath",
+                "Description",
+                "Icon",
+                "ParentPageId",
+                "PublishedSchemaJson",
+                "PublishedVersion",
+                "PublishedAt",
+                "PublishedBy",
+                "PermissionCode",
+                "DataTableKey"))
+        {
+            return;
+        }
+
+        await RebuildLowCodePageTableAsync(db, cancellationToken);
+    }
+
     private static async Task RebuildLowCodeAppTableAsync(ISqlSugarClient db, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -1266,6 +1293,69 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             await db.Ado.ExecuteCommandAsync(copyDataSql);
             await db.Ado.ExecuteCommandAsync("DROP TABLE \"LoginLog\";");
             await db.Ado.ExecuteCommandAsync($"ALTER TABLE \"{tempTableName}\" RENAME TO \"LoginLog\";");
+            db.Ado.CommitTran();
+        }
+        catch
+        {
+            db.Ado.RollbackTran();
+            throw;
+        }
+    }
+
+    private static async Task RebuildLowCodePageTableAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        const string tempTableName = "LowCodePage__tmp_nullable_fix";
+        const string createTempTableSql =
+            """
+            CREATE TABLE "LowCodePage__tmp_nullable_fix" (
+                "AppId" bigint NOT NULL,
+                "PageKey" varchar(255) NOT NULL,
+                "Name" varchar(255) NOT NULL,
+                "PageType" INTEGER NOT NULL,
+                "SchemaJson" varchar(255) NOT NULL,
+                "RoutePath" varchar(255) NULL,
+                "Description" varchar(255) NULL,
+                "Icon" varchar(255) NULL,
+                "SortOrder" INTEGER NOT NULL,
+                "ParentPageId" bigint NULL,
+                "Version" INTEGER NOT NULL,
+                "IsPublished" bit NOT NULL,
+                "PublishedSchemaJson" varchar(255) NULL,
+                "PublishedVersion" INTEGER NULL,
+                "PublishedAt" datetime NULL,
+                "PublishedBy" bigint NULL,
+                "CreatedAt" datetime NOT NULL,
+                "UpdatedAt" datetime NOT NULL,
+                "CreatedBy" bigint NOT NULL,
+                "UpdatedBy" bigint NOT NULL,
+                "PermissionCode" varchar(255) NULL,
+                "DataTableKey" varchar(255) NULL,
+                "TenantIdValue" uniqueidentifier NOT NULL,
+                "Id" bigint NOT NULL
+            );
+            """;
+        const string copyDataSql =
+            """
+            INSERT INTO "LowCodePage__tmp_nullable_fix" (
+                "AppId","PageKey","Name","PageType","SchemaJson","RoutePath","Description","Icon","SortOrder",
+                "ParentPageId","Version","IsPublished","PublishedSchemaJson","PublishedVersion","PublishedAt","PublishedBy",
+                "CreatedAt","UpdatedAt","CreatedBy","UpdatedBy","PermissionCode","DataTableKey","TenantIdValue","Id")
+            SELECT
+                "AppId","PageKey","Name","PageType","SchemaJson","RoutePath","Description","Icon","SortOrder",
+                "ParentPageId","Version","IsPublished","PublishedSchemaJson","PublishedVersion","PublishedAt","PublishedBy",
+                "CreatedAt","UpdatedAt","CreatedBy","UpdatedBy","PermissionCode","DataTableKey","TenantIdValue","Id"
+            FROM "LowCodePage";
+            """;
+
+        try
+        {
+            db.Ado.BeginTran();
+            await db.Ado.ExecuteCommandAsync($"DROP TABLE IF EXISTS \"{tempTableName}\";");
+            await db.Ado.ExecuteCommandAsync(createTempTableSql);
+            await db.Ado.ExecuteCommandAsync(copyDataSql);
+            await db.Ado.ExecuteCommandAsync("DROP TABLE \"LowCodePage\";");
+            await db.Ado.ExecuteCommandAsync($"ALTER TABLE \"{tempTableName}\" RENAME TO \"LowCodePage\";");
             db.Ado.CommitTran();
         }
         catch
