@@ -2,6 +2,7 @@
 
 @baseUrl = http://localhost:5000
 @tenantId = 00000000-0000-0000-0000-000000000001
+@wrongTenantId = 00000000-0000-0000-0000-000000000002
 @username = admin
 @password = P@ssw0rd!
 
@@ -23,6 +24,11 @@ X-Tenant-Id: {{tenantId}}
 GET {{baseUrl}}/api/v1/platform/overview
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
+
+### 平台概览（错租户头，应返回 403/CROSS_TENANT_FORBIDDEN）
+GET {{baseUrl}}/api/v1/platform/overview
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{wrongTenantId}}
 
 ### 平台资源
 GET {{baseUrl}}/api/v1/platform/resources

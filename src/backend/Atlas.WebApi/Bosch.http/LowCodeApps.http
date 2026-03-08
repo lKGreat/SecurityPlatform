@@ -66,6 +66,30 @@ GET {{baseUrl}}/api/v1/lowcode-apps?pageIndex=1&pageSize=20&keyword=crm
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 分页查询应用（PascalCase 兼容）
+GET {{baseUrl}}/api/v1/lowcode-apps?PageIndex=1&PageSize=20&keyword=crm
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 创建应用（DataSourceId 可空，回归 P0）
+POST {{baseUrl}}/api/v1/lowcode-apps
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "appKey": "crm_nullable_ds_{{$timestamp}}",
+  "name": "DataSource 可空回归应用",
+  "description": "验证 LowCodeApp.DataSourceId 可空兼容",
+  "category": "CRM",
+  "icon": "customer-service",
+  "useSharedUsers": true,
+  "useSharedRoles": true,
+  "useSharedDepartments": true
+}
+
 ### 查询应用详情（含页面列表）
 GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}
 Authorization: Bearer {{accessToken}}

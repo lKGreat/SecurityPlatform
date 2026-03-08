@@ -1,0 +1,36 @@
+{
+  "login": {
+    "status": 200,
+    "code": "SUCCESS"
+  },
+  "csrf": {
+    "status": 200,
+    "code": "SUCCESS"
+  },
+  "lowcode_create_without_dataSource": {
+    "status": 200,
+    "code": "SUCCESS",
+    "message": "OK",
+    "dataSourceId": null
+  },
+  "runtime_schema_crm_demo_customer_form": {
+    "status": 200,
+    "code": "SUCCESS",
+    "message": "OK"
+  },
+  "lowcode_paging_camelCase": {
+    "status": 200,
+    "code": "SUCCESS",
+    "message": "OK"
+  },
+  "lowcode_paging_pascalCase": {
+    "status": 200,
+    "code": "SUCCESS",
+    "message": "OK"
+  },
+  "platform_overview_cross_tenant": {
+    "status": 403,
+    "code": "CROSS_TENANT_FORBIDDEN",
+    "message": "租户标识不一致"
+  }
+}
