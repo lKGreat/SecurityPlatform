@@ -90,9 +90,16 @@ public sealed class AppManifestQueryService : IAppManifestQueryService
     public async Task<WorkspaceOverviewResponse> GetWorkspaceOverviewAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default)
     {
         var pageCount = await _db.Queryable<Atlas.Domain.LowCode.Entities.LowCodePage>().CountAsync(x => x.AppId == id, cancellationToken);
-        var formCount = await _db.Queryable<Atlas.Domain.LowCode.Entities.FormDefinition>().CountAsync(cancellationToken);
-        var flowCount = await _db.Queryable<Atlas.Domain.Approval.Entities.ApprovalFlowDefinition>().CountAsync(cancellationToken);
-        var tableCount = await _db.Queryable<Atlas.Domain.DynamicTables.Entities.DynamicTable>().CountAsync(cancellationToken);
+        var tableCount = await _db.Queryable<Atlas.Domain.DynamicTables.Entities.DynamicTable>()
+            .CountAsync(x => x.AppId == id, cancellationToken);
+        var formCount = await _db.Queryable<Atlas.Domain.LowCode.Entities.FormDefinition>()
+            .InnerJoin<Atlas.Domain.DynamicTables.Entities.DynamicTable>((form, table) => form.DataTableKey == table.TableKey)
+            .CountAsync((form, table) => table.AppId == id, cancellationToken);
+        var flowCount = await _db.Queryable<Atlas.Domain.DynamicTables.Entities.DynamicTable>()
+            .Where(table => table.AppId == id && table.ApprovalFlowDefinitionId != null)
+            .Select(table => table.ApprovalFlowDefinitionId!.Value)
+            .Distinct()
+            .CountAsync(cancellationToken);
         return new WorkspaceOverviewResponse(pageCount, formCount, flowCount, tableCount);
     }
 

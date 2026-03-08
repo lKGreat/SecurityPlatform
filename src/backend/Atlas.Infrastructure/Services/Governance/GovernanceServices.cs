@@ -118,6 +118,12 @@ public sealed class LicenseGrantService : ILicenseGrantService
             return new LicenseValidateResponse(false, "None", null, "未导入授权");
         }
 
+        var now = DateTimeOffset.UtcNow;
+        if (latest.ExpiresAt.HasValue && latest.ExpiresAt.Value <= now)
+        {
+            return new LicenseValidateResponse(false, "Standard", latest.ExpiresAt.Value.ToString("O"), "授权已过期");
+        }
+
         return new LicenseValidateResponse(true, "Standard", latest.ExpiresAt?.ToString("O"), "授权有效");
     }
 }

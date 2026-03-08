@@ -1,5 +1,3 @@
-using Atlas.Core.Models;
-
 namespace Atlas.Application.Platform.Models;
 
 public sealed record AppManifestCreateRequest(
@@ -81,10 +79,3 @@ public sealed record WorkspacePermissionItem(
 
 public sealed record WorkspacePermissionResponse(
     IReadOnlyList<WorkspacePermissionItem> Items);
-
-public sealed record WorkspacePagedResult<T>(
-    IReadOnlyList<T> Items,
-    int Total)
-{
-    public PagedResult<T> ToPagedResult(int pageIndex, int pageSize) => new(Items, Total, pageIndex, pageSize);
-}
