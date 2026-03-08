@@ -65,6 +65,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
         await EnsureAuthSessionSchemaAsync(db, cancellationToken);
         await EnsureRefreshTokenSchemaAsync(db, cancellationToken);
+        await EnsureLowCodeAppSchemaAsync(db, cancellationToken);
+        await EnsureLoginLogSchemaAsync(db, cancellationToken);
         db.CodeFirst.InitTables(
         typeof(UserAccount),
         typeof(Role),
@@ -982,6 +984,40 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         }
 
         await RebuildTableViaOrmAsync<RefreshToken>(db, cancellationToken);
+    }
+
+    private static async Task EnsureLowCodeAppSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("LowCodeApp", false))
+        {
+            return;
+        }
+
+        // 兼容历史 SQLite 表结构：
+        // DataSourceId / PublishedAt / PublishedBy 曾被建成 NOT NULL，导致创建应用时触发约束异常。
+        if (!RequiresNullableColumnFix<LowCodeApp>(db, "DataSourceId", "PublishedAt", "PublishedBy"))
+        {
+            return;
+        }
+
+        await RebuildTableViaOrmAsync<LowCodeApp>(db, cancellationToken);
+    }
+
+    private static async Task EnsureLoginLogSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("LoginLog", false))
+        {
+            return;
+        }
+
+        // 兼容历史 SQLite 表结构：
+        // Browser / OperatingSystem / Message 曾被建成 NOT NULL，与实体可空声明不一致。
+        if (!RequiresNullableColumnFix<LoginLog>(db, "Browser", "OperatingSystem", "Message"))
+        {
+            return;
+        }
+
+        await RebuildTableViaOrmAsync<LoginLog>(db, cancellationToken);
     }
 
     private async Task EnsureBuiltInSystemConfigsAsync(
