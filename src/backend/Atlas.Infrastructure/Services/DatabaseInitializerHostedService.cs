@@ -222,7 +222,9 @@ public sealed class DatabaseInitializerHostedService : IHostedService
 
         if (_environment.IsDevelopment() && Guid.TryParse(_bootstrapOptions.TenantId, out var demoTenantGuid))
         {
-            await EnsureRuntimeDemoDataAsync(db, idGeneratorAccessor, new TenantId(demoTenantGuid), cancellationToken);
+            var demoTenantId = new TenantId(demoTenantGuid);
+            using var demoScope = appContextAccessor.BeginScope(CreateSystemContext(appContextAccessor, demoTenantId));
+            await EnsureRuntimeDemoDataAsync(db, idGeneratorAccessor, demoTenantId, cancellationToken);
         }
 
         // 启动时加载授权证书状态到内存（不阻塞启动）
