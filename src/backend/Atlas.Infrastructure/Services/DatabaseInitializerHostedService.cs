@@ -1152,7 +1152,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             return;
         }
 
-        await RebuildTableViaOrmAsync<LowCodeApp>(db, cancellationToken);
+        await RebuildLowCodeAppTableAsync(db, cancellationToken);
     }
 
     private static async Task EnsureLoginLogSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
@@ -1169,7 +1169,110 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             return;
         }
 
-        await RebuildTableViaOrmAsync<LoginLog>(db, cancellationToken);
+        await RebuildLoginLogTableAsync(db, cancellationToken);
+    }
+
+    private static async Task RebuildLowCodeAppTableAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        const string tempTableName = "LowCodeApp__tmp_nullable_fix";
+        const string createTempTableSql =
+            """
+            CREATE TABLE "LowCodeApp__tmp_nullable_fix" (
+                "AppKey" varchar(255) NOT NULL,
+                "Name" varchar(255) NOT NULL,
+                "Description" varchar(255) NOT NULL,
+                "Category" varchar(255) NOT NULL,
+                "Icon" varchar(255) NOT NULL,
+                "DataSourceId" bigint NULL,
+                "UseSharedUsers" bit NOT NULL,
+                "UseSharedRoles" bit NOT NULL,
+                "UseSharedDepartments" bit NOT NULL,
+                "Version" INTEGER NOT NULL,
+                "Status" INTEGER NOT NULL,
+                "CreatedAt" datetime NOT NULL,
+                "UpdatedAt" datetime NOT NULL,
+                "CreatedBy" bigint NOT NULL,
+                "UpdatedBy" bigint NOT NULL,
+                "PublishedAt" datetime NULL,
+                "PublishedBy" bigint NULL,
+                "ConfigJson" varchar(255) NOT NULL,
+                "TenantIdValue" uniqueidentifier NOT NULL,
+                "Id" bigint NOT NULL
+            );
+            """;
+        const string copyDataSql =
+            """
+            INSERT INTO "LowCodeApp__tmp_nullable_fix" (
+                "AppKey","Name","Description","Category","Icon","DataSourceId","UseSharedUsers","UseSharedRoles",
+                "UseSharedDepartments","Version","Status","CreatedAt","UpdatedAt","CreatedBy","UpdatedBy","PublishedAt",
+                "PublishedBy","ConfigJson","TenantIdValue","Id")
+            SELECT
+                "AppKey","Name","Description","Category","Icon","DataSourceId","UseSharedUsers","UseSharedRoles",
+                "UseSharedDepartments","Version","Status","CreatedAt","UpdatedAt","CreatedBy","UpdatedBy","PublishedAt",
+                "PublishedBy","ConfigJson","TenantIdValue","Id"
+            FROM "LowCodeApp";
+            """;
+
+        try
+        {
+            db.Ado.BeginTran();
+            await db.Ado.ExecuteCommandAsync($"DROP TABLE IF EXISTS \"{tempTableName}\";");
+            await db.Ado.ExecuteCommandAsync(createTempTableSql);
+            await db.Ado.ExecuteCommandAsync(copyDataSql);
+            await db.Ado.ExecuteCommandAsync("DROP TABLE \"LowCodeApp\";");
+            await db.Ado.ExecuteCommandAsync($"ALTER TABLE \"{tempTableName}\" RENAME TO \"LowCodeApp\";");
+            db.Ado.CommitTran();
+        }
+        catch
+        {
+            db.Ado.RollbackTran();
+            throw;
+        }
+    }
+
+    private static async Task RebuildLoginLogTableAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        const string tempTableName = "LoginLog__tmp_nullable_fix";
+        const string createTempTableSql =
+            """
+            CREATE TABLE "LoginLog__tmp_nullable_fix" (
+                "Username" varchar(255) NOT NULL,
+                "IpAddress" varchar(255) NOT NULL,
+                "Browser" varchar(255) NULL,
+                "OperatingSystem" varchar(255) NULL,
+                "LoginStatus" bit NOT NULL,
+                "Message" varchar(255) NULL,
+                "LoginTime" datetime NOT NULL,
+                "TenantIdValue" uniqueidentifier NOT NULL,
+                "Id" bigint NOT NULL
+            );
+            """;
+        const string copyDataSql =
+            """
+            INSERT INTO "LoginLog__tmp_nullable_fix" (
+                "Username","IpAddress","Browser","OperatingSystem","LoginStatus","Message","LoginTime","TenantIdValue","Id")
+            SELECT
+                "Username","IpAddress","Browser","OperatingSystem","LoginStatus","Message","LoginTime","TenantIdValue","Id"
+            FROM "LoginLog";
+            """;
+
+        try
+        {
+            db.Ado.BeginTran();
+            await db.Ado.ExecuteCommandAsync($"DROP TABLE IF EXISTS \"{tempTableName}\";");
+            await db.Ado.ExecuteCommandAsync(createTempTableSql);
+            await db.Ado.ExecuteCommandAsync(copyDataSql);
+            await db.Ado.ExecuteCommandAsync("DROP TABLE \"LoginLog\";");
+            await db.Ado.ExecuteCommandAsync($"ALTER TABLE \"{tempTableName}\" RENAME TO \"LoginLog\";");
+            db.Ado.CommitTran();
+        }
+        catch
+        {
+            db.Ado.RollbackTran();
+            throw;
+        }
     }
 
     private async Task EnsureBuiltInSystemConfigsAsync(
