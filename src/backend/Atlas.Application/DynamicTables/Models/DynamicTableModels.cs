@@ -79,7 +79,8 @@ public sealed record DynamicFieldDefinition(
     bool IsAutoIncrement,
     bool IsUnique,
     string? DefaultValue,
-    int SortOrder);
+    int SortOrder,
+    DynamicFieldValidationDefinition? Validation = null);
 
 public sealed record DynamicFieldUpdateDefinition(
     string Name,
@@ -90,7 +91,13 @@ public sealed record DynamicFieldUpdateDefinition(
     bool? AllowNull,
     bool? IsUnique,
     string? DefaultValue,
-    int? SortOrder);
+    int? SortOrder,
+    DynamicFieldValidationDefinition? Validation = null);
+
+public sealed record DynamicFieldValidationDefinition(
+    string? Pattern,
+    int? MinLength,
+    int? MaxLength);
 
 public sealed record DynamicIndexDefinition(
     string Name,

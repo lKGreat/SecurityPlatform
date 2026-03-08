@@ -67,6 +67,11 @@ public sealed record RuntimeTaskActionRequest(
     string Action,
     string? Comment);
 
+public sealed record RuntimePageActionRequest(
+    string TaskId,
+    string Action,
+    string? Comment);
+
 public sealed record RuntimeMenuItem(
     string PageKey,
     string Title,

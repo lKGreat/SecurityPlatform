@@ -59,7 +59,12 @@ X-CSRF-TOKEN: {{csrfToken}}
       "isPrimaryKey": false,
       "isAutoIncrement": false,
       "isUnique": true,
-      "sortOrder": 1
+      "sortOrder": 1,
+      "validation": {
+        "pattern": "^SO-[0-9]{5}$",
+        "minLength": 8,
+        "maxLength": 8
+      }
     },
     {
       "name": "amount",
@@ -81,6 +86,62 @@ X-CSRF-TOKEN: {{csrfToken}}
       "fields": ["orderNo"]
     }
   ]
+}
+
+### 预览动态表结构变更（新增校验字段 + 删除旧字段）
+POST {{baseUrl}}/api/v1/dynamic-tables/orders/schema/alter/preview
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "addFields": [
+    {
+      "name": "remark",
+      "displayName": "备注",
+      "fieldType": "String",
+      "length": 200,
+      "allowNull": true,
+      "isPrimaryKey": false,
+      "isAutoIncrement": false,
+      "isUnique": false,
+      "sortOrder": 9,
+      "validation": {
+        "maxLength": 200
+      }
+    }
+  ],
+  "updateFields": [],
+  "removeFields": ["amount"]
+}
+
+### 执行动态表结构变更（新增校验字段 + 删除旧字段）
+POST {{baseUrl}}/api/v1/dynamic-tables/orders/schema/alter
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$randomUUID}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "addFields": [
+    {
+      "name": "remark",
+      "displayName": "备注",
+      "fieldType": "String",
+      "length": 200,
+      "allowNull": true,
+      "isPrimaryKey": false,
+      "isAutoIncrement": false,
+      "isUnique": false,
+      "sortOrder": 9,
+      "validation": {
+        "maxLength": 200
+      }
+    }
+  ],
+  "updateFields": [],
+  "removeFields": ["amount"]
 }
 
 ### List Dynamic Tables

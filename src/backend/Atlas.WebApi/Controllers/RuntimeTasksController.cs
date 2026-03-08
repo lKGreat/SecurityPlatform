@@ -54,6 +54,27 @@ public sealed class RuntimeTasksController : ControllerBase
         return Ok(ApiResponse<PagedResult<RuntimeTaskListItem>>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("tasks/inbox")]
+    public Task<ActionResult<ApiResponse<PagedResult<RuntimeTaskListItem>>>> GetInboxTasks(
+        [FromQuery] PagedRequest request,
+        CancellationToken cancellationToken) => GetTasks(request, cancellationToken);
+
+    [HttpGet("tasks/done")]
+    public async Task<ActionResult<ApiResponse<PagedResult<RuntimeTaskListItem>>>> GetDoneTasks(
+        [FromQuery] PagedRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = _currentUserAccessor.GetCurrentUser();
+        if (currentUser is null)
+        {
+            return Unauthorized(ApiResponse<PagedResult<RuntimeTaskListItem>>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        }
+
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _runtimeService.GetRuntimeDoneTasksAsync(tenantId, currentUser.UserId, request, cancellationToken);
+        return Ok(ApiResponse<PagedResult<RuntimeTaskListItem>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("apps/{appKey}/menu")]
     public async Task<ActionResult<ApiResponse<RuntimeMenuResponse>>> GetRuntimeMenu(
         string appKey,
@@ -79,5 +100,26 @@ public sealed class RuntimeTasksController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         var ok = await _runtimeService.ExecuteRuntimeTaskActionAsync(tenantId, currentUser.UserId, taskId, request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Success = ok }, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("apps/{appKey}/pages/{pageKey}/actions")]
+    public async Task<ActionResult<ApiResponse<object>>> ExecutePageTaskAction(
+        string appKey,
+        string pageKey,
+        [FromBody] RuntimePageActionRequest request,
+        CancellationToken cancellationToken)
+    {
+        _ = appKey;
+        _ = pageKey;
+
+        if (!long.TryParse(request.TaskId, out var taskId))
+        {
+            return BadRequest(ApiResponse<object>.Fail(ErrorCodes.ValidationError, "taskId 无效", HttpContext.TraceIdentifier));
+        }
+
+        return await ExecuteTaskAction(
+            taskId,
+            new RuntimeTaskActionRequest(request.Action, request.Comment),
+            cancellationToken);
     }
 }

@@ -522,7 +522,7 @@ public sealed class DynamicAmisController : ControllerBase
 
     private static object BuildFormItem(DynamicFieldDefinition field)
     {
-        return field.FieldType switch
+        var item = field.FieldType switch
         {
             "Int" => new Dictionary<string, object?>
             {
@@ -569,6 +569,9 @@ public sealed class DynamicAmisController : ControllerBase
                 ["label"] = field.DisplayName ?? field.Name
             }
         };
+
+        ApplyValidationRules(item, field.Validation);
+        return item;
     }
 
     private static object BuildCrudColumn(DynamicFieldDefinition field)
@@ -664,5 +667,37 @@ public sealed class DynamicAmisController : ControllerBase
             },
             _ => null
         };
+    }
+
+    private static void ApplyValidationRules(
+        Dictionary<string, object?> item,
+        DynamicFieldValidationDefinition? validation)
+    {
+        if (validation is null)
+        {
+            return;
+        }
+
+        if (validation.MinLength.HasValue)
+        {
+            item["minLength"] = validation.MinLength.Value;
+        }
+
+        if (validation.MaxLength.HasValue)
+        {
+            item["maxLength"] = validation.MaxLength.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(validation.Pattern))
+        {
+            item["validations"] = new Dictionary<string, object?>
+            {
+                ["matchRegexp"] = validation.Pattern
+            };
+            item["validationErrors"] = new Dictionary<string, object?>
+            {
+                ["matchRegexp"] = "输入格式不符合规则"
+            };
+        }
     }
 }

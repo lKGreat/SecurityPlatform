@@ -1,9 +1,12 @@
 using Atlas.Application.LowCode.Abstractions;
 using Atlas.Application.LowCode.Models;
 using Atlas.Core.Abstractions;
+using Atlas.Core.Exceptions;
+using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.LowCode.Enums;
+using Atlas.Domain.Platform.Entities;
 using Atlas.Domain.System.Entities;
 using SqlSugar;
 using System.Text.Json;
@@ -46,7 +49,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
     {
         if (await _appRepository.ExistsByKeyAsync(tenantId, request.AppKey, cancellationToken: cancellationToken))
         {
-            throw new InvalidOperationException($"应用标识 '{request.AppKey}' 已存在");
+            throw new BusinessException($"应用标识 '{request.AppKey}' 已存在", ErrorCodes.Conflict);
         }
 
         if (request.DataSourceId.HasValue)
@@ -57,7 +60,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
                     cancellationToken);
             if (!hasDataSource)
             {
-                throw new InvalidOperationException($"数据源 ID={request.DataSourceId.Value} 不存在");
+                throw new BusinessException($"数据源 ID={request.DataSourceId.Value} 不存在", ErrorCodes.NotFound);
             }
         }
 
@@ -73,7 +76,27 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
             request.UseSharedDepartments,
             userId, id, now);
 
-        await _appRepository.InsertAsync(entity, cancellationToken);
+        var result = await _db.Ado.UseTranAsync(async () =>
+        {
+            await _appRepository.InsertAsync(entity, cancellationToken);
+            await EnsureAppManifestAsync(
+                tenantId,
+                userId,
+                request.AppKey,
+                request.Name,
+                request.Description,
+                request.Category,
+                request.Icon,
+                request.DataSourceId,
+                now,
+                cancellationToken);
+        });
+
+        if (!result.IsSuccess)
+        {
+            throw result.ErrorException ?? new BusinessException("创建低代码应用失败", ErrorCodes.ValidationError);
+        }
+
         return id;
     }
 
@@ -82,7 +105,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+            ?? throw new BusinessException($"应用 ID={id} 不存在", ErrorCodes.NotFound);
 
         var now = DateTimeOffset.UtcNow;
         entity.Update(request.Name, request.Description, request.Category, request.Icon, userId, now);
@@ -95,7 +118,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+            ?? throw new BusinessException($"应用 ID={id} 不存在", ErrorCodes.NotFound);
         var pages = await _pageRepository.GetByAppIdAsync(tenantId, id, cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
@@ -121,7 +144,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
 
         if (!result.IsSuccess)
         {
-            throw result.ErrorException ?? new InvalidOperationException("发布应用失败");
+            throw result.ErrorException ?? new BusinessException("发布应用失败", ErrorCodes.ValidationError);
         }
     }
 
@@ -133,13 +156,13 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         CancellationToken cancellationToken = default)
     {
         var app = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+            ?? throw new BusinessException($"应用 ID={id} 不存在", ErrorCodes.NotFound);
         var targetVersion = await _versionRepository.GetByIdAsync(tenantId, id, versionId, cancellationToken)
-            ?? throw new InvalidOperationException($"应用版本 ID={versionId} 不存在");
+            ?? throw new BusinessException($"应用版本 ID={versionId} 不存在", ErrorCodes.NotFound);
         var snapshot = DeserializeSnapshot(targetVersion.SnapshotJson);
         if (!string.Equals(snapshot.App.AppKey, app.AppKey, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("版本快照与当前应用不匹配");
+            throw new BusinessException("版本快照与当前应用不匹配", ErrorCodes.ValidationError);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -219,7 +242,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
 
         if (!result.IsSuccess)
         {
-            throw result.ErrorException ?? new InvalidOperationException("回滚应用失败");
+            throw result.ErrorException ?? new BusinessException("回滚应用失败", ErrorCodes.ValidationError);
         }
 
         return rollbackVersion;
@@ -230,7 +253,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+            ?? throw new BusinessException($"应用 ID={id} 不存在", ErrorCodes.NotFound);
 
         var now = DateTimeOffset.UtcNow;
         entity.Disable(userId, now);
@@ -243,7 +266,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+            ?? throw new BusinessException($"应用 ID={id} 不存在", ErrorCodes.NotFound);
 
         var now = DateTimeOffset.UtcNow;
         entity.Enable(userId, now);
@@ -259,7 +282,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+            ?? throw new BusinessException($"应用 ID={id} 不存在", ErrorCodes.NotFound);
 
         var now = DateTimeOffset.UtcNow;
         entity.UpdateSharingPolicy(
@@ -279,7 +302,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         CancellationToken cancellationToken = default)
     {
         _ = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+            ?? throw new BusinessException($"应用 ID={id} 不存在", ErrorCodes.NotFound);
 
         var now = DateTimeOffset.UtcNow;
         var tenantIdValue = tenantId.Value;
@@ -353,7 +376,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
 
         if (!result.IsSuccess)
         {
-            throw result.ErrorException ?? new InvalidOperationException("更新实体别名失败");
+            throw result.ErrorException ?? new BusinessException("更新实体别名失败", ErrorCodes.ValidationError);
         }
     }
 
@@ -362,7 +385,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _appRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={id} 不存在");
+            ?? throw new BusinessException($"应用 ID={id} 不存在", ErrorCodes.NotFound);
 
         await _pageVersionRepository.DeleteByAppIdAsync(tenantId, id, cancellationToken);
         await _pageRepository.DeleteByAppIdAsync(tenantId, id, cancellationToken);
@@ -378,10 +401,10 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         LowCodeAppImportRequest request,
         CancellationToken cancellationToken = default)
     {
-        var package = request.Package ?? throw new InvalidOperationException("导入包不能为空。");
+        var package = request.Package ?? throw new BusinessException("导入包不能为空。", ErrorCodes.ValidationError);
         if (string.IsNullOrWhiteSpace(package.AppKey) || string.IsNullOrWhiteSpace(package.Name))
         {
-            throw new InvalidOperationException("导入包缺少应用标识或名称。");
+            throw new BusinessException("导入包缺少应用标识或名称。", ErrorCodes.ValidationError);
         }
 
         var strategy = NormalizeConflictStrategy(request.ConflictStrategy);
@@ -455,6 +478,17 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         }
 
         await _appRepository.InsertAsync(app, cancellationToken);
+        await EnsureAppManifestAsync(
+            tenantId,
+            userId,
+            targetAppKey,
+            package.Name,
+            package.Description,
+            package.Category,
+            package.Icon,
+            null,
+            now,
+            cancellationToken);
 
         var pagePackages = package.Pages ?? Array.Empty<LowCodeAppExportPagePackage>();
         var pageIdMap = pagePackages
@@ -614,7 +648,7 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
         var snapshot = JsonSerializer.Deserialize<LowCodeAppSnapshot>(snapshotJson, SnapshotJsonOptions);
         if (snapshot is null)
         {
-            throw new InvalidOperationException("应用版本快照无效");
+            throw new BusinessException("应用版本快照无效", ErrorCodes.ValidationError);
         }
 
         return snapshot;
@@ -650,6 +684,35 @@ public sealed class LowCodeAppCommandService : ILowCodeAppCommandService
                 .ToList());
 
         return JsonSerializer.Serialize(snapshot, SnapshotJsonOptions);
+    }
+
+    private async Task EnsureAppManifestAsync(
+        TenantId tenantId,
+        long userId,
+        string appKey,
+        string name,
+        string? description,
+        string? category,
+        string? icon,
+        long? dataSourceId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var manifest = await _db.Queryable<AppManifest>()
+            .FirstAsync(
+                x => x.TenantIdValue == tenantId.Value && x.AppKey == appKey,
+                cancellationToken);
+
+        if (manifest is null)
+        {
+            manifest = new AppManifest(tenantId, _idGenerator.NextId(), appKey, name, userId, now);
+            manifest.Update(name, description, category, icon, dataSourceId, userId, now);
+            await _db.Insertable(manifest).ExecuteCommandAsync(cancellationToken);
+            return;
+        }
+
+        manifest.Update(name, description, category, icon, dataSourceId, userId, now);
+        await _db.Updateable(manifest).ExecuteCommandAsync(cancellationToken);
     }
 
     private sealed record LowCodeAppSnapshot(AppSnapshot App, IReadOnlyList<PageSnapshot> Pages);

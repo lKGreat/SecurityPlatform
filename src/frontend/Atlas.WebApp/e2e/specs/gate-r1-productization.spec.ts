@@ -5,6 +5,10 @@ import { fileURLToPath } from "node:url";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const evidenceDir = path.resolve(currentDir, "../../../../../docs/evidence/gate-r1-20260308");
+const defaultTenantId = "00000000-0000-0000-0000-000000000001";
+const e2eTenantId = process.env.E2E_TEST_TENANT_ID ?? defaultTenantId;
+const e2eUsername = process.env.E2E_TEST_USERNAME ?? "admin";
+const e2ePassword = process.env.E2E_TEST_PASSWORD;
 
 function ensureEvidenceDir() {
   if (!fs.existsSync(evidenceDir)) {
@@ -13,15 +17,18 @@ function ensureEvidenceDir() {
 }
 
 async function login(page: Parameters<typeof test>[0]["page"]) {
-  const tenantId = "00000000-0000-0000-0000-000000000001";
+  if (!e2ePassword) {
+    throw new Error("缺少 E2E_TEST_PASSWORD 环境变量，无法执行 Gate-R1 登录取证。");
+  }
+
   const loginResp = await page.request.post("/api/v1/auth/token", {
     headers: {
       "Content-Type": "application/json",
-      "X-Tenant-Id": tenantId
+      "X-Tenant-Id": e2eTenantId
     },
     data: {
-      username: "admin",
-      password: "P@ssw0rd!"
+      username: e2eUsername,
+      password: e2ePassword
     }
   });
   expect(loginResp.ok()).toBeTruthy();
@@ -35,7 +42,7 @@ async function login(page: Parameters<typeof test>[0]["page"]) {
   }, {
     accessToken: loginJson.data.accessToken,
     refreshToken: loginJson.data.refreshToken,
-    tenantId
+    tenantId: e2eTenantId
   });
 
   await page.goto("/console");

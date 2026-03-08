@@ -25,6 +25,10 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         "select", "from", "where", "table", "index", "create", "drop", "delete", "update", "insert", "alter",
         DynamicSqlBuilder.TenantColumnName
     };
+    private static readonly HashSet<string> ProtectedFieldNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        DynamicSqlBuilder.TenantColumnName
+    };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -169,12 +173,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             throw new BusinessException(ErrorCodes.ValidationError, "当前仅支持 SQLite 动态表结构变更。");
         }
 
-        if (request.RemoveFields.Count > 0)
-        {
-            throw new BusinessException(ErrorCodes.ValidationError, "当前版本暂不支持字段删除。");
-        }
-
-        if (request.AddFields.Count == 0 && request.UpdateFields.Count == 0)
+        if (request.AddFields.Count == 0 && request.UpdateFields.Count == 0 && request.RemoveFields.Count == 0)
         {
             return;
         }
@@ -185,9 +184,12 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         ValidateAddFieldDefinitions(request.AddFields, existingNames);
+        var fieldsToRemove = BuildRemovedFields(request.RemoveFields, existingFields);
         var now = _timeProvider.GetUtcNow();
         var newFields = BuildAddFields(tenantId, table.Id, request.AddFields, existingFields, now);
         var fieldsToUpdate = BuildUpdatedFields(request.UpdateFields, existingFields, now);
+        var existingIndexes = await _indexRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
+        var indexesToDrop = BuildIndexesToDrop(fieldsToRemove, existingIndexes);
         var addColumnOperations = new List<DynamicField>(newFields.Count);
         var generatedIndexes = new List<DynamicIndex>();
         foreach (var field in newFields)
@@ -212,12 +214,15 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         var migrationRecord = BuildMigrationRecord(
             tenantId,
             table,
-            ResolveOperationType(newFields.Count, fieldsToUpdate.Count),
-            BuildMigrationOperationLogs(newFields, fieldsToUpdate),
+            ResolveOperationType(newFields.Count, fieldsToUpdate.Count, fieldsToRemove.Count),
+            BuildMigrationOperationLogs(newFields, fieldsToUpdate, fieldsToRemove),
             userId,
             now);
         var result = await _db.Ado.UseTranAsync(async () =>
         {
+            ExecuteDropIndexesSql(indexesToDrop);
+            ExecuteDropColumnsSql(table.TableKey, fieldsToRemove);
+
             foreach (var field in addColumnOperations)
             {
                 _db.DbMaintenance.AddColumn(table.TableKey, DynamicSqlBuilder.BuildAddColumnInfo(field));
@@ -242,6 +247,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             await _fieldRepository.AddRangeAsync(newFields, cancellationToken);
             await _fieldRepository.UpdateRangeAsync(fieldsToUpdate, cancellationToken);
             await _indexRepository.AddRangeAsync(generatedIndexes, cancellationToken);
+            await DeleteRemovedMetadataAsync(tenantId, table, fieldsToRemove, indexesToDrop, cancellationToken);
             await _tableRepository.UpdateAsync(table, cancellationToken);
             if (_migrationRepository is not null)
             {
@@ -272,12 +278,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             throw new BusinessException(ErrorCodes.ValidationError, "当前仅支持 SQLite 动态表结构变更预览。");
         }
 
-        if (request.RemoveFields.Count > 0)
-        {
-            throw new BusinessException(ErrorCodes.ValidationError, "当前版本暂不支持字段删除。");
-        }
-
-        if (request.AddFields.Count == 0 && request.UpdateFields.Count == 0)
+        if (request.AddFields.Count == 0 && request.UpdateFields.Count == 0 && request.RemoveFields.Count == 0)
         {
             return new DynamicTableAlterPreviewResponse(tableKey, "NOOP", Array.Empty<string>(), "未检测到可执行变更。");
         }
@@ -287,13 +288,14 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             .Select(x => x.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         ValidateAddFieldDefinitions(request.AddFields, existingNames);
+        var removeFields = BuildRemovedFields(request.RemoveFields, existingFields);
 
         var previewFields = BuildPreviewFields(tenantId, table.Id, request.AddFields, existingFields);
         var previewUpdatedFields = BuildPreviewUpdatedFields(request.UpdateFields, existingFields, DateTimeOffset.UtcNow);
-        var operationLogs = BuildMigrationOperationLogs(previewFields, previewUpdatedFields);
+        var operationLogs = BuildMigrationOperationLogs(previewFields, previewUpdatedFields, removeFields);
         return new DynamicTableAlterPreviewResponse(
             tableKey,
-            ResolveOperationType(previewFields.Count, previewUpdatedFields.Count),
+            ResolveOperationType(previewFields.Count, previewUpdatedFields.Count, removeFields.Count),
             operationLogs,
             "当前版本不支持自动回滚，请通过备份恢复。");
     }
@@ -839,11 +841,26 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         return updated;
     }
 
-    private static string ResolveOperationType(int addCount, int updateCount)
+    private static string ResolveOperationType(int addCount, int updateCount, int removeCount)
     {
+        if (addCount > 0 && updateCount > 0 && removeCount > 0)
+        {
+            return "ADD_UPDATE_REMOVE_FIELDS";
+        }
+
         if (addCount > 0 && updateCount > 0)
         {
             return "ADD_UPDATE_FIELDS";
+        }
+
+        if (addCount > 0 && removeCount > 0)
+        {
+            return "ADD_REMOVE_FIELDS";
+        }
+
+        if (updateCount > 0 && removeCount > 0)
+        {
+            return "UPDATE_REMOVE_FIELDS";
         }
 
         if (addCount > 0)
@@ -856,14 +873,20 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             return "UPDATE_FIELDS_META";
         }
 
+        if (removeCount > 0)
+        {
+            return "REMOVE_FIELDS";
+        }
+
         return "NOOP";
     }
 
     private static IReadOnlyList<string> BuildMigrationOperationLogs(
         IReadOnlyList<DynamicField> newFields,
-        IReadOnlyList<DynamicField> updatedFields)
+        IReadOnlyList<DynamicField> updatedFields,
+        IReadOnlyList<DynamicField> removedFields)
     {
-        var scripts = new List<string>(newFields.Count + updatedFields.Count);
+        var scripts = new List<string>(newFields.Count + updatedFields.Count + removedFields.Count);
         foreach (var field in newFields)
         {
             scripts.Add($"ADD COLUMN: {field.Name} ({field.FieldType})");
@@ -878,7 +901,130 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             scripts.Add($"-- UPDATE FIELD META: {field.Name}, displayName={field.DisplayName}, sortOrder={field.SortOrder}");
         }
 
+        foreach (var field in removedFields)
+        {
+            scripts.Add($"DROP COLUMN: {field.Name}");
+        }
+
         return scripts;
+    }
+
+    private static IReadOnlyList<DynamicField> BuildRemovedFields(
+        IReadOnlyList<string> removeFieldNames,
+        IReadOnlyList<DynamicField> existingFields)
+    {
+        if (removeFieldNames.Count == 0)
+        {
+            return Array.Empty<DynamicField>();
+        }
+
+        var existingMap = existingFields.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
+        var removed = new List<DynamicField>(removeFieldNames.Count);
+        foreach (var fieldName in removeFieldNames)
+        {
+            if (!existingMap.TryGetValue(fieldName, out var field))
+            {
+                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{fieldName}' 不存在。");
+            }
+
+            if (field.IsPrimaryKey || field.IsAutoIncrement || ProtectedFieldNames.Contains(field.Name))
+            {
+                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{fieldName}' 不允许删除。");
+            }
+
+            removed.Add(field);
+        }
+
+        return removed;
+    }
+
+    private static IReadOnlyList<DynamicIndex> BuildIndexesToDrop(
+        IReadOnlyList<DynamicField> removeFields,
+        IReadOnlyList<DynamicIndex> existingIndexes)
+    {
+        if (removeFields.Count == 0 || existingIndexes.Count == 0)
+        {
+            return Array.Empty<DynamicIndex>();
+        }
+
+        var removeNameSet = removeFields.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return existingIndexes
+            .Where(index =>
+            {
+                var fields = JsonSerializer.Deserialize<string[]>(index.FieldsJson, JsonOptions) ?? Array.Empty<string>();
+                return fields.Any(removeNameSet.Contains);
+            })
+            .ToArray();
+    }
+
+    private void ExecuteDropIndexesSql(IReadOnlyList<DynamicIndex> indexesToDrop)
+    {
+        if (indexesToDrop.Count == 0)
+        {
+            return;
+        }
+
+        var sql = string.Join(
+            Environment.NewLine,
+            indexesToDrop.Select(index => $"DROP INDEX IF EXISTS \"{EscapeIdentifier(index.Name)}\";"));
+        _db.Ado.ExecuteCommand(sql);
+    }
+
+    private void ExecuteDropColumnsSql(string tableKey, IReadOnlyList<DynamicField> fieldsToRemove)
+    {
+        if (fieldsToRemove.Count == 0)
+        {
+            return;
+        }
+
+        var escapedTable = EscapeIdentifier(tableKey);
+        var sql = string.Join(
+            Environment.NewLine,
+            fieldsToRemove.Select(field => $"ALTER TABLE \"{escapedTable}\" DROP COLUMN \"{EscapeIdentifier(field.Name)}\";"));
+        _db.Ado.ExecuteCommand(sql);
+    }
+
+    private async Task DeleteRemovedMetadataAsync(
+        TenantId tenantId,
+        DynamicTable table,
+        IReadOnlyList<DynamicField> fieldsToRemove,
+        IReadOnlyList<DynamicIndex> indexesToDrop,
+        CancellationToken cancellationToken)
+    {
+        if (fieldsToRemove.Count > 0)
+        {
+            var fieldIds = fieldsToRemove.Select(x => x.Id).ToArray();
+            var fieldNames = fieldsToRemove.Select(x => x.Name).ToArray();
+            var scopedTableKey = BuildFieldPermissionTableKey(table.TableKey, table.AppId);
+
+            await _db.Deleteable<DynamicField>()
+                .Where(x => x.TenantIdValue == tenantId.Value && x.TableId == table.Id && SqlFunc.ContainsArray(fieldIds, x.Id))
+                .ExecuteCommandAsync(cancellationToken);
+
+            await _db.Deleteable<FieldPermission>()
+                .Where(x => x.TenantIdValue == tenantId.Value && x.TableKey == scopedTableKey && SqlFunc.ContainsArray(fieldNames, x.FieldName))
+                .ExecuteCommandAsync(cancellationToken);
+
+            await _db.Deleteable<DynamicRelation>()
+                .Where(x =>
+                    x.TenantIdValue == tenantId.Value &&
+                    ((x.TableId == table.Id && SqlFunc.ContainsArray(fieldNames, x.SourceField))
+                     || (x.RelatedTableKey == table.TableKey && SqlFunc.ContainsArray(fieldNames, x.TargetField))))
+                .ExecuteCommandAsync(cancellationToken);
+        }
+
+        if (indexesToDrop.Count > 0)
+        {
+            var indexIds = indexesToDrop.Select(x => x.Id).ToArray();
+            await _db.Deleteable<DynamicIndex>()
+                .Where(x => x.TenantIdValue == tenantId.Value && x.TableId == table.Id && SqlFunc.ContainsArray(indexIds, x.Id))
+                .ExecuteCommandAsync(cancellationToken);
+        }
+    }
+
+    private static string EscapeIdentifier(string identifier)
+    {
+        return identifier.Replace("\"", "\"\"", StringComparison.Ordinal);
     }
 
     private DynamicSchemaMigration BuildMigrationRecord(

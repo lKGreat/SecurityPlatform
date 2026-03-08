@@ -436,6 +436,33 @@ public sealed class RuntimeRouteQueryService : IRuntimeRouteQueryService
         return new PagedResult<RuntimeTaskListItem>(items, total, pageIndex, pageSize);
     }
 
+    public async Task<PagedResult<RuntimeTaskListItem>> GetRuntimeDoneTasksAsync(
+        TenantId tenantId,
+        long userId,
+        PagedRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
+        var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
+        var assignee = userId.ToString();
+        var query = _db.Queryable<ApprovalTask>()
+            .Where(x =>
+                x.TenantIdValue == tenantId.Value &&
+                x.AssigneeValue == assignee &&
+                x.Status != ApprovalTaskStatus.Pending &&
+                x.Status != ApprovalTaskStatus.Waiting &&
+                x.Status != ApprovalTaskStatus.Claimed);
+        var total = await query.CountAsync(cancellationToken);
+        var rows = await query.OrderByDescending(x => x.DecisionAt).ToPageListAsync(pageIndex, pageSize, cancellationToken);
+        var items = rows.Select(x => new RuntimeTaskListItem(
+            x.Id.ToString(),
+            "approval",
+            x.Title,
+            x.Status.ToString(),
+            (x.DecisionAt ?? x.CreatedAt).ToString("O"))).ToArray();
+        return new PagedResult<RuntimeTaskListItem>(items, total, pageIndex, pageSize);
+    }
+
     public async Task<RuntimeMenuResponse> GetRuntimeMenuAsync(TenantId tenantId, string appKey, CancellationToken cancellationToken = default)
     {
         var routes = await _db.Queryable<RuntimeRoute>()

@@ -67,4 +67,21 @@ public sealed class AuthSecurityIntegrationTests
         Assert.NotNull(payload);
         Assert.Equal(ErrorCodes.IdempotencyRequired, payload.Code);
     }
+
+    [Fact]
+    public async Task AuthenticatedRequest_WithMismatchedTenantHeader_ShouldReturn403()
+    {
+        var accessToken = await IntegrationAuthHelper.LoginAndGetAccessTokenAsync(_client);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me");
+        request.Headers.Authorization = new("Bearer", accessToken);
+        request.Headers.Add("X-Tenant-Id", "00000000-0000-0000-0000-000000000002");
+
+        using var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        var payload = await ApiResponseAssert.ReadFailureAsync(response);
+        Assert.Equal(ErrorCodes.Forbidden, payload.Code);
+        Assert.Equal("租户标识不一致", payload.Message);
+    }
 }

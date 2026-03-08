@@ -53,6 +53,10 @@ public sealed class DynamicTableCreateRequestValidator : AbstractValidator<Dynam
             .Must(ValidateFieldLength)
             .WithMessage("字段长度/精度设置不合法。");
 
+        RuleForEach(x => x.Fields)
+            .Must(ValidateFieldValidation)
+            .WithMessage("字段校验规则不合法。");
+
         RuleFor(x => x.Fields)
             .Must(HaveSinglePrimaryKey)
             .WithMessage("必须且只能有一个主键字段。");
@@ -112,6 +116,44 @@ public sealed class DynamicTableCreateRequestValidator : AbstractValidator<Dynam
             return field.Precision is > 0 and <= 38
                 && field.Scale is >= 0 and <= 18
                 && field.Scale <= field.Precision;
+        }
+
+        return true;
+    }
+
+    private static bool ValidateFieldValidation(DynamicFieldDefinition field)
+    {
+        var validation = field.Validation;
+        if (validation is null)
+        {
+            return true;
+        }
+
+        if (validation.MinLength.HasValue && validation.MinLength < 0)
+        {
+            return false;
+        }
+
+        if (validation.MaxLength.HasValue && validation.MaxLength < 0)
+        {
+            return false;
+        }
+
+        if (validation.MinLength.HasValue && validation.MaxLength.HasValue && validation.MinLength > validation.MaxLength)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(validation.Pattern))
+        {
+            try
+            {
+                _ = new Regex(validation.Pattern, RegexOptions.None, TimeSpan.FromMilliseconds(200));
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
         }
 
         return true;

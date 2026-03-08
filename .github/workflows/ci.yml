@@ -12,6 +12,19 @@ on:
       - master
 
 jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret scanning gate
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   spell-check:
     runs-on: ubuntu-latest
     steps:
@@ -165,6 +178,9 @@ jobs:
       API_BASE_URL: http://127.0.0.1:5000
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
       PLAYWRIGHT_PORT: 5173
+      E2E_TEST_TENANT_ID: 00000000-0000-0000-0000-000000000001
+      E2E_TEST_USERNAME: admin
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -260,6 +276,9 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
           PLAYWRIGHT_PORT: 5173
+          E2E_TEST_TENANT_ID: ${{ env.E2E_TEST_TENANT_ID }}
+          E2E_TEST_USERNAME: ${{ env.E2E_TEST_USERNAME }}
+          E2E_TEST_PASSWORD: ${{ env.E2E_TEST_PASSWORD }}
         run: npm run e2e
 
       - name: Stop backend service

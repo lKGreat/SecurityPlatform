@@ -227,7 +227,8 @@ public sealed class DynamicTableQueryService : IDynamicTableQueryService
             field.IsAutoIncrement,
             field.IsUnique,
             field.DefaultValue,
-            field.SortOrder);
+            field.SortOrder,
+            null);
     }
 
     private static DynamicIndexDefinition ToIndexDefinition(DynamicIndex index)

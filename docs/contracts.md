@@ -100,8 +100,10 @@
 - 运行面：
   - `GET /api/v1/runtime/apps/{appKey}/pages/{pageKey}`
   - `POST /api/v1/runtime/apps/{appKey}/pages/{pageKey}/actions`
+  - `GET /api/v1/runtime/tasks`（等价于 inbox）
   - `GET /api/v1/runtime/tasks/inbox`
   - `GET /api/v1/runtime/tasks/done`
+  - `POST /api/v1/runtime/tasks/{taskId}/actions`
 - 治理面：
   - `POST /api/v1/packages/export`
   - `POST /api/v1/packages/import`

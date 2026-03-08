@@ -3,6 +3,8 @@ using Atlas.Application.LowCode.Models;
 using Atlas.Application.Platform.Repositories;
 using Atlas.Application.Audit.Abstractions;
 using Atlas.Core.Abstractions;
+using Atlas.Core.Exceptions;
+using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.Audit.Entities;
 using Atlas.Domain.LowCode.Entities;
@@ -45,14 +47,16 @@ public sealed class LowCodePageCommandService : ILowCodePageCommandService
         CancellationToken cancellationToken = default)
     {
         var app = await _appRepository.GetByIdAsync(tenantId, appId, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={appId} 不存在");
+            ?? throw new BusinessException($"应用 ID={appId} 不存在", ErrorCodes.NotFound);
 
         if (await _pageRepository.ExistsByKeyAsync(tenantId, appId, request.PageKey, cancellationToken: cancellationToken))
         {
-            throw new InvalidOperationException($"页面标识 '{request.PageKey}' 在该应用中已存在");
+            throw new BusinessException($"页面标识 '{request.PageKey}' 在该应用中已存在", ErrorCodes.Conflict);
         }
-
-        var pageType = Enum.Parse<LowCodePageType>(request.PageType, ignoreCase: true);
+        if (!Enum.TryParse<LowCodePageType>(request.PageType, true, out var pageType))
+        {
+            throw new BusinessException($"页面类型 '{request.PageType}' 不合法", ErrorCodes.ValidationError);
+        }
         var id = _idGenerator.NextId();
         var now = DateTimeOffset.UtcNow;
 
@@ -81,9 +85,12 @@ public sealed class LowCodePageCommandService : ILowCodePageCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _pageRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"页面 ID={id} 不存在");
+            ?? throw new BusinessException($"页面 ID={id} 不存在", ErrorCodes.NotFound);
 
-        var pageType = Enum.Parse<LowCodePageType>(request.PageType, ignoreCase: true);
+        if (!Enum.TryParse<LowCodePageType>(request.PageType, true, out var pageType))
+        {
+            throw new BusinessException($"页面类型 '{request.PageType}' 不合法", ErrorCodes.ValidationError);
+        }
         var now = DateTimeOffset.UtcNow;
 
         entity.Update(
@@ -102,7 +109,7 @@ public sealed class LowCodePageCommandService : ILowCodePageCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _pageRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"页面 ID={id} 不存在");
+            ?? throw new BusinessException($"页面 ID={id} 不存在", ErrorCodes.NotFound);
 
         var now = DateTimeOffset.UtcNow;
         entity.UpdateSchema(request.SchemaJson, userId, now);
@@ -115,17 +122,17 @@ public sealed class LowCodePageCommandService : ILowCodePageCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _pageRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"页面 ID={id} 不存在");
+            ?? throw new BusinessException($"页面 ID={id} 不存在", ErrorCodes.NotFound);
 
         var now = DateTimeOffset.UtcNow;
         entity.Publish(userId, now);
         var app = await _appRepository.GetByIdAsync(tenantId, entity.AppId, cancellationToken)
-            ?? throw new InvalidOperationException($"应用 ID={entity.AppId} 不存在");
+            ?? throw new BusinessException($"应用 ID={entity.AppId} 不存在", ErrorCodes.NotFound);
         var manifest = await _db.Queryable<AppManifest>()
             .FirstAsync(
                 x => x.TenantIdValue == tenantId.Value && x.AppKey == app.AppKey,
                 cancellationToken)
-            ?? throw new InvalidOperationException($"应用清单 AppKey={app.AppKey} 不存在");
+            ?? throw new BusinessException($"应用清单 AppKey={app.AppKey} 不存在", ErrorCodes.NotFound);
 
         var result = await _db.Ado.UseTranAsync(async () =>
         {
@@ -189,7 +196,7 @@ public sealed class LowCodePageCommandService : ILowCodePageCommandService
 
         if (!result.IsSuccess)
         {
-            throw result.ErrorException ?? new InvalidOperationException("发布页面失败");
+            throw result.ErrorException ?? new BusinessException("发布页面失败", ErrorCodes.ValidationError);
         }
     }
 
@@ -198,7 +205,7 @@ public sealed class LowCodePageCommandService : ILowCodePageCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _pageRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"页面 ID={id} 不存在");
+            ?? throw new BusinessException($"页面 ID={id} 不存在", ErrorCodes.NotFound);
 
         var now = DateTimeOffset.UtcNow;
         entity.Unpublish(userId, now);
@@ -225,7 +232,7 @@ public sealed class LowCodePageCommandService : ILowCodePageCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _pageRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"页面 ID={id} 不存在");
+            ?? throw new BusinessException($"页面 ID={id} 不存在", ErrorCodes.NotFound);
 
         await _pageVersionRepository.DeleteByPageIdAsync(tenantId, entity.Id, cancellationToken);
         await _pageRepository.DeleteAsync(id, cancellationToken);
@@ -239,12 +246,12 @@ public sealed class LowCodePageCommandService : ILowCodePageCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _pageRepository.GetByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new InvalidOperationException($"页面 ID={id} 不存在");
+            ?? throw new BusinessException($"页面 ID={id} 不存在", ErrorCodes.NotFound);
         var version = await _pageVersionRepository.GetByIdAsync(tenantId, versionId, cancellationToken)
-            ?? throw new InvalidOperationException($"页面版本 ID={versionId} 不存在");
+            ?? throw new BusinessException($"页面版本 ID={versionId} 不存在", ErrorCodes.NotFound);
         if (version.PageId != id)
         {
-            throw new InvalidOperationException("目标版本不属于当前页面。");
+            throw new BusinessException("目标版本不属于当前页面。", ErrorCodes.ValidationError);
         }
 
         var now = DateTimeOffset.UtcNow;
