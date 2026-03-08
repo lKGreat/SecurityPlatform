@@ -3,6 +3,7 @@ using Atlas.Application.Governance.Models;
 using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.WebApi.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -38,6 +39,7 @@ public sealed class ToolAuthorizationPoliciesController : ControllerBase
     }
 
     [HttpPost("authorization-policies")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ActionResult<ApiResponse<object>>> Create(
         [FromBody] ToolAuthorizationPolicyRequest request,
         CancellationToken cancellationToken)
@@ -54,6 +56,7 @@ public sealed class ToolAuthorizationPoliciesController : ControllerBase
     }
 
     [HttpPut("authorization-policies/{id:long}")]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ActionResult<ApiResponse<object>>> Update(
         long id,
         [FromBody] ToolAuthorizationPolicyRequest request,
