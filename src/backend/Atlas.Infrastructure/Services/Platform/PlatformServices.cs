@@ -443,10 +443,19 @@ public sealed class RuntimeRouteQueryService : IRuntimeRouteQueryService
         }
 
         var pageKeys = routes.Select(x => x.PageKey).Distinct().ToArray();
+        var manifestId = await _db.Queryable<AppManifest>()
+            .Where(x => x.AppKey == appKey)
+            .Select(x => x.Id)
+            .FirstAsync(cancellationToken);
         var pages = await _db.Queryable<LowCodePage>()
-            .Where(x => x.AppId > 0 && SqlFunc.ContainsArray(pageKeys, x.PageKey))
+            .Where(x => x.AppId == manifestId && SqlFunc.ContainsArray(pageKeys, x.PageKey))
             .ToListAsync(cancellationToken);
-        var pageMap = pages.ToDictionary(x => x.PageKey, x => x, StringComparer.OrdinalIgnoreCase);
+        var pageMap = pages
+            .GroupBy(x => x.PageKey, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.OrderByDescending(page => page.UpdatedAt).First(),
+                StringComparer.OrdinalIgnoreCase);
         var items = routes.Select(route =>
         {
             if (pageMap.TryGetValue(route.PageKey, out var page))
@@ -490,8 +499,6 @@ public sealed class RuntimeRouteQueryService : IRuntimeRouteQueryService
             "approve" => ApprovalOperationType.Agree,
             "reject" => ApprovalOperationType.Disagree,
             "transfer" => ApprovalOperationType.Transfer,
-            "delegate" => ApprovalOperationType.Delegate,
-            "return" => ApprovalOperationType.BackToPrevModify,
             _ => throw new BusinessException(
                 ErrorCodes.ValidationError,
                 $"不支持的运行态任务动作: {request.Action}")
