@@ -69,6 +69,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         await EnsureRefreshTokenSchemaAsync(db, cancellationToken);
         await EnsureLowCodeAppSchemaAsync(db, cancellationToken);
         await EnsureLowCodePageSchemaAsync(db, cancellationToken);
+        await EnsureAppManifestSchemaAsync(db, cancellationToken);
         await EnsureLoginLogSchemaAsync(db, cancellationToken);
         db.CodeFirst.InitTables(
         typeof(UserAccount),
@@ -1199,6 +1200,21 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         await RebuildLowCodePageTableAsync(db, cancellationToken);
     }
 
+    private static async Task EnsureAppManifestSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("AppManifest", false))
+        {
+            return;
+        }
+
+        if (!RequiresNullableColumnFix<AppManifest>(db, "DataSourceId", "PublishedBy", "PublishedAt"))
+        {
+            return;
+        }
+
+        await RebuildAppManifestTableAsync(db, cancellationToken);
+    }
+
     private static async Task RebuildLowCodeAppTableAsync(ISqlSugarClient db, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -1356,6 +1372,60 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             await db.Ado.ExecuteCommandAsync(copyDataSql);
             await db.Ado.ExecuteCommandAsync("DROP TABLE \"LowCodePage\";");
             await db.Ado.ExecuteCommandAsync($"ALTER TABLE \"{tempTableName}\" RENAME TO \"LowCodePage\";");
+            db.Ado.CommitTran();
+        }
+        catch
+        {
+            db.Ado.RollbackTran();
+            throw;
+        }
+    }
+
+    private static async Task RebuildAppManifestTableAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        const string tempTableName = "AppManifest__tmp_nullable_fix";
+        const string createTempTableSql =
+            """
+            CREATE TABLE "AppManifest__tmp_nullable_fix" (
+                "AppKey" varchar(255) NOT NULL,
+                "Name" varchar(255) NOT NULL,
+                "Description" varchar(255) NOT NULL,
+                "Category" varchar(255) NOT NULL,
+                "Icon" varchar(255) NOT NULL,
+                "ConfigJson" varchar(255) NOT NULL,
+                "DataSourceId" bigint NULL,
+                "Version" INTEGER NOT NULL,
+                "Status" INTEGER NOT NULL,
+                "CreatedBy" bigint NOT NULL,
+                "CreatedAt" datetime NOT NULL,
+                "UpdatedBy" bigint NOT NULL,
+                "UpdatedAt" datetime NOT NULL,
+                "PublishedBy" bigint NULL,
+                "PublishedAt" datetime NULL,
+                "TenantIdValue" uniqueidentifier NOT NULL,
+                "Id" bigint NOT NULL
+            );
+            """;
+        const string copyDataSql =
+            """
+            INSERT INTO "AppManifest__tmp_nullable_fix" (
+                "AppKey","Name","Description","Category","Icon","ConfigJson","DataSourceId","Version",
+                "Status","CreatedBy","CreatedAt","UpdatedBy","UpdatedAt","PublishedBy","PublishedAt","TenantIdValue","Id")
+            SELECT
+                "AppKey","Name","Description","Category","Icon","ConfigJson","DataSourceId","Version",
+                "Status","CreatedBy","CreatedAt","UpdatedBy","UpdatedAt","PublishedBy","PublishedAt","TenantIdValue","Id"
+            FROM "AppManifest";
+            """;
+
+        try
+        {
+            db.Ado.BeginTran();
+            await db.Ado.ExecuteCommandAsync($"DROP TABLE IF EXISTS \"{tempTableName}\";");
+            await db.Ado.ExecuteCommandAsync(createTempTableSql);
+            await db.Ado.ExecuteCommandAsync(copyDataSql);
+            await db.Ado.ExecuteCommandAsync("DROP TABLE \"AppManifest\";");
+            await db.Ado.ExecuteCommandAsync($"ALTER TABLE \"{tempTableName}\" RENAME TO \"AppManifest\";");
             db.Ado.CommitTran();
         }
         catch
