@@ -35,6 +35,11 @@ public sealed class LoginLogWriteService : ILoginLogWriteService
         try
         {
             var (browser, os) = ParseUserAgent(request.UserAgent);
+            browser ??= "Unknown";
+            os ??= "Unknown";
+            var normalizedMessage = string.IsNullOrWhiteSpace(request.Message)
+                ? (request.LoginStatus ? "登录成功" : "登录失败")
+                : request.Message.Trim();
             var log = new LoginLog(
                 tenantId,
                 request.Username,
@@ -42,7 +47,7 @@ public sealed class LoginLogWriteService : ILoginLogWriteService
                 browser,
                 os,
                 request.LoginStatus,
-                request.Message,
+                normalizedMessage,
                 request.LoginTime,
                 _idGeneratorAccessor.NextId());
 

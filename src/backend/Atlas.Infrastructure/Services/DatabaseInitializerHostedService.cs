@@ -13,6 +13,7 @@ using Atlas.Domain.Audit.Entities;
 using Atlas.Domain.DynamicTables.Entities;
 using Atlas.Domain.Identity.Entities;
 using Atlas.Domain.LowCode.Entities;
+using Atlas.Domain.LowCode.Enums;
 using Atlas.Domain.Platform.Entities;
 using Atlas.Domain.System.Entities;
 using Atlas.Domain.Plugins;
@@ -62,6 +63,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
 
         using var scope = _scopeFactory.CreateScope();
         var appContextAccessor = scope.ServiceProvider.GetRequiredService<IAppContextAccessor>();
+        var idGeneratorAccessor = scope.ServiceProvider.GetRequiredService<IIdGeneratorAccessor>();
         var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
         await EnsureAuthSessionSchemaAsync(db, cancellationToken);
         await EnsureRefreshTokenSchemaAsync(db, cancellationToken);
@@ -213,9 +215,14 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             using var configScope = appContextAccessor.BeginScope(CreateSystemContext(appContextAccessor, configTenantId));
             await EnsureBuiltInSystemConfigsAsync(
                 scope.ServiceProvider.GetRequiredService<SystemConfigRepository>(),
-                scope.ServiceProvider.GetRequiredService<IIdGeneratorAccessor>(),
+                idGeneratorAccessor,
                 configTenantId,
                 cancellationToken);
+        }
+
+        if (_environment.IsDevelopment() && Guid.TryParse(_bootstrapOptions.TenantId, out var demoTenantGuid))
+        {
+            await EnsureRuntimeDemoDataAsync(db, idGeneratorAccessor, new TenantId(demoTenantGuid), cancellationToken);
         }
 
         // 启动时加载授权证书状态到内存（不阻塞启动）
@@ -250,7 +257,6 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         var tenantId = new TenantId(tenantGuid);
         using var appContextScope = appContextAccessor.BeginScope(CreateSystemContext(appContextAccessor, tenantId));
         var userRepository = scope.ServiceProvider.GetRequiredService<IUserAccountRepository>();
-        var idGeneratorAccessor = scope.ServiceProvider.GetRequiredService<IIdGeneratorAccessor>();
         var userRoleRepository = scope.ServiceProvider.GetRequiredService<IUserRoleRepository>();
         var roleRepository = scope.ServiceProvider.GetRequiredService<IRoleRepository>();
         var rolePermissionRepository = scope.ServiceProvider.GetRequiredService<IRolePermissionRepository>();
@@ -984,6 +990,150 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         }
 
         await RebuildTableViaOrmAsync<RefreshToken>(db, cancellationToken);
+    }
+
+    private static async Task EnsureRuntimeDemoDataAsync(
+        ISqlSugarClient db,
+        IIdGeneratorAccessor idGeneratorAccessor,
+        TenantId tenantId,
+        CancellationToken cancellationToken)
+    {
+        const string appKey = "crm_demo_2026";
+        const string appName = "CRM 示例应用";
+        const string pageKey = "customer-form";
+        const long systemUserId = 0;
+        var now = DateTimeOffset.UtcNow;
+
+        var app = await db.Queryable<LowCodeApp>()
+            .FirstAsync(x => x.TenantIdValue == tenantId.Value && x.AppKey == appKey, cancellationToken);
+        if (app is null)
+        {
+            app = new LowCodeApp(
+                tenantId,
+                appKey,
+                appName,
+                "平台封板运行态示例应用",
+                "Demo",
+                "appstore",
+                null,
+                true,
+                true,
+                true,
+                systemUserId,
+                idGeneratorAccessor.NextId(),
+                now);
+            await db.Insertable(app).ExecuteCommandAsync(cancellationToken);
+        }
+
+        var page = await db.Queryable<LowCodePage>()
+            .FirstAsync(
+                x => x.TenantIdValue == tenantId.Value && x.AppId == app.Id && x.PageKey == pageKey,
+                cancellationToken);
+
+        if (page is null)
+        {
+            var schemaJson =
+                """
+                {
+                  "type": "page",
+                  "title": "客户信息登记",
+                  "body": [
+                    {
+                      "type": "form",
+                      "title": "客户信息表单",
+                      "body": [
+                        {
+                          "type": "input-text",
+                          "name": "name",
+                          "label": "客户名称",
+                          "required": true
+                        },
+                        {
+                          "type": "input-email",
+                          "name": "email",
+                          "label": "邮箱"
+                        },
+                        {
+                          "type": "input-text",
+                          "name": "mobile",
+                          "label": "手机号"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """;
+
+            page = new LowCodePage(
+                tenantId,
+                app.Id,
+                pageKey,
+                "客户表单",
+                LowCodePageType.Form,
+                schemaJson,
+                "/customer-form",
+                "运行态示例客户表单",
+                "form",
+                1,
+                null,
+                systemUserId,
+                idGeneratorAccessor.NextId(),
+                now);
+            page.SetPermission("apps:view", systemUserId, now);
+            page.Publish(systemUserId, now);
+            await db.Insertable(page).ExecuteCommandAsync(cancellationToken);
+        }
+        else if (!page.IsPublished)
+        {
+            page.Publish(systemUserId, now);
+            await db.Updateable(page).ExecuteCommandAsync(cancellationToken);
+        }
+
+        var manifest = await db.Queryable<AppManifest>()
+            .FirstAsync(
+                x => x.TenantIdValue == tenantId.Value && x.AppKey == appKey,
+                cancellationToken);
+        if (manifest is null)
+        {
+            manifest = new AppManifest(
+                tenantId,
+                idGeneratorAccessor.NextId(),
+                appKey,
+                app.Name,
+                systemUserId,
+                now);
+            manifest.Update(
+                app.Name,
+                app.Description,
+                app.Category,
+                app.Icon,
+                app.DataSourceId,
+                systemUserId,
+                now);
+            manifest.Publish(systemUserId, now);
+            await db.Insertable(manifest).ExecuteCommandAsync(cancellationToken);
+        }
+
+        var route = await db.Queryable<RuntimeRoute>()
+            .FirstAsync(
+                x => x.TenantIdValue == tenantId.Value && x.AppKey == appKey && x.PageKey == pageKey,
+                cancellationToken);
+        if (route is null)
+        {
+            route = new RuntimeRoute(
+                tenantId,
+                idGeneratorAccessor.NextId(),
+                manifest.Id,
+                appKey,
+                pageKey,
+                page.Version);
+            await db.Insertable(route).ExecuteCommandAsync(cancellationToken);
+            return;
+        }
+
+        route.RebindManifest(manifest.Id);
+        route.Activate(page.Version);
+        await db.Updateable(route).ExecuteCommandAsync(cancellationToken);
     }
 
     private static async Task EnsureLowCodeAppSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
