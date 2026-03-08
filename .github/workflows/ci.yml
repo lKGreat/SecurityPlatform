@@ -35,7 +35,7 @@ jobs:
 
       - name: Collect changed files
         id: changed
-        uses: tj-actions/changed-files@v46
+        uses: tj-actions/changed-files@v47
 
       - name: Run cspell for changed files only
         shell: bash
