@@ -164,10 +164,12 @@ dotnet run --project src/backend/Atlas.WebApi
 ### 测试
 
 - `dotnet test tests/Atlas.WorkflowCore.Tests` — 4 个测试全部通过
-- `dotnet test tests/Atlas.SecurityPlatform.Tests --filter "FullyQualifiedName!~Integration"` — 59 个单元/领域测试全部通过
+- `dotnet test tests/Atlas.SecurityPlatform.Tests` — 因 `DynamicTableCommandServiceAlterTests.cs` 存在编译错误，整个测试项目无法构建；其余单元/领域测试代码正确但被阻塞
 - 集成测试（`FullyQualifiedName~Integration`）使用 `WebApplicationFactory`，需要 Hangfire SQLite 在测试环境中正确配置
-- `npm run lint`（前端）— 有 2 个预存 ESLint errors 和 155 warnings
-- `npm run build`（前端）— 构建成功
+- `npm run lint`（前端）— 0 errors，170 warnings（均为预存 `vue/attributes-order` 等风格警告）
+- `npm run build`（前端）— `vue-tsc --noEmit` 阶段因 `api-generated.ts` 中的预存 TypeScript 错误失败；Vite 构建本身（`npx vite build`）可成功
+- `npm run test`（前端）— Vitest 39 个测试全部通过
+- 登录 API 端点为 `POST /api/v1/auth/token`（非 `/auth/login`）
 
 ### 构建与 Lint 命令参考
 
