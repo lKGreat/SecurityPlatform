@@ -16,11 +16,7 @@ public sealed class TextProcessorNodeExecutor : INodeExecutor
         var outputKey = context.Node.Config.GetValueOrDefault("outputKey") ?? "text_output";
         var outputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        var result = template;
-        foreach (var kvp in context.Variables)
-        {
-            result = result.Replace($"{{{{{kvp.Key}}}}}", kvp.Value, StringComparison.OrdinalIgnoreCase);
-        }
+        var result = context.ReplaceVariables(template);
 
         outputs[outputKey] = result;
         return Task.FromResult(new NodeExecutionResult(true, outputs));

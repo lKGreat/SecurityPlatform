@@ -156,6 +156,14 @@ public sealed class DagExecutor
             }
 
             // 全部执行完毕
+            cancellationToken.ThrowIfCancellationRequested();
+            var latestExecution = await _executionRepo.FindByIdAsync(tenantId, execution.Id, CancellationToken.None);
+            if (latestExecution?.Status == ExecutionStatus.Cancelled)
+            {
+                _logger.LogInformation("执行已被取消，跳过完成态回写: ExecutionId={ExecutionId}", execution.Id);
+                return;
+            }
+
             execution.Complete(JsonSerializer.Serialize(variables));
             await _executionRepo.UpdateAsync(execution, cancellationToken);
         }
@@ -267,13 +275,16 @@ public sealed class DagExecutor
             }
         }
 
-        // 环路回退：追加未排序节点
-        foreach (var node in nodes)
+        if (ordered.Count != nodes.Count)
         {
-            if (!ordered.Contains(node.Key, StringComparer.OrdinalIgnoreCase))
-            {
-                ordered.Add(node.Key);
-            }
+            var cycleNodes = indegree
+                .Where(x => x.Value > 0)
+                .Select(x => x.Key)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            throw new InvalidOperationException(
+                $"检测到工作流环路，涉及节点: {string.Join(", ", cycleNodes)}。请移除循环依赖后重试。");
         }
 
         return ordered;

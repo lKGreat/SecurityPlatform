@@ -132,6 +132,7 @@ public static class AiPlatformServiceRegistration
         services.AddScoped<IWorkflowNodeExecutionRepository, WorkflowNodeExecutionRepository>();
 
         services.AddScoped<DagExecutor>();
+        services.AddSingleton<WorkflowExecutionCancellationRegistry>();
         services.AddSingleton<NodeExecutorRegistry>();
         services.AddSingleton<INodeExecutor, EntryNodeExecutor>();
         services.AddSingleton<INodeExecutor, ExitNodeExecutor>();

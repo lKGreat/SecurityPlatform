@@ -23,6 +23,7 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
     private readonly IWorkflowExecutionRepository _executionRepo;
     private readonly DagExecutor _dagExecutor;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly WorkflowExecutionCancellationRegistry _cancellationRegistry;
     private readonly IIdGeneratorAccessor _idGenerator;
     private readonly ILogger<WorkflowV2ExecutionService> _logger;
 
@@ -32,6 +33,7 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
         IWorkflowExecutionRepository executionRepo,
         DagExecutor dagExecutor,
         IServiceScopeFactory scopeFactory,
+        WorkflowExecutionCancellationRegistry cancellationRegistry,
         IIdGeneratorAccessor idGenerator,
         ILogger<WorkflowV2ExecutionService> logger)
     {
@@ -40,6 +42,7 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
         _executionRepo = executionRepo;
         _dagExecutor = dagExecutor;
         _scopeFactory = scopeFactory;
+        _cancellationRegistry = cancellationRegistry;
         _idGenerator = idGenerator;
         _logger = logger;
     }
@@ -56,19 +59,28 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
         TenantId tenantId, long workflowId, long userId, WorkflowV2RunRequest request, CancellationToken cancellationToken)
     {
         var (execution, canvas, inputs) = await PrepareExecutionAsync(tenantId, workflowId, userId, request, cancellationToken);
+        var runCts = new CancellationTokenSource();
+
+        if (!_cancellationRegistry.Register(execution.Id, runCts))
+        {
+            runCts.Dispose();
+            throw new BusinessException("执行实例重复注册，无法启动异步运行。", ErrorCodes.ServerError);
+        }
 
         // 异步执行——在后台线程中运行，不阻塞当前请求
         _ = Task.Run(async () =>
         {
             try
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var dagExecutor = scope.ServiceProvider.GetRequiredService<DagExecutor>();
-                await dagExecutor.RunAsync(tenantId, execution, canvas, inputs, eventChannel: null, CancellationToken.None);
+                await RunWithScopeAsync(tenantId, execution, canvas, inputs, eventChannel: null, runCts.Token);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "异步工作流执行失败: ExecutionId={ExecutionId}", execution.Id);
+            }
+            finally
+            {
+                _cancellationRegistry.Unregister(execution.Id);
             }
         }, CancellationToken.None);
 
@@ -82,6 +94,7 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
 
         execution.Cancel();
         await _executionRepo.UpdateAsync(execution, cancellationToken);
+        _cancellationRegistry.TryCancel(executionId);
     }
 
     public async Task ResumeAsync(TenantId tenantId, long executionId, CancellationToken cancellationToken)
@@ -146,15 +159,17 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
 
         var channel = Channel.CreateUnbounded<SseEvent>(new UnboundedChannelOptions { SingleReader = true });
         using var runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (!_cancellationRegistry.Register(execution.Id, runCts))
+        {
+            throw new BusinessException("执行实例重复注册，无法启动流式运行。", ErrorCodes.ServerError);
+        }
 
         // 后台执行
         var runTask = Task.Run(async () =>
         {
             try
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var dagExecutor = scope.ServiceProvider.GetRequiredService<DagExecutor>();
-                await dagExecutor.RunAsync(tenantId, execution, canvas, inputs, channel, runCts.Token);
+                await RunWithScopeAsync(tenantId, execution, canvas, inputs, channel, runCts.Token);
             }
             catch (OperationCanceledException) when (runCts.IsCancellationRequested)
             {
@@ -166,7 +181,11 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
                 channel.Writer.TryComplete();
                 return;
             }
-            channel.Writer.TryComplete();
+            finally
+            {
+                _cancellationRegistry.Unregister(execution.Id);
+                channel.Writer.TryComplete();
+            }
         }, CancellationToken.None);
 
         // 产出开始事件
@@ -279,5 +298,18 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
+    }
+
+    private async Task RunWithScopeAsync(
+        TenantId tenantId,
+        WorkflowExecution execution,
+        Domain.AiPlatform.ValueObjects.CanvasSchema canvas,
+        Dictionary<string, string> inputs,
+        Channel<SseEvent>? eventChannel,
+        CancellationToken cancellationToken)
+    {
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var dagExecutor = scope.ServiceProvider.GetRequiredService<DagExecutor>();
+        await dagExecutor.RunAsync(tenantId, execution, canvas, inputs, eventChannel, cancellationToken);
     }
 }
