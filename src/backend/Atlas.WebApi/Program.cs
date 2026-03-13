@@ -202,6 +202,7 @@ builder.Services.AddValidatorsFromAssemblies([
 
 var securityOptions = builder.Configuration.GetSection("Security").Get<SecurityOptions>() ?? new SecurityOptions();
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
+var fileStorage = builder.Configuration.GetSection("FileStorage").Get<FileStorageOptions>() ?? new FileStorageOptions();
 if (!builder.Environment.IsDevelopment())
 {
     if (string.IsNullOrWhiteSpace(jwt.SigningKey)
@@ -209,6 +210,14 @@ if (!builder.Environment.IsDevelopment())
         || jwt.SigningKey.Length < 32)
     {
         throw new InvalidOperationException("生产环境必须配置长度不少于32位的JWT SigningKey。");
+    }
+
+    if (string.IsNullOrWhiteSpace(fileStorage.SignedUrlSecret)
+        || string.Equals(fileStorage.SignedUrlSecret, FileStorageOptions.UnsafeDefaultSignedUrlSecret, StringComparison.Ordinal)
+        || fileStorage.SignedUrlSecret.Contains("CHANGE_ME", StringComparison.OrdinalIgnoreCase)
+        || fileStorage.SignedUrlSecret.Length < 32)
+    {
+        throw new InvalidOperationException("生产环境必须配置长度不少于32位且非默认值的 FileStorage SignedUrlSecret。");
     }
 }
 

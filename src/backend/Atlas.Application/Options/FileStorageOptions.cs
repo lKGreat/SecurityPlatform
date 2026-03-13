@@ -5,6 +5,8 @@ namespace Atlas.Application.Options;
 /// </summary>
 public sealed class FileStorageOptions
 {
+    public const string UnsafeDefaultSignedUrlSecret = "CHANGE_ME_FILE_SIGNED_URL_SECRET";
+
     /// <summary>文件存储根目录（相对于应用根目录）</summary>
     public string BasePath { get; init; } = "uploads";
 
@@ -36,5 +38,5 @@ public sealed class FileStorageOptions
     public int SignedUrlDefaultExpireSeconds { get; init; } = 600;
 
     /// <summary>签名下载密钥（生产环境请通过环境变量覆盖）。</summary>
-    public string SignedUrlSecret { get; init; } = "CHANGE_ME_FILE_SIGNED_URL_SECRET";
+    public string SignedUrlSecret { get; init; } = UnsafeDefaultSignedUrlSecret;
 }

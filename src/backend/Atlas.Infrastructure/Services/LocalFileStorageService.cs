@@ -405,9 +405,12 @@ public sealed class LocalFileStorageService : IFileStorageService
     private string ComputeSignature(TenantId tenantId, long fileId, long expiresUnixSeconds)
     {
         var payload = $"{tenantId.Value:D}:{fileId}:{expiresUnixSeconds}";
-        var secret = string.IsNullOrWhiteSpace(_options.SignedUrlSecret)
-            ? "fallback-file-sign-secret"
-            : _options.SignedUrlSecret;
+        var secret = _options.SignedUrlSecret;
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            throw new InvalidOperationException("FileStorage:SignedUrlSecret 未配置，无法生成签名下载链接。");
+        }
+
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
         return Convert.ToHexString(hash).ToLowerInvariant();
