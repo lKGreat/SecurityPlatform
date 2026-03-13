@@ -22,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddApprovalInfrastructure();
         services.AddWorkflowInfrastructure();
         services.AddLowCodeInfrastructure();
+        services.AddAiPlatformInfrastructure(configuration);
         services.AddLicenseInfrastructure();
         services.AddPlatformInfrastructure();
         services.AddGovernanceInfrastructure();
