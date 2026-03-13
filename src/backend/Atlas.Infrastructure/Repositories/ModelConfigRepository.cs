@@ -17,16 +17,7 @@ public sealed class ModelConfigRepository : RepositoryBase<ModelConfig>
         int pageSize,
         CancellationToken cancellationToken)
     {
-        var query = Db.Queryable<ModelConfig>()
-            .Where(x => x.TenantIdValue == tenantId.Value);
-
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            query = query.Where(x =>
-                x.Name.Contains(keyword) ||
-                x.ProviderType.Contains(keyword) ||
-                x.DefaultModel.Contains(keyword));
-        }
+        var query = BuildFilteredQuery(tenantId, keyword);
 
         var total = await query.CountAsync(cancellationToken);
         var items = await query
@@ -34,6 +25,22 @@ public sealed class ModelConfigRepository : RepositoryBase<ModelConfig>
             .ToPageListAsync(pageIndex, pageSize, cancellationToken);
 
         return (items, total);
+    }
+
+    public async Task<(long Total, long Enabled, long EmbeddingCount)> GetStatsAsync(
+        TenantId tenantId,
+        string? keyword,
+        CancellationToken cancellationToken)
+    {
+        var total = await BuildFilteredQuery(tenantId, keyword).CountAsync(cancellationToken);
+        var enabled = await BuildFilteredQuery(tenantId, keyword)
+            .Where(x => x.IsEnabled)
+            .CountAsync(cancellationToken);
+        var embeddingCount = await BuildFilteredQuery(tenantId, keyword)
+            .Where(x => x.SupportsEmbedding)
+            .CountAsync(cancellationToken);
+
+        return (total, enabled, embeddingCount);
     }
 
     public async Task<List<ModelConfig>> GetAllEnabledAsync(TenantId tenantId, CancellationToken cancellationToken)
@@ -57,5 +64,21 @@ public sealed class ModelConfigRepository : RepositoryBase<ModelConfig>
             .Where(x => x.TenantIdValue == tenantId.Value && x.Name == name)
             .CountAsync(cancellationToken);
         return count > 0;
+    }
+
+    private SqlSugar.ISugarQueryable<ModelConfig> BuildFilteredQuery(TenantId tenantId, string? keyword)
+    {
+        var query = Db.Queryable<ModelConfig>()
+            .Where(x => x.TenantIdValue == tenantId.Value);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            query = query.Where(x =>
+                x.Name.Contains(keyword) ||
+                x.ProviderType.Contains(keyword) ||
+                x.DefaultModel.Contains(keyword));
+        }
+
+        return query;
     }
 }

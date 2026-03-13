@@ -57,6 +57,17 @@ public sealed class ModelConfigsController : ControllerBase
         return Ok(ApiResponse<IReadOnlyList<ModelConfigDto>>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("stats")]
+    [Authorize(Policy = PermissionPolicies.ModelConfigView)]
+    public async Task<ActionResult<ApiResponse<ModelConfigStatsDto>>> GetStats(
+        [FromQuery] string? keyword = null,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.GetStatsAsync(tenantId, keyword, cancellationToken);
+        return Ok(ApiResponse<ModelConfigStatsDto>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("{id:long}")]
     [Authorize(Policy = PermissionPolicies.ModelConfigView)]
     public async Task<ActionResult<ApiResponse<ModelConfigDto>>> GetById(long id, CancellationToken cancellationToken)

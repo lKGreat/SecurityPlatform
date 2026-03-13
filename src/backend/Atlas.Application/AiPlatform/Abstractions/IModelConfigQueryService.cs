@@ -16,4 +16,9 @@ public interface IModelConfigQueryService
     Task<ModelConfigDto?> GetByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ModelConfigDto>> GetAllEnabledAsync(TenantId tenantId, CancellationToken cancellationToken);
+
+    Task<ModelConfigStatsDto> GetStatsAsync(
+        TenantId tenantId,
+        string? keyword,
+        CancellationToken cancellationToken);
 }

@@ -38,6 +38,11 @@ GET {{baseUrl}}/api/v1/model-configs/enabled
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 模型配置统计
+GET {{baseUrl}}/api/v1/model-configs/stats?keyword=
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### 新建模型配置
 POST {{baseUrl}}/api/v1/model-configs
 Authorization: Bearer {{accessToken}}
