@@ -160,6 +160,12 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(PersistedExecutionPointer),
             typeof(PersistedEvent),
             typeof(PersistedSubscription),
+            // Workflow V2 entities (Coze-style DAG engine)
+            typeof(WorkflowMeta),
+            typeof(WorkflowDraft),
+            typeof(WorkflowVersion),
+            typeof(WorkflowExecution),
+            typeof(WorkflowNodeExecution),
             // System module
             typeof(DictType),
             typeof(DictData),
