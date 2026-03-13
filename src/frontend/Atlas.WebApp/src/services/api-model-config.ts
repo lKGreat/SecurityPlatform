@@ -44,6 +44,13 @@ export interface ModelConfigTestResult {
   latencyMs?: number;
 }
 
+export interface ModelConfigStatsDto {
+  total: number;
+  enabled: number;
+  disabled: number;
+  embeddingCount: number;
+}
+
 export async function getModelConfigsPaged(request: PagedRequest) {
   const query = toQuery(request);
   const response = await requestApi<ApiResponse<PagedResult<ModelConfigDto>>>(`/model-configs?${query}`);
@@ -65,6 +72,16 @@ export async function getEnabledModelConfigs() {
   const response = await requestApi<ApiResponse<ModelConfigDto[]>>("/model-configs/enabled");
   if (!response.data) {
     throw new Error(response.message || "查询启用模型配置失败");
+  }
+  return response.data;
+}
+
+export async function getModelConfigStats(keyword?: string) {
+  const query = toQuery({ keyword });
+  const url = query ? `/model-configs/stats?${query}` : "/model-configs/stats";
+  const response = await requestApi<ApiResponse<ModelConfigStatsDto>>(url);
+  if (!response.data) {
+    throw new Error(response.message || "查询模型配置统计失败");
   }
   return response.data;
 }

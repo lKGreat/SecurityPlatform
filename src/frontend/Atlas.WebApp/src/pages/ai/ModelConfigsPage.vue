@@ -239,8 +239,10 @@ import {
   deleteModelConfig,
   getModelConfigById,
   getModelConfigsPaged,
+  getModelConfigStats,
   type ModelConfigCreateRequest,
   type ModelConfigDto,
+  type ModelConfigStatsDto,
   type ModelConfigTestResult,
   testModelConfigConnection,
   updateModelConfig
@@ -257,6 +259,12 @@ const dataList = ref<ModelConfigDto[]>([]);
 const loading = ref(false);
 const testing = ref(false);
 const testResult = ref<ModelConfigTestResult | null>(null);
+const statsData = ref<ModelConfigStatsDto>({
+  total: 0,
+  enabled: 0,
+  disabled: 0,
+  embeddingCount: 0
+});
 
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
@@ -267,13 +275,7 @@ const pagination = reactive<TablePaginationConfig>({
   showTotal: (total: number) => `共 ${total} 条`
 });
 
-const stats = computed(() => {
-  const total = dataList.value.length;
-  const enabled = dataList.value.filter((d) => d.isEnabled).length;
-  const disabled = total - enabled;
-  const embeddingCount = dataList.value.filter((d) => d.supportsEmbedding).length;
-  return { total, enabled, disabled, embeddingCount };
-});
+const stats = computed(() => statsData.value);
 
 const columns = [
   { title: "名称", dataIndex: "name", key: "name", width: 200 },
@@ -408,13 +410,18 @@ function onProviderChange(value: string) {
 async function loadData() {
   loading.value = true;
   try {
-    const result = await getModelConfigsPaged({
-      pageIndex: pagination.current ?? 1,
-      pageSize: pagination.pageSize ?? 20,
-      keyword: keyword.value || undefined
-    });
-    dataList.value = result.items;
-    pagination.total = Number(result.total);
+    const currentKeyword = keyword.value || undefined;
+    const [pagedResult, statsResult] = await Promise.all([
+      getModelConfigsPaged({
+        pageIndex: pagination.current ?? 1,
+        pageSize: pagination.pageSize ?? 20,
+        keyword: currentKeyword
+      }),
+      getModelConfigStats(currentKeyword)
+    ]);
+    dataList.value = pagedResult.items;
+    pagination.total = Number(pagedResult.total);
+    statsData.value = statsResult;
   } catch (error: unknown) {
     message.error((error as Error).message || "加载失败");
   } finally {

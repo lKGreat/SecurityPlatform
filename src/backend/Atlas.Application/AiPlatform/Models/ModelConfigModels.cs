@@ -37,3 +37,9 @@ public sealed record ModelConfigTestResult(
     bool Success,
     string? ErrorMessage,
     int? LatencyMs);
+
+public sealed record ModelConfigStatsDto(
+    long Total,
+    long Enabled,
+    long Disabled,
+    long EmbeddingCount);

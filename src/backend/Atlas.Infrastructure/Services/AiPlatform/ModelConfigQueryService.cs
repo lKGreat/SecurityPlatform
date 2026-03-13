@@ -40,6 +40,16 @@ public sealed class ModelConfigQueryService : IModelConfigQueryService
         return items.Select(Map).ToList();
     }
 
+    public async Task<ModelConfigStatsDto> GetStatsAsync(
+        TenantId tenantId,
+        string? keyword,
+        CancellationToken cancellationToken)
+    {
+        var (total, enabled, embeddingCount) = await _repository.GetStatsAsync(tenantId, keyword, cancellationToken);
+        var disabled = total - enabled;
+        return new ModelConfigStatsDto(total, enabled, disabled, embeddingCount);
+    }
+
     private static ModelConfigDto Map(ModelConfig item)
         => new(
             item.Id,
