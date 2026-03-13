@@ -25,6 +25,7 @@ public sealed class Conversation : TenantEntity
         Title = title;
         CreatedAt = DateTime.UtcNow;
         LastMessageAt = CreatedAt;
+        LastContextClearedAt = DateTime.UnixEpoch;
         MessageCount = 0;
     }
 
@@ -32,9 +33,9 @@ public sealed class Conversation : TenantEntity
     public long UserId { get; private set; }
     public string? Title { get; private set; }
     public DateTime CreatedAt { get; private set; }
-    public DateTime? LastMessageAt { get; private set; }
+    public DateTime LastMessageAt { get; private set; }
     public int MessageCount { get; private set; }
-    public DateTime? LastContextClearedAt { get; private set; }
+    public DateTime LastContextClearedAt { get; private set; }
 
     public void AddMessage(DateTime? messageAt = null)
     {
@@ -45,13 +46,13 @@ public sealed class Conversation : TenantEntity
     public void RemoveMessage(DateTime? lastMessageAt = null)
     {
         MessageCount = Math.Max(0, MessageCount - 1);
-        LastMessageAt = lastMessageAt;
+        LastMessageAt = lastMessageAt ?? DateTime.UnixEpoch;
     }
 
     public void ResetMessages()
     {
         MessageCount = 0;
-        LastMessageAt = null;
+        LastMessageAt = DateTime.UnixEpoch;
     }
 
     public void UpdateTitle(string title)

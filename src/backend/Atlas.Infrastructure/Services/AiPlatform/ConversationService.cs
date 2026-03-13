@@ -215,7 +215,7 @@ public sealed class ConversationService : IConversationService
             entity.UserId,
             entity.Title,
             entity.CreatedAt,
-            entity.LastMessageAt,
+            entity.LastMessageAt > DateTime.UnixEpoch ? entity.LastMessageAt : null,
             entity.MessageCount);
 
     private static ChatMessageDto MapMessage(ChatMessageEntity entity)
