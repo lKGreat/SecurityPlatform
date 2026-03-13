@@ -27,4 +27,5 @@ export * from "@/services/api-ai-variable";
 export * from "@/services/api-ai-plugin";
 export * from "@/services/api-ai-app";
 export * from "@/services/api-ai-prompt";
+export * from "@/services/api-ai-marketplace";
 export * from "@/services/api-pat";

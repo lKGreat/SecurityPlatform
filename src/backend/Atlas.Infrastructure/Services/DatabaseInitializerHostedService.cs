@@ -110,6 +110,9 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(AiAppPublishRecord),
             typeof(AiAppResourceCopyTask),
             typeof(AiPromptTemplate),
+            typeof(AiProductCategory),
+            typeof(AiMarketplaceProduct),
+            typeof(AiMarketplaceFavorite),
             typeof(PersonalAccessToken),
             typeof(AuthSession),
             typeof(RefreshToken),
@@ -428,6 +431,11 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             (PermissionCodes.AiPromptCreate, "AI Prompt Create", "Api"),
             (PermissionCodes.AiPromptUpdate, "AI Prompt Update", "Api"),
             (PermissionCodes.AiPromptDelete, "AI Prompt Delete", "Api"),
+            (PermissionCodes.AiMarketplaceView, "AI Marketplace View", "Api"),
+            (PermissionCodes.AiMarketplaceCreate, "AI Marketplace Create", "Api"),
+            (PermissionCodes.AiMarketplaceUpdate, "AI Marketplace Update", "Api"),
+            (PermissionCodes.AiMarketplaceDelete, "AI Marketplace Delete", "Api"),
+            (PermissionCodes.AiMarketplacePublish, "AI Marketplace Publish", "Api"),
             (PermissionCodes.PersonalAccessTokenView, "PAT View", "Api"),
             (PermissionCodes.PersonalAccessTokenCreate, "PAT Create", "Api"),
             (PermissionCodes.PersonalAccessTokenUpdate, "PAT Update", "Api"),
@@ -568,6 +576,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             ("应用编辑", "/ai/apps/:id/edit", "/ai", 26, "C", "ai/AiAppEditorPage", "edit", PermissionCodes.AiAppView, null, false, true, "0", "0", PermissionCodes.AiAppView, true),
             ("Prompt 模板", "/ai/prompts", "/ai", 27, "C", "ai/AiPromptLibraryPage", "snippets", PermissionCodes.AiPromptView, null, false, true, "0", "0", PermissionCodes.AiPromptView, false),
             ("开放平台", "/ai/open-platform", "/ai", 28, "C", "ai/AiOpenPlatformPage", "cloud", PermissionCodes.PersonalAccessTokenView, null, false, true, "0", "0", PermissionCodes.PersonalAccessTokenView, false),
+            ("AI 市场", "/ai/marketplace", "/ai", 29, "C", "ai/AiMarketplacePage", "shop", PermissionCodes.AiMarketplaceView, null, false, true, "0", "0", PermissionCodes.AiMarketplaceView, false),
+            ("AI 市场详情", "/ai/marketplace/:id", "/ai", 30, "C", "ai/AiMarketplaceDetailPage", "profile", PermissionCodes.AiMarketplaceView, null, false, true, "0", "0", PermissionCodes.AiMarketplaceView, true),
 
             ("低代码中心", "/lowcode", null, 20, "M", "Layout", "appstore", null, null, false, false, "0", "0", null, false),
             ("应用管理", "/lowcode/apps", "/lowcode", 21, "C", "lowcode/AppListPage", "appstore-add", PermissionCodes.AppsView, null, false, true, "0", "0", PermissionCodes.AppsView, false),
@@ -658,7 +668,12 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             ("Prompt 查询", "/ai/prompts:query", "/ai/prompts", 31, "F", null, null, PermissionCodes.AiPromptView, null, false, false, "0", "0", PermissionCodes.AiPromptView, true),
             ("Prompt 新增", "/ai/prompts:create", "/ai/prompts", 32, "F", null, null, PermissionCodes.AiPromptCreate, null, false, false, "0", "0", PermissionCodes.AiPromptCreate, true),
             ("Prompt 修改", "/ai/prompts:update", "/ai/prompts", 33, "F", null, null, PermissionCodes.AiPromptUpdate, null, false, false, "0", "0", PermissionCodes.AiPromptUpdate, true),
-            ("Prompt 删除", "/ai/prompts:delete", "/ai/prompts", 34, "F", null, null, PermissionCodes.AiPromptDelete, null, false, false, "0", "0", PermissionCodes.AiPromptDelete, true)
+            ("Prompt 删除", "/ai/prompts:delete", "/ai/prompts", 34, "F", null, null, PermissionCodes.AiPromptDelete, null, false, false, "0", "0", PermissionCodes.AiPromptDelete, true),
+            ("市场查询", "/ai/marketplace:query", "/ai/marketplace", 35, "F", null, null, PermissionCodes.AiMarketplaceView, null, false, false, "0", "0", PermissionCodes.AiMarketplaceView, true),
+            ("市场新增", "/ai/marketplace:create", "/ai/marketplace", 36, "F", null, null, PermissionCodes.AiMarketplaceCreate, null, false, false, "0", "0", PermissionCodes.AiMarketplaceCreate, true),
+            ("市场修改", "/ai/marketplace:update", "/ai/marketplace", 37, "F", null, null, PermissionCodes.AiMarketplaceUpdate, null, false, false, "0", "0", PermissionCodes.AiMarketplaceUpdate, true),
+            ("市场删除", "/ai/marketplace:delete", "/ai/marketplace", 38, "F", null, null, PermissionCodes.AiMarketplaceDelete, null, false, false, "0", "0", PermissionCodes.AiMarketplaceDelete, true),
+            ("市场发布", "/ai/marketplace:publish", "/ai/marketplace", 39, "F", null, null, PermissionCodes.AiMarketplacePublish, null, false, false, "0", "0", PermissionCodes.AiMarketplacePublish, true)
         };
 
         var menuPaths = menuSeeds.Select(x => x.Path).Distinct().ToArray();
@@ -834,6 +849,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             "/ai/apps",
             "/ai/prompts",
             "/ai/open-platform",
+            "/ai/marketplace",
             "/lowcode",
             "/lowcode/apps",
             "/lowcode/forms",

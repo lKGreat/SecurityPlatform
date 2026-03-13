@@ -102,6 +102,11 @@ public static class PermissionCodes
     public const string AiPromptCreate = "ai-prompt:create";
     public const string AiPromptUpdate = "ai-prompt:update";
     public const string AiPromptDelete = "ai-prompt:delete";
+    public const string AiMarketplaceView = "ai-marketplace:view";
+    public const string AiMarketplaceCreate = "ai-marketplace:create";
+    public const string AiMarketplaceUpdate = "ai-marketplace:update";
+    public const string AiMarketplaceDelete = "ai-marketplace:delete";
+    public const string AiMarketplacePublish = "ai-marketplace:publish";
     public const string PersonalAccessTokenView = "pat:view";
     public const string PersonalAccessTokenCreate = "pat:create";
     public const string PersonalAccessTokenUpdate = "pat:update";
