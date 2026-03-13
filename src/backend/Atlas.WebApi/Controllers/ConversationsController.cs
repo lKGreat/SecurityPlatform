@@ -43,13 +43,19 @@ public sealed class ConversationsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var tenantId = _tenantProvider.GetTenantId();
-        var resolvedUserId = userId ?? _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        var currentUserId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        if (userId.HasValue && userId.Value != currentUserId)
+        {
+            return Forbid();
+        }
+
         PagedResult<ConversationDto> result;
         if (agentId.HasValue && agentId.Value > 0)
         {
             result = await _conversationService.ListByAgentAsync(
                 tenantId,
                 agentId.Value,
+                currentUserId,
                 request.PageIndex,
                 request.PageSize,
                 cancellationToken);
@@ -58,7 +64,7 @@ public sealed class ConversationsController : ControllerBase
         {
             result = await _conversationService.ListByUserAsync(
                 tenantId,
-                resolvedUserId,
+                currentUserId,
                 request.PageIndex,
                 request.PageSize,
                 cancellationToken);
@@ -72,7 +78,8 @@ public sealed class ConversationsController : ControllerBase
     public async Task<ActionResult<ApiResponse<ConversationDto>>> GetById(long id, CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.GetTenantId();
-        var result = await _conversationService.GetByIdAsync(tenantId, id, cancellationToken);
+        var userId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        var result = await _conversationService.GetByIdAsync(tenantId, userId, id, cancellationToken);
         if (result is null)
         {
             return NotFound(ApiResponse<ConversationDto>.Fail(ErrorCodes.NotFound, "会话不存在", HttpContext.TraceIdentifier));
@@ -103,7 +110,8 @@ public sealed class ConversationsController : ControllerBase
     {
         _updateValidator.ValidateAndThrow(request);
         var tenantId = _tenantProvider.GetTenantId();
-        await _conversationService.UpdateAsync(tenantId, id, request, cancellationToken);
+        var userId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        await _conversationService.UpdateAsync(tenantId, userId, id, request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
     }
 
@@ -112,7 +120,8 @@ public sealed class ConversationsController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> Delete(long id, CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.GetTenantId();
-        await _conversationService.DeleteAsync(tenantId, id, cancellationToken);
+        var userId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        await _conversationService.DeleteAsync(tenantId, userId, id, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
     }
 
@@ -121,7 +130,8 @@ public sealed class ConversationsController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> ClearContext(long id, CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.GetTenantId();
-        await _conversationService.ClearContextAsync(tenantId, id, cancellationToken);
+        var userId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        await _conversationService.ClearContextAsync(tenantId, userId, id, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
     }
 
@@ -130,7 +140,8 @@ public sealed class ConversationsController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> ClearHistory(long id, CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.GetTenantId();
-        await _conversationService.ClearHistoryAsync(tenantId, id, cancellationToken);
+        var userId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        await _conversationService.ClearHistoryAsync(tenantId, userId, id, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
     }
 
@@ -143,8 +154,10 @@ public sealed class ConversationsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var tenantId = _tenantProvider.GetTenantId();
+        var userId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
         var result = await _conversationService.GetMessagesAsync(
             tenantId,
+            userId,
             id,
             includeContextMarkers,
             limit,
@@ -160,7 +173,8 @@ public sealed class ConversationsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.GetTenantId();
-        await _conversationService.DeleteMessageAsync(tenantId, id, msgId, cancellationToken);
+        var userId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        await _conversationService.DeleteMessageAsync(tenantId, userId, id, msgId, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = msgId.ToString() }, HttpContext.TraceIdentifier));
     }
 }

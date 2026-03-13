@@ -80,10 +80,10 @@ public sealed class AgentChatController : ControllerBase
         [FromBody] AgentChatCancelRequest request,
         CancellationToken cancellationToken)
     {
-        _ = agentId;
         _cancelValidator.ValidateAndThrow(request);
         var tenantId = _tenantProvider.GetTenantId();
-        await _agentChatService.CancelAsync(tenantId, request.ConversationId, cancellationToken);
+        var userId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        await _agentChatService.CancelAsync(tenantId, userId, agentId, request.ConversationId, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = request.ConversationId.ToString() }, HttpContext.TraceIdentifier));
     }
 }

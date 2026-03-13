@@ -61,6 +61,7 @@ public sealed class ConversationService : IConversationService
     public async Task<PagedResult<ConversationDto>> ListByAgentAsync(
         TenantId tenantId,
         long agentId,
+        long userId,
         int pageIndex,
         int pageSize,
         CancellationToken cancellationToken)
@@ -68,6 +69,7 @@ public sealed class ConversationService : IConversationService
         var (items, total) = await _conversationRepository.GetPagedByAgentAsync(
             tenantId,
             agentId,
+            userId,
             pageIndex,
             pageSize,
             cancellationToken);
@@ -90,26 +92,36 @@ public sealed class ConversationService : IConversationService
         return new PagedResult<ConversationDto>(items.Select(MapConversation).ToList(), total, pageIndex, pageSize);
     }
 
-    public async Task<ConversationDto?> GetByIdAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken)
+    public async Task<ConversationDto?> GetByIdAsync(
+        TenantId tenantId,
+        long userId,
+        long conversationId,
+        CancellationToken cancellationToken)
     {
         var entity = await _conversationRepository.FindByIdAsync(tenantId, conversationId, cancellationToken);
+        if (entity is not null && entity.UserId != userId)
+        {
+            throw new BusinessException("无权访问此会话。", ErrorCodes.Forbidden);
+        }
+
         return entity is null ? null : MapConversation(entity);
     }
 
     public async Task UpdateAsync(
         TenantId tenantId,
+        long userId,
         long conversationId,
         ConversationUpdateRequest request,
         CancellationToken cancellationToken)
     {
-        var entity = await RequireConversationAsync(tenantId, conversationId, cancellationToken);
+        var entity = await RequireConversationAsync(tenantId, userId, conversationId, cancellationToken);
         entity.UpdateTitle(request.Title.Trim());
         await _conversationRepository.UpdateAsync(entity, cancellationToken);
     }
 
-    public async Task DeleteAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken)
+    public async Task DeleteAsync(TenantId tenantId, long userId, long conversationId, CancellationToken cancellationToken)
     {
-        _ = await RequireConversationAsync(tenantId, conversationId, cancellationToken);
+        _ = await RequireConversationAsync(tenantId, userId, conversationId, cancellationToken);
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             await _chatMessageRepository.DeleteByConversationAsync(tenantId, conversationId, cancellationToken);
@@ -117,9 +129,9 @@ public sealed class ConversationService : IConversationService
         }, cancellationToken);
     }
 
-    public async Task ClearHistoryAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken)
+    public async Task ClearHistoryAsync(TenantId tenantId, long userId, long conversationId, CancellationToken cancellationToken)
     {
-        var conversation = await RequireConversationAsync(tenantId, conversationId, cancellationToken);
+        var conversation = await RequireConversationAsync(tenantId, userId, conversationId, cancellationToken);
         conversation.ResetMessages();
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
@@ -128,9 +140,9 @@ public sealed class ConversationService : IConversationService
         }, cancellationToken);
     }
 
-    public async Task ClearContextAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken)
+    public async Task ClearContextAsync(TenantId tenantId, long userId, long conversationId, CancellationToken cancellationToken)
     {
-        var conversation = await RequireConversationAsync(tenantId, conversationId, cancellationToken);
+        var conversation = await RequireConversationAsync(tenantId, userId, conversationId, cancellationToken);
         conversation.ClearContext();
         var marker = new ChatMessageEntity(
             tenantId,
@@ -150,12 +162,13 @@ public sealed class ConversationService : IConversationService
 
     public async Task<IReadOnlyList<ChatMessageDto>> GetMessagesAsync(
         TenantId tenantId,
+        long userId,
         long conversationId,
         bool includeContextMarkers,
         int? limit,
         CancellationToken cancellationToken)
     {
-        _ = await RequireConversationAsync(tenantId, conversationId, cancellationToken);
+        _ = await RequireConversationAsync(tenantId, userId, conversationId, cancellationToken);
         var items = await _chatMessageRepository.GetAllByConversationAsync(tenantId, conversationId, cancellationToken);
         var filtered = includeContextMarkers
             ? items
@@ -170,11 +183,12 @@ public sealed class ConversationService : IConversationService
 
     public async Task DeleteMessageAsync(
         TenantId tenantId,
+        long userId,
         long conversationId,
         long messageId,
         CancellationToken cancellationToken)
     {
-        var conversation = await RequireConversationAsync(tenantId, conversationId, cancellationToken);
+        var conversation = await RequireConversationAsync(tenantId, userId, conversationId, cancellationToken);
         var message = await _chatMessageRepository.FindByConversationAndIdAsync(tenantId, conversationId, messageId, cancellationToken);
         if (message is null)
         {
@@ -201,11 +215,18 @@ public sealed class ConversationService : IConversationService
 
     private async Task<Conversation> RequireConversationAsync(
         TenantId tenantId,
+        long userId,
         long conversationId,
         CancellationToken cancellationToken)
     {
-        return await _conversationRepository.FindByIdAsync(tenantId, conversationId, cancellationToken)
+        var conversation = await _conversationRepository.FindByIdAsync(tenantId, conversationId, cancellationToken)
             ?? throw new BusinessException("会话不存在。", ErrorCodes.NotFound);
+        if (conversation.UserId != userId)
+        {
+            throw new BusinessException("无权访问此会话。", ErrorCodes.Forbidden);
+        }
+
+        return conversation;
     }
 
     private static ConversationDto MapConversation(Conversation entity)

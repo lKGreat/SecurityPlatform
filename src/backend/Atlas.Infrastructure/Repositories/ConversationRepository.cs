@@ -14,12 +14,13 @@ public sealed class ConversationRepository : RepositoryBase<Conversation>
     public async Task<(List<Conversation> Items, long Total)> GetPagedByAgentAsync(
         TenantId tenantId,
         long agentId,
+        long userId,
         int pageIndex,
         int pageSize,
         CancellationToken cancellationToken)
     {
         var query = Db.Queryable<Conversation>()
-            .Where(x => x.TenantIdValue == tenantId.Value && x.AgentId == agentId);
+            .Where(x => x.TenantIdValue == tenantId.Value && x.AgentId == agentId && x.UserId == userId);
 
         var total = await query.CountAsync(cancellationToken);
         var items = await query

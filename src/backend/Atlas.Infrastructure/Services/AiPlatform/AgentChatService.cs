@@ -102,17 +102,31 @@ public sealed class AgentChatService : IAgentChatService
         await producer;
     }
 
-    public Task CancelAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken)
+    public async Task CancelAsync(
+        TenantId tenantId,
+        long userId,
+        long agentId,
+        long conversationId,
+        CancellationToken cancellationToken)
     {
-        _ = tenantId;
-        _ = cancellationToken;
+        var conversation = await _conversationRepository.FindByIdAsync(tenantId, conversationId, cancellationToken)
+            ?? throw new BusinessException("会话不存在。", ErrorCodes.NotFound);
+
+        if (conversation.UserId != userId)
+        {
+            throw new BusinessException("无权操作此会话。", ErrorCodes.Forbidden);
+        }
+
+        if (conversation.AgentId != agentId)
+        {
+            throw new BusinessException("会话与当前 Agent 不匹配。", ErrorCodes.ValidationError);
+        }
+
         if (ConversationCancellationMap.TryRemove(conversationId, out var cts))
         {
             cts.Cancel();
             cts.Dispose();
         }
-
-        return Task.CompletedTask;
     }
 
     private async Task<AgentChatResponse> ExecuteAsync(
@@ -128,18 +142,24 @@ public sealed class AgentChatService : IAgentChatService
         var conversation = await EnsureConversationAsync(tenantId, userId, agent, request, cancellationToken);
 
         var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var previous = ConversationCancellationMap.AddOrUpdate(
-            conversation.Id,
-            linkedCts,
-            (_, existing) =>
+        while (true)
+        {
+            if (ConversationCancellationMap.TryGetValue(conversation.Id, out var existing))
             {
+                if (!ConversationCancellationMap.TryUpdate(conversation.Id, linkedCts, existing))
+                {
+                    continue;
+                }
+
                 existing.Cancel();
                 existing.Dispose();
-                return linkedCts;
-            });
-        if (!ReferenceEquals(previous, linkedCts))
-        {
-            previous.Dispose();
+                break;
+            }
+
+            if (ConversationCancellationMap.TryAdd(conversation.Id, linkedCts))
+            {
+                break;
+            }
         }
 
         try

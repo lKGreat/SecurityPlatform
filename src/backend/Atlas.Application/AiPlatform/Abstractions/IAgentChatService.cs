@@ -19,5 +19,10 @@ public interface IAgentChatService
         AgentChatRequest request,
         CancellationToken cancellationToken);
 
-    Task CancelAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken);
+    Task CancelAsync(
+        TenantId tenantId,
+        long userId,
+        long agentId,
+        long conversationId,
+        CancellationToken cancellationToken);
 }

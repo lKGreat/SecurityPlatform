@@ -15,6 +15,7 @@ public interface IConversationService
     Task<PagedResult<ConversationDto>> ListByAgentAsync(
         TenantId tenantId,
         long agentId,
+        long userId,
         int pageIndex,
         int pageSize,
         CancellationToken cancellationToken);
@@ -26,22 +27,37 @@ public interface IConversationService
         int pageSize,
         CancellationToken cancellationToken);
 
-    Task<ConversationDto?> GetByIdAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken);
+    Task<ConversationDto?> GetByIdAsync(
+        TenantId tenantId,
+        long userId,
+        long conversationId,
+        CancellationToken cancellationToken);
 
-    Task UpdateAsync(TenantId tenantId, long conversationId, ConversationUpdateRequest request, CancellationToken cancellationToken);
+    Task UpdateAsync(
+        TenantId tenantId,
+        long userId,
+        long conversationId,
+        ConversationUpdateRequest request,
+        CancellationToken cancellationToken);
 
-    Task DeleteAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken);
+    Task DeleteAsync(TenantId tenantId, long userId, long conversationId, CancellationToken cancellationToken);
 
-    Task ClearHistoryAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken);
+    Task ClearHistoryAsync(TenantId tenantId, long userId, long conversationId, CancellationToken cancellationToken);
 
-    Task ClearContextAsync(TenantId tenantId, long conversationId, CancellationToken cancellationToken);
+    Task ClearContextAsync(TenantId tenantId, long userId, long conversationId, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ChatMessageDto>> GetMessagesAsync(
         TenantId tenantId,
+        long userId,
         long conversationId,
         bool includeContextMarkers,
         int? limit,
         CancellationToken cancellationToken);
 
-    Task DeleteMessageAsync(TenantId tenantId, long conversationId, long messageId, CancellationToken cancellationToken);
+    Task DeleteMessageAsync(
+        TenantId tenantId,
+        long userId,
+        long conversationId,
+        long messageId,
+        CancellationToken cancellationToken);
 }
