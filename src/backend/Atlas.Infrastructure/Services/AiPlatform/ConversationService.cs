@@ -6,6 +6,7 @@ using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.AiPlatform.Entities;
 using Atlas.Infrastructure.Repositories;
+using ChatMessageEntity = Atlas.Domain.AiPlatform.Entities.ChatMessage;
 
 namespace Atlas.Infrastructure.Services.AiPlatform;
 
@@ -217,7 +218,7 @@ public sealed class ConversationService : IConversationService
             entity.LastMessageAt,
             entity.MessageCount);
 
-    private static ChatMessageDto MapMessage(ChatMessage entity)
+    private static ChatMessageDto MapMessage(ChatMessageEntity entity)
         => new(
             entity.Id,
             entity.Role,
