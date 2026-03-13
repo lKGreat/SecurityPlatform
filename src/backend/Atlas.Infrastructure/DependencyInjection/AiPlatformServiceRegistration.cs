@@ -133,21 +133,21 @@ public static class AiPlatformServiceRegistration
 
         services.AddScoped<DagExecutor>();
         services.AddSingleton<WorkflowExecutionCancellationRegistry>();
-        services.AddSingleton<NodeExecutorRegistry>();
-        services.AddSingleton<INodeExecutor, EntryNodeExecutor>();
-        services.AddSingleton<INodeExecutor, ExitNodeExecutor>();
-        services.AddSingleton<INodeExecutor, SelectorNodeExecutor>();
-        services.AddSingleton<INodeExecutor, LlmNodeExecutor>();
-        services.AddSingleton<INodeExecutor, SubWorkflowNodeExecutor>();
-        services.AddSingleton<INodeExecutor, LoopNodeExecutor>();
-        services.AddSingleton<INodeExecutor, CodeRunnerNodeExecutor>();
-        services.AddSingleton<INodeExecutor, HttpRequesterNodeExecutor>();
-        services.AddSingleton<INodeExecutor, TextProcessorNodeExecutor>();
-        services.AddSingleton<INodeExecutor, DatabaseQueryNodeExecutor>();
-        services.AddSingleton<INodeExecutor, AssignVariableNodeExecutor>();
-        services.AddSingleton<INodeExecutor, VariableAggregatorNodeExecutor>();
-        services.AddSingleton<INodeExecutor, JsonSerializationNodeExecutor>();
-        services.AddSingleton<INodeExecutor, JsonDeserializationNodeExecutor>();
+        services.AddScoped<NodeExecutorRegistry>();
+        services.AddScoped<INodeExecutor, EntryNodeExecutor>();
+        services.AddScoped<INodeExecutor, ExitNodeExecutor>();
+        services.AddScoped<INodeExecutor, SelectorNodeExecutor>();
+        services.AddScoped<INodeExecutor, LlmNodeExecutor>();
+        services.AddScoped<INodeExecutor, SubWorkflowNodeExecutor>();
+        services.AddScoped<INodeExecutor, LoopNodeExecutor>();
+        services.AddScoped<INodeExecutor, CodeRunnerNodeExecutor>();
+        services.AddScoped<INodeExecutor, HttpRequesterNodeExecutor>();
+        services.AddScoped<INodeExecutor, TextProcessorNodeExecutor>();
+        services.AddScoped<INodeExecutor, DatabaseQueryNodeExecutor>();
+        services.AddScoped<INodeExecutor, AssignVariableNodeExecutor>();
+        services.AddScoped<INodeExecutor, VariableAggregatorNodeExecutor>();
+        services.AddScoped<INodeExecutor, JsonSerializationNodeExecutor>();
+        services.AddScoped<INodeExecutor, JsonDeserializationNodeExecutor>();
 
         services.AddScoped<IWorkflowV2CommandService, WorkflowV2CommandService>();
         services.AddScoped<IWorkflowV2QueryService, WorkflowV2QueryService>();

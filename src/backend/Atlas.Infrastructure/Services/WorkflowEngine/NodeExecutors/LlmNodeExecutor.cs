@@ -1,7 +1,6 @@
 using Atlas.Application.AiPlatform.Abstractions;
 using Atlas.Application.AiPlatform.Models;
 using Atlas.Domain.AiPlatform.Enums;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Atlas.Infrastructure.Services.WorkflowEngine.NodeExecutors;
 
@@ -11,6 +10,13 @@ namespace Atlas.Infrastructure.Services.WorkflowEngine.NodeExecutors;
 /// </summary>
 public sealed class LlmNodeExecutor : INodeExecutor
 {
+    private readonly ILlmProviderFactory _llmProviderFactory;
+
+    public LlmNodeExecutor(ILlmProviderFactory llmProviderFactory)
+    {
+        _llmProviderFactory = llmProviderFactory;
+    }
+
     public WorkflowNodeType NodeType => WorkflowNodeType.Llm;
 
     public async Task<NodeExecutionResult> ExecuteAsync(NodeExecutionContext context, CancellationToken cancellationToken)
@@ -33,8 +39,7 @@ public sealed class LlmNodeExecutor : INodeExecutor
 
         try
         {
-            var factory = context.ServiceProvider.GetRequiredService<ILlmProviderFactory>();
-            var llmProvider = factory.GetLlmProvider(provider);
+            var llmProvider = _llmProviderFactory.GetLlmProvider(provider);
 
             float.TryParse(config.GetValueOrDefault("temperature"), out var temperature);
             int.TryParse(config.GetValueOrDefault("maxTokens"), out var maxTokens);

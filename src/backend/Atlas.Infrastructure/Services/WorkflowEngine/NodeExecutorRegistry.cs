@@ -3,7 +3,7 @@ using Atlas.Domain.AiPlatform.Enums;
 namespace Atlas.Infrastructure.Services.WorkflowEngine;
 
 /// <summary>
-/// 节点执行器注册表——Singleton，汇总所有 <see cref="INodeExecutor"/> 实现。
+/// 节点执行器注册表——按作用域构建，汇总当前作用域的 <see cref="INodeExecutor"/> 实现。
 /// </summary>
 public sealed class NodeExecutorRegistry
 {

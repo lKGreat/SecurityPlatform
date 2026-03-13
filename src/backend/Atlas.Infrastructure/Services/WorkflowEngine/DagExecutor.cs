@@ -113,6 +113,19 @@ public sealed class DagExecutor
                     }
                 }
 
+                // 条件分支节点执行完成后，按选中分支跳过未命中的下游节点。
+                foreach (var selectorNode in levelResults.Where(x => x.Success && x.NodeType == WorkflowNodeType.Selector))
+                {
+                    foreach (var nodeKeyToSkip in ResolveSelectorBranchNodesToSkip(
+                                 selectorNode.NodeKey,
+                                 selectorNode.Outputs,
+                                 adjacency,
+                                 connectionsBySource))
+                    {
+                        skippedNodeKeys.Add(nodeKeyToSkip);
+                    }
+                }
+
                 var loopNodes = levelResults
                     .Where(x =>
                         x.Success &&
@@ -422,6 +435,145 @@ public sealed class DagExecutor
         return string.Equals(completedRaw, "1", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static IReadOnlyList<string> ResolveSelectorBranchNodesToSkip(
+        string selectorNodeKey,
+        Dictionary<string, string> outputs,
+        Dictionary<string, List<string>> adjacency,
+        Dictionary<string, List<ConnectionSchema>> connectionsBySource)
+    {
+        if (!connectionsBySource.TryGetValue(selectorNodeKey, out var outgoingConnections) || outgoingConnections.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var selectedBranch = ResolveSelectedSelectorBranch(outputs);
+        if (selectedBranch is null)
+        {
+            return Array.Empty<string>();
+        }
+
+        var trueBranchStarts = outgoingConnections
+            .Where(IsSelectorTrueConnection)
+            .Select(x => x.TargetNodeKey)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var falseBranchStarts = outgoingConnections
+            .Where(IsSelectorFalseConnection)
+            .Select(x => x.TargetNodeKey)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // 兜底：如果未携带条件/端口信息但只有 2 条输出，按连线顺序映射 true/false。
+        if (trueBranchStarts.Count == 0 && falseBranchStarts.Count == 0 && outgoingConnections.Count == 2)
+        {
+            trueBranchStarts.Add(outgoingConnections[0].TargetNodeKey);
+            falseBranchStarts.Add(outgoingConnections[1].TargetNodeKey);
+        }
+
+        var selectedStarts = selectedBranch == SelectorBranch.True ? trueBranchStarts : falseBranchStarts;
+        var unselectedStarts = selectedBranch == SelectorBranch.True ? falseBranchStarts : trueBranchStarts;
+        if (selectedStarts.Count == 0 || unselectedStarts.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var selectedNodes = TraverseReachableNodes(selectedStarts, adjacency);
+        var unselectedNodes = TraverseReachableNodes(unselectedStarts, adjacency);
+        unselectedNodes.ExceptWith(selectedNodes);
+        unselectedNodes.Remove(selectorNodeKey);
+        return unselectedNodes.ToList();
+    }
+
+    private static SelectorBranch? ResolveSelectedSelectorBranch(Dictionary<string, string> outputs)
+    {
+        if (outputs.TryGetValue("selected_branch", out var selectedBranchRaw))
+        {
+            if (selectedBranchRaw.Contains("true", StringComparison.OrdinalIgnoreCase))
+            {
+                return SelectorBranch.True;
+            }
+
+            if (selectedBranchRaw.Contains("false", StringComparison.OrdinalIgnoreCase))
+            {
+                return SelectorBranch.False;
+            }
+        }
+
+        if (outputs.TryGetValue("selector_result", out var selectorResultRaw))
+        {
+            if (bool.TryParse(selectorResultRaw, out var boolResult))
+            {
+                return boolResult ? SelectorBranch.True : SelectorBranch.False;
+            }
+
+            if (string.Equals(selectorResultRaw, "1", StringComparison.OrdinalIgnoreCase))
+            {
+                return SelectorBranch.True;
+            }
+
+            if (string.Equals(selectorResultRaw, "0", StringComparison.OrdinalIgnoreCase))
+            {
+                return SelectorBranch.False;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsSelectorTrueConnection(ConnectionSchema connection)
+    {
+        var condition = connection.Condition ?? string.Empty;
+        if (condition.Contains("selector_result", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("true", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (condition.Contains("selected_branch", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("true_branch", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(condition, "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(condition, "1", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return connection.SourcePort.Contains("true", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("true", StringComparison.OrdinalIgnoreCase) ||
+               connection.SourcePort.Contains("yes", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("yes", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSelectorFalseConnection(ConnectionSchema connection)
+    {
+        var condition = connection.Condition ?? string.Empty;
+        if (condition.Contains("selector_result", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("false", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (condition.Contains("selected_branch", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("false_branch", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(condition, "false", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(condition, "0", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return connection.SourcePort.Contains("false", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("false", StringComparison.OrdinalIgnoreCase) ||
+               connection.SourcePort.Contains("no", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("no", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static List<string> ResolveLoopBodyNodeKeys(
         NodeSchema loopNode,
         Dictionary<string, List<string>> adjacency,
@@ -699,6 +851,12 @@ public sealed class DagExecutor
     }
 
     private static readonly Dictionary<string, string> EmptyOutputs = new(StringComparer.OrdinalIgnoreCase);
+
+    private enum SelectorBranch
+    {
+        True = 1,
+        False = 2
+    }
 
     private sealed record NodeRunResult(
         string NodeKey,
