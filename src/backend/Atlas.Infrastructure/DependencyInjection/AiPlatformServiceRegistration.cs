@@ -2,6 +2,7 @@ using Atlas.Application.AiPlatform.Abstractions;
 using Atlas.Infrastructure.Options;
 using Atlas.Infrastructure.Repositories;
 using Atlas.Infrastructure.Services.AiPlatform;
+using Atlas.Infrastructure.Services.AiPlatform.CodeExecution;
 using Atlas.Infrastructure.Services.AiPlatform.WorkflowSteps;
 using Atlas.Infrastructure.Services.AiPlatform.Parsers;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +16,7 @@ public static class AiPlatformServiceRegistration
     public static IServiceCollection AddAiPlatformInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<AiPlatformOptions>(configuration.GetSection("AiPlatform"));
+        services.Configure<CodeExecutionOptions>(configuration.GetSection("CodeExecution"));
         services.AddHttpClient("AiPlatform", client => client.Timeout = TimeSpan.FromSeconds(120));
 
         services.AddSingleton<ILlmProvider>(sp =>
@@ -98,6 +100,15 @@ public static class AiPlatformServiceRegistration
 
         services.AddSingleton<IChunkingService, FixedSizeChunkingService>();
         services.AddSingleton<BuiltInPluginMetadataProvider>();
+        services.AddTransient<DirectPythonExecutor>();
+        services.AddTransient<SandboxedPythonExecutor>();
+        services.AddScoped<ICodeExecutionService>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<CodeExecutionOptions>>().Value;
+            return string.Equals(options.Mode, "Sandbox", StringComparison.OrdinalIgnoreCase)
+                ? sp.GetRequiredService<SandboxedPythonExecutor>()
+                : sp.GetRequiredService<DirectPythonExecutor>();
+        });
 
         return services;
     }
