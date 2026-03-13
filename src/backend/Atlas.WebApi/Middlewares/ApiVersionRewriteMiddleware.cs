@@ -19,7 +19,8 @@ public sealed class ApiVersionRewriteMiddleware
             return _next(context);
         }
 
-        if (path.StartsWith(VersionPrefix, StringComparison.OrdinalIgnoreCase))
+        // 已有版本前缀的路径（/api/v1, /api/v2, ...）直接放行
+        if (path.StartsWith("/api/v", StringComparison.OrdinalIgnoreCase) && path.Length > 6 && char.IsDigit(path[6]))
         {
             return _next(context);
         }

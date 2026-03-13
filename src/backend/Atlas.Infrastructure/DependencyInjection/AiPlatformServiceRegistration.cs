@@ -1,10 +1,13 @@
 using Atlas.Application.AiPlatform.Abstractions;
+using Atlas.Application.AiPlatform.Repositories;
 using Atlas.Infrastructure.Options;
 using Atlas.Infrastructure.Repositories;
 using Atlas.Infrastructure.Services.AiPlatform;
 using Atlas.Infrastructure.Services.AiPlatform.CodeExecution;
 using Atlas.Infrastructure.Services.AiPlatform.WorkflowSteps;
 using Atlas.Infrastructure.Services.AiPlatform.Parsers;
+using Atlas.Infrastructure.Services.WorkflowEngine;
+using Atlas.Infrastructure.Services.WorkflowEngine.NodeExecutors;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -120,6 +123,37 @@ public static class AiPlatformServiceRegistration
 
         services.AddSingleton<IChunkingService, FixedSizeChunkingService>();
         services.AddSingleton<BuiltInPluginMetadataProvider>();
+
+        // ── Workflow V2: DAG Engine ──
+        services.AddScoped<IWorkflowMetaRepository, WorkflowMetaRepository>();
+        services.AddScoped<IWorkflowDraftRepository, WorkflowDraftRepository>();
+        services.AddScoped<IWorkflowVersionRepository, WorkflowVersionRepository>();
+        services.AddScoped<IWorkflowExecutionRepository, WorkflowExecutionRepository>();
+        services.AddScoped<IWorkflowNodeExecutionRepository, WorkflowNodeExecutionRepository>();
+
+        services.AddScoped<DagExecutor>();
+        services.AddSingleton<WorkflowExecutionCancellationRegistry>();
+        services.AddScoped<NodeExecutorRegistry>();
+        services.AddScoped<INodeExecutor, EntryNodeExecutor>();
+        services.AddScoped<INodeExecutor, ExitNodeExecutor>();
+        services.AddScoped<INodeExecutor, SelectorNodeExecutor>();
+        services.AddScoped<INodeExecutor, LlmNodeExecutor>();
+        services.AddScoped<INodeExecutor, SubWorkflowNodeExecutor>();
+        services.AddScoped<INodeExecutor, LoopNodeExecutor>();
+        services.AddScoped<INodeExecutor, CodeRunnerNodeExecutor>();
+        services.AddScoped<INodeExecutor, HttpRequesterNodeExecutor>();
+        services.AddScoped<INodeExecutor, TextProcessorNodeExecutor>();
+        services.AddScoped<INodeExecutor, DatabaseQueryNodeExecutor>();
+        services.AddScoped<INodeExecutor, AssignVariableNodeExecutor>();
+        services.AddScoped<INodeExecutor, VariableAggregatorNodeExecutor>();
+        services.AddScoped<INodeExecutor, JsonSerializationNodeExecutor>();
+        services.AddScoped<INodeExecutor, JsonDeserializationNodeExecutor>();
+
+        services.AddScoped<IWorkflowV2CommandService, WorkflowV2CommandService>();
+        services.AddScoped<IWorkflowV2QueryService, WorkflowV2QueryService>();
+        services.AddScoped<IWorkflowV2ExecutionService, WorkflowV2ExecutionService>();
+        services.AddHttpClient("WorkflowEngine", client => client.Timeout = TimeSpan.FromSeconds(30));
+
         services.AddTransient<DirectPythonExecutor>();
         services.AddTransient<SandboxedPythonExecutor>();
         services.AddScoped<ICodeExecutionService>(sp =>

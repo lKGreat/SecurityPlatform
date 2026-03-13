@@ -2002,3 +2002,237 @@ JWT Claims（新增）：
 
 - `Idempotency-Key`
 - `X-CSRF-TOKEN`
+
+---
+
+## V2 Workflow API 契约（Coze 风格 DAG 引擎）
+
+### 概述
+
+V2 工作流 API 采用 Coze 风格的 DAG 执行引擎，与 V1（`api/v1/ai-workflows`）并行运行。V2 引入独立的 Meta/Draft/Version 草稿-发布模型，支持 SSE 流式执行和可扩展的节点执行器注册表。
+
+### 路由前缀
+
+`api/v2/workflows`
+
+### 端点列表
+
+| 方法 | 路由 | 说明 | 权限 |
+|---|---|---|---|
+| POST | `/` | 创建工作流 | `ai-workflow:create` |
+| GET | `/` | 工作流列表（分页） | `ai-workflow:view` |
+| GET | `/{id}` | 工作流详情（含 Draft） | `ai-workflow:view` |
+| PUT | `/{id}/meta` | 更新元信息 | `ai-workflow:update` |
+| PUT | `/{id}/draft` | 保存草稿 | `ai-workflow:update` |
+| DELETE | `/{id}` | 删除工作流（软删除） | `ai-workflow:delete` |
+| POST | `/{id}/copy` | 复制工作流 | `ai-workflow:create` |
+| POST | `/{id}/publish` | 发布版本 | `ai-workflow:update` |
+| GET | `/{id}/versions` | 版本列表 | `ai-workflow:view` |
+| POST | `/{id}/run` | 同步运行 | `ai-workflow:execute` |
+| POST | `/{id}/stream` | SSE 流式运行 | `ai-workflow:execute` |
+| POST | `/executions/{id}/cancel` | 取消执行 | `ai-workflow:execute` |
+| POST | `/executions/{id}/resume` | 恢复执行 | `ai-workflow:execute` |
+| GET | `/executions/{id}/process` | 执行进度 | `ai-workflow:view` |
+| GET | `/executions/{id}/nodes/{key}` | 节点执行详情 | `ai-workflow:view` |
+| POST | `/{id}/debug-node` | 单节点调试 | `ai-workflow:execute` |
+| GET | `/node-types` | 节点类型列表 | `ai-workflow:view` |
+
+### 请求模型
+
+```typescript
+// 创建
+interface WorkflowV2CreateRequest {
+  name: string;        // 2-100 字符
+  description?: string;
+  mode: 0 | 1;        // 0=Standard, 1=ChatFlow
+}
+
+// 保存草稿
+interface WorkflowV2SaveDraftRequest {
+  canvasJson: string;  // Canvas JSON（必填）
+  commitId?: string;
+}
+
+// 更新元信息
+interface WorkflowV2UpdateMetaRequest {
+  name: string;
+  description?: string;
+}
+
+// 发布
+interface WorkflowV2PublishRequest {
+  changeLog?: string;  // ≤500 字符
+}
+
+// 运行
+interface WorkflowV2RunRequest {
+  inputsJson?: string; // JSON 字符串，输入变量
+}
+
+// 单节点调试
+interface WorkflowV2NodeDebugRequest {
+  nodeKey: string;     // 目标节点 Key
+  inputsJson?: string;
+}
+```
+
+### 响应模型
+
+```typescript
+interface WorkflowV2ListItem {
+  id: number;
+  name: string;
+  description?: string;
+  mode: number;
+  status: number;      // 0=Draft, 1=Published, 2=Archived
+  latestVersionNumber: number;
+  creatorId: number;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+}
+
+interface WorkflowV2DetailDto extends WorkflowV2ListItem {
+  canvasJson: string;
+  commitId?: string;
+}
+
+interface WorkflowV2VersionDto {
+  id: number;
+  workflowId: number;
+  versionNumber: number;
+  changeLog?: string;
+  canvasJson: string;
+  publishedAt: string;
+  publishedByUserId: number;
+}
+
+interface WorkflowV2ExecutionDto {
+  id: number;
+  workflowId: number;
+  versionNumber: number;
+  status: number;       // 0=Pending..5=Interrupted
+  inputsJson?: string;
+  outputsJson?: string;
+  errorMessage?: string;
+  startedAt: string;
+  completedAt?: string;
+  nodeExecutions: WorkflowV2NodeExecutionDto[];
+}
+
+interface WorkflowV2NodeExecutionDto {
+  id: number;
+  executionId: number;
+  nodeKey: string;
+  nodeType: number;
+  status: number;
+  inputsJson?: string;
+  outputsJson?: string;
+  errorMessage?: string;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+}
+```
+
+### SSE 流式事件格式
+
+`POST /api/v2/workflows/{id}/stream` 返回 `text/event-stream`：
+
+```
+event: execution_start
+data: {"executionId":"123456"}
+
+event: node_start
+data: {"nodeKey":"text_1","nodeType":"TextProcessor"}
+
+event: node_complete
+data: {"nodeKey":"text_1","durationMs":15}
+
+event: llm_output
+data: 大模型生成的文本内容...
+
+# 仅在执行成功时发送
+event: execution_complete
+data: {"executionId":"123456"}
+
+# 执行失败（包含业务失败/运行时异常）
+event: execution_failed
+data: {"executionId":"123456","errorMessage":"节点 text_1 执行异常"}
+
+# 执行被取消
+event: execution_cancelled
+data: {"executionId":"123456"}
+
+# 执行中断（等待人工介入/外部输入）
+event: execution_interrupted
+data: {"executionId":"123456","interruptType":"ManualApproval","nodeKey":"approval_1"}
+```
+
+### Canvas JSON Schema
+
+```json
+{
+  "nodes": [
+    {
+      "key": "entry_1",
+      "type": 1,
+      "label": "开始",
+      "config": {},
+      "layout": { "x": 100, "y": 100, "width": 120, "height": 60 }
+    },
+    {
+      "key": "text_1",
+      "type": 15,
+      "label": "文本处理",
+      "config": {
+        "template": "处理结果: {{input_var}}",
+        "outputKey": "text_output"
+      },
+      "layout": { "x": 300, "y": 100, "width": 120, "height": 60 }
+    },
+    {
+      "key": "exit_1",
+      "type": 2,
+      "label": "结束",
+      "config": {},
+      "layout": { "x": 500, "y": 100, "width": 120, "height": 60 }
+    }
+  ],
+  "connections": [
+    {
+      "sourceNodeKey": "entry_1",
+      "sourcePort": "output",
+      "targetNodeKey": "text_1",
+      "targetPort": "input",
+      "condition": null
+    },
+    {
+      "sourceNodeKey": "text_1",
+      "sourcePort": "output",
+      "targetNodeKey": "exit_1",
+      "targetPort": "input",
+      "condition": null
+    }
+  ]
+}
+```
+
+### 已注册节点类型（14 种）
+
+| Key | Name | Category | NodeType 值 |
+|---|---|---|---|
+| Entry | 开始 | Flow | 1 |
+| Exit | 结束 | Flow | 2 |
+| Llm | 大模型 | AI | 3 |
+| Selector | 条件分支 | Flow | 8 |
+| SubWorkflow | 子工作流 | Flow | 9 |
+| TextProcessor | 文本处理 | Transform | 15 |
+| Loop | 循环 | Flow | 21 |
+| AssignVariable | 变量赋值 | Data | 40 |
+| VariableAggregator | 变量聚合 | Data | 32 |
+| DatabaseQuery | 数据库查询 | Data | 43 |
+| HttpRequester | HTTP 请求 | Integration | 45 |
+| CodeRunner | 代码执行 | Compute | 5 |
+| JsonSerialization | JSON 序列化 | Transform | 58 |
+| JsonDeserialization | JSON 反序列化 | Transform | 59 |

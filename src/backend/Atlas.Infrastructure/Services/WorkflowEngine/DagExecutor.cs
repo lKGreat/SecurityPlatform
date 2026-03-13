@@ -1,371 +1,889 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Threading.Channels;
-using Atlas.Application.Workflow.Models.V2;
-using Atlas.Application.Workflow.Repositories.V2;
+using Atlas.Application.AiPlatform.Models;
+using Atlas.Application.AiPlatform.Repositories;
 using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
-using Atlas.Domain.Workflow.Entities;
-using Atlas.Domain.Workflow.Enums;
-using Atlas.Domain.Workflow.ValueObjects;
+using Atlas.Domain.AiPlatform.Entities;
+using Atlas.Domain.AiPlatform.Enums;
+using Atlas.Domain.AiPlatform.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace Atlas.Infrastructure.Services.WorkflowEngine;
 
 /// <summary>
-/// DAG 工作流执行引擎。
-/// 基于拓扑排序 + Task.WhenAll 并行分支执行，支持 If/Loop/SubWorkflow/中断。
+/// V2 DAG 执行引擎——按拓扑顺序执行工作流画布中的节点。
 /// </summary>
 public sealed class DagExecutor
 {
     private readonly NodeExecutorRegistry _registry;
+    private readonly IWorkflowNodeExecutionRepository _nodeExecutionRepo;
     private readonly IWorkflowExecutionRepository _executionRepo;
-    private readonly INodeExecutionRepository _nodeExecutionRepo;
-    private readonly IIdGenerator _idGen;
+    private readonly IIdGeneratorAccessor _idGenerator;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DagExecutor> _logger;
 
     public DagExecutor(
         NodeExecutorRegistry registry,
+        IWorkflowNodeExecutionRepository nodeExecutionRepo,
         IWorkflowExecutionRepository executionRepo,
-        INodeExecutionRepository nodeExecutionRepo,
-        IIdGenerator idGen,
+        IIdGeneratorAccessor idGenerator,
+        IServiceProvider serviceProvider,
         ILogger<DagExecutor> logger)
     {
         _registry = registry;
-        _executionRepo = executionRepo;
         _nodeExecutionRepo = nodeExecutionRepo;
-        _idGen = idGen;
+        _executionRepo = executionRepo;
+        _idGenerator = idGenerator;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
     /// <summary>
-    /// 同步执行工作流，返回执行结果。
+    /// 同步执行工作流 DAG 图。
     /// </summary>
-    public async Task<WorkflowRunResponse> RunAsync(
+    public async Task RunAsync(
         TenantId tenantId,
-        long workflowId,
-        string? workflowVersion,
+        WorkflowExecution execution,
         CanvasSchema canvas,
-        Dictionary<string, object?> inputs,
+        Dictionary<string, string> inputs,
+        Channel<SseEvent>? eventChannel,
         CancellationToken cancellationToken)
     {
-        var execId = _idGen.NextId();
-        var execution = new WorkflowExecution(tenantId, execId, workflowId, workflowVersion, SerializeInputs(inputs));
-        await _executionRepo.AddAsync(execution, cancellationToken);
-
-        var context = new NodeExecutionContext(execId, canvas, inputs, null, cancellationToken);
         execution.Start();
         await _executionRepo.UpdateAsync(execution, cancellationToken);
 
+        var variables = new Dictionary<string, string>(inputs, StringComparer.OrdinalIgnoreCase);
+
         try
         {
-            var outputs = await ExecuteGraphAsync(tenantId, context, canvas);
-            execution.Complete(JsonSerializer.Serialize(outputs));
-            await _executionRepo.UpdateAsync(execution, cancellationToken);
+            // 构建邻接表
+            var nodeMap = canvas.Nodes.ToDictionary(n => n.Key, n => n, StringComparer.OrdinalIgnoreCase);
+            var adjacency = BuildAdjacency(canvas);
+            var connectionsBySource = BuildConnectionsBySource(canvas);
+            var executionLevels = TopologicalSortByLevels(canvas.Nodes, adjacency);
+            var skippedNodeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            return new WorkflowRunResponse
+            foreach (var level in executionLevels)
             {
-                ExecutionId = execId,
-                Status = ExecutionStatus.Success,
-                Outputs = outputs,
-                CostMs = execution.CostMs
-            };
+                cancellationToken.ThrowIfCancellationRequested();
+                var executableNodeKeys = level
+                    .Where(nodeKey => !skippedNodeKeys.Contains(nodeKey))
+                    .ToArray();
+                if (executableNodeKeys.Length == 0)
+                {
+                    continue;
+                }
+
+                var levelInput = new Dictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase);
+                var levelTasks = executableNodeKeys
+                    .Select(nodeKey => ExecuteNodeAsync(
+                        tenantId,
+                        execution.Id,
+                        nodeKey,
+                        nodeMap,
+                        levelInput,
+                        eventChannel,
+                        cancellationToken))
+                    .ToArray();
+
+                var levelResults = await Task.WhenAll(levelTasks);
+                var failedNode = levelResults.FirstOrDefault(x => !x.Success);
+                if (failedNode is not null)
+                {
+                    if (failedNode.InterruptType != InterruptType.None)
+                    {
+                        execution.Interrupt(failedNode.InterruptType, failedNode.NodeKey);
+                        await _executionRepo.UpdateAsync(execution, cancellationToken);
+                        return;
+                    }
+
+                    execution.Fail(failedNode.ErrorMessage ?? "节点执行失败");
+                    await _executionRepo.UpdateAsync(execution, cancellationToken);
+                    return;
+                }
+
+                // 同层全部成功后再合并输出，避免失败层产生部分提交。
+                foreach (var result in levelResults)
+                {
+                    foreach (var kvp in result.Outputs)
+                    {
+                        variables[kvp.Key] = kvp.Value;
+                    }
+                }
+
+                // 条件分支节点执行完成后，按选中分支跳过未命中的下游节点。
+                foreach (var selectorNode in levelResults.Where(x => x.Success && x.NodeType == WorkflowNodeType.Selector))
+                {
+                    foreach (var nodeKeyToSkip in ResolveSelectorBranchNodesToSkip(
+                                 selectorNode.NodeKey,
+                                 selectorNode.Outputs,
+                                 adjacency,
+                                 connectionsBySource))
+                    {
+                        skippedNodeKeys.Add(nodeKeyToSkip);
+                    }
+                }
+
+                var loopNodes = levelResults
+                    .Where(x =>
+                        x.Success &&
+                        x.NodeType == WorkflowNodeType.Loop &&
+                        !IsLoopCompleted(x.Outputs))
+                    .ToArray();
+
+                foreach (var loopNode in loopNodes)
+                {
+                    var loopResult = await ExecuteLoopIterationsAsync(
+                        tenantId,
+                        execution.Id,
+                        loopNode.NodeKey,
+                        nodeMap,
+                        adjacency,
+                        connectionsBySource,
+                        variables,
+                        eventChannel,
+                        cancellationToken);
+
+                    if (!loopResult.Success)
+                    {
+                        if (loopResult.InterruptType != InterruptType.None)
+                        {
+                            execution.Interrupt(loopResult.InterruptType, loopResult.NodeKey);
+                            await _executionRepo.UpdateAsync(execution, cancellationToken);
+                            return;
+                        }
+
+                        execution.Fail(loopResult.ErrorMessage ?? "循环节点执行失败");
+                        await _executionRepo.UpdateAsync(execution, cancellationToken);
+                        return;
+                    }
+
+                    foreach (var bodyNodeKey in loopResult.BodyNodeKeysToSkip)
+                    {
+                        skippedNodeKeys.Add(bodyNodeKey);
+                    }
+                }
+            }
+
+            // 全部执行完毕
+            cancellationToken.ThrowIfCancellationRequested();
+            var latestExecution = await _executionRepo.FindByIdAsync(tenantId, execution.Id, CancellationToken.None);
+            if (latestExecution?.Status == ExecutionStatus.Cancelled)
+            {
+                _logger.LogInformation("执行已被取消，跳过完成态回写: ExecutionId={ExecutionId}", execution.Id);
+                return;
+            }
+
+            execution.Complete(JsonSerializer.Serialize(variables));
+            await _executionRepo.UpdateAsync(execution, cancellationToken);
         }
         catch (OperationCanceledException)
         {
             execution.Cancel();
-            await _executionRepo.UpdateAsync(execution, cancellationToken);
-            return new WorkflowRunResponse
-            {
-                ExecutionId = execId,
-                Status = ExecutionStatus.Cancelled,
-                CostMs = execution.CostMs
-            };
-        }
-        catch (WorkflowInterruptException ex)
-        {
-            execution.Interrupt(ex.InterruptType, ex.ContextJson);
-            await _executionRepo.UpdateAsync(execution, cancellationToken);
-            return new WorkflowRunResponse
-            {
-                ExecutionId = execId,
-                Status = ExecutionStatus.Interrupted,
-                CostMs = execution.CostMs
-            };
+            await _executionRepo.UpdateAsync(execution, CancellationToken.None);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "工作流执行失败 ExecutionId={ExecutionId}", execId);
+            _logger.LogError(ex, "工作流执行异常: ExecutionId={ExecutionId}", execution.Id);
             execution.Fail(ex.Message);
-            await _executionRepo.UpdateAsync(execution, cancellationToken);
-            return new WorkflowRunResponse
-            {
-                ExecutionId = execId,
-                Status = ExecutionStatus.Failed,
-                ErrorMessage = ex.Message,
-                CostMs = execution.CostMs
-            };
+            await _executionRepo.UpdateAsync(execution, CancellationToken.None);
+        }
+        finally
+        {
+            eventChannel?.Writer.TryComplete();
         }
     }
 
     /// <summary>
-    /// 流式执行工作流，通过 Channel 推送 SSE 事件。
+    /// 从 CanvasJson 反序列化 CanvasSchema。
     /// </summary>
-    public async Task StreamRunAsync(
-        TenantId tenantId,
-        long workflowId,
-        string? workflowVersion,
-        CanvasSchema canvas,
-        Dictionary<string, object?> inputs,
-        ChannelWriter<SseEvent> writer,
-        CancellationToken cancellationToken)
+    public static CanvasSchema? ParseCanvas(string canvasJson)
     {
-        var execId = _idGen.NextId();
-        var execution = new WorkflowExecution(tenantId, execId, workflowId, workflowVersion, SerializeInputs(inputs));
-        await _executionRepo.AddAsync(execution, cancellationToken);
-
-        var channel = Channel.CreateUnbounded<SseEvent>();
-        var context = new NodeExecutionContext(execId, canvas, inputs, channel, cancellationToken);
-        execution.Start();
-        await _executionRepo.UpdateAsync(execution, cancellationToken);
-
-        // 把内部 channel 的事件转发到外部 writer
-        var forwardTask = ForwardEventsAsync(channel.Reader, writer, cancellationToken);
+        if (string.IsNullOrWhiteSpace(canvasJson))
+        {
+            return null;
+        }
 
         try
         {
-            var startTime = DateTimeOffset.UtcNow;
-            var outputs = await ExecuteGraphAsync(tenantId, context, canvas);
-            execution.Complete(JsonSerializer.Serialize(outputs));
-            await _executionRepo.UpdateAsync(execution, cancellationToken);
-
-            await channel.Writer.WriteAsync(new SseEvent("workflow_done", new WorkflowDoneEvent
+            return JsonSerializer.Deserialize<CanvasSchema>(canvasJson, new JsonSerializerOptions
             {
-                ExecutionId = execId,
-                Status = "Success",
-                TotalCostMs = execution.CostMs,
-                Outputs = outputs
-            }), cancellationToken);
+                PropertyNameCaseInsensitive = true
+            });
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.LogError(ex, "流式工作流执行失败 ExecutionId={ExecutionId}", execId);
-            execution.Fail(ex.Message);
-            await _executionRepo.UpdateAsync(execution, cancellationToken);
-
-            channel.Writer.TryWrite(new SseEvent("workflow_error", new WorkflowDoneEvent
-            {
-                ExecutionId = execId,
-                Status = "Failed",
-                TotalCostMs = execution.CostMs
-            }));
+            return null;
         }
-        finally
-        {
-            channel.Writer.Complete();
-        }
-
-        await forwardTask;
     }
 
-    private async Task<Dictionary<string, object?>> ExecuteGraphAsync(
-        TenantId tenantId,
-        NodeExecutionContext context,
-        CanvasSchema canvas)
+    private static Dictionary<string, List<string>> BuildAdjacency(CanvasSchema canvas)
     {
-        // 找到入口节点
-        var entryNode = canvas.Nodes.FirstOrDefault(n => n.Type == NodeType.Entry)
-            ?? throw new InvalidOperationException("工作流缺少 Entry 节点");
-
-        await ExecuteNodeChainAsync(tenantId, context, canvas, entryNode);
-
-        // 收集 Exit 节点输出
-        var exitOutputs = new Dictionary<string, object?>();
-        var allData = context.GetAllData();
-        var exitNode = canvas.Nodes.FirstOrDefault(n => n.Type == NodeType.Exit);
-        if (exitNode is not null)
+        var adjacency = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var node in canvas.Nodes)
         {
-            foreach (var (key, _) in exitNode.InputMappings)
+            adjacency.TryAdd(node.Key, new List<string>());
+        }
+
+        foreach (var conn in canvas.Connections)
+        {
+            if (adjacency.TryGetValue(conn.SourceNodeKey, out var targets))
             {
-                exitOutputs[key] = allData.TryGetValue($"{exitNode.Key}.{key}", out var v) ? v : null;
+                targets.Add(conn.TargetNodeKey);
             }
         }
 
-        return exitOutputs;
+        return adjacency;
     }
 
-    private async Task ExecuteNodeChainAsync(
-        TenantId tenantId,
-        NodeExecutionContext context,
-        CanvasSchema canvas,
-        NodeSchema node)
+    private static Dictionary<string, List<ConnectionSchema>> BuildConnectionsBySource(CanvasSchema canvas)
     {
-        context.CancellationToken.ThrowIfCancellationRequested();
-
-        if (node.Type == NodeType.Exit)
+        var map = new Dictionary<string, List<ConnectionSchema>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var connection in canvas.Connections)
         {
-            await ExecuteSingleNodeAsync(tenantId, context, node);
-            return;
+            if (!map.TryGetValue(connection.SourceNodeKey, out var list))
+            {
+                list = new List<ConnectionSchema>();
+                map[connection.SourceNodeKey] = list;
+            }
+
+            list.Add(connection);
         }
 
-        var result = await ExecuteSingleNodeAsync(tenantId, context, node);
+        return map;
+    }
 
-        if (result.NextPort is null) return;
+    private async Task<NodeRunResult> ExecuteNodeAsync(
+        TenantId tenantId,
+        long executionId,
+        string nodeKey,
+        IReadOnlyDictionary<string, NodeSchema> nodeMap,
+        Dictionary<string, string> inputVariables,
+        Channel<SseEvent>? eventChannel,
+        CancellationToken cancellationToken)
+    {
+        if (!nodeMap.TryGetValue(nodeKey, out var node))
+        {
+            return NodeRunResult.SuccessResult(nodeKey, null, EmptyOutputs);
+        }
 
-        // 查找后继节点
-        var outgoing = canvas.Connections
-            .Where(c => c.FromNode == node.Key &&
-                        (c.FromPort == null || c.FromPort == result.NextPort || result.NextPort == "default"))
+        var executor = _registry.GetExecutor(node.Type);
+        if (executor is null)
+        {
+            _logger.LogWarning("未找到节点类型 {NodeType} 的执行器，跳过节点 {NodeKey}", node.Type, nodeKey);
+            return NodeRunResult.SuccessResult(nodeKey, node.Type, EmptyOutputs);
+        }
+
+        var nodeExec = new WorkflowNodeExecution(tenantId, executionId, nodeKey, node.Type, _idGenerator.NextId());
+        nodeExec.Start(JsonSerializer.Serialize(inputVariables));
+        await _nodeExecutionRepo.AddAsync(nodeExec, cancellationToken);
+
+        if (eventChannel is not null)
+        {
+            await eventChannel.Writer.WriteAsync(
+                new SseEvent("node_start", JsonSerializer.Serialize(new { nodeKey, nodeType = node.Type.ToString() })),
+                cancellationToken);
+        }
+
+        var sw = Stopwatch.StartNew();
+        var context = new NodeExecutionContext(node, inputVariables, _serviceProvider, executionId, eventChannel);
+
+        try
+        {
+            var result = await executor.ExecuteAsync(context, cancellationToken);
+            sw.Stop();
+
+            if (result.Success)
+            {
+                nodeExec.Complete(JsonSerializer.Serialize(result.Outputs), sw.ElapsedMilliseconds);
+                await _nodeExecutionRepo.UpdateAsync(nodeExec, cancellationToken);
+
+                if (eventChannel is not null)
+                {
+                    await eventChannel.Writer.WriteAsync(
+                        new SseEvent("node_complete", JsonSerializer.Serialize(new { nodeKey, durationMs = sw.ElapsedMilliseconds })),
+                        cancellationToken);
+                }
+
+                return NodeRunResult.SuccessResult(nodeKey, node.Type, result.Outputs);
+            }
+
+            nodeExec.Fail(result.ErrorMessage ?? "节点执行失败");
+            await _nodeExecutionRepo.UpdateAsync(nodeExec, cancellationToken);
+            return NodeRunResult.FailedResult(nodeKey, node.Type, result.ErrorMessage, result.InterruptType);
+        }
+        catch (OperationCanceledException)
+        {
+            sw.Stop();
+            nodeExec.Fail("执行已取消");
+            await _nodeExecutionRepo.UpdateAsync(nodeExec, cancellationToken);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            _logger.LogError(ex, "节点 {NodeKey} 执行异常", nodeKey);
+            nodeExec.Fail(ex.Message);
+            await _nodeExecutionRepo.UpdateAsync(nodeExec, cancellationToken);
+            return NodeRunResult.FailedResult(nodeKey, node.Type, $"节点 {nodeKey} 执行异常: {ex.Message}", InterruptType.None);
+        }
+    }
+
+    private async Task<LoopIterationResult> ExecuteLoopIterationsAsync(
+        TenantId tenantId,
+        long executionId,
+        string loopNodeKey,
+        IReadOnlyDictionary<string, NodeSchema> nodeMap,
+        Dictionary<string, List<string>> adjacency,
+        Dictionary<string, List<ConnectionSchema>> connectionsBySource,
+        Dictionary<string, string> variables,
+        Channel<SseEvent>? eventChannel,
+        CancellationToken cancellationToken)
+    {
+        if (!nodeMap.TryGetValue(loopNodeKey, out var loopNode))
+        {
+            return LoopIterationResult.Succeeded(loopNodeKey, Array.Empty<string>());
+        }
+
+        var bodyNodeKeys = ResolveLoopBodyNodeKeys(loopNode, adjacency, connectionsBySource);
+        if (bodyNodeKeys.Count == 0)
+        {
+            return LoopIterationResult.Succeeded(loopNodeKey, Array.Empty<string>());
+        }
+
+        var bodyLevels = TopologicalSortSubsetByLevels(bodyNodeKeys, adjacency);
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            foreach (var bodyLevel in bodyLevels)
+            {
+                var levelInput = new Dictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase);
+                var bodyTasks = bodyLevel
+                    .Select(nodeKey => ExecuteNodeAsync(
+                        tenantId,
+                        executionId,
+                        nodeKey,
+                        nodeMap,
+                        levelInput,
+                        eventChannel,
+                        cancellationToken))
+                    .ToArray();
+
+                var bodyResults = await Task.WhenAll(bodyTasks);
+                var failedBodyNode = bodyResults.FirstOrDefault(x => !x.Success);
+                if (failedBodyNode is not null)
+                {
+                    return LoopIterationResult.Failed(
+                        failedBodyNode.NodeKey,
+                        failedBodyNode.ErrorMessage,
+                        failedBodyNode.InterruptType);
+                }
+
+                foreach (var bodyResult in bodyResults)
+                {
+                    foreach (var kvp in bodyResult.Outputs)
+                    {
+                        variables[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+
+            var loopInput = new Dictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase);
+            var loopResult = await ExecuteNodeAsync(
+                tenantId,
+                executionId,
+                loopNodeKey,
+                nodeMap,
+                loopInput,
+                eventChannel,
+                cancellationToken);
+            if (!loopResult.Success)
+            {
+                return LoopIterationResult.Failed(loopResult.NodeKey, loopResult.ErrorMessage, loopResult.InterruptType);
+            }
+
+            foreach (var kvp in loopResult.Outputs)
+            {
+                variables[kvp.Key] = kvp.Value;
+            }
+
+            if (IsLoopCompleted(loopResult.Outputs))
+            {
+                break;
+            }
+        }
+
+        return LoopIterationResult.Succeeded(loopNodeKey, bodyNodeKeys);
+    }
+
+    private static bool IsLoopCompleted(Dictionary<string, string> outputs)
+    {
+        if (!outputs.TryGetValue("loop_completed", out var completedRaw))
+        {
+            // 未提供 loop_completed 时不再继续迭代，避免异常配置导致死循环。
+            return true;
+        }
+
+        if (bool.TryParse(completedRaw, out var completed))
+        {
+            return completed;
+        }
+
+        return string.Equals(completedRaw, "1", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyList<string> ResolveSelectorBranchNodesToSkip(
+        string selectorNodeKey,
+        Dictionary<string, string> outputs,
+        Dictionary<string, List<string>> adjacency,
+        Dictionary<string, List<ConnectionSchema>> connectionsBySource)
+    {
+        if (!connectionsBySource.TryGetValue(selectorNodeKey, out var outgoingConnections) || outgoingConnections.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var selectedBranch = ResolveSelectedSelectorBranch(outputs);
+        if (selectedBranch is null)
+        {
+            return Array.Empty<string>();
+        }
+
+        var trueBranchStarts = outgoingConnections
+            .Where(IsSelectorTrueConnection)
+            .Select(x => x.TargetNodeKey)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var falseBranchStarts = outgoingConnections
+            .Where(IsSelectorFalseConnection)
+            .Select(x => x.TargetNodeKey)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (outgoing.Count == 0) return;
+        // 兜底：如果未携带条件/端口信息但只有 2 条输出，按连线顺序映射 true/false。
+        if (trueBranchStarts.Count == 0 && falseBranchStarts.Count == 0 && outgoingConnections.Count == 2)
+        {
+            trueBranchStarts.Add(outgoingConnections[0].TargetNodeKey);
+            falseBranchStarts.Add(outgoingConnections[1].TargetNodeKey);
+        }
 
-        if (outgoing.Count == 1)
+        var selectedStarts = selectedBranch == SelectorBranch.True ? trueBranchStarts : falseBranchStarts;
+        var unselectedStarts = selectedBranch == SelectorBranch.True ? falseBranchStarts : trueBranchStarts;
+        if (selectedStarts.Count == 0 || unselectedStarts.Count == 0)
         {
-            var next = canvas.Nodes.FirstOrDefault(n => n.Key == outgoing[0].ToNode);
-            if (next is not null)
-                await ExecuteNodeChainAsync(tenantId, context, canvas, next);
+            return Array.Empty<string>();
         }
-        else
-        {
-            // 并行分支：Task.WhenAll
-            var tasks = outgoing
-                .Select(conn => canvas.Nodes.FirstOrDefault(n => n.Key == conn.ToNode))
-                .Where(n => n is not null)
-                .Select(n => ExecuteNodeChainAsync(tenantId, context, canvas, n!));
-            await Task.WhenAll(tasks);
-        }
+
+        var selectedNodes = TraverseReachableNodes(selectedStarts, adjacency);
+        var unselectedNodes = TraverseReachableNodes(unselectedStarts, adjacency);
+        unselectedNodes.ExceptWith(selectedNodes);
+        unselectedNodes.Remove(selectorNodeKey);
+        return unselectedNodes.ToList();
     }
 
-    private async Task<NodeExecutorResult> ExecuteSingleNodeAsync(
-        TenantId tenantId,
-        NodeExecutionContext context,
-        NodeSchema node)
+    private static SelectorBranch? ResolveSelectedSelectorBranch(Dictionary<string, string> outputs)
     {
-        var nodeExecId = _idGen.NextId();
-        var nodeRecord = new NodeExecution(tenantId, nodeExecId, context.ExecutionId, node.Key, node.Type, node.Title);
-
-        // 解析输入
-        var resolvedInputs = ResolveInputs(node, context);
-        nodeRecord.Start(JsonSerializer.Serialize(resolvedInputs));
-        await _nodeExecutionRepo.AddAsync(nodeRecord, CancellationToken.None);
-
-        await context.EmitEventAsync(new SseEvent("node_start", new NodeStartEvent
+        if (outputs.TryGetValue("selected_branch", out var selectedBranchRaw))
         {
-            ExecutionId = context.ExecutionId,
-            NodeKey = node.Key,
-            NodeType = node.Type.ToString(),
-            NodeTitle = node.Title
-        }));
-
-        try
-        {
-            if (!_registry.TryGetExecutor(node.Type, out var executor) || executor is null)
+            if (selectedBranchRaw.Contains("true", StringComparison.OrdinalIgnoreCase))
             {
-                // 未知节点类型：直接透传，当做 PassThrough
-                context.SetOutputs(node.Key, resolvedInputs);
-                nodeRecord.Complete(JsonSerializer.Serialize(resolvedInputs));
-                await _nodeExecutionRepo.UpdateAsync(nodeRecord, CancellationToken.None);
-
-                await context.EmitEventAsync(new SseEvent("node_complete", new NodeCompleteEvent
-                {
-                    ExecutionId = context.ExecutionId,
-                    NodeKey = node.Key,
-                    Status = "Success",
-                    CostMs = nodeRecord.CostMs,
-                    Output = resolvedInputs
-                }));
-
-                return NodeExecutorResult.Default;
+                return SelectorBranch.True;
             }
 
-            var result = await executor.ExecuteAsync(node, context);
-            var outputData = ExtractOutputs(node.Key, context);
-            nodeRecord.Complete(JsonSerializer.Serialize(outputData));
-            await _nodeExecutionRepo.UpdateAsync(nodeRecord, CancellationToken.None);
-
-            await context.EmitEventAsync(new SseEvent("node_complete", new NodeCompleteEvent
+            if (selectedBranchRaw.Contains("false", StringComparison.OrdinalIgnoreCase))
             {
-                ExecutionId = context.ExecutionId,
-                NodeKey = node.Key,
-                Status = "Success",
-                CostMs = nodeRecord.CostMs,
-                Output = outputData
-            }));
-
-            return result;
+                return SelectorBranch.False;
+            }
         }
-        catch (WorkflowInterruptException)
-        {
-            nodeRecord.Complete("{}");
-            await _nodeExecutionRepo.UpdateAsync(nodeRecord, CancellationToken.None);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            nodeRecord.Fail(ex.Message);
-            await _nodeExecutionRepo.UpdateAsync(nodeRecord, CancellationToken.None);
 
-            await context.EmitEventAsync(new SseEvent("node_error", new NodeErrorEvent
+        if (outputs.TryGetValue("selector_result", out var selectorResultRaw))
+        {
+            if (bool.TryParse(selectorResultRaw, out var boolResult))
             {
-                ExecutionId = context.ExecutionId,
-                NodeKey = node.Key,
-                ErrorMessage = ex.Message,
-                CostMs = nodeRecord.CostMs
-            }));
+                return boolResult ? SelectorBranch.True : SelectorBranch.False;
+            }
 
-            throw;
+            if (string.Equals(selectorResultRaw, "1", StringComparison.OrdinalIgnoreCase))
+            {
+                return SelectorBranch.True;
+            }
+
+            if (string.Equals(selectorResultRaw, "0", StringComparison.OrdinalIgnoreCase))
+            {
+                return SelectorBranch.False;
+            }
         }
+
+        return null;
     }
 
-    private static Dictionary<string, object?> ResolveInputs(NodeSchema node, NodeExecutionContext context)
+    private static bool IsSelectorTrueConnection(ConnectionSchema connection)
     {
-        var resolved = new Dictionary<string, object?>();
-        foreach (var (field, reference) in node.InputMappings)
+        var condition = connection.Condition ?? string.Empty;
+        if (condition.Contains("selector_result", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("true", StringComparison.OrdinalIgnoreCase))
         {
-            resolved[field] = context.GetVariable(reference);
+            return true;
         }
-        return resolved;
-    }
 
-    private static Dictionary<string, object?> ExtractOutputs(string nodeKey, NodeExecutionContext context)
-    {
-        var allData = context.GetAllData();
-        var prefix = $"{nodeKey}.";
-        return allData
-            .Where(kv => kv.Key.StartsWith(prefix, StringComparison.Ordinal))
-            .ToDictionary(kv => kv.Key[prefix.Length..], kv => kv.Value);
-    }
-
-    private static async Task ForwardEventsAsync(
-        ChannelReader<SseEvent> reader,
-        ChannelWriter<SseEvent> writer,
-        CancellationToken cancellationToken)
-    {
-        await foreach (var evt in reader.ReadAllAsync(cancellationToken))
+        if (condition.Contains("selected_branch", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("true_branch", StringComparison.OrdinalIgnoreCase))
         {
-            await writer.WriteAsync(evt, cancellationToken);
+            return true;
         }
+
+        if (string.Equals(condition, "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(condition, "1", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return connection.SourcePort.Contains("true", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("true", StringComparison.OrdinalIgnoreCase) ||
+               connection.SourcePort.Contains("yes", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("yes", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string SerializeInputs(Dictionary<string, object?> inputs)
+    private static bool IsSelectorFalseConnection(ConnectionSchema connection)
     {
-        return JsonSerializer.Serialize(inputs);
-    }
-}
+        var condition = connection.Condition ?? string.Empty;
+        if (condition.Contains("selector_result", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("false", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
 
-/// <summary>
-/// 工作流中断异常，由 QuestionAnswer 等中断类节点抛出。
-/// </summary>
-public sealed class WorkflowInterruptException : Exception
-{
-    public WorkflowInterruptException(InterruptType interruptType, string contextJson)
-        : base($"工作流中断: {interruptType}")
+        if (condition.Contains("selected_branch", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("false_branch", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(condition, "false", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(condition, "0", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return connection.SourcePort.Contains("false", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("false", StringComparison.OrdinalIgnoreCase) ||
+               connection.SourcePort.Contains("no", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("no", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static List<string> ResolveLoopBodyNodeKeys(
+        NodeSchema loopNode,
+        Dictionary<string, List<string>> adjacency,
+        Dictionary<string, List<ConnectionSchema>> connectionsBySource)
     {
-        InterruptType = interruptType;
-        ContextJson = contextJson;
+        if (loopNode.Config.TryGetValue("bodyNodeKeys", out var bodyNodeKeysConfig) &&
+            !string.IsNullOrWhiteSpace(bodyNodeKeysConfig))
+        {
+            return bodyNodeKeysConfig
+                .Split(new[] { ',', ';', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        if (!connectionsBySource.TryGetValue(loopNode.Key, out var outgoingConnections) || outgoingConnections.Count == 0)
+        {
+            return new List<string>();
+        }
+
+        var bodyStarts = outgoingConnections
+            .Where(IsLoopContinueConnection)
+            .Select(x => x.TargetNodeKey)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var exitStarts = outgoingConnections
+            .Where(IsLoopExitConnection)
+            .Select(x => x.TargetNodeKey)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (bodyStarts.Count == 0 && outgoingConnections.Count == 1)
+        {
+            bodyStarts.Add(outgoingConnections[0].TargetNodeKey);
+        }
+
+        if (bodyStarts.Count == 0)
+        {
+            return new List<string>();
+        }
+
+        var bodyNodes = TraverseReachableNodes(bodyStarts, adjacency);
+        if (exitStarts.Count > 0)
+        {
+            var exitNodes = TraverseReachableNodes(exitStarts, adjacency);
+            bodyNodes.ExceptWith(exitNodes);
+        }
+
+        bodyNodes.Remove(loopNode.Key);
+        return bodyNodes.ToList();
     }
 
-    public InterruptType InterruptType { get; }
+    private static bool IsLoopContinueConnection(ConnectionSchema connection)
+    {
+        var condition = connection.Condition ?? string.Empty;
+        if (condition.Contains("loop_completed", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("false", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
 
-    public string ContextJson { get; }
+        if (string.Equals(condition, "false", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(condition, "0", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return connection.SourcePort.Contains("continue", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("continue", StringComparison.OrdinalIgnoreCase) ||
+               connection.SourcePort.Contains("loop_body", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("loop_body", StringComparison.OrdinalIgnoreCase) ||
+               connection.SourcePort.Contains("body", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("body", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsLoopExitConnection(ConnectionSchema connection)
+    {
+        var condition = connection.Condition ?? string.Empty;
+        if (condition.Contains("loop_completed", StringComparison.OrdinalIgnoreCase) &&
+            condition.Contains("true", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(condition, "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(condition, "1", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return connection.SourcePort.Contains("exit", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("exit", StringComparison.OrdinalIgnoreCase) ||
+               connection.SourcePort.Contains("done", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("done", StringComparison.OrdinalIgnoreCase) ||
+               connection.SourcePort.Contains("completed", StringComparison.OrdinalIgnoreCase) ||
+               connection.TargetPort.Contains("completed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static HashSet<string> TraverseReachableNodes(
+        IEnumerable<string> starts,
+        Dictionary<string, List<string>> adjacency)
+    {
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var queue = new Queue<string>(starts);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (!visited.Add(current))
+            {
+                continue;
+            }
+
+            if (!adjacency.TryGetValue(current, out var targets))
+            {
+                continue;
+            }
+
+            foreach (var target in targets)
+            {
+                queue.Enqueue(target);
+            }
+        }
+
+        return visited;
+    }
+
+    private static List<List<string>> TopologicalSortSubsetByLevels(
+        IReadOnlyList<string> subsetNodes,
+        Dictionary<string, List<string>> adjacency)
+    {
+        var subset = new HashSet<string>(subsetNodes, StringComparer.OrdinalIgnoreCase);
+        var indegree = subset.ToDictionary(key => key, _ => 0, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var source in subset)
+        {
+            if (!adjacency.TryGetValue(source, out var targets))
+            {
+                continue;
+            }
+
+            foreach (var target in targets)
+            {
+                if (subset.Contains(target))
+                {
+                    indegree[target]++;
+                }
+            }
+        }
+
+        var queue = new Queue<string>(indegree.Where(x => x.Value == 0).Select(x => x.Key));
+        var levels = new List<List<string>>();
+        var visitedCount = 0;
+
+        while (queue.Count > 0)
+        {
+            var currentLevelCount = queue.Count;
+            var currentLevel = new List<string>(currentLevelCount);
+
+            for (var i = 0; i < currentLevelCount; i++)
+            {
+                var key = queue.Dequeue();
+                currentLevel.Add(key);
+                visitedCount++;
+
+                if (!adjacency.TryGetValue(key, out var targets))
+                {
+                    continue;
+                }
+
+                foreach (var target in targets)
+                {
+                    if (!subset.Contains(target))
+                    {
+                        continue;
+                    }
+
+                    indegree[target]--;
+                    if (indegree[target] == 0)
+                    {
+                        queue.Enqueue(target);
+                    }
+                }
+            }
+
+            levels.Add(currentLevel);
+        }
+
+        if (visitedCount != subset.Count)
+        {
+            var cycleNodes = indegree
+                .Where(x => x.Value > 0)
+                .Select(x => x.Key)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            throw new InvalidOperationException(
+                $"循环子图存在环路，涉及节点: {string.Join(", ", cycleNodes)}。");
+        }
+
+        return levels;
+    }
+
+    private static List<List<string>> TopologicalSortByLevels(
+        IReadOnlyList<NodeSchema> nodes,
+        Dictionary<string, List<string>> adjacency)
+    {
+        var indegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var node in nodes)
+        {
+            indegree.TryAdd(node.Key, 0);
+        }
+
+        foreach (var targets in adjacency.Values)
+        {
+            foreach (var target in targets)
+            {
+                if (indegree.ContainsKey(target))
+                {
+                    indegree[target]++;
+                }
+            }
+        }
+
+        var queue = new Queue<string>(indegree.Where(x => x.Value == 0).Select(x => x.Key));
+        var levels = new List<List<string>>();
+        var visitedCount = 0;
+
+        while (queue.Count > 0)
+        {
+            var currentLevelCount = queue.Count;
+            var currentLevel = new List<string>(currentLevelCount);
+
+            for (var i = 0; i < currentLevelCount; i++)
+            {
+                var key = queue.Dequeue();
+                currentLevel.Add(key);
+                visitedCount++;
+
+                if (!adjacency.TryGetValue(key, out var targets))
+                {
+                    continue;
+                }
+
+                foreach (var target in targets)
+                {
+                    if (!indegree.ContainsKey(target))
+                    {
+                        continue;
+                    }
+
+                    indegree[target]--;
+                    if (indegree[target] == 0)
+                    {
+                        queue.Enqueue(target);
+                    }
+                }
+            }
+
+            levels.Add(currentLevel);
+        }
+
+        if (visitedCount != nodes.Count)
+        {
+            var cycleNodes = indegree
+                .Where(x => x.Value > 0)
+                .Select(x => x.Key)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            throw new InvalidOperationException(
+                $"检测到工作流环路，涉及节点: {string.Join(", ", cycleNodes)}。请移除循环依赖后重试。");
+        }
+
+        return levels;
+    }
+
+    private static readonly Dictionary<string, string> EmptyOutputs = new(StringComparer.OrdinalIgnoreCase);
+
+    private enum SelectorBranch
+    {
+        True = 1,
+        False = 2
+    }
+
+    private sealed record NodeRunResult(
+        string NodeKey,
+        WorkflowNodeType? NodeType,
+        bool Success,
+        Dictionary<string, string> Outputs,
+        string? ErrorMessage,
+        InterruptType InterruptType)
+    {
+        public static NodeRunResult SuccessResult(string nodeKey, WorkflowNodeType? nodeType, Dictionary<string, string> outputs)
+            => new(nodeKey, nodeType, true, outputs, null, InterruptType.None);
+
+        public static NodeRunResult FailedResult(string nodeKey, WorkflowNodeType? nodeType, string? errorMessage, InterruptType interruptType)
+            => new(nodeKey, nodeType, false, EmptyOutputs, errorMessage, interruptType);
+    }
+
+    private sealed record LoopIterationResult(
+        string NodeKey,
+        bool Success,
+        string? ErrorMessage,
+        InterruptType InterruptType,
+        IReadOnlyList<string> BodyNodeKeysToSkip)
+    {
+        public static LoopIterationResult Succeeded(string nodeKey, IReadOnlyList<string> bodyNodeKeysToSkip)
+            => new(nodeKey, true, null, InterruptType.None, bodyNodeKeysToSkip);
+
+        public static LoopIterationResult Failed(string nodeKey, string? errorMessage, InterruptType interruptType)
+            => new(nodeKey, false, errorMessage, interruptType, Array.Empty<string>());
+    }
 }
