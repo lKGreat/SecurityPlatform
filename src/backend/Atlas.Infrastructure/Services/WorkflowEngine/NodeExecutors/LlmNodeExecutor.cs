@@ -24,7 +24,7 @@ public sealed class LlmNodeExecutor : INodeExecutor
         var outputKey = config.GetValueOrDefault("outputKey") ?? "llm_output";
 
         // 变量替换
-        var prompt = ReplaceVariables(promptTemplate, context.Variables);
+        var prompt = context.ReplaceVariables(promptTemplate);
         if (string.IsNullOrWhiteSpace(prompt))
         {
             outputs[outputKey] = string.Empty;
@@ -57,16 +57,5 @@ public sealed class LlmNodeExecutor : INodeExecutor
         {
             return new NodeExecutionResult(false, outputs, $"LLM 调用失败: {ex.Message}");
         }
-    }
-
-    private static string ReplaceVariables(string template, Dictionary<string, string> variables)
-    {
-        var result = template;
-        foreach (var kvp in variables)
-        {
-            result = result.Replace($"{{{{{kvp.Key}}}}}", kvp.Value, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return result;
     }
 }

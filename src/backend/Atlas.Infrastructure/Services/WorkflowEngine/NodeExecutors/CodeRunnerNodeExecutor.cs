@@ -20,7 +20,7 @@ public sealed class CodeRunnerNodeExecutor : INodeExecutor
         try
         {
             // 简单表达式求值：支持变量替换
-            var result = ReplaceVariables(code, context.Variables);
+            var result = context.ReplaceVariables(code);
             outputs[outputKey] = result;
             return Task.FromResult(new NodeExecutionResult(true, outputs));
         }
@@ -28,16 +28,5 @@ public sealed class CodeRunnerNodeExecutor : INodeExecutor
         {
             return Task.FromResult(new NodeExecutionResult(false, outputs, $"代码执行失败: {ex.Message}"));
         }
-    }
-
-    private static string ReplaceVariables(string template, Dictionary<string, string> variables)
-    {
-        var result = template;
-        foreach (var kvp in variables)
-        {
-            result = result.Replace($"{{{{{kvp.Key}}}}}", kvp.Value, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return result;
     }
 }

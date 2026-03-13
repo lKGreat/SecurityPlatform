@@ -9,7 +9,9 @@ using Atlas.Core.Exceptions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.AiPlatform.Entities;
+using Atlas.Domain.AiPlatform.Enums;
 using Atlas.Infrastructure.Services.WorkflowEngine;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Atlas.Infrastructure.Services.AiPlatform;
@@ -20,6 +22,7 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
     private readonly IWorkflowDraftRepository _draftRepo;
     private readonly IWorkflowExecutionRepository _executionRepo;
     private readonly DagExecutor _dagExecutor;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IIdGeneratorAccessor _idGenerator;
     private readonly ILogger<WorkflowV2ExecutionService> _logger;
 
@@ -28,6 +31,7 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
         IWorkflowDraftRepository draftRepo,
         IWorkflowExecutionRepository executionRepo,
         DagExecutor dagExecutor,
+        IServiceScopeFactory scopeFactory,
         IIdGeneratorAccessor idGenerator,
         ILogger<WorkflowV2ExecutionService> logger)
     {
@@ -35,6 +39,7 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
         _draftRepo = draftRepo;
         _executionRepo = executionRepo;
         _dagExecutor = dagExecutor;
+        _scopeFactory = scopeFactory;
         _idGenerator = idGenerator;
         _logger = logger;
     }
@@ -57,7 +62,9 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
         {
             try
             {
-                await _dagExecutor.RunAsync(tenantId, execution, canvas, inputs, eventChannel: null, CancellationToken.None);
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var dagExecutor = scope.ServiceProvider.GetRequiredService<DagExecutor>();
+                await dagExecutor.RunAsync(tenantId, execution, canvas, inputs, eventChannel: null, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -138,30 +145,109 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
         var (execution, canvas, inputs) = await PrepareExecutionAsync(tenantId, workflowId, userId, request, cancellationToken);
 
         var channel = Channel.CreateUnbounded<SseEvent>(new UnboundedChannelOptions { SingleReader = true });
+        using var runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         // 后台执行
-        _ = Task.Run(async () =>
+        var runTask = Task.Run(async () =>
         {
             try
             {
-                await _dagExecutor.RunAsync(tenantId, execution, canvas, inputs, channel, CancellationToken.None);
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var dagExecutor = scope.ServiceProvider.GetRequiredService<DagExecutor>();
+                await dagExecutor.RunAsync(tenantId, execution, canvas, inputs, channel, runCts.Token);
+            }
+            catch (OperationCanceledException) when (runCts.IsCancellationRequested)
+            {
+                // 客户端断开连接导致的取消属于预期路径。
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "流式工作流执行失败: ExecutionId={ExecutionId}", execution.Id);
                 channel.Writer.TryComplete(ex);
+                return;
             }
+            channel.Writer.TryComplete();
         }, CancellationToken.None);
 
         // 产出开始事件
         yield return new SseEvent("execution_start", JsonSerializer.Serialize(new { executionId = execution.Id.ToString() }));
 
-        await foreach (var evt in channel.Reader.ReadAllAsync(cancellationToken))
+        try
         {
-            yield return evt;
+            await foreach (var evt in channel.Reader.ReadAllAsync(cancellationToken))
+            {
+                yield return evt;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "流式事件通道读取失败: ExecutionId={ExecutionId}", execution.Id);
+            yield return new SseEvent("execution_failed", JsonSerializer.Serialize(new
+            {
+                executionId = execution.Id.ToString(),
+                errorMessage = ex.Message
+            }));
+            yield break;
+        }
+        finally
+        {
+            runCts.Cancel();
+            try
+            {
+                await runTask;
+            }
+            catch (OperationCanceledException) when (runCts.IsCancellationRequested)
+            {
+                // 取消路径无需额外处理。
+            }
         }
 
-        yield return new SseEvent("execution_complete", JsonSerializer.Serialize(new { executionId = execution.Id.ToString() }));
+        if (cancellationToken.IsCancellationRequested)
+        {
+            yield break;
+        }
+
+        var latestExecution = await _executionRepo.FindByIdAsync(tenantId, execution.Id, cancellationToken);
+        if (latestExecution is null)
+        {
+            yield return new SseEvent("execution_failed", JsonSerializer.Serialize(new
+            {
+                executionId = execution.Id.ToString(),
+                errorMessage = "执行实例不存在。"
+            }));
+            yield break;
+        }
+
+        switch (latestExecution.Status)
+        {
+            case ExecutionStatus.Completed:
+                yield return new SseEvent("execution_complete", JsonSerializer.Serialize(new
+                {
+                    executionId = execution.Id.ToString()
+                }));
+                break;
+            case ExecutionStatus.Cancelled:
+                yield return new SseEvent("execution_cancelled", JsonSerializer.Serialize(new
+                {
+                    executionId = execution.Id.ToString()
+                }));
+                break;
+            case ExecutionStatus.Interrupted:
+                yield return new SseEvent("execution_interrupted", JsonSerializer.Serialize(new
+                {
+                    executionId = execution.Id.ToString(),
+                    interruptType = latestExecution.InterruptType.ToString(),
+                    nodeKey = latestExecution.InterruptNodeKey
+                }));
+                break;
+            default:
+                yield return new SseEvent("execution_failed", JsonSerializer.Serialize(new
+                {
+                    executionId = execution.Id.ToString(),
+                    errorMessage = latestExecution.ErrorMessage ?? "工作流执行失败。"
+                }));
+                break;
+        }
     }
 
     private async Task<(WorkflowExecution Execution, Domain.AiPlatform.ValueObjects.CanvasSchema Canvas, Dictionary<string, string> Inputs)>

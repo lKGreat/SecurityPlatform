@@ -21,8 +21,8 @@ public sealed class HttpRequesterNodeExecutor : INodeExecutor
         var method = context.Node.Config.GetValueOrDefault("method") ?? "GET";
         var bodyTemplate = context.Node.Config.GetValueOrDefault("body") ?? string.Empty;
 
-        var url = ReplaceVariables(urlTemplate, context.Variables);
-        var body = ReplaceVariables(bodyTemplate, context.Variables);
+        var url = context.ReplaceVariables(urlTemplate);
+        var body = context.ReplaceVariables(bodyTemplate);
 
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -53,16 +53,5 @@ public sealed class HttpRequesterNodeExecutor : INodeExecutor
         {
             return new NodeExecutionResult(false, outputs, $"HTTP 请求失败: {ex.Message}");
         }
-    }
-
-    private static string ReplaceVariables(string template, Dictionary<string, string> variables)
-    {
-        var result = template;
-        foreach (var kvp in variables)
-        {
-            result = result.Replace($"{{{{{kvp.Key}}}}}", kvp.Value, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return result;
     }
 }

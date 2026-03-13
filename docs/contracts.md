@@ -2152,8 +2152,21 @@ data: {"nodeKey":"text_1","durationMs":15}
 event: llm_output
 data: 大模型生成的文本内容...
 
+# 仅在执行成功时发送
 event: execution_complete
 data: {"executionId":"123456"}
+
+# 执行失败（包含业务失败/运行时异常）
+event: execution_failed
+data: {"executionId":"123456","errorMessage":"节点 text_1 执行异常"}
+
+# 执行被取消
+event: execution_cancelled
+data: {"executionId":"123456"}
+
+# 执行中断（等待人工介入/外部输入）
+event: execution_interrupted
+data: {"executionId":"123456","interruptType":"ManualApproval","nodeKey":"approval_1"}
 ```
 
 ### Canvas JSON Schema

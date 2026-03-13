@@ -50,6 +50,25 @@ public sealed class NodeExecutionContext
             await EventChannel.Writer.WriteAsync(new SseEvent(eventType, data), cancellationToken);
         }
     }
+
+    /// <summary>
+    /// 将模板中的 {{key}} 占位符替换为变量值（忽略大小写）。
+    /// </summary>
+    public string ReplaceVariables(string template)
+    {
+        if (string.IsNullOrEmpty(template) || Variables.Count == 0)
+        {
+            return template;
+        }
+
+        var result = template;
+        foreach (var kvp in Variables)
+        {
+            result = result.Replace($"{{{{{kvp.Key}}}}}", kvp.Value, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return result;
+    }
 }
 
 /// <summary>

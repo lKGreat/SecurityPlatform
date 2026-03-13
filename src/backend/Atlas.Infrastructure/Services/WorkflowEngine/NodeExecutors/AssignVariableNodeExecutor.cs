@@ -20,22 +20,11 @@ public sealed class AssignVariableNodeExecutor : INodeExecutor
             var parts = pair.Split('=', 2, StringSplitOptions.TrimEntries);
             if (parts.Length == 2)
             {
-                var value = ReplaceVariables(parts[1], context.Variables);
+                var value = context.ReplaceVariables(parts[1]);
                 outputs[parts[0]] = value;
             }
         }
 
         return Task.FromResult(new NodeExecutionResult(true, outputs));
-    }
-
-    private static string ReplaceVariables(string template, Dictionary<string, string> variables)
-    {
-        var result = template;
-        foreach (var kvp in variables)
-        {
-            result = result.Replace($"{{{{{kvp.Key}}}}}", kvp.Value, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return result;
     }
 }
