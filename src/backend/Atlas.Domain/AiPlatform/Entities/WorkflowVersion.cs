@@ -1,5 +1,6 @@
 using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
+using SqlSugar;
 
 namespace Atlas.Domain.AiPlatform.Entities;
 
@@ -36,6 +37,7 @@ public sealed class WorkflowVersion : TenantEntity
     public long WorkflowId { get; private set; }
     public int VersionNumber { get; private set; }
     public string CanvasJson { get; private set; }
+    [SugarColumn(IsNullable = true)]
     public string? ChangeLog { get; private set; }
     public DateTime PublishedAt { get; private set; }
     public long PublishedByUserId { get; private set; }

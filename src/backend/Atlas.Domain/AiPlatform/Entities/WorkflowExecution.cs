@@ -1,6 +1,7 @@
 using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.AiPlatform.Enums;
+using SqlSugar;
 
 namespace Atlas.Domain.AiPlatform.Entities;
 
@@ -34,13 +35,18 @@ public sealed class WorkflowExecution : TenantEntity
     public long WorkflowId { get; private set; }
     public int VersionNumber { get; private set; }
     public ExecutionStatus Status { get; private set; }
+    [SugarColumn(IsNullable = true)]
     public string? InputsJson { get; private set; }
+    [SugarColumn(IsNullable = true)]
     public string? OutputsJson { get; private set; }
+    [SugarColumn(IsNullable = true)]
     public string? ErrorMessage { get; private set; }
     public DateTime StartedAt { get; private set; }
+    [SugarColumn(IsNullable = true)]
     public DateTime? CompletedAt { get; private set; }
     public long CreatedByUserId { get; private set; }
     public InterruptType InterruptType { get; private set; }
+    [SugarColumn(IsNullable = true)]
     public string? InterruptNodeKey { get; private set; }
 
     public void Start()

@@ -1,6 +1,7 @@
 using Atlas.Core.Abstractions;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.AiPlatform.Enums;
+using SqlSugar;
 
 namespace Atlas.Domain.AiPlatform.Entities;
 
@@ -44,6 +45,7 @@ public sealed class WorkflowMeta : TenantEntity
     public long CreatorId { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
+    [SugarColumn(IsNullable = true)]
     public DateTime? PublishedAt { get; private set; }
     public bool IsDeleted { get; private set; }
 
