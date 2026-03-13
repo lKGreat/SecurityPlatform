@@ -161,6 +161,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(Notification),
             typeof(UserNotification),
             typeof(FileRecord),
+            typeof(FileUploadSession),
             typeof(TenantDataSource),
             // Low code module (types already registered above: LowCodeApp, AppEntityAlias, LowCodePage, FormDefinition)
             typeof(LowCodeAppVersion),
