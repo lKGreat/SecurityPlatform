@@ -1,10 +1,13 @@
 using Atlas.Application.LowCode.Abstractions;
 using Atlas.Application.LowCode.Models;
+using Atlas.Application.AiPlatform.Abstractions;
+using Atlas.Application.AiPlatform.Models;
 using Atlas.Core.Tenancy;
 using System.Runtime.CompilerServices;
-using System.Net.Http;
 using System.Text.Json;
+using Atlas.Infrastructure.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Atlas.Infrastructure.Services.LowCode;
 
@@ -13,14 +16,18 @@ namespace Atlas.Infrastructure.Services.LowCode;
 /// </summary>
 public sealed class AiService : IAiService
 {
-    private readonly HttpClient? _httpClient;
-    private readonly ILogger<AiService>? _logger;
+    private readonly ILlmProviderFactory _llmProviderFactory;
+    private readonly ILogger<AiService> _logger;
+    private readonly AiPlatformOptions _aiOptions;
 
     public AiService(
-        ILogger<AiService>? logger = null)
+        ILlmProviderFactory llmProviderFactory,
+        IOptions<AiPlatformOptions> aiOptions,
+        ILogger<AiService> logger)
     {
-        _httpClient = new HttpClient();
+        _llmProviderFactory = llmProviderFactory;
         _logger = logger;
+        _aiOptions = aiOptions.Value;
     }
 
     public async Task<AiFormGenerateResponse> GenerateFormAsync(
@@ -88,15 +95,60 @@ public sealed class AiService : IAiService
         TenantId tenantId, AiChatRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // Simulate streaming by chunking the response
-        var reply = await CallAiAsync(request.Message, cancellationToken);
-        var words = reply.Split(' ');
-
-        foreach (var word in words)
+        var prompt = request.Message;
+        if (!string.IsNullOrWhiteSpace(request.Context))
         {
-            if (cancellationToken.IsCancellationRequested) yield break;
-            yield return word + " ";
-            await Task.Delay(50, cancellationToken);
+            prompt = $"上下文：{request.Context}\n\n用户问题：{request.Message}";
+        }
+
+        var requestModel = BuildChatRequest(prompt);
+        ChatCompletionResult? fallbackResult = null;
+        IAsyncEnumerable<ChatCompletionChunk>? stream = null;
+
+        try
+        {
+            var provider = _llmProviderFactory.GetLlmProvider(requestModel.Provider);
+            stream = provider.ChatStreamAsync(requestModel, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AI stream provider unavailable, fallback to template mode.");
+            fallbackResult = await GetTemplateFallbackAsync(prompt);
+        }
+
+        if (stream is not null)
+        {
+            await using var streamEnumerator = stream.GetAsyncEnumerator(cancellationToken);
+            while (true)
+            {
+                ChatCompletionChunk chunk;
+                try
+                {
+                    if (!await streamEnumerator.MoveNextAsync())
+                    {
+                        break;
+                    }
+
+                    chunk = streamEnumerator.Current;
+                }
+
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "AI stream execution failed, fallback to template mode.");
+                    fallbackResult = await GetTemplateFallbackAsync(prompt);
+                    break;
+                }
+
+                if (!string.IsNullOrWhiteSpace(chunk.ContentDelta))
+                {
+                    yield return chunk.ContentDelta;
+                }
+            }
+        }
+
+        if (fallbackResult is not null)
+        {
+            yield return fallbackResult.Content;
         }
     }
 
@@ -106,42 +158,78 @@ public sealed class AiService : IAiService
     /// </summary>
     private async Task<string> CallAiAsync(string prompt, CancellationToken cancellationToken)
     {
-        // 当前约束：默认仅返回模板化结果，未直连外部 AI 提供商。
-        // 跟踪任务：AIGEN-64（https://tracker.local/AIGEN-64），预计版本：v1.6。
-        // For now, return a template-based response
-        _logger?.LogInformation("AI prompt: {Prompt}", prompt.Length > 200 ? prompt[..200] + "..." : prompt);
+        _logger.LogInformation("AI prompt: {Prompt}", prompt.Length > 200 ? prompt[..200] + "..." : prompt);
 
+        try
+        {
+            var request = BuildChatRequest(prompt);
+            var provider = _llmProviderFactory.GetLlmProvider(request.Provider);
+            var result = await provider.ChatAsync(request, cancellationToken);
+            return result.Content;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AI provider call failed. Fallback to template response.");
+            var fallback = await GetTemplateFallbackAsync(prompt);
+            return fallback.Content;
+        }
+    }
+
+    private ChatCompletionRequest BuildChatRequest(string prompt)
+    {
+        var provider = _aiOptions.DefaultProvider;
+        var model = _aiOptions.Providers.TryGetValue(provider, out var providerOption)
+                    && !string.IsNullOrWhiteSpace(providerOption.DefaultModel)
+            ? providerOption.DefaultModel
+            : "gpt-4o-mini";
+
+        return new ChatCompletionRequest(
+            model,
+            [new ChatMessage("user", prompt)],
+            Temperature: 0.2f,
+            MaxTokens: 2048,
+            Provider: provider);
+    }
+
+    private async Task<ChatCompletionResult> GetTemplateFallbackAsync(string prompt)
+    {
         await Task.CompletedTask;
 
-        if (prompt.Contains("表单") || prompt.Contains("form"))
+        if (prompt.Contains("表单", StringComparison.OrdinalIgnoreCase) || prompt.Contains("form", StringComparison.OrdinalIgnoreCase))
         {
-            return GenerateBasicFormSchema(prompt);
+            return new ChatCompletionResult(GenerateBasicFormSchema(prompt), Provider: "fallback");
         }
 
-        if (prompt.Contains("SQL") || prompt.Contains("查询"))
+        if (prompt.Contains("SQL", StringComparison.OrdinalIgnoreCase) || prompt.Contains("查询", StringComparison.OrdinalIgnoreCase))
         {
-            return "SELECT * FROM table_name WHERE 1=1 LIMIT 100;";
+            return new ChatCompletionResult("SELECT * FROM table_name WHERE 1=1 LIMIT 100;", Provider: "fallback");
         }
 
-        if (prompt.Contains("工作流") || prompt.Contains("workflow") || prompt.Contains("BPMN"))
+        if (prompt.Contains("工作流", StringComparison.OrdinalIgnoreCase) ||
+            prompt.Contains("workflow", StringComparison.OrdinalIgnoreCase) ||
+            prompt.Contains("BPMN", StringComparison.OrdinalIgnoreCase))
         {
-            return JsonSerializer.Serialize(new
-            {
-                nodes = new[]
+            return new ChatCompletionResult(
+                JsonSerializer.Serialize(new
                 {
-                    new { id = "start", type = "StartEvent", name = "开始" },
-                    new { id = "task1", type = "UserTask", name = "审批节点" },
-                    new { id = "end", type = "EndEvent", name = "结束" }
-                },
-                edges = new[]
-                {
-                    new { source = "start", target = "task1" },
-                    new { source = "task1", target = "end" }
-                }
-            });
+                    nodes = new[]
+                    {
+                        new { id = "start", type = "StartEvent", name = "开始" },
+                        new { id = "task1", type = "UserTask", name = "审批节点" },
+                        new { id = "end", type = "EndEvent", name = "结束" }
+                    },
+                    edges = new[]
+                    {
+                        new { source = "start", target = "task1" },
+                        new { source = "task1", target = "end" }
+                    }
+                }),
+                Provider: "fallback");
         }
 
-        return "AI 服务已收到请求。请配置 AI 提供商（OpenAI / DeepSeek / Ollama）以启用完整功能。";
+        return new ChatCompletionResult(
+            "AI 服务已收到请求。请配置 AI 提供商（OpenAI / DeepSeek / Ollama）以启用完整功能。",
+            Provider: "fallback");
     }
 
     private static string GenerateBasicFormSchema(string description)

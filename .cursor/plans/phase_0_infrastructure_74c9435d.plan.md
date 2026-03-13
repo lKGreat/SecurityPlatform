@@ -4,40 +4,40 @@ overview: Implement the 5 infrastructure sub-modules (LLM Provider, Vector Store
 todos:
   - id: 0.1.1
     content: Define ILlmProvider, IEmbeddingProvider interfaces and all DTOs (ChatCompletionRequest, ChatMessage, ChatCompletionResult, ChatCompletionChunk, EmbeddingRequest, EmbeddingResult) in Atlas.Application/AiPlatform/
-    status: pending
+    status: completed
   - id: 0.1.2-4
     content: Implement OpenAiCompatibleProvider covering OpenAI/DeepSeek/Ollama (same wire protocol, configurable BaseUrl). Single class handles Chat, Stream, and Embedding.
-    status: pending
+    status: completed
   - id: 0.1.9
     content: Implement ILlmProviderFactory to resolve providers by name from DI, with fallback to AiPlatform:DefaultProvider config
-    status: pending
+    status: completed
   - id: 0.1.10
     content: Create AiPlatformOptions class, add AiPlatform config section to appsettings.json with provider entries
-    status: pending
+    status: completed
   - id: 0.2.1
     content: Define IVectorStore interface (Upsert/Search/Delete/EnsureCollection) and VectorRecord/VectorSearchResult DTOs
-    status: pending
+    status: completed
   - id: 0.2.2
     content: Implement SqliteVectorStore with dedicated vectors.db, BLOB storage for float[] vectors, brute-force cosine similarity search
-    status: pending
+    status: completed
   - id: 0.3.1
     content: Define IDocumentParser (CanParse/ParseAsync) and IChunkingService (Chunk) interfaces with ParsedDocument, TextChunk, ChunkingOptions records
-    status: pending
+    status: completed
   - id: 0.3.2-7
     content: "Implement 6 document parsers: TXT, PDF (UglyToad.PdfPig), DOCX (OpenXml), Markdown, CSV/XLSX (ClosedXML), JSON + DocumentParserComposite"
-    status: pending
+    status: completed
   - id: 0.3.8
     content: Implement FixedSizeChunkingService with configurable ChunkSize/Overlap and sentence-boundary awareness
-    status: pending
+    status: completed
   - id: di-registration
     content: Create AiPlatformServiceRegistration.cs, wire into ServiceCollectionExtensions.AddAtlasInfrastructure(), add NuGet packages (PdfPig, OpenXml)
-    status: pending
+    status: completed
   - id: refactor-ai
     content: Update existing AiService.CallAiAsync to delegate to ILlmProviderFactory instead of returning templates (keeps IAiService contract intact)
-    status: pending
+    status: completed
   - id: mark-done
     content: "Update tracker: mark 0.4.1, 0.4.2 as [x] (EventBus exists), mark 0.5.1 as [x] (FileStorage exists)"
-    status: pending
+    status: completed
 isProject: false
 ---
 

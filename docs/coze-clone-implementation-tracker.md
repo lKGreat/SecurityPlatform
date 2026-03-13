@@ -12,23 +12,23 @@
 
 | # | 任务 | 后端 | 前端 | 状态 |
 |---|------|------|------|------|
-| 0.1.1 | 定义 `ILlmProvider` 接口（Chat / Stream / Embedding） | `Atlas.Application` | — | [ ] |
-| 0.1.2 | 实现 OpenAI Provider（Chat + Embedding） | `Atlas.Infrastructure` | — | [ ] |
-| 0.1.3 | 实现 DeepSeek Provider | `Atlas.Infrastructure` | — | [ ] |
-| 0.1.4 | 实现 Ollama Provider（本地模型） | `Atlas.Infrastructure` | — | [ ] |
+| 0.1.1 | 定义 `ILlmProvider` 接口（Chat / Stream / Embedding） | `Atlas.Application` | — | [x] |
+| 0.1.2 | 实现 OpenAI Provider（Chat + Embedding） | `Atlas.Infrastructure` | — | [x] |
+| 0.1.3 | 实现 DeepSeek Provider | `Atlas.Infrastructure` | — | [x] |
+| 0.1.4 | 实现 Ollama Provider（本地模型） | `Atlas.Infrastructure` | — | [x] |
 | 0.1.5 | 实现 Claude Provider | `Atlas.Infrastructure` | — | [ ] |
 | 0.1.6 | 实现 Gemini Provider | `Atlas.Infrastructure` | — | [ ] |
 | 0.1.7 | 实现 Qwen Provider | `Atlas.Infrastructure` | — | [ ] |
 | 0.1.8 | 实现 Ark (ByteDance) Provider | `Atlas.Infrastructure` | — | [ ] |
-| 0.1.9 | Provider 工厂：根据配置动态选择 Provider | `Atlas.Infrastructure` | — | [ ] |
-| 0.1.10 | LLM 配置管理（appsettings / 数据库） | `Atlas.Infrastructure` | — | [ ] |
+| 0.1.9 | Provider 工厂：根据配置动态选择 Provider | `Atlas.Infrastructure` | — | [x] |
+| 0.1.10 | LLM 配置管理（appsettings / 数据库） | `Atlas.Infrastructure` | — | [x] |
 
 ### 0.2 向量存储抽象层
 
 | # | 任务 | 后端 | 前端 | 状态 |
 |---|------|------|------|------|
-| 0.2.1 | 定义 `IVectorStore` 接口（Insert / Search / Delete） | `Atlas.Application` | — | [ ] |
-| 0.2.2 | 实现 SQLite 内存向量存储（余弦相似度） | `Atlas.Infrastructure` | — | [ ] |
+| 0.2.1 | 定义 `IVectorStore` 接口（Insert / Search / Delete） | `Atlas.Application` | — | [x] |
+| 0.2.2 | 实现 SQLite 内存向量存储（余弦相似度） | `Atlas.Infrastructure` | — | [x] |
 | 0.2.3 | 实现 Milvus 向量存储（可选） | `Atlas.Infrastructure` | — | [ ] |
 | 0.2.4 | 实现 Elasticsearch 向量存储（可选） | `Atlas.Infrastructure` | — | [ ] |
 
@@ -36,29 +36,29 @@
 
 | # | 任务 | 后端 | 前端 | 状态 |
 |---|------|------|------|------|
-| 0.3.1 | 定义 `IDocumentParser` 接口 | `Atlas.Application` | — | [ ] |
-| 0.3.2 | 实现 TXT 解析器 | `Atlas.Infrastructure` | — | [ ] |
-| 0.3.3 | 实现 PDF 解析器（PdfPig / iText7） | `Atlas.Infrastructure` | — | [ ] |
-| 0.3.4 | 实现 DOCX 解析器 | `Atlas.Infrastructure` | — | [ ] |
-| 0.3.5 | 实现 Markdown 解析器 | `Atlas.Infrastructure` | — | [ ] |
-| 0.3.6 | 实现 CSV / XLSX 解析器 | `Atlas.Infrastructure` | — | [ ] |
-| 0.3.7 | 实现 JSON 解析器 | `Atlas.Infrastructure` | — | [ ] |
-| 0.3.8 | 文档分块服务（固定长度 + overlap） | `Atlas.Infrastructure` | — | [ ] |
+| 0.3.1 | 定义 `IDocumentParser` 接口 | `Atlas.Application` | — | [x] |
+| 0.3.2 | 实现 TXT 解析器 | `Atlas.Infrastructure` | — | [x] |
+| 0.3.3 | 实现 PDF 解析器（PdfPig / iText7） | `Atlas.Infrastructure` | — | [x] |
+| 0.3.4 | 实现 DOCX 解析器 | `Atlas.Infrastructure` | — | [x] |
+| 0.3.5 | 实现 Markdown 解析器 | `Atlas.Infrastructure` | — | [x] |
+| 0.3.6 | 实现 CSV / XLSX 解析器 | `Atlas.Infrastructure` | — | [x] |
+| 0.3.7 | 实现 JSON 解析器 | `Atlas.Infrastructure` | — | [x] |
+| 0.3.8 | 文档分块服务（固定长度 + overlap） | `Atlas.Infrastructure` | — | [x] |
 | 0.3.9 | 文档分块服务（语义分块，二期） | `Atlas.Infrastructure` | — | [ ] |
 
 ### 0.4 事件总线
 
 | # | 任务 | 后端 | 前端 | 状态 |
 |---|------|------|------|------|
-| 0.4.1 | 定义 `IEventBus` 接口（Publish / Subscribe） | `Atlas.Application` | — | [ ] |
-| 0.4.2 | 实现内存事件总线（Channel-based） | `Atlas.Infrastructure` | — | [ ] |
+| 0.4.1 | 定义 `IEventBus` 接口（Publish / Subscribe） | `Atlas.Application` | — | [x] |
+| 0.4.2 | 实现内存事件总线（Channel-based） | `Atlas.Infrastructure` | — | [x] |
 | 0.4.3 | 实现 RabbitMQ / Redis Stream 事件总线（可选） | `Atlas.Infrastructure` | — | [ ] |
 
 ### 0.5 对象存储抽象
 
 | # | 任务 | 后端 | 前端 | 状态 |
 |---|------|------|------|------|
-| 0.5.1 | 复用现有 `IFileStorageService` | — | — | [ ] |
+| 0.5.1 | 复用现有 `IFileStorageService` | — | — | [x] |
 | 0.5.2 | 扩展支持 MinIO / S3（可选） | `Atlas.Infrastructure` | — | [ ] |
 
 ---

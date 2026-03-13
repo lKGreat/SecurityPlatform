@@ -1,0 +1,254 @@
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Atlas.Application.AiPlatform.Abstractions;
+using Atlas.Application.AiPlatform.Models;
+using Atlas.Infrastructure.Options;
+using Microsoft.Extensions.Logging;
+
+namespace Atlas.Infrastructure.Services.AiPlatform;
+
+public sealed class OpenAiCompatibleProvider : ILlmProvider, IEmbeddingProvider
+{
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    private readonly HttpClient _httpClient;
+    private readonly ILogger<OpenAiCompatibleProvider> _logger;
+    private readonly AiProviderOption _option;
+
+    public OpenAiCompatibleProvider(
+        string providerName,
+        AiProviderOption option,
+        HttpClient httpClient,
+        ILogger<OpenAiCompatibleProvider> logger)
+    {
+        ProviderName = providerName;
+        _option = option;
+        _httpClient = httpClient;
+        _logger = logger;
+
+        if (!string.IsNullOrWhiteSpace(option.BaseUrl))
+        {
+            _httpClient.BaseAddress = new Uri(option.BaseUrl.TrimEnd('/') + "/");
+        }
+    }
+
+    public string ProviderName { get; }
+
+    public async Task<ChatCompletionResult> ChatAsync(ChatCompletionRequest request, CancellationToken ct = default)
+    {
+        var payload = new OpenAiChatRequest(
+            request.Model,
+            request.Messages.Select(m => new OpenAiMessage(m.Role, m.Content)).ToList(),
+            request.Temperature,
+            request.MaxTokens,
+            Stream: false);
+
+        using var response = await SendAsync("v1/chat/completions", payload, ct);
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        var body = await JsonSerializer.DeserializeAsync<OpenAiChatResponse>(stream, JsonOptions, ct);
+        if (body?.Choices is null || body.Choices.Count == 0)
+        {
+            throw new InvalidOperationException($"AI provider '{ProviderName}' returned empty choices.");
+        }
+
+        var first = body.Choices[0];
+        return new ChatCompletionResult(
+            first.Message?.Content ?? string.Empty,
+            body.Model,
+            ProviderName,
+            first.FinishReason,
+            body.Usage?.PromptTokens,
+            body.Usage?.CompletionTokens,
+            body.Usage?.TotalTokens);
+    }
+
+    public async IAsyncEnumerable<ChatCompletionChunk> ChatStreamAsync(
+        ChatCompletionRequest request,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var payload = new OpenAiChatRequest(
+            request.Model,
+            request.Messages.Select(m => new OpenAiMessage(m.Role, m.Content)).ToList(),
+            request.Temperature,
+            request.MaxTokens,
+            Stream: true);
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+        };
+
+        if (!string.IsNullOrWhiteSpace(_option.ApiKey))
+        {
+            httpRequest.Headers.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _option.ApiKey);
+        }
+
+        using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var rawBody = await response.Content.ReadAsStringAsync(ct);
+            throw new HttpRequestException(
+                $"AI provider '{ProviderName}' chat stream failed: {(int)response.StatusCode} {rawBody}");
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var reader = new StreamReader(stream);
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            var line = await reader.ReadLineAsync(ct);
+            if (line is null)
+            {
+                break;
+            }
+            if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data:", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var data = line["data:".Length..].Trim();
+            if (string.Equals(data, "[DONE]", StringComparison.Ordinal))
+            {
+                yield return new ChatCompletionChunk(string.Empty, true, "stop");
+                yield break;
+            }
+
+            OpenAiChatStreamResponse? chunk;
+            try
+            {
+                chunk = JsonSerializer.Deserialize<OpenAiChatStreamResponse>(data, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse stream chunk from provider {ProviderName}.", ProviderName);
+                continue;
+            }
+
+            if (chunk?.Choices is null || chunk.Choices.Count == 0)
+            {
+                continue;
+            }
+
+            var choice = chunk.Choices[0];
+            var delta = choice.Delta?.Content ?? string.Empty;
+            if (delta.Length > 0 || !string.IsNullOrWhiteSpace(choice.FinishReason))
+            {
+                yield return new ChatCompletionChunk(
+                    delta,
+                    !string.IsNullOrWhiteSpace(choice.FinishReason),
+                    choice.FinishReason);
+            }
+        }
+    }
+
+    public async Task<EmbeddingResult> EmbedAsync(EmbeddingRequest request, CancellationToken ct = default)
+    {
+        var payload = new OpenAiEmbeddingRequest(
+            request.Model,
+            request.Inputs.ToList(),
+            request.Dimensions);
+
+        using var response = await SendAsync("v1/embeddings", payload, ct);
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        var body = await JsonSerializer.DeserializeAsync<OpenAiEmbeddingResponse>(stream, JsonOptions, ct);
+        if (body?.Data is null || body.Data.Count == 0)
+        {
+            throw new InvalidOperationException($"AI provider '{ProviderName}' returned empty embeddings.");
+        }
+
+        var vectors = body.Data
+            .OrderBy(d => d.Index)
+            .Select(d => d.Embedding.ToArray())
+            .ToArray();
+
+        return new EmbeddingResult(
+            vectors,
+            body.Model,
+            ProviderName,
+            body.Usage?.PromptTokens,
+            body.Usage?.TotalTokens);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(string relativePath, object payload, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, relativePath)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+        };
+
+        if (!string.IsNullOrWhiteSpace(_option.ApiKey))
+        {
+            request.Headers.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _option.ApiKey);
+        }
+
+        var response = await _httpClient.SendAsync(request, ct);
+        if (response.IsSuccessStatusCode)
+        {
+            return response;
+        }
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        response.Dispose();
+        throw new HttpRequestException($"AI provider '{ProviderName}' request failed: {(int)response.StatusCode} {body}");
+    }
+
+    private sealed record OpenAiChatRequest(
+        [property: JsonPropertyName("model")] string Model,
+        [property: JsonPropertyName("messages")] IReadOnlyList<OpenAiMessage> Messages,
+        [property: JsonPropertyName("temperature")] float? Temperature,
+        [property: JsonPropertyName("max_tokens")] int? MaxTokens,
+        [property: JsonPropertyName("stream")] bool Stream);
+
+    private sealed record OpenAiMessage(
+        [property: JsonPropertyName("role")] string Role,
+        [property: JsonPropertyName("content")] string Content);
+
+    private sealed record OpenAiChatResponse(
+        [property: JsonPropertyName("model")] string? Model,
+        [property: JsonPropertyName("choices")] IReadOnlyList<OpenAiChoice>? Choices,
+        [property: JsonPropertyName("usage")] OpenAiUsage? Usage);
+
+    private sealed record OpenAiChoice(
+        [property: JsonPropertyName("message")] OpenAiMessage? Message,
+        [property: JsonPropertyName("finish_reason")] string? FinishReason);
+
+    private sealed record OpenAiChatStreamResponse(
+        [property: JsonPropertyName("id")] string? Id,
+        [property: JsonPropertyName("choices")] IReadOnlyList<OpenAiStreamChoice>? Choices);
+
+    private sealed record OpenAiStreamChoice(
+        [property: JsonPropertyName("delta")] OpenAiDelta? Delta,
+        [property: JsonPropertyName("finish_reason")] string? FinishReason);
+
+    private sealed record OpenAiDelta([property: JsonPropertyName("content")] string? Content);
+
+    private sealed record OpenAiEmbeddingRequest(
+        [property: JsonPropertyName("model")] string Model,
+        [property: JsonPropertyName("input")] IReadOnlyList<string> Input,
+        [property: JsonPropertyName("dimensions")] int? Dimensions = null);
+
+    private sealed record OpenAiEmbeddingResponse(
+        [property: JsonPropertyName("model")] string? Model,
+        [property: JsonPropertyName("data")] IReadOnlyList<OpenAiEmbeddingData>? Data,
+        [property: JsonPropertyName("usage")] OpenAiEmbeddingUsage? Usage);
+
+    private sealed record OpenAiEmbeddingData(
+        [property: JsonPropertyName("index")] int Index,
+        [property: JsonPropertyName("embedding")] IReadOnlyList<float> Embedding);
+
+    private sealed record OpenAiUsage(
+        [property: JsonPropertyName("prompt_tokens")] int? PromptTokens,
+        [property: JsonPropertyName("completion_tokens")] int? CompletionTokens,
+        [property: JsonPropertyName("total_tokens")] int? TotalTokens);
+
+    private sealed record OpenAiEmbeddingUsage(
+        [property: JsonPropertyName("prompt_tokens")] int? PromptTokens,
+        [property: JsonPropertyName("total_tokens")] int? TotalTokens);
+}
