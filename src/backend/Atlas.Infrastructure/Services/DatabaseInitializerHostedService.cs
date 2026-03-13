@@ -155,11 +155,17 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(DashboardDefinition),
             typeof(ReportDefinition),
             typeof(DataSourceDefinition),
-            // Workflow entities
+            // WorkflowCore entities (原有)
             typeof(PersistedWorkflow),
             typeof(PersistedExecutionPointer),
             typeof(PersistedEvent),
             typeof(PersistedSubscription),
+            // Workflow v2 entities (Coze 风格 DAG 引擎)
+            typeof(Atlas.Domain.Workflow.Entities.WorkflowMeta),
+            typeof(Atlas.Domain.Workflow.Entities.WorkflowDraft),
+            typeof(Atlas.Domain.Workflow.Entities.WorkflowVersion),
+            typeof(Atlas.Domain.Workflow.Entities.WorkflowExecution),
+            typeof(Atlas.Domain.Workflow.Entities.NodeExecution),
             // System module
             typeof(DictType),
             typeof(DictData),

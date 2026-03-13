@@ -1,0 +1,35 @@
+namespace Atlas.Domain.Workflow.Enums;
+
+public enum NodeType
+{
+    Entry = 1,
+    Exit = 2,
+    LLM = 3,
+    If = 4,
+    Loop = 5,
+    Break = 6,
+    Continue = 7,
+    Batch = 8,
+    SubWorkflow = 9,
+    IntentDetector = 10,
+    KnowledgeRetriever = 11,
+    KnowledgeIndexer = 12,
+    KnowledgeDeleter = 13,
+    CodeRunner = 14,
+    HttpRequester = 15,
+    PluginApi = 16,
+    DatabaseQuery = 17,
+    DatabaseInsert = 18,
+    DatabaseUpdate = 19,
+    DatabaseDelete = 20,
+    AssignVariable = 21,
+    VariableAggregator = 22,
+    JsonSerialization = 23,
+    JsonDeserialization = 24,
+    TextProcessor = 25,
+    MessageList = 26,
+    CreateMessage = 27,
+    ConversationList = 28,
+    QuestionAnswer = 29,
+    OutputEmitter = 30
+}
