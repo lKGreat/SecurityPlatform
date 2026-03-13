@@ -102,6 +102,10 @@ public static class PermissionCodes
     public const string AiPromptCreate = "ai-prompt:create";
     public const string AiPromptUpdate = "ai-prompt:update";
     public const string AiPromptDelete = "ai-prompt:delete";
+    public const string PersonalAccessTokenView = "pat:view";
+    public const string PersonalAccessTokenCreate = "pat:create";
+    public const string PersonalAccessTokenUpdate = "pat:update";
+    public const string PersonalAccessTokenDelete = "pat:delete";
 
     public const string ApprovalFlowView = "approval:flow:view";
     public const string ApprovalFlowManage = "approval:flow:manage";

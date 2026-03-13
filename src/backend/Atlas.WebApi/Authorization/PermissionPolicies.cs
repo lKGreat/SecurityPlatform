@@ -109,6 +109,10 @@ public static class PermissionPolicies
     public const string AiPromptCreate = "Permission:ai-prompt:create";
     public const string AiPromptUpdate = "Permission:ai-prompt:update";
     public const string AiPromptDelete = "Permission:ai-prompt:delete";
+    public const string PersonalAccessTokenView = "Permission:pat:view";
+    public const string PersonalAccessTokenCreate = "Permission:pat:create";
+    public const string PersonalAccessTokenUpdate = "Permission:pat:update";
+    public const string PersonalAccessTokenDelete = "Permission:pat:delete";
 
     public const string ApprovalFlowView = "Permission:approval:flow:view";
     public const string ApprovalFlowManage = "Permission:approval:flow:manage";

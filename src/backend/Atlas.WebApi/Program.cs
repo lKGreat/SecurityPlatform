@@ -10,6 +10,7 @@ using Hangfire.Storage.SQLite;
 using Atlas.WebApi.Tenancy;
 using Atlas.WorkflowCore;
 using Atlas.WorkflowCore.DSL;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Antiforgery;
@@ -25,6 +26,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Atlas.WebApi.Authorization;
 using Atlas.WebApi.Filters;
+using Atlas.WebApi.Security;
 using Atlas.Application.Abstractions;
 using Atlas.Core.Tenancy;
 using Microsoft.AspNetCore.Authorization.Policy;
@@ -314,13 +316,17 @@ builder.Services.AddAuthentication()
     .AddCertificate(options =>
     {
         options.AllowedCertificateTypes = CertificateTypes.All;
+    })
+    .AddScheme<AuthenticationSchemeOptions, PatAuthenticationHandler>(PatAuthenticationHandler.SchemeName, options =>
+    {
     });
 
 builder.Services.AddAuthorization(options =>
 {
     options.DefaultPolicy = new AuthorizationPolicyBuilder(
             JwtBearerDefaults.AuthenticationScheme,
-            CertificateAuthenticationDefaults.AuthenticationScheme)
+            CertificateAuthenticationDefaults.AuthenticationScheme,
+            PatAuthenticationHandler.SchemeName)
         .RequireAuthenticatedUser()
         .Build();
 });
