@@ -16,6 +16,7 @@
         v-model:edges="edges"
         :fit-view-on-init="true"
         class="workflow-canvas"
+        @connect="onConnect"
         @node-click="onNodeClick"
       >
         <template #node-default="nodeProps">
@@ -53,12 +54,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import { Controls } from "@vue-flow/controls";
 import { MiniMap } from "@vue-flow/minimap";
-import { VueFlow, type Node, type Edge, type NodeMouseEvent } from "@vue-flow/core";
+import { VueFlow, addEdge, type Node, type Edge, type NodeMouseEvent, type Connection } from "@vue-flow/core";
 import NodePalette from "@/components/ai/workflow/NodePalette.vue";
 import AiNode from "@/components/ai/workflow/AiNode.vue";
 import LlmNodeConfig from "@/components/ai/workflow/LlmNodeConfig.vue";
@@ -71,6 +72,7 @@ import {
   getAiWorkflowNodeTypes,
   runAiWorkflow,
   saveAiWorkflow,
+  validateAiWorkflow,
   type AiWorkflowNodeTypeDto
 } from "@/services/api-ai-workflow";
 
@@ -92,6 +94,7 @@ const validating = ref(false);
 const running = ref(false);
 const executionId = ref<string | null>(null);
 const executionStatus = ref<string | null>(null);
+let progressPollTimer: number | null = null;
 
 const selectedNode = computed(() => nodes.value.find((x) => x.id === selectedNodeId.value) || null);
 
@@ -147,7 +150,11 @@ function onNodeClick(evt: NodeMouseEvent) {
   selectedNodeId.value = evt.node.id;
 }
 
-async function saveWorkflow() {
+function onConnect(connection: Connection) {
+  edges.value = addEdge(connection, edges.value) as Edge[];
+}
+
+async function saveWorkflow(options?: { silent?: boolean }) {
   saving.value = true;
   try {
     const canvasJson = JSON.stringify({
@@ -158,9 +165,12 @@ async function saveWorkflow() {
       canvasJson,
       definitionJson: "{}"
     });
-    message.success("保存成功");
+    if (!options?.silent) {
+      message.success("保存成功");
+    }
   } catch (err: unknown) {
     message.error((err as Error).message || "保存失败");
+    throw err;
   } finally {
     saving.value = false;
   }
@@ -169,8 +179,16 @@ async function saveWorkflow() {
 async function validateWorkflow() {
   validating.value = true;
   try {
-    await saveWorkflow();
-    message.success("已提交校验，可在后端接口查看结果");
+    await saveWorkflow({ silent: true });
+    const result = await validateAiWorkflow(workflowId);
+    if (result.isValid) {
+      message.success("校验通过");
+      return;
+    }
+
+    message.error(`校验失败: ${result.errors.join("；")}`);
+  } catch (err: unknown) {
+    message.error((err as Error).message || "校验失败");
   } finally {
     validating.value = false;
   }
@@ -179,7 +197,7 @@ async function validateWorkflow() {
 async function runWorkflow(inputs: Record<string, unknown>) {
   running.value = true;
   try {
-    await saveWorkflow();
+    await saveWorkflow({ silent: true });
     const result = await runAiWorkflow(workflowId, inputs);
     executionId.value = result.executionId;
     message.success("已启动执行");
@@ -201,22 +219,40 @@ async function cancelExecution(id: string) {
 }
 
 watch(executionId, (id) => {
+  if (progressPollTimer) {
+    window.clearInterval(progressPollTimer);
+    progressPollTimer = null;
+  }
+
   if (!id) return;
-  const timer = window.setInterval(async () => {
+  progressPollTimer = window.setInterval(async () => {
     try {
       const progress = await getAiWorkflowExecutionProgress(id);
       executionStatus.value = progress.status;
       if (["Complete", "Terminated"].includes(progress.status)) {
-        window.clearInterval(timer);
+        if (progressPollTimer) {
+          window.clearInterval(progressPollTimer);
+          progressPollTimer = null;
+        }
       }
     } catch {
-      window.clearInterval(timer);
+      if (progressPollTimer) {
+        window.clearInterval(progressPollTimer);
+        progressPollTimer = null;
+      }
     }
   }, 2000);
 });
 
 onMounted(async () => {
   await Promise.all([loadNodeTypes(), loadWorkflow()]);
+});
+
+onBeforeUnmount(() => {
+  if (progressPollTimer) {
+    window.clearInterval(progressPollTimer);
+    progressPollTimer = null;
+  }
 });
 </script>
 

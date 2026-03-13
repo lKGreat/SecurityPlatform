@@ -122,6 +122,14 @@ public sealed class AiWorkflowDesignService : IAiWorkflowDesignService
     {
         var entity = await _repository.FindByIdAsync(tenantId, id, cancellationToken)
             ?? throw new BusinessException("工作流定义不存在。", ErrorCodes.NotFound);
+        var validation = await ValidateAsync(tenantId, id, cancellationToken);
+        if (!validation.IsValid)
+        {
+            throw new BusinessException(
+                $"工作流校验失败，无法发布: {string.Join("; ", validation.Errors)}",
+                ErrorCodes.ValidationError);
+        }
+
         entity.Publish();
         await _repository.UpdateAsync(entity, cancellationToken);
     }
@@ -180,7 +188,13 @@ public sealed class AiWorkflowDesignService : IAiWorkflowDesignService
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (ids.Count == 0)
+        {
+            return "节点 ID 无效。";
+        }
+
         var adjacency = ids.ToDictionary(x => x, _ => new List<string>(), StringComparer.OrdinalIgnoreCase);
+        var inDegree = ids.ToDictionary(x => x, _ => 0, StringComparer.OrdinalIgnoreCase);
         if (edges is not null)
         {
             foreach (var edge in edges)
@@ -192,11 +206,24 @@ public sealed class AiWorkflowDesignService : IAiWorkflowDesignService
                     continue;
                 }
 
-                if (adjacency.ContainsKey(source) && ids.Contains(target))
+                if (!ids.Contains(source) || !ids.Contains(target))
                 {
-                    adjacency[source].Add(target);
+                    return $"连线包含不存在的节点: {source} -> {target}";
+                }
+
+                adjacency[source].Add(target);
+                inDegree[target]++;
+                if (adjacency[source].Count > 1)
+                {
+                    return $"节点 {source} 存在多个出边，当前版本仅支持单分支流转。";
                 }
             }
+        }
+
+        var entryCount = inDegree.Values.Count(x => x == 0);
+        if (entryCount == 0)
+        {
+            return "流程图缺少入口节点。";
         }
 
         var color = ids.ToDictionary(x => x, _ => 0, StringComparer.OrdinalIgnoreCase);

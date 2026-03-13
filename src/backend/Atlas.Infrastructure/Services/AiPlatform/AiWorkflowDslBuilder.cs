@@ -39,15 +39,24 @@ public sealed class AiWorkflowDslBuilder
 
         var nodes = root?["nodes"]?.AsArray() ?? [];
         var edges = root?["edges"]?.AsArray() ?? [];
-        var idToType = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var nodeMap = new Dictionary<string, CanvasNodeInfo>(StringComparer.OrdinalIgnoreCase);
         foreach (var node in nodes)
         {
             var id = node?["id"]?.GetValue<string>();
-            var type = node?["type"]?.GetValue<string>();
-            if (!string.IsNullOrWhiteSpace(id))
+            if (string.IsNullOrWhiteSpace(id))
             {
-                idToType[id] = NormalizeNodeType(type);
+                continue;
             }
+
+            var data = node?["data"] as JsonObject;
+            var canvasType = data?["type"]?.GetValue<string>() ?? node?["type"]?.GetValue<string>();
+            var label = data?["label"]?.GetValue<string>();
+            var config = data?["config"] as JsonObject;
+            nodeMap[id] = new CanvasNodeInfo(
+                id,
+                NormalizeNodeType(canvasType),
+                string.IsNullOrWhiteSpace(label) ? id : label,
+                config);
         }
 
         var outgoing = edges
@@ -64,12 +73,23 @@ public sealed class AiWorkflowDslBuilder
         var steps = new JsonArray();
         foreach (var nodeId in orderedIds)
         {
+            if (!nodeMap.TryGetValue(nodeId, out var nodeInfo))
+            {
+                continue;
+            }
+
             var step = new JsonObject
             {
                 ["id"] = nodeId,
-                ["name"] = nodeId,
-                ["stepType"] = ResolveStepTypeName(idToType.GetValueOrDefault(nodeId, "http")),
+                ["name"] = nodeInfo.Name,
+                ["stepType"] = ResolveStepTypeName(nodeInfo.NormalizedType),
             };
+            var inputs = BuildStepInputs(nodeInfo);
+            if (inputs is not null && inputs.Count > 0)
+            {
+                step["inputs"] = inputs;
+            }
+
             if (outgoing.TryGetValue(nodeId, out var next) && next.Count > 0)
             {
                 step["nextStepId"] = next[0];
@@ -106,11 +126,18 @@ public sealed class AiWorkflowDslBuilder
         {
             "llm" => "llm",
             "plugin" => "plugin",
+            "plugin/api" => "plugin",
             "coderunner" => "code",
+            "code" => "code",
             "knowledgeretriever" => "rag",
+            "rag" => "rag",
             "textprocessor" => "text",
+            "text" => "text",
             "httprequester" => "http",
+            "http" => "http",
             "outputemitter" => "output",
+            "output" => "output",
+            "default" => "http",
             _ => "http"
         };
     }
@@ -129,6 +156,27 @@ public sealed class AiWorkflowDslBuilder
         };
 
         return type.AssemblyQualifiedName ?? type.FullName ?? typeof(HttpRequesterStep).FullName!;
+    }
+
+    private static JsonObject? BuildStepInputs(CanvasNodeInfo node)
+    {
+        if (node.Config is null)
+        {
+            return null;
+        }
+
+        var inputs = new JsonObject();
+        foreach (var pair in node.Config)
+        {
+            if (pair.Value is null)
+            {
+                continue;
+            }
+
+            inputs[pair.Key] = pair.Value.DeepClone();
+        }
+
+        return inputs;
     }
 
     private static List<string> TopologicalOrder(JsonArray nodes, Dictionary<string, List<string>> outgoing)
@@ -192,4 +240,10 @@ public sealed class AiWorkflowDslBuilder
 
         return ordered;
     }
+
+    private sealed record CanvasNodeInfo(
+        string Id,
+        string NormalizedType,
+        string Name,
+        JsonObject? Config);
 }

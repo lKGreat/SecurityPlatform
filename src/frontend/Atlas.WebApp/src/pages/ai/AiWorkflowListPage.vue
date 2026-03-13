@@ -15,7 +15,7 @@
     <a-table row-key="id" :columns="columns" :data-source="list" :loading="loading" :pagination="false">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'status'">
-          <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+          <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
         </template>
         <template v-if="column.key === 'action'">
           <a-space>
@@ -102,9 +102,24 @@ const rules = {
   name: [{ required: true, message: "请输入工作流名称" }]
 };
 
-function statusColor(status: string) {
-  if (status === "Published") return "green";
-  if (status === "Disabled") return "default";
+function normalizeStatus(status: number | string) {
+  if (typeof status === "number") {
+    if (status === 1) return "Published";
+    if (status === 2) return "Disabled";
+    return "Draft";
+  }
+
+  return status;
+}
+
+function statusText(status: number | string) {
+  return normalizeStatus(status);
+}
+
+function statusColor(status: number | string) {
+  const normalized = normalizeStatus(status);
+  if (normalized === "Published") return "green";
+  if (normalized === "Disabled") return "default";
   return "blue";
 }
 

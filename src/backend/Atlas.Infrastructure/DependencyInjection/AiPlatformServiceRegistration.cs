@@ -88,13 +88,6 @@ public static class AiPlatformServiceRegistration
         services.AddSingleton<IDocumentParser>(sp => sp.GetRequiredService<DocumentParserComposite>());
 
         services.AddSingleton<IChunkingService, FixedSizeChunkingService>();
-        services.AddTransient<LlmStep>();
-        services.AddTransient<PluginStep>();
-        services.AddTransient<KnowledgeRetrieverStep>();
-        services.AddTransient<TextProcessorStep>();
-        services.AddTransient<HttpRequesterStep>();
-        services.AddTransient<OutputEmitterStep>();
-        services.AddTransient<CodeRunnerStep>();
 
         return services;
     }

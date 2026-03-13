@@ -1689,7 +1689,7 @@ export class ApprovalFlowsClient {
         this.baseUrl = baseUrl ?? "http://localhost:5000";
     }
 
-    getPaged(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, status?: ApprovalFlowStatus | null | undefined, keywordQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfApprovalFlowDefinitionListItem> {
+    getPaged(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, status?: ApprovalFlowStatus | null | undefined, keywordLegacyQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfApprovalFlowDefinitionListItem> {
         let url_ = this.baseUrl + "/api/v1/approval/flows?";
         if (pageIndex === null)
             throw new Error("The parameter 'pageIndex' cannot be null.");
@@ -1709,8 +1709,8 @@ export class ApprovalFlowsClient {
             url_ += "SortDesc=" + encodeURIComponent("" + sortDesc) + "&";
         if (status !== undefined && status !== null)
             url_ += "status=" + encodeURIComponent("" + status) + "&";
-        if (keywordQuery !== undefined && keywordQuery !== null)
-            url_ += "keyword=" + encodeURIComponent("" + keywordQuery) + "&";
+        if (keywordLegacyQuery !== undefined && keywordLegacyQuery !== null)
+            url_ += "keyword=" + encodeURIComponent("" + keywordLegacyQuery) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -4843,7 +4843,7 @@ export class DictTypesClient {
         this.baseUrl = baseUrl ?? "http://localhost:5000";
     }
 
-    get(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfDictTypeDto> {
+    get(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordLegacyQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfDictTypeDto> {
         let url_ = this.baseUrl + "/api/v1/dict-types?";
         if (pageIndex === null)
             throw new Error("The parameter 'pageIndex' cannot be null.");
@@ -4861,8 +4861,8 @@ export class DictTypesClient {
             throw new Error("The parameter 'sortDesc' cannot be null.");
         else if (sortDesc !== undefined)
             url_ += "SortDesc=" + encodeURIComponent("" + sortDesc) + "&";
-        if (keywordQuery !== undefined && keywordQuery !== null)
-            url_ += "keyword=" + encodeURIComponent("" + keywordQuery) + "&";
+        if (keywordLegacyQuery !== undefined && keywordLegacyQuery !== null)
+            url_ += "keyword=" + encodeURIComponent("" + keywordLegacyQuery) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -5076,7 +5076,7 @@ export class DictTypesClient {
         return Promise.resolve<ApiResponseOfObject>(null as any);
     }
 
-    getData(code: string, pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfDictDataDto> {
+    getData(code: string, pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordLegacyQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfDictDataDto> {
         let url_ = this.baseUrl + "/api/v1/dict-types/{code}/data?";
         if (code === undefined || code === null)
             throw new Error("The parameter 'code' must be defined.");
@@ -5097,8 +5097,8 @@ export class DictTypesClient {
             throw new Error("The parameter 'sortDesc' cannot be null.");
         else if (sortDesc !== undefined)
             url_ += "SortDesc=" + encodeURIComponent("" + sortDesc) + "&";
-        if (keywordQuery !== undefined && keywordQuery !== null)
-            url_ += "keyword=" + encodeURIComponent("" + keywordQuery) + "&";
+        if (keywordLegacyQuery !== undefined && keywordLegacyQuery !== null)
+            url_ += "keyword=" + encodeURIComponent("" + keywordLegacyQuery) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -5828,7 +5828,7 @@ export class DynamicTableRecordsClient {
         this.baseUrl = baseUrl ?? "http://localhost:5000";
     }
 
-    query(tableKey: string, pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortByQuery?: string | null | undefined, sortDescQuery?: boolean | undefined, keywordQuery?: string | null | undefined, sortByQuery?: string | null | undefined, sortDescQuery?: boolean | undefined): Promise<ApiResponseOfDynamicRecordListResult> {
+    query(tableKey: string, pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortByQuery?: string | null | undefined, sortDescQuery?: boolean | undefined, keywordLegacyQuery?: string | null | undefined, sortByLegacyQuery?: string | null | undefined, sortDescLegacyQuery?: boolean | undefined): Promise<ApiResponseOfDynamicRecordListResult> {
         let url_ = this.baseUrl + "/api/v1/dynamic-tables/{tableKey}/records?";
         if (tableKey === undefined || tableKey === null)
             throw new Error("The parameter 'tableKey' must be defined.");
@@ -5849,14 +5849,14 @@ export class DynamicTableRecordsClient {
             throw new Error("The parameter 'sortDescQuery' cannot be null.");
         else if (sortDescQuery !== undefined)
             url_ += "SortDesc=" + encodeURIComponent("" + sortDescQuery) + "&";
-        if (keywordQuery !== undefined && keywordQuery !== null)
-            url_ += "keyword=" + encodeURIComponent("" + keywordQuery) + "&";
-        if (sortByQuery !== undefined && sortByQuery !== null)
-            url_ += "sortBy=" + encodeURIComponent("" + sortByQuery) + "&";
-        if (sortDescQuery === null)
-            throw new Error("The parameter 'sortDescQuery' cannot be null.");
-        else if (sortDescQuery !== undefined)
-            url_ += "sortDesc=" + encodeURIComponent("" + sortDescQuery) + "&";
+        if (keywordLegacyQuery !== undefined && keywordLegacyQuery !== null)
+            url_ += "keyword=" + encodeURIComponent("" + keywordLegacyQuery) + "&";
+        if (sortByLegacyQuery !== undefined && sortByLegacyQuery !== null)
+            url_ += "sortBy=" + encodeURIComponent("" + sortByLegacyQuery) + "&";
+        if (sortDescLegacyQuery === null)
+            throw new Error("The parameter 'sortDescLegacyQuery' cannot be null.");
+        else if (sortDescLegacyQuery !== undefined)
+            url_ += "sortDesc=" + encodeURIComponent("" + sortDescLegacyQuery) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -11692,7 +11692,7 @@ export class PluginMarketClient {
         this.baseUrl = baseUrl ?? "http://localhost:5000";
     }
 
-    search(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordQuery?: string | null | undefined, category?: PluginCategory | null | undefined): Promise<ApiResponseOfObject> {
+    search(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordLegacyQuery?: string | null | undefined, category?: PluginCategory | null | undefined): Promise<ApiResponseOfObject> {
         let url_ = this.baseUrl + "/api/v1/plugin-market?";
         if (pageIndex === null)
             throw new Error("The parameter 'pageIndex' cannot be null.");
@@ -11710,8 +11710,8 @@ export class PluginMarketClient {
             throw new Error("The parameter 'sortDesc' cannot be null.");
         else if (sortDesc !== undefined)
             url_ += "SortDesc=" + encodeURIComponent("" + sortDesc) + "&";
-        if (keywordQuery !== undefined && keywordQuery !== null)
-            url_ += "keyword=" + encodeURIComponent("" + keywordQuery) + "&";
+        if (keywordLegacyQuery !== undefined && keywordLegacyQuery !== null)
+            url_ += "keyword=" + encodeURIComponent("" + keywordLegacyQuery) + "&";
         if (category !== undefined && category !== null)
             url_ += "category=" + encodeURIComponent("" + category) + "&";
         url_ = url_.replace(/[?&]$/, "");
@@ -12195,13 +12195,13 @@ export class PluginsClient {
         return Promise.resolve<ApiResponseOfObject>(null as any);
     }
 
-    install(package?: FileParameter | null | undefined): Promise<ApiResponseOfObject> {
+    install(packageFile?: FileParameter | null | undefined): Promise<ApiResponseOfObject> {
         let url_ = this.baseUrl + "/api/v1/plugins/install";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = new FormData();
-        if (package !== null && package !== undefined)
-            content_.append("package", package.data, package.fileName ? package.fileName : "package");
+        if (packageFile !== null && packageFile !== undefined)
+            content_.append("package", packageFile.data, packageFile.fileName ? packageFile.fileName : "package");
 
         let options_: RequestInit = {
             body: content_,
@@ -14058,7 +14058,7 @@ export class SessionsClient {
         this.baseUrl = baseUrl ?? "http://localhost:5000";
     }
 
-    get(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfOnlineUserDto> {
+    get(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordLegacyQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfOnlineUserDto> {
         let url_ = this.baseUrl + "/api/v1/sessions?";
         if (pageIndex === null)
             throw new Error("The parameter 'pageIndex' cannot be null.");
@@ -14076,8 +14076,8 @@ export class SessionsClient {
             throw new Error("The parameter 'sortDesc' cannot be null.");
         else if (sortDesc !== undefined)
             url_ += "SortDesc=" + encodeURIComponent("" + sortDesc) + "&";
-        if (keywordQuery !== undefined && keywordQuery !== null)
-            url_ += "keyword=" + encodeURIComponent("" + keywordQuery) + "&";
+        if (keywordLegacyQuery !== undefined && keywordLegacyQuery !== null)
+            url_ += "keyword=" + encodeURIComponent("" + keywordLegacyQuery) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -14156,7 +14156,7 @@ export class SystemConfigsClient {
         this.baseUrl = baseUrl ?? "http://localhost:5000";
     }
 
-    get(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfSystemConfigDto> {
+    get(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordLegacyQuery?: string | null | undefined): Promise<ApiResponseOfPagedResultOfSystemConfigDto> {
         let url_ = this.baseUrl + "/api/v1/system-configs?";
         if (pageIndex === null)
             throw new Error("The parameter 'pageIndex' cannot be null.");
@@ -14174,8 +14174,8 @@ export class SystemConfigsClient {
             throw new Error("The parameter 'sortDesc' cannot be null.");
         else if (sortDesc !== undefined)
             url_ += "SortDesc=" + encodeURIComponent("" + sortDesc) + "&";
-        if (keywordQuery !== undefined && keywordQuery !== null)
-            url_ += "keyword=" + encodeURIComponent("" + keywordQuery) + "&";
+        if (keywordLegacyQuery !== undefined && keywordLegacyQuery !== null)
+            url_ += "keyword=" + encodeURIComponent("" + keywordLegacyQuery) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -14770,7 +14770,7 @@ export class TemplatesClient {
         this.baseUrl = baseUrl ?? "http://localhost:5000";
     }
 
-    search(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordQuery?: string | null | undefined, category?: TemplateCategory | null | undefined, tags?: string | null | undefined, version?: string | null | undefined): Promise<ApiResponseOfObject> {
+    search(pageIndex?: number | undefined, pageSize?: number | undefined, keywordQuery?: string | null | undefined, sortBy?: string | null | undefined, sortDesc?: boolean | undefined, keywordLegacyQuery?: string | null | undefined, category?: TemplateCategory | null | undefined, tags?: string | null | undefined, version?: string | null | undefined): Promise<ApiResponseOfObject> {
         let url_ = this.baseUrl + "/api/v1/templates?";
         if (pageIndex === null)
             throw new Error("The parameter 'pageIndex' cannot be null.");
@@ -14788,8 +14788,8 @@ export class TemplatesClient {
             throw new Error("The parameter 'sortDesc' cannot be null.");
         else if (sortDesc !== undefined)
             url_ += "SortDesc=" + encodeURIComponent("" + sortDesc) + "&";
-        if (keywordQuery !== undefined && keywordQuery !== null)
-            url_ += "keyword=" + encodeURIComponent("" + keywordQuery) + "&";
+        if (keywordLegacyQuery !== undefined && keywordLegacyQuery !== null)
+            url_ += "keyword=" + encodeURIComponent("" + keywordLegacyQuery) + "&";
         if (category !== undefined && category !== null)
             url_ += "category=" + encodeURIComponent("" + category) + "&";
         if (tags !== undefined && tags !== null)

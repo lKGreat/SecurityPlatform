@@ -115,6 +115,7 @@ public sealed class DocumentProcessingService
             if (chunkEntities.Count > 0)
             {
                 await EnsureVectorCollectionAsync(knowledgeBaseId, chunkEntities, cancellationToken);
+                var embeddedChunkIds = new List<long>(chunkEntities.Count);
                 foreach (var batch in chunkEntities.Chunk(EmbeddingBatchSize))
                 {
                     var batchItems = batch.ToArray();
@@ -126,7 +127,6 @@ public sealed class DocumentProcessingService
                         cancellationToken);
 
                     var vectors = new List<VectorRecord>(batchItems.Length);
-                    var embeddedChunkIds = new List<long>(batchItems.Length);
                     for (var i = 0; i < batchItems.Length; i++)
                     {
                         var entity = batchItems[i];
@@ -155,6 +155,10 @@ public sealed class DocumentProcessingService
                     }
 
                     await _vectorStore.UpsertAsync($"kb_{knowledgeBaseId}", vectors, cancellationToken);
+                }
+
+                if (embeddedChunkIds.Count > 0)
+                {
                     await _chunkRepository.MarkEmbeddingByIdsAsync(tenantId, embeddedChunkIds, hasEmbedding: true, cancellationToken);
                 }
             }

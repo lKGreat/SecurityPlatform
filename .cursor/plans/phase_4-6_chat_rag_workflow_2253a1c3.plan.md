@@ -61,22 +61,22 @@ todos:
     status: completed
   - id: p6-dsl-builder
     content: "Phase 6: Implement AiWorkflowDslBuilder to translate frontend canvas JSON to Atlas.WorkflowCore DSL JSON"
-    status: pending
+    status: completed
   - id: p6-design-svc
     content: "Phase 6: Implement IAiWorkflowDesignService (CRUD + validate + publish for workflow definitions)"
-    status: pending
+    status: completed
   - id: p6-execution-svc
     content: "Phase 6: Implement IAiWorkflowExecutionService (run/cancel/progress/nodeHistory via IWorkflowHost)"
-    status: pending
+    status: completed
   - id: p6-controller
     content: "Phase 6: Create AiWorkflowsController with 14 endpoints"
-    status: pending
+    status: completed
   - id: p6-permissions-di
     content: "Phase 6: Add AiWorkflow permissions and register all Phase 6 services + step types"
-    status: pending
+    status: completed
   - id: p6-frontend
     content: "Phase 6: Install @vue-flow/core, create api-ai-workflow.ts, AiWorkflowListPage.vue, AiWorkflowEditorPage.vue with canvas + node palette + config panel + run panel"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -270,9 +270,9 @@ SSE pattern: reuse the exact same pattern from `[AiAssistantController.ChatStrea
 - Bottom: input area with send button, RAG toggle, cancel button during streaming
 - Uses `useStreamChat` composable
 
-`**src/frontend/Atlas.WebApp/src/components/ai/ChatMessage.vue*`*: Single message bubble with Markdown rendering (using `marked` or `markdown-it`)
+`**src/frontend/Atlas.WebApp/src/components/ai/ChatMessage.vue`**: Single message bubble with Markdown rendering (using `marked` or `markdown-it`)
 
-`**src/frontend/Atlas.WebApp/src/components/ai/MarkdownRenderer.vue**`: Markdown-to-HTML with syntax highlighting (code blocks)
+`**src/frontend/Atlas.WebApp/src/components/ai/MarkdownRenderer.vue`**: Markdown-to-HTML with syntax highlighting (code blocks)
 
 Routes in `pathComponentFallbackMap`:
 

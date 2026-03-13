@@ -88,8 +88,9 @@ export function useStreamChat(options: UseStreamChatOptions) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let receivedDone = false;
 
-      while (true) {
+      while (!receivedDone) {
         const { value, done } = await reader.read();
         if (done) break;
 
@@ -102,12 +103,17 @@ export function useStreamChat(options: UseStreamChatOptions) {
           const data = line.slice(6).trim();
           if (data === "[DONE]") {
             assistantMsg.isStreaming = false;
+            receivedDone = true;
             break;
           }
           if (data) {
             assistantMsg.content += data;
           }
         }
+      }
+
+      if (receivedDone) {
+        await reader.cancel();
       }
 
       assistantMsg.isStreaming = false;

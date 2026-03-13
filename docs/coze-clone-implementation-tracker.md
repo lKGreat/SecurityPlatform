@@ -273,25 +273,25 @@
 
 | # | 功能 | Coze 接口 | 后端文件 | 状态 |
 |---|------|-----------|----------|------|
-| 6.1.1 | Workflow 实体（Name / Canvas JSON / Status） | `domain/workflow/` | `Atlas.Domain.AiWorkflow/Workflow.cs` | [x] |
-| 6.1.2 | 创建工作流 | `CreateWorkflow` | `WorkflowService.Create()` | [ ] |
-| 6.1.3 | 保存工作流（画布 + 节点配置） | `SaveWorkflow` | `WorkflowService.Save()` | [ ] |
-| 6.1.4 | 获取画布信息 | `GetCanvasInfo` | `WorkflowService.GetCanvas()` | [ ] |
-| 6.1.5 | 工作流详情 | `GetWorkflowDetail` | `WorkflowService.GetById()` | [ ] |
-| 6.1.6 | 工作流列表 | `GetWorkFlowList` | `WorkflowService.List()` | [ ] |
-| 6.1.7 | 更新工作流元数据 | `UpdateWorkflowMeta` | `WorkflowService.UpdateMeta()` | [ ] |
-| 6.1.8 | 删除工作流 | `DeleteWorkflow` | `WorkflowService.Delete()` | [ ] |
+| 6.1.1 | Workflow 实体（Name / Canvas JSON / Status） | `domain/workflow/` | `AiWorkflowDefinition` | [x] |
+| 6.1.2 | 创建工作流 | `CreateWorkflow` | `AiWorkflowDesignService.CreateAsync()` | [x] |
+| 6.1.3 | 保存工作流（画布 + 节点配置） | `SaveWorkflow` | `AiWorkflowDesignService.SaveAsync()` | [x] |
+| 6.1.4 | 获取画布信息 | `GetCanvasInfo` | `AiWorkflowDesignService.GetByIdAsync()` | [x] |
+| 6.1.5 | 工作流详情 | `GetWorkflowDetail` | `AiWorkflowDesignService.GetByIdAsync()` | [x] |
+| 6.1.6 | 工作流列表 | `GetWorkFlowList` | `AiWorkflowDesignService.ListAsync()` | [x] |
+| 6.1.7 | 更新工作流元数据 | `UpdateWorkflowMeta` | `AiWorkflowDesignService.UpdateMetaAsync()` | [x] |
+| 6.1.8 | 删除工作流 | `DeleteWorkflow` | `AiWorkflowDesignService.DeleteAsync()` | [x] |
 | 6.1.9 | 批量删除 | `BatchDeleteWorkflow` | `WorkflowService.BatchDelete()` | [ ] |
-| 6.1.10 | 复制工作流 | `CopyWorkflow` | `WorkflowService.Copy()` | [ ] |
-| 6.1.11 | 校验 DAG 结构 | `ValidateTree` | `WorkflowService.Validate()` | [ ] |
+| 6.1.10 | 复制工作流 | `CopyWorkflow` | `AiWorkflowDesignService.CopyAsync()` | [x] |
+| 6.1.11 | 校验 DAG 结构 | `ValidateTree` | `AiWorkflowDesignService.ValidateAsync()` | [x] |
 | 6.1.12 | 引用查询 | `GetWorkflowReferences` | `WorkflowService.GetReferences()` | [ ] |
-| 6.1.13 | `WorkflowsController` | `/api/workflow_api/*` | `GET/POST/PUT/DELETE /api/v1/workflows` | [ ] |
+| 6.1.13 | `AiWorkflowsController` | `/api/workflow_api/*` | `GET/POST/PUT/DELETE /api/v1/ai-workflows` | [x] |
 
 ### 6.2 后端 - 发布
 
 | # | 功能 | Coze 接口 | 后端文件 | 状态 |
 |---|------|-----------|----------|------|
-| 6.2.1 | 发布工作流 | `PublishWorkflow` | `WorkflowService.Publish()` | [ ] |
+| 6.2.1 | 发布工作流 | `PublishWorkflow` | `AiWorkflowDesignService.PublishAsync()` | [x] |
 | 6.2.2 | 已发布工作流列表 | `GetReleasedWorkflows` | `WorkflowService.ListPublished()` | [ ] |
 | 6.2.3 | 发布记录 | `ListPublishWorkflow` | `WorkflowService.ListPublishRecords()` | [ ] |
 
@@ -299,12 +299,12 @@
 
 | # | 功能 | Coze 接口 | 后端文件 | 状态 |
 |---|------|-----------|----------|------|
-| 6.3.1 | 工作流执行引擎（DAG 调度器） | `domain/workflow/internal/execute/` | `WorkflowEngine` | [ ] |
-| 6.3.2 | 测试运行 | `WorkFlowTestRun` | `WorkflowEngine.TestRun()` | [ ] |
+| 6.3.1 | 工作流执行引擎（DAG 调度器） | `domain/workflow/internal/execute/` | `Atlas.WorkflowCore + AiWorkflowExecutionService` | [x] |
+| 6.3.2 | 测试运行 | `WorkFlowTestRun` | `AiWorkflowExecutionService.RunAsync()` | [x] |
 | 6.3.3 | 测试恢复（从断点） | `WorkFlowTestResume` | `WorkflowEngine.TestResume()` | [ ] |
-| 6.3.4 | 取消运行 | `CancelWorkFlow` | `WorkflowEngine.Cancel()` | [ ] |
-| 6.3.5 | 获取运行进度 | `GetWorkFlowProcess` | `WorkflowEngine.GetProgress()` | [ ] |
-| 6.3.6 | 节点执行历史 | `GetNodeExecuteHistory` | `WorkflowEngine.GetNodeHistory()` | [ ] |
+| 6.3.4 | 取消运行 | `CancelWorkFlow` | `AiWorkflowExecutionService.CancelAsync()` | [x] |
+| 6.3.5 | 获取运行进度 | `GetWorkFlowProcess` | `AiWorkflowExecutionService.GetProgressAsync()` | [x] |
+| 6.3.6 | 节点执行历史 | `GetNodeExecuteHistory` | `AiWorkflowExecutionService.GetNodeHistoryAsync()` | [x] |
 | 6.3.7 | 单节点调试 | `WorkflowNodeDebugV2` | `WorkflowEngine.DebugNode()` | [ ] |
 | 6.3.8 | 检查点存储（Redis / 内存） | `infra/checkpoint/` | `ICheckpointStore` | [ ] |
 
@@ -380,7 +380,7 @@
 
 | # | 功能 | Coze 接口 | 状态 |
 |---|------|-----------|------|
-| 6.5.1 | 节点类型查询 | `QueryWorkflowNodeTypes` | [ ] |
+| 6.5.1 | 节点类型查询 | `QueryWorkflowNodeTypes` | [x] |
 | 6.5.2 | 节点模板列表 | `NodeTemplateList` | [ ] |
 | 6.5.3 | 节点面板搜索 | `NodePanelSearch` | [ ] |
 | 6.5.4 | LLM 函数调用设置 | `GetLLMNodeFCSettingDetail/Merged` | [ ] |
@@ -407,15 +407,15 @@
 
 | # | 功能 | Coze 参考 | 前端文件 | 状态 |
 |---|------|-----------|----------|------|
-| 6.7.1 | 工作流列表页 | `studio/workspace` | `pages/ai/WorkflowListPage.vue` | [ ] |
-| 6.7.2 | 工作流画布（拖拽节点 + 连线） | `workflow/canvas` FlowGram | `pages/ai/WorkflowEditorPage.vue` | [ ] |
-| 6.7.3 | 节点面板（左侧节点库） | `workflow/nodes` | 同上 | [ ] |
-| 6.7.4 | 节点配置表单 | `workflow/nodes/setters` | 同上 | [ ] |
+| 6.7.1 | 工作流列表页 | `studio/workspace` | `pages/ai/AiWorkflowListPage.vue` | [x] |
+| 6.7.2 | 工作流画布（拖拽节点 + 连线） | `workflow/canvas` FlowGram | `pages/ai/AiWorkflowEditorPage.vue` | [x] |
+| 6.7.3 | 节点面板（左侧节点库） | `workflow/nodes` | `components/ai/workflow/NodePalette.vue` | [x] |
+| 6.7.4 | 节点配置表单 | `workflow/nodes/setters` | `components/ai/workflow/LlmNodeConfig.vue` 等 | [x] |
 | 6.7.5 | 变量系统（输入/输出变量） | `workflow/variable` | 同上 | [ ] |
-| 6.7.6 | 测试运行面板 | `workflow/test-run` | 同上 | [ ] |
+| 6.7.6 | 测试运行面板 | `workflow/test-run` | `components/ai/workflow/RunPanel.vue` | [x] |
 | 6.7.7 | 运行日志查看 | `workflow/test-run` log viewer | 同上 | [ ] |
-| 6.7.8 | 发布工作流 | `workflow/publish` | 同上 | [ ] |
-| 6.7.9 | Workflow API 封装 | — | `services/workflow-api.ts` | [ ] |
+| 6.7.8 | 发布工作流 | `workflow/publish` | `pages/ai/AiWorkflowListPage.vue` | [x] |
+| 6.7.9 | Workflow API 封装 | — | `services/api-ai-workflow.ts` | [x] |
 
 ---
 

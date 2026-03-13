@@ -146,11 +146,12 @@ public sealed class AiWorkflowsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.AiWorkflowExecute)]
     public async Task<ActionResult<ApiResponse<AiWorkflowExecutionRunResult>>> Run(
         long id,
-        [FromBody] AiWorkflowExecutionRunRequest request,
+        [FromBody] AiWorkflowExecutionRunRequest? request,
         CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.GetTenantId();
-        var result = await _executionService.RunAsync(tenantId, id, request, cancellationToken);
+        var safeRequest = request ?? new AiWorkflowExecutionRunRequest(new Dictionary<string, object?>());
+        var result = await _executionService.RunAsync(tenantId, id, safeRequest, cancellationToken);
         return Ok(ApiResponse<AiWorkflowExecutionRunResult>.Ok(result, HttpContext.TraceIdentifier));
     }
 

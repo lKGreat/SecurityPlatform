@@ -3,6 +3,7 @@ using Atlas.Application.AiPlatform.Models;
 using Atlas.Core.Exceptions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Domain.AiPlatform.Entities;
 using Atlas.Infrastructure.Repositories;
 using Atlas.WorkflowCore.Abstractions;
 using Atlas.WorkflowCore.Abstractions.Persistence;
@@ -41,6 +42,10 @@ public sealed class AiWorkflowExecutionService : IAiWorkflowExecutionService
     {
         var definitionEntity = await _repository.FindByIdAsync(tenantId, workflowDefinitionId, cancellationToken)
             ?? throw new BusinessException("工作流定义不存在。", ErrorCodes.NotFound);
+        if (definitionEntity.Status != AiWorkflowStatus.Published)
+        {
+            throw new BusinessException("仅允许执行已发布的工作流。", ErrorCodes.ValidationError);
+        }
 
         var definition = _definitionLoader.LoadDefinitionFromJson(definitionEntity.DefinitionJson);
         definition.Id = $"aiwf-{definitionEntity.Id}";
@@ -55,7 +60,7 @@ public sealed class AiWorkflowExecutionService : IAiWorkflowExecutionService
             definition.Id,
             definition.Version,
             inputs,
-            reference: $"tenant:{tenantId.Value}:aiwf:{workflowDefinitionId}",
+            reference: BuildTenantReference(tenantId, workflowDefinitionId),
             cancellationToken);
 
         return new AiWorkflowExecutionRunResult(executionId);
@@ -63,7 +68,12 @@ public sealed class AiWorkflowExecutionService : IAiWorkflowExecutionService
 
     public async Task CancelAsync(TenantId tenantId, string executionId, CancellationToken cancellationToken)
     {
-        _ = tenantId;
+        var workflow = await GetOwnedWorkflowOrThrowAsync(tenantId, executionId, cancellationToken);
+        if (workflow.Status == WorkflowStatus.Complete || workflow.Status == WorkflowStatus.Terminated)
+        {
+            return;
+        }
+
         await _workflowHost.TerminateWorkflowAsync(executionId, cancellationToken);
     }
 
@@ -72,12 +82,8 @@ public sealed class AiWorkflowExecutionService : IAiWorkflowExecutionService
         string executionId,
         CancellationToken cancellationToken)
     {
-        _ = tenantId;
-        var workflow = await _persistenceProvider.GetWorkflowAsync(executionId, cancellationToken);
-        if (workflow is null)
-        {
-            return null;
-        }
+        var workflow = await GetOwnedWorkflowOrNullAsync(tenantId, executionId, cancellationToken);
+        if (workflow is null) return null;
 
         return new AiWorkflowExecutionProgressDto(
             workflow.Id,
@@ -93,12 +99,8 @@ public sealed class AiWorkflowExecutionService : IAiWorkflowExecutionService
         string executionId,
         CancellationToken cancellationToken)
     {
-        _ = tenantId;
-        var workflow = await _persistenceProvider.GetWorkflowAsync(executionId, cancellationToken);
-        if (workflow is null)
-        {
-            return [];
-        }
+        var workflow = await GetOwnedWorkflowOrNullAsync(tenantId, executionId, cancellationToken);
+        if (workflow is null) return [];
 
         return workflow.ExecutionPointers
             .OrderBy(x => x.StartTime ?? DateTime.MaxValue)
@@ -113,4 +115,37 @@ public sealed class AiWorkflowExecutionService : IAiWorkflowExecutionService
                 pointer.Outcome))
             .ToList();
     }
+
+    private async Task<Atlas.WorkflowCore.Models.WorkflowInstance?> GetOwnedWorkflowOrNullAsync(
+        TenantId tenantId,
+        string executionId,
+        CancellationToken cancellationToken)
+    {
+        var workflow = await _persistenceProvider.GetWorkflowAsync(executionId, cancellationToken);
+        if (workflow is null)
+        {
+            return null;
+        }
+
+        return IsWorkflowOwnedByTenant(workflow, tenantId) ? workflow : null;
+    }
+
+    private async Task<Atlas.WorkflowCore.Models.WorkflowInstance> GetOwnedWorkflowOrThrowAsync(
+        TenantId tenantId,
+        string executionId,
+        CancellationToken cancellationToken)
+    {
+        var workflow = await GetOwnedWorkflowOrNullAsync(tenantId, executionId, cancellationToken);
+        return workflow ?? throw new BusinessException("执行实例不存在。", ErrorCodes.NotFound);
+    }
+
+    private static bool IsWorkflowOwnedByTenant(Atlas.WorkflowCore.Models.WorkflowInstance workflow, TenantId tenantId)
+    {
+        var prefix = $"tenant:{tenantId.Value}:";
+        return !string.IsNullOrWhiteSpace(workflow.Reference)
+            && workflow.Reference.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildTenantReference(TenantId tenantId, long workflowDefinitionId)
+        => $"tenant:{tenantId.Value}:aiwf:{workflowDefinitionId}";
 }

@@ -74,6 +74,11 @@ public static class PermissionCodes
     public const string KnowledgeBaseCreate = "knowledge-base:create";
     public const string KnowledgeBaseUpdate = "knowledge-base:update";
     public const string KnowledgeBaseDelete = "knowledge-base:delete";
+    public const string AiWorkflowView = "ai-workflow:view";
+    public const string AiWorkflowCreate = "ai-workflow:create";
+    public const string AiWorkflowUpdate = "ai-workflow:update";
+    public const string AiWorkflowDelete = "ai-workflow:delete";
+    public const string AiWorkflowExecute = "ai-workflow:execute";
 
     public const string ApprovalFlowView = "approval:flow:view";
     public const string ApprovalFlowManage = "approval:flow:manage";

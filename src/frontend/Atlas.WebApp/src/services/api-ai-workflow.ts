@@ -5,7 +5,7 @@ export interface AiWorkflowDefinitionDto {
   id: number;
   name: string;
   description?: string;
-  status: string;
+  status: number | string;
   publishVersion: number;
   creatorId: number;
   createdAt: string;
