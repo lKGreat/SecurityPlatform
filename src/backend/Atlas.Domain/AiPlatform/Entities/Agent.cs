@@ -9,6 +9,12 @@ public sealed class Agent : TenantEntity
         : base(TenantId.Empty)
     {
         Name = string.Empty;
+        Description = string.Empty;
+        AvatarUrl = string.Empty;
+        SystemPrompt = string.Empty;
+        ModelName = string.Empty;
+        UpdatedAt = DateTime.UnixEpoch;
+        PublishedAt = DateTime.UnixEpoch;
         Status = AgentStatus.Draft;
     }
 
@@ -24,6 +30,8 @@ public sealed class Agent : TenantEntity
         CreatorId = creatorId;
         Status = AgentStatus.Draft;
         CreatedAt = DateTime.UtcNow;
+        UpdatedAt = CreatedAt;
+        PublishedAt = DateTime.UnixEpoch;
     }
 
     public string Name { get; private set; }
@@ -52,13 +60,26 @@ public sealed class Agent : TenantEntity
         int? maxTokens)
     {
         Name = name;
-        Description = description;
-        AvatarUrl = avatarUrl;
-        SystemPrompt = systemPrompt;
+        Description = description ?? string.Empty;
+        AvatarUrl = avatarUrl ?? string.Empty;
+        SystemPrompt = systemPrompt ?? string.Empty;
         ModelConfigId = modelConfigId;
-        ModelName = modelName;
+        if (!ModelConfigId.HasValue)
+        {
+            ModelConfigId = 0;
+        }
+        ModelName = modelName ?? string.Empty;
         Temperature = temperature;
+        if (!Temperature.HasValue)
+        {
+            Temperature = 0;
+        }
+
         MaxTokens = maxTokens;
+        if (!MaxTokens.HasValue)
+        {
+            MaxTokens = 0;
+        }
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -74,6 +95,10 @@ public sealed class Agent : TenantEntity
     {
         Status = AgentStatus.Disabled;
         UpdatedAt = DateTime.UtcNow;
+        if (!PublishedAt.HasValue)
+        {
+            PublishedAt = DateTime.UnixEpoch;
+        }
     }
 
     public Agent CreateDuplicate(long newId, string newName, long creatorId)

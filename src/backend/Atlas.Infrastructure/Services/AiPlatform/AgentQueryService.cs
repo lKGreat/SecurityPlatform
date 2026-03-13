@@ -50,18 +50,18 @@ public sealed class AgentQueryService : IAgentQueryService
         return new AgentDetail(
             entity.Id,
             entity.Name,
-            entity.Description,
-            entity.AvatarUrl,
-            entity.SystemPrompt,
-            entity.ModelConfigId,
-            entity.ModelName,
-            entity.Temperature,
-            entity.MaxTokens,
+            NullIfEmpty(entity.Description),
+            NullIfEmpty(entity.AvatarUrl),
+            NullIfEmpty(entity.SystemPrompt),
+            NullIfNonPositive(entity.ModelConfigId),
+            NullIfEmpty(entity.ModelName),
+            NullIfZero(entity.Temperature),
+            NullIfNonPositive(entity.MaxTokens),
             entity.Status.ToString(),
             entity.CreatorId,
             entity.CreatedAt,
-            entity.UpdatedAt,
-            entity.PublishedAt,
+            NullIfEpoch(entity.UpdatedAt),
+            NullIfEpoch(entity.PublishedAt),
             entity.PublishVersion,
             links.Select(x => x.KnowledgeBaseId).ToArray());
     }
@@ -70,12 +70,27 @@ public sealed class AgentQueryService : IAgentQueryService
         => new(
             entity.Id,
             entity.Name,
-            entity.Description,
-            entity.AvatarUrl,
+            NullIfEmpty(entity.Description),
+            NullIfEmpty(entity.AvatarUrl),
             entity.Status.ToString(),
-            entity.ModelName,
+            NullIfEmpty(entity.ModelName),
             entity.CreatedAt,
             entity.PublishVersion);
+
+    private static string? NullIfEmpty(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static long? NullIfNonPositive(long? value)
+        => value.HasValue && value.Value > 0 ? value : null;
+
+    private static int? NullIfNonPositive(int? value)
+        => value.HasValue && value.Value > 0 ? value : null;
+
+    private static float? NullIfZero(float? value)
+        => value.HasValue && Math.Abs(value.Value) > float.Epsilon ? value : null;
+
+    private static DateTime? NullIfEpoch(DateTime? value)
+        => value.HasValue && value.Value > DateTime.UnixEpoch ? value : null;
 
     private static AgentStatus? ParseStatus(string? status)
     {
