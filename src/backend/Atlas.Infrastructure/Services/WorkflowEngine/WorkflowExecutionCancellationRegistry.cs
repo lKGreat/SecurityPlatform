@@ -16,9 +16,21 @@ public sealed class WorkflowExecutionCancellationRegistry
 
     public bool TryCancel(long executionId)
     {
-        if (_runningExecutions.TryGetValue(executionId, out var cts))
+        if (_runningExecutions.TryRemove(executionId, out var cts))
         {
-            cts.Cancel();
+            try
+            {
+                cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // 兜底保护：若并发路径提前释放，视为已取消/已结束。
+            }
+            finally
+            {
+                cts.Dispose();
+            }
+
             return true;
         }
 

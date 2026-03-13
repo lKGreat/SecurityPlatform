@@ -196,7 +196,6 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
             yield return evt;
         }
 
-        runCts.Cancel();
         try
         {
             await runTask;

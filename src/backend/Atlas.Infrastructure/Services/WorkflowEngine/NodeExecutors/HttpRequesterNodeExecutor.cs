@@ -2,7 +2,7 @@ using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using Atlas.Domain.AiPlatform.Enums;
-using Microsoft.Extensions.DependencyInjection;
+using System.IO;
 
 namespace Atlas.Infrastructure.Services.WorkflowEngine.NodeExecutors;
 
@@ -31,16 +31,15 @@ public sealed class HttpRequesterNodeExecutor : INodeExecutor
             return new NodeExecutionResult(false, outputs, "HTTP 请求 URL 为空");
         }
 
-        var (isAllowed, targetUri, validationError) = await ValidateOutboundUrlAsync(url, cancellationToken);
-        if (!isAllowed || targetUri is null)
+        var (isAllowed, targetUri, allowedAddresses, validationError) = await ValidateOutboundUrlAsync(url, cancellationToken);
+        if (!isAllowed || targetUri is null || allowedAddresses.Count == 0)
         {
             return new NodeExecutionResult(false, outputs, validationError ?? "HTTP 请求 URL 非法或不被允许");
         }
 
         try
         {
-            var factory = context.ServiceProvider.GetRequiredService<IHttpClientFactory>();
-            using var client = factory.CreateClient("WorkflowEngine");
+            using var client = CreatePinnedHttpClient(allowedAddresses);
             client.Timeout = TimeSpan.FromSeconds(30);
 
             var request = new HttpRequestMessage(new HttpMethod(method.ToUpperInvariant()), targetUri);
@@ -63,37 +62,37 @@ public sealed class HttpRequesterNodeExecutor : INodeExecutor
         }
     }
 
-    private static async Task<(bool IsAllowed, Uri? Uri, string? Error)> ValidateOutboundUrlAsync(string url, CancellationToken cancellationToken)
+    private static async Task<(bool IsAllowed, Uri? Uri, IReadOnlyList<IPAddress> AllowedAddresses, string? Error)> ValidateOutboundUrlAsync(string url, CancellationToken cancellationToken)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var parsedUri))
         {
-            return (false, null, "HTTP 请求 URL 格式非法，必须是绝对地址");
+            return (false, null, Array.Empty<IPAddress>(), "HTTP 请求 URL 格式非法，必须是绝对地址");
         }
 
         if (!string.Equals(parsedUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(parsedUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
         {
-            return (false, null, "仅允许发起 HTTP/HTTPS 请求");
+            return (false, null, Array.Empty<IPAddress>(), "仅允许发起 HTTP/HTTPS 请求");
         }
 
         if (parsedUri.IsLoopback || string.Equals(parsedUri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
         {
-            return (false, null, "不允许访问本机回环地址");
+            return (false, null, Array.Empty<IPAddress>(), "不允许访问本机回环地址");
         }
 
         if (!string.IsNullOrWhiteSpace(parsedUri.UserInfo))
         {
-            return (false, null, "URL 不允许包含用户名或密码信息");
+            return (false, null, Array.Empty<IPAddress>(), "URL 不允许包含用户名或密码信息");
         }
 
         if (IPAddress.TryParse(parsedUri.Host, out var literalIp))
         {
             if (IsBlockedAddress(literalIp))
             {
-                return (false, null, "目标地址属于内网/链路本地/保留网段，已被安全策略拒绝");
+                return (false, null, Array.Empty<IPAddress>(), "目标地址属于内网/链路本地/保留网段，已被安全策略拒绝");
             }
 
-            return (true, parsedUri, null);
+            return (true, parsedUri, new[] { literalIp }, null);
         }
 
         IPAddress[] resolvedAddresses;
@@ -103,23 +102,57 @@ public sealed class HttpRequesterNodeExecutor : INodeExecutor
         }
         catch (Exception ex) when (ex is SocketException or ArgumentException)
         {
-            return (false, null, "目标主机解析失败，无法发起请求");
+            return (false, null, Array.Empty<IPAddress>(), "目标主机解析失败，无法发起请求");
         }
 
         if (resolvedAddresses.Length == 0)
         {
-            return (false, null, "目标主机未解析到可用地址");
+            return (false, null, Array.Empty<IPAddress>(), "目标主机未解析到可用地址");
         }
 
         foreach (var ip in resolvedAddresses)
         {
             if (IsBlockedAddress(ip))
             {
-                return (false, null, "目标主机解析到受限地址（内网/回环/链路本地/保留网段），请求被拒绝");
+                return (false, null, Array.Empty<IPAddress>(), "目标主机解析到受限地址（内网/回环/链路本地/保留网段），请求被拒绝");
             }
         }
 
-        return (true, parsedUri, null);
+        var ordered = resolvedAddresses
+            .OrderBy(ip => ip.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
+            .ToArray();
+        return (true, parsedUri, ordered, null);
+    }
+
+    private static HttpClient CreatePinnedHttpClient(IReadOnlyList<IPAddress> allowedAddresses)
+    {
+        var handler = new SocketsHttpHandler
+        {
+            UseProxy = false,
+            ConnectCallback = async (context, cancellationToken) =>
+            {
+                Exception? lastException = null;
+
+                foreach (var address in allowedAddresses)
+                {
+                    var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    try
+                    {
+                        await socket.ConnectAsync(new IPEndPoint(address, context.DnsEndPoint.Port), cancellationToken);
+                        return new NetworkStream(socket, ownsSocket: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        socket.Dispose();
+                        lastException = ex;
+                    }
+                }
+
+                throw new HttpRequestException("无法连接到目标主机的已验证地址。", lastException);
+            }
+        };
+
+        return new HttpClient(handler, disposeHandler: true);
     }
 
     private static bool IsBlockedAddress(IPAddress ip)
