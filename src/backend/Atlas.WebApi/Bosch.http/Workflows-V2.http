@@ -1,0 +1,180 @@
+### ═══════════════════════════════════════════════
+### Workflow V2 API (Coze-style DAG Engine)
+### Base URL: api/v2/workflows
+### ═══════════════════════════════════════════════
+
+@host = http://localhost:5000
+@tenantId = 00000000-0000-0000-0000-000000000001
+@contentType = application/json
+
+### ── Step 1: Login to get JWT token ──
+# @name login
+POST {{host}}/api/v1/auth/token
+Content-Type: {{contentType}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "username": "admin",
+  "password": "P@ssw0rd!"
+}
+
+###
+@token = {{login.response.body.data.accessToken}}
+
+### ═══════════════════════════════════════════════
+### CRUD Operations
+### ═══════════════════════════════════════════════
+
+### ── Create Workflow ──
+# @name createWorkflow
+POST {{host}}/api/v2/workflows
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "安全扫描流程",
+  "description": "自动化安全扫描与告警工作流",
+  "mode": 0
+}
+
+###
+@workflowId = {{createWorkflow.response.body.data.id}}
+
+### ── List Workflows (paged) ──
+GET {{host}}/api/v2/workflows?pageIndex=1&pageSize=10&keyword=安全
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Get Workflow Detail ──
+GET {{host}}/api/v2/workflows/{{workflowId}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Update Metadata ──
+PUT {{host}}/api/v2/workflows/{{workflowId}}/meta
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "name": "安全扫描流程 v2",
+  "description": "更新后的安全扫描工作流"
+}
+
+### ── Save Draft (Canvas JSON) ──
+PUT {{host}}/api/v2/workflows/{{workflowId}}/draft
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "canvasJson": "{\"nodes\":[{\"key\":\"entry_1\",\"type\":1,\"label\":\"开始\",\"config\":{},\"layout\":{\"x\":100,\"y\":100,\"width\":120,\"height\":60}},{\"key\":\"text_1\",\"type\":15,\"label\":\"文本处理\",\"config\":{\"template\":\"扫描结果: {{scan_target}}\",\"outputKey\":\"text_output\"},\"layout\":{\"x\":300,\"y\":100,\"width\":120,\"height\":60}},{\"key\":\"exit_1\",\"type\":2,\"label\":\"结束\",\"config\":{},\"layout\":{\"x\":500,\"y\":100,\"width\":120,\"height\":60}}],\"connections\":[{\"sourceNodeKey\":\"entry_1\",\"sourcePort\":\"output\",\"targetNodeKey\":\"text_1\",\"targetPort\":\"input\",\"condition\":null},{\"sourceNodeKey\":\"text_1\",\"sourcePort\":\"output\",\"targetNodeKey\":\"exit_1\",\"targetPort\":\"input\",\"condition\":null}]}",
+  "commitId": "draft-001"
+}
+
+### ── Publish Workflow ──
+POST {{host}}/api/v2/workflows/{{workflowId}}/publish
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "changeLog": "首次发布"
+}
+
+### ── List Versions ──
+GET {{host}}/api/v2/workflows/{{workflowId}}/versions
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Copy Workflow ──
+# @name copyWorkflow
+POST {{host}}/api/v2/workflows/{{workflowId}}/copy
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+@copiedId = {{copyWorkflow.response.body.data.id}}
+
+### ═══════════════════════════════════════════════
+### Execution Operations
+### ═══════════════════════════════════════════════
+
+### ── Sync Run ──
+# @name runWorkflow
+POST {{host}}/api/v2/workflows/{{workflowId}}/run
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "inputsJson": "{\"scan_target\":\"192.168.1.0/24\"}"
+}
+
+###
+@executionId = {{runWorkflow.response.body.data.executionId}}
+
+### ── SSE Stream Run ──
+POST {{host}}/api/v2/workflows/{{workflowId}}/stream
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "inputsJson": "{\"scan_target\":\"10.0.0.0/8\"}"
+}
+
+### ── Get Execution Process ──
+GET {{host}}/api/v2/workflows/executions/{{executionId}}/process
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Get Node Execution Detail ──
+GET {{host}}/api/v2/workflows/executions/{{executionId}}/nodes/text_1
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Cancel Execution ──
+POST {{host}}/api/v2/workflows/executions/{{executionId}}/cancel
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Resume Execution ──
+POST {{host}}/api/v2/workflows/executions/{{executionId}}/resume
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Debug Single Node ──
+POST {{host}}/api/v2/workflows/{{workflowId}}/debug-node
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "nodeKey": "text_1",
+  "inputsJson": "{\"scan_target\":\"example.com\"}"
+}
+
+### ═══════════════════════════════════════════════
+### Node Types
+### ═══════════════════════════════════════════════
+
+### ── List Node Types ──
+GET {{host}}/api/v2/workflows/node-types
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ═══════════════════════════════════════════════
+### Cleanup
+### ═══════════════════════════════════════════════
+
+### ── Delete Copied Workflow ──
+DELETE {{host}}/api/v2/workflows/{{copiedId}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Delete Original Workflow ──
+DELETE {{host}}/api/v2/workflows/{{workflowId}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
