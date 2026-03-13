@@ -123,23 +123,13 @@
       @ok="submitDebug"
       @cancel="debugModalOpen = false"
     >
-      <a-form layout="vertical">
-        <a-form-item label="目标接口">
-          <a-select
-            v-model:value="debugApiId"
-            allow-clear
-            placeholder="不选择则按插件级调试"
-            :options="apiOptions"
-          />
-        </a-form-item>
-        <a-form-item label="输入 JSON">
-          <a-textarea v-model:value="debugInputJson" :rows="5" />
-        </a-form-item>
-        <a-form-item v-if="debugOutputJson">
-          <a-alert :message="debugResultTitle" type="info" />
-          <pre class="json-block" style="margin-top: 8px">{{ debugOutputJson }}</pre>
-        </a-form-item>
-      </a-form>
+      <PluginDebugPanel
+        v-model:api-id="debugApiId"
+        v-model:input-json="debugInputJson"
+        :api-options="apiOptions"
+        :output-json="debugOutputJson"
+        :result-title="debugResultTitle"
+      />
     </a-modal>
   </a-space>
 </template>
@@ -149,6 +139,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
+import PluginDebugPanel from "@/components/ai/PluginDebugPanel.vue";
 import {
   createAiPluginApi,
   debugAiPlugin,
