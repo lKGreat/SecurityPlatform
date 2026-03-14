@@ -157,8 +157,10 @@ builder.Services.AddOpenTelemetry()
                 options.Endpoint = new Uri(otlpEndpoint);
             });
         }
-        else if (builder.Environment.IsDevelopment())
+        else if (builder.Environment.IsDevelopment()
+            && builder.Configuration.GetValue<bool>("OpenTelemetry:EnableConsoleExporter"))
         {
+            // 仅在显式开启时才输出到控制台（默认关闭，避免大量 I/O 拖慢响应）
             tracing.AddConsoleExporter();
         }
     })
@@ -176,8 +178,10 @@ builder.Services.AddOpenTelemetry()
                 options.Endpoint = new Uri(otlpEndpoint);
             });
         }
-        else if (builder.Environment.IsDevelopment())
+        else if (builder.Environment.IsDevelopment()
+            && builder.Configuration.GetValue<bool>("OpenTelemetry:EnableConsoleExporter"))
         {
+            // 仅在显式开启时才输出到控制台（默认关闭，避免大量 I/O 拖慢响应）
             metrics.AddConsoleExporter();
         }
     });
@@ -298,7 +302,39 @@ builder.Services.AddAuthentication()
                     return;
                 }
 
+                var sessionIdRaw = principal.FindFirstValue("sid");
+                if (!long.TryParse(sessionIdRaw, out var sessionId))
+                {
+                    context.Fail("令牌缺少有效会话标识。");
+                    return;
+                }
+
                 var tenantId = new TenantId(tenantGuid);
+
+                // 优先读缓存，减少 DB 查询（TTL 60 秒）
+                var authCache = context.HttpContext.RequestServices
+                    .GetRequiredService<Atlas.Application.Identity.Abstractions.IAuthCacheService>();
+                var cached = authCache.Get(tenantId, userId, sessionId);
+
+                if (cached is not null)
+                {
+                    // 缓存命中：直接使用缓存结果验证
+                    if (!cached.IsUserActive)
+                    {
+                        context.Fail("用户已禁用或不存在。");
+                        return;
+                    }
+
+                    if (cached.IsSessionRevoked || cached.SessionExpiresAt <= DateTimeOffset.UtcNow)
+                    {
+                        context.Fail("会话已失效。");
+                        return;
+                    }
+
+                    return; // 缓存验证通过
+                }
+
+                // 缓存未命中：查数据库
                 var userRepository = context.HttpContext.RequestServices.GetRequiredService<IUserAccountRepository>();
                 var account = await userRepository.FindByIdAsync(tenantId, userId, context.HttpContext.RequestAborted);
                 if (account is null || !account.IsActive)
@@ -307,20 +343,23 @@ builder.Services.AddAuthentication()
                     return;
                 }
 
-                var sessionIdRaw = principal.FindFirstValue("sid");
-                if (!long.TryParse(sessionIdRaw, out var sessionId))
-                {
-                    context.Fail("令牌缺少有效会话标识。");
-                    return;
-                }
-
                 var sessionRepository = context.HttpContext.RequestServices.GetRequiredService<IAuthSessionRepository>();
                 var session = await sessionRepository.FindByIdAsync(tenantId, sessionId, context.HttpContext.RequestAborted);
                 if (session is null || session.UserId != userId || session.RevokedAt.HasValue || session.ExpiresAt <= DateTimeOffset.UtcNow)
                 {
                     context.Fail("会话已失效。");
+                    return;
                 }
+
+                // 写入缓存，下次请求直接命中
+                authCache.Set(tenantId, userId, sessionId, new Atlas.Application.Identity.Abstractions.AuthValidationCacheEntry(
+                    IsUserActive: account.IsActive,
+                    UserId: userId,
+                    SessionId: sessionId,
+                    SessionExpiresAt: session.ExpiresAt,
+                    IsSessionRevoked: session.RevokedAt.HasValue));
             }
+
         };
     })
     .AddCertificate(options =>
