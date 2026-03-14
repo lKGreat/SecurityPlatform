@@ -2,6 +2,9 @@ using AutoMapper;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Atlas.Application;
+using Atlas.Application.Alert.Mappings;
+using Atlas.Application.Approval.Mappings;
+using Atlas.Application.Assets.Mappings;
 using Atlas.Application.Options;
 using Atlas.Infrastructure;
 using Atlas.WebApi.Middlewares;
@@ -26,6 +29,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Atlas.WebApi.Authorization;
 using Atlas.WebApi.Filters;
+using Atlas.WebApi.Mappings;
 using Atlas.WebApi.Security;
 using Atlas.Application.Abstractions;
 using Atlas.Core.Tenancy;
@@ -36,6 +40,13 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var validateAutoMapperOnStartup = builder.Configuration.GetValue("AutoMapper:ValidateOnStartup", false);
+var runHangfireServer = builder.Configuration.GetValue("Hangfire:RunServer", !builder.Environment.IsDevelopment());
+var hangfireWorkerCount = builder.Configuration.GetValue("Hangfire:WorkerCount", builder.Environment.IsDevelopment() ? 1 : 3);
+var hangfireQueuePollIntervalSeconds = builder.Configuration.GetValue("Hangfire:QueuePollIntervalSeconds", builder.Environment.IsDevelopment() ? 30 : 15);
+var hangfireSchedulePollingIntervalSeconds = builder.Configuration.GetValue("Hangfire:SchedulePollingIntervalSeconds", builder.Environment.IsDevelopment() ? 60 : 15);
+var hangfireJobExpirationCheckIntervalMinutes = builder.Configuration.GetValue("Hangfire:JobExpirationCheckIntervalMinutes", builder.Environment.IsDevelopment() ? 360 : 60);
 
 if (builder.Environment.IsDevelopment())
 {
@@ -408,7 +419,11 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services.AddMemoryCache();
-builder.Services.AddAtlasApplication();
+builder.Services.AddAtlasApplication(
+    typeof(AlertMappingProfile).Assembly,
+    typeof(ApprovalMappingProfile).Assembly,
+    typeof(AssetsMappingProfile).Assembly,
+    typeof(WebApiMappingProfile).Assembly);
 builder.Services.AddAtlasInfrastructure(builder.Configuration);
 
 // 国际化（i18n）：支持中文和英文
@@ -423,9 +438,27 @@ builder.Services.Configure<Microsoft.AspNetCore.Builder.RequestLocalizationOptio
 });
 
 // Hangfire 定时任务（使用 SQLite 存储）
+// SQLite 同一时刻只允许一个写操作，过多 Worker 只会互相争锁；
+// WAL 模式允许读写并发，减少锁等待；Worker 数设为 3 匹配实际并发能力。
 builder.Services.AddHangfire(config =>
-    config.UseSQLiteStorage("hangfire.db"));
-builder.Services.AddHangfireServer();
+    config.UseSQLiteStorage("hangfire.db", new Hangfire.Storage.SQLite.SQLiteStorageOptions
+    {
+        // WAL 模式：读写可并发，减少锁等待
+        JournalMode = Hangfire.Storage.SQLite.SQLiteStorageOptions.JournalModes.WAL,
+        QueuePollInterval = TimeSpan.FromSeconds(hangfireQueuePollIntervalSeconds),
+        JobExpirationCheckInterval = TimeSpan.FromMinutes(hangfireJobExpirationCheckIntervalMinutes)
+    }));
+if (runHangfireServer)
+{
+    builder.Services.AddHangfireServer(options =>
+    {
+        // SQLite 单写限制：3 个 Worker 是比较合理的上限，过多反而因争锁而变慢
+        options.WorkerCount = hangfireWorkerCount;
+        options.SchedulePollingInterval = TimeSpan.FromSeconds(hangfireSchedulePollingIntervalSeconds);
+    });
+}
+
+
 
 // 添加 WorkflowCore 工作流引擎
 builder.Services.AddWorkflowCore();
@@ -437,8 +470,10 @@ builder.Services.AddHostedService<Atlas.Infrastructure.Services.WorkflowHostedSe
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+if (app.Environment.IsDevelopment() && validateAutoMapperOnStartup)
 {
+    // AutoMapper 配置验证仅在开发环境执行，生产环境依赖 CI 管线保证
+    using var scope = app.Services.CreateScope();
     var mapper = scope.ServiceProvider.GetRequiredService<IMapper>();
     try
     {
