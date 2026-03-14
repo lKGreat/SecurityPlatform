@@ -24,7 +24,7 @@
     </template>
 
     <template #table>
-      <a-row v-if="showTreeLayout" :gutter="16" style="height: 100%">
+      <a-row :gutter="16" style="height: 100%">
         <a-col :span="5" style="height: 100%; border-right: 1px solid var(--color-border); padding-right: 16px;">
           <div style="margin-bottom: 12px">
             <a-input
@@ -58,9 +58,10 @@
             <!-- 保持原有的 columns 渲染 -->
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'status'">
-                <a-tag :color="record.isActive ? 'green' : 'red'">
-                  {{ record.isActive ? "启用" : "停用" }}
-                </a-tag>
+                <StatusSwitch
+                  v-model="record.isActive"
+                  :api="(val) => handleStatusChange(record.id, val)"
+                />
               </template>
               <template v-else-if="column.key === 'actions'">
                 <a-space>
@@ -80,39 +81,6 @@
           </a-table>
         </a-col>
       </a-row>
-
-      <a-table
-        v-else
-        :columns="tableColumns"
-        :data-source="dataSource"
-        :pagination="pagination"
-        :loading="loading"
-        :size="tableSize"
-        row-key="id"
-        @change="onTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="record.isActive ? 'green' : 'red'">
-              {{ record.isActive ? "启用" : "停用" }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'actions'">
-            <a-space>
-              <a-button v-if="canUpdate || canAssignRoles || canAssignDepartments || canAssignPositions" type="link" @click="handleOpenEdit(record.id)">编辑</a-button>
-              <a-popconfirm
-                v-if="canDelete"
-                title="确认删除该员工？"
-                ok-text="删除"
-                cancel-text="取消"
-                @confirm="handleDelete(record.id)"
-              >
-                <a-button type="link" danger>删除</a-button>
-              </a-popconfirm>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
     </template>
 
     <template #form>
@@ -254,6 +222,7 @@ import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import CrudPageLayout from "@/components/crud/CrudPageLayout.vue";
 import TableViewToolbar from "@/components/table/table-view-toolbar.vue";
+import StatusSwitch from "@/components/common/StatusSwitch.vue";
 import { useCrudPage } from "@/composables/useCrudPage";
 import { useSelectOptions } from "@/composables/useSelectOptions";
 import { useExcelExport } from "@/composables/useExcelExport";
@@ -297,7 +266,6 @@ const allDepartments = ref<DepartmentListItem[]>([]);
 const selectedDepartmentId = ref<number | null>(null);
 
 const profile = getAuthProfile();
-const showTreeLayout = true; // For users page, generally everyone with permission to view users can see the tree or at least their part
 
 interface TreeNode {
   key: string;
@@ -360,7 +328,6 @@ const expandedTreeKeys = computed(() => {
 });
 
 const loadAllDepartments = async () => {
-  if (!showTreeLayout) return;
   treeLoading.value = true;
   try {
     allDepartments.value = await getDepartmentsAll();
@@ -597,6 +564,21 @@ const handleSubmit = async () => {
   } finally {
     submitting.value = false;
   }
+};
+
+const handleStatusChange = async (id: string, isActive: boolean) => {
+  // 从 dataSource 找到原记录
+  const user = dataSource.value.find(u => u.id === id);
+  if (!user) return;
+  // 构造只更新状态的 payload，其他保留原值
+  // 此处假设接口可以使用 PATCH 或直接 PUT 现有记录（前端可能需要传其他必填项）
+  // 检查 API，updateUser 接受 UserUpdateRequest，我们需要把当前显示的值发回去，或者后端支持部分更新
+  await updateUser(id, {
+    displayName: user.displayName,
+    email: user.email || undefined,
+    phoneNumber: user.phoneNumber || undefined,
+    isActive: isActive
+  });
 };
 </script>
 

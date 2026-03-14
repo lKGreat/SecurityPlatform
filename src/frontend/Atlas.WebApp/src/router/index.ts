@@ -58,6 +58,7 @@ const ApprovalInstanceManagePage = () => import("@/pages/ApprovalInstanceManageP
 const ApprovalInstancesPage = () => import("@/pages/ApprovalInstancesPage.vue");
 const ApprovalInboxPage = () => import("@/pages/ApprovalInboxPage.vue");
 const ApprovalTasksPage = () => import("@/pages/ApprovalTasksPage.vue");
+const ApprovalWorkspacePage = () => import("@/pages/ApprovalWorkspacePage.vue");
 
 declare module "vue-router" {
   interface RouteMeta {
@@ -137,9 +138,12 @@ const router = createRouter({
     { path: "/approval/flows/manage", name: "approval-flows-manage", component: ApprovalFlowManagePage, meta: { requiresAuth: true, title: "流程发布总览", requiresPermission: "approval:flow:manage" } },
     { path: "/approval/flows", name: "approval-flows", component: ApprovalFlowsPage, meta: { requiresAuth: true, title: "流程定义列表", requiresPermission: "approval:flow:view" } },
     { path: "/approval/instances/manage", name: "approval-instances-manage", component: ApprovalInstanceManagePage, meta: { requiresAuth: true, title: "所有审批实例", requiresPermission: "system:admin" } },
-    { path: "/approval/instances", name: "approval-instances", component: ApprovalInstancesPage, meta: { requiresAuth: true, title: "我的申请" } },
-    { path: "/approval/inbox", name: "approval-inbox", component: ApprovalInboxPage, meta: { requiresAuth: true, title: "审批待办" } },
-    { path: "/approval/tasks", name: "approval-tasks", component: ApprovalTasksPage, meta: { requiresAuth: true, title: "我的待办" } },
+    { path: "/approval/workspace", name: "approval-workspace", component: ApprovalWorkspacePage, meta: { requiresAuth: true, title: "审批工作台" } },
+    { path: "/approval/instances", name: "approval-instances", redirect: "/approval/workspace?tab=requests", meta: { title: "我的申请(Deprecated)" } },
+    { path: "/approval/inbox", name: "approval-inbox", redirect: "/approval/workspace?tab=pending", meta: { title: "审批待办(Deprecated)" } },
+    { path: "/approval/tasks", name: "approval-tasks", redirect: "/approval/workspace?tab=pending", meta: { title: "我的待办(Deprecated)" } },
+    { path: "/approval/done", redirect: "/approval/workspace?tab=done", meta: { title: "已办任务(Deprecated)" } },
+    { path: "/approval/cc", redirect: "/approval/workspace?tab=cc", meta: { title: "我的抄送(Deprecated)" } },
     { path: "/:pathMatch(.*)*", name: "not-found", component: NotFoundPage }
   ]
 });

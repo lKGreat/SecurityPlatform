@@ -2,7 +2,6 @@
   <div class="approval-tasks-page">
     <!-- 顶部工具栏 -->
     <div class="page-toolbar">
-      <h2 class="page-title">我的待办</h2>
       <a-space>
         <a-input-search
           v-model:value="keyword"
@@ -43,14 +42,12 @@
               >
                 <div class="task-card-header">
                   <span class="task-flow">{{ item.flowName }}</span>
-                  <a-tag :color="getStatusColor(item.status)">{{ getStatusText(item.status) }}</a-tag>
+                  <ApprovalStatusTag :status="item.status" />
                 </div>
                 <div class="task-card-title">{{ item.title }}</div>
                 <div class="task-card-meta">
                   <span>当前节点: {{ item.currentNodeName }}</span>
-                  <span v-if="item.slaRemainingMinutes != null" :class="item.slaRemainingMinutes >= 0 ? 'sla-ok' : 'sla-error'">
-                    {{ formatSla(item.slaRemainingMinutes) }}
-                  </span>
+                  <SlaIndicator :remaining-minutes="item.slaRemainingMinutes" />
                 </div>
                 <div class="task-card-time">{{ formatTime(item.createdAt) }}</div>
               </div>
@@ -93,6 +90,8 @@ import { ApprovalTaskStatus, type ApprovalTaskResponse } from "@/types/api";
 import { getCurrentAppIdFromStorage, setCurrentAppIdToStorage } from "@/utils/app-context";
 import { useMasterDetail } from "@/composables/useMasterDetail";
 import ApprovalTaskDetailPanel from "@/components/approval/ApprovalTaskDetailPanel.vue";
+import ApprovalStatusTag from "@/components/approval/ApprovalStatusTag.vue";
+import SlaIndicator from "@/components/approval/SlaIndicator.vue";
 
 const dataSource = ref<ApprovalTaskResponse[]>([]);
 const loading = ref(false);
@@ -170,36 +169,6 @@ const onPageChange = (page: number) => {
   fetchData();
 };
 
-const getStatusColor = (status: ApprovalTaskStatus) => {
-  switch (status) {
-    case ApprovalTaskStatus.Pending: return "processing";
-    case ApprovalTaskStatus.Approved: return "success";
-    case ApprovalTaskStatus.Rejected: return "error";
-    case ApprovalTaskStatus.Canceled: return "default";
-    default: return "default";
-  }
-};
-
-const getStatusText = (status: ApprovalTaskStatus) => {
-  switch (status) {
-    case ApprovalTaskStatus.Pending: return "待审批";
-    case ApprovalTaskStatus.Approved: return "已同意";
-    case ApprovalTaskStatus.Rejected: return "已驳回";
-    case ApprovalTaskStatus.Canceled: return "已取消";
-    default: return "未知";
-  }
-};
-
-const formatSla = (value: number) => {
-  const abs = Math.abs(value);
-  if (abs >= 60) {
-    const hours = Math.floor(abs / 60);
-    const minutes = abs % 60;
-    return value >= 0 ? `剩 ${hours}h${minutes}m` : `超 ${hours}h${minutes}m`;
-  }
-  return value >= 0 ? `剩 ${abs}m` : `超 ${abs}m`;
-};
-
 const formatTime = (value: string) => {
   return new Date(value).toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit' });
 };
@@ -220,7 +189,7 @@ watch(statusFilter, () => {
 .approval-tasks-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--header-height) - 40px); /* Adjust based on global layout spacing */
+  height: 100%;
   padding: 0;
   background: var(--color-bg-base);
 }
@@ -234,12 +203,7 @@ watch(statusFilter, () => {
   border-bottom: 1px solid var(--color-border);
 }
 
-.page-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
+/* Keep standard flex container */
 
 .master-detail-container {
   flex: 1;

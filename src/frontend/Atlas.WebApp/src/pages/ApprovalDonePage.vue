@@ -1,7 +1,6 @@
 <template>
   <div class="approval-done-page">
     <div class="page-toolbar">
-      <h2 class="page-title">我的已办</h2>
       <a-space>
         <a-input-search
           v-model:value="keyword"
@@ -180,7 +179,7 @@ watch(statusFilter, () => {
 .approval-done-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--header-height) - 40px);
+  height: 100%;
   padding: 0;
   background: var(--color-bg-base);
 }
@@ -194,12 +193,7 @@ watch(statusFilter, () => {
   border-bottom: 1px solid var(--color-border);
 }
 
-.page-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
+/* Keep standard flex container */
 
 .master-detail-container {
   flex: 1;

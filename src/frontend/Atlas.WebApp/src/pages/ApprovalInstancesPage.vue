@@ -1,5 +1,5 @@
 <template>
-  <a-card title="我发起的流程" class="page-card">
+  <a-card :bordered="false" class="page-card tab-content-card">
     <div class="toolbar">
       <a-space>
         <a-select
@@ -386,5 +386,15 @@ watch(statusFilter, () => {
 <style scoped>
 .toolbar {
   margin-bottom: 16px;
+}
+.tab-content-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+/* Ensure the body of the card takes available space */
+:deep(.ant-card-body) {
+  flex: 1;
+  overflow-y: auto;
 }
 </style>
