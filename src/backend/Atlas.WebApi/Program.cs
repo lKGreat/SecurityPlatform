@@ -531,4 +531,45 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    var addresses = app.Urls
+        .OrderBy(static address => address, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+    var logo = string.Join(Environment.NewLine, [
+        "  ___   _   _               _",
+        " / _ | / | / /___ ______ __(_)",
+        "/ __ |/  |/ / -_) __/ // / /",
+        "/_/ |_/_/|_/\\__/_/  \\_,_/_/"
+    ]);
+
+    Console.WriteLine();
+    Console.WriteLine(logo);
+    Console.WriteLine("Atlas Security Platform 启动成功");
+    Console.WriteLine($"环境: {app.Environment.EnvironmentName}");
+
+    if (addresses.Length == 0)
+    {
+        Console.WriteLine("启动地址: 未获取到监听地址");
+    }
+    else
+    {
+        foreach (var address in addresses)
+        {
+            Console.WriteLine($"启动地址: {address}");
+        }
+
+        if (app.Environment.IsDevelopment())
+        {
+            foreach (var address in addresses)
+            {
+                Console.WriteLine($"Swagger: {address.TrimEnd('/')}/swagger");
+            }
+        }
+    }
+
+    Console.WriteLine();
+});
+
 app.Run();
