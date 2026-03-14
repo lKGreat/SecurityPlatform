@@ -142,8 +142,8 @@ async function logout() {
 
 .sidebar-container {
   transition: width 0.28s;
-  background: #2b2f3a !important; /* Sidebar 基础颜色 */
-  box-shadow: 2px 0 6px rgba(0,21,41,.35);
+  background: var(--color-bg-container) !important;
+  border-right: 1px solid var(--color-border);
   z-index: 1001;
 }
 

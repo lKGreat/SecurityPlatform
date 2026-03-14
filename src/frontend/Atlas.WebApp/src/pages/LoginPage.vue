@@ -1,6 +1,7 @@
 <template>
   <div class="login-page">
-    <!-- 左侧品牌面板 -->
+    <div class="login-container">
+      <!-- 左侧品牌面板 -->
     <aside class="brand-panel">
       <div class="brand-content">
         <div class="brand-logo">
@@ -233,6 +234,7 @@
         <span>v1.0.2</span>
       </footer>
     </main>
+    </div>
   </div>
 </template>
 
@@ -502,20 +504,33 @@ onBeforeUnmount(() => {
 .login-page {
   min-height: 100vh;
   display: flex;
-  background: #fff;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-base);
+  background-image: radial-gradient(circle at 15% 50%, rgba(0, 137, 255, 0.08), transparent 25%),
+                    radial-gradient(circle at 85% 30%, rgba(0, 137, 255, 0.08), transparent 25%);
+}
+
+.login-container {
+  display: flex;
+  width: 960px;
+  max-width: 90%;
+  height: 560px;
+  background: var(--color-bg-container);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
 }
 
 /* ── 左侧品牌面板 ── */
 .brand-panel {
-  width: 440px;
-  min-height: 100vh;
-  background: linear-gradient(160deg, #0d47a1 0%, #1565c0 40%, #1e88e5 100%);
+  width: 400px;
+  background: linear-gradient(145deg, #0052cc 0%, #0089ff 100%);
   color: #fff;
   display: flex;
   flex-direction: column;
   padding: 48px 40px;
   position: relative;
-  overflow: hidden;
   flex-shrink: 0;
 }
 
@@ -636,8 +651,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   padding: 40px;
-  min-height: 100vh;
-  background: #fff;
+  background: var(--color-bg-container);
+  position: relative;
 }
 
 .form-wrapper {
@@ -847,6 +862,15 @@ onBeforeUnmount(() => {
 
 /* ── 响应式 ── */
 @media screen and (max-width: 960px) {
+  .login-container {
+    width: 100%;
+    height: 100vh;
+    max-width: 100%;
+    border-radius: 0;
+    box-shadow: none;
+    flex-direction: column;
+  }
+
   .brand-panel {
     display: none;
   }
@@ -857,6 +881,7 @@ onBeforeUnmount(() => {
 
   .form-panel {
     padding: 32px 24px;
+    height: 100vh;
   }
 }
 

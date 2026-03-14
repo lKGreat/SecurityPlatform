@@ -1,22 +1,20 @@
 <template>
-  <a-card title="我的待办" class="page-card">
-    <div class="toolbar">
+  <div class="approval-tasks-page">
+    <!-- 顶部工具栏 -->
+    <div class="page-toolbar">
+      <h2 class="page-title">我的待办</h2>
       <a-space>
-        <a-input
+        <a-input-search
           v-model:value="keyword"
           allow-clear
-          style="width: 220px"
+          style="width: 240px"
           placeholder="按标题或节点关键词检索"
-          @pressEnter="fetchData"
+          @search="fetchData"
         />
-        <a-select
-          v-model:value="statusFilter"
-          style="width: 140px"
-          :options="statusOptions"
-        />
+        <a-select v-model:value="statusFilter" style="width: 140px" :options="statusOptions" />
         <a-select
           v-model:value="selectedAppId"
-          style="width: 260px"
+          style="width: 200px"
           :loading="appLoading"
           :options="appOptions"
           allow-clear
@@ -27,106 +25,74 @@
         <a-button @click="fetchData">刷新</a-button>
       </a-space>
     </div>
-    <a-table
-      :columns="columns"
-      :data-source="dataSource"
-      :pagination="pagination"
-      :loading="loading"
-      :scroll="isMobile ? { x: 640 } : undefined"
-      row-key="id"
-      @change="onTableChange"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
-          <a-tag :color="getStatusColor(record.status)">
-            {{ getStatusText(record.status) }}
-          </a-tag>
-        </template>
-        <template v-else-if="column.key === 'sla'">
-          <a-tag v-if="record.slaRemainingMinutes != null" :color="record.slaRemainingMinutes >= 0 ? 'processing' : 'error'">
-            {{ formatSla(record.slaRemainingMinutes) }}
-          </a-tag>
-          <span v-else>-</span>
-        </template>
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
-            <a-button
-              v-if="record.status === 0"
-              type="primary"
-              size="small"
-              @click="handleApprove(record)"
-            >
-              审批
-            </a-button>
-            <a-button
-              v-if="record.status === 0"
-              danger
-              size="small"
-              @click="handleReject(record)"
-            >
-              驳回
-            </a-button>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
 
-    <a-drawer
-      v-model:open="modalVisible"
-      :title="modalTitle"
-      placement="right"
-      width="480"
-      destroy-on-close
-      @close="handleModalCancel"
-    >
-      <a-form :model="decideForm" layout="vertical">
-        <a-form-item label="审批意见">
-          <a-textarea
-            v-model:value="decideForm.comment"
-            :rows="4"
-            placeholder="请输入审批意见"
-          />
-        </a-form-item>
-      </a-form>
-      <template #footer>
-        <a-space>
-          <a-button @click="handleModalCancel">取消</a-button>
-          <a-button type="primary" @click="handleDecide">确认</a-button>
-        </a-space>
-      </template>
-    </a-drawer>
-  </a-card>
+    <!-- 主从布局容器 -->
+    <div class="master-detail-container" :class="{ 'has-detail': isDetailVisible }">
+      
+      <!-- 左侧卡片列表 (Master) -->
+      <div class="master-list">
+        <a-spin :spinning="loading">
+          <div class="task-list">
+            <template v-if="dataSource.length > 0">
+              <div 
+                v-for="item in dataSource" 
+                :key="item.id"
+                class="task-card"
+                :class="{ 'is-active': selectedItem?.id === item.id }"
+                @click="selectItem(item)"
+              >
+                <div class="task-card-header">
+                  <span class="task-flow">{{ item.flowName }}</span>
+                  <a-tag :color="getStatusColor(item.status)">{{ getStatusText(item.status) }}</a-tag>
+                </div>
+                <div class="task-card-title">{{ item.title }}</div>
+                <div class="task-card-meta">
+                  <span>当前节点: {{ item.currentNodeName }}</span>
+                  <span v-if="item.slaRemainingMinutes != null" :class="item.slaRemainingMinutes >= 0 ? 'sla-ok' : 'sla-error'">
+                    {{ formatSla(item.slaRemainingMinutes) }}
+                  </span>
+                </div>
+                <div class="task-card-time">{{ formatTime(item.createdAt) }}</div>
+              </div>
+            </template>
+            <a-empty v-else description="暂无审批待办" style="margin-top: 60px;" />
+          </div>
+          
+          <div class="pagination-wrapper" v-if="pagination.total && pagination.total > 0">
+            <a-pagination
+              v-model:current="pagination.current"
+              :total="pagination.total"
+              :pageSize="pagination.pageSize"
+              size="small"
+              @change="onPageChange"
+            />
+          </div>
+        </a-spin>
+      </div>
+
+      <!-- 右侧详情面板 (Detail) -->
+      <div v-if="isDetailVisible" class="detail-panel">
+        <ApprovalTaskDetailPanel
+          v-if="selectedItem"
+          :task-id="selectedItem.id"
+          @close="clearSelection"
+          @refresh="fetchDataAndRetainSelection"
+        />
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
-import { useRouter } from "vue-router";
-import { getMyTasksPaged, decideApprovalTask } from "@/services/api";
+import { onMounted, reactive, ref, watch } from "vue";
+import { message } from "ant-design-vue";
+import { getMyTasksPaged } from "@/services/api";
 import { getLowCodeAppsPaged } from "@/services/lowcode";
 import type { TablePaginationConfig } from "ant-design-vue";
 import { ApprovalTaskStatus, type ApprovalTaskResponse } from "@/types/api";
-import { message } from "ant-design-vue";
 import { getCurrentAppIdFromStorage, setCurrentAppIdToStorage } from "@/utils/app-context";
-
-const router = useRouter();
-
-const desktopColumns = [
-  { title: "流程名称", dataIndex: "flowName", key: "flowName" },
-  { title: "任务标题", dataIndex: "title", key: "title" },
-  { title: "当前节点", dataIndex: "currentNodeName", key: "currentNodeName" },
-  { title: "SLA", key: "sla" },
-  { title: "状态", key: "status" },
-  { title: "创建时间", dataIndex: "createdAt", key: "createdAt" },
-  { title: "操作", key: "action", width: 220 }
-];
-const mobileColumns = [
-  { title: "任务标题", dataIndex: "title", key: "title" },
-  { title: "状态", key: "status", width: 90 },
-  { title: "操作", key: "action", width: 170 }
-];
-const isMobile = computed(() => window.innerWidth <= 768);
-const columns = computed(() => (isMobile.value ? mobileColumns : desktopColumns));
+import { useMasterDetail } from "@/composables/useMasterDetail";
+import ApprovalTaskDetailPanel from "@/components/approval/ApprovalTaskDetailPanel.vue";
 
 const dataSource = ref<ApprovalTaskResponse[]>([]);
 const loading = ref(false);
@@ -145,14 +111,10 @@ const statusOptions = [
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
   pageSize: 10,
-  total: 0,
-  showTotal: (total) => `共 ${total} 条`
+  total: 0
 });
 
-const modalVisible = ref(false);
-const modalTitle = ref("");
-const currentTask = ref<ApprovalTaskResponse | null>(null);
-const decideForm = ref({ comment: "" });
+const { selectedItem, isDetailVisible, selectItem, clearSelection } = useMasterDetail<ApprovalTaskResponse>();
 
 const fetchData = async () => {
   loading.value = true;
@@ -169,6 +131,14 @@ const fetchData = async () => {
     message.error(err instanceof Error ? err.message : "查询失败");
   } finally {
     loading.value = false;
+  }
+};
+
+const fetchDataAndRetainSelection = async () => {
+  await fetchData();
+  if (selectedItem.value) {
+    const stillExists = dataSource.value.find(t => t.id === selectedItem.value!.id);
+    if (!stillExists) clearSelection();
   }
 };
 
@@ -190,42 +160,33 @@ const loadAppOptions = async () => {
 const handleAppScopeChange = (value: string | undefined) => {
   setCurrentAppIdToStorage(value);
   pagination.current = 1;
-  void fetchData();
+  clearSelection();
+  fetchData();
 };
 
-const onTableChange = (pager: TablePaginationConfig) => {
-  pagination.current = pager.current;
-  pagination.pageSize = pager.pageSize;
+const onPageChange = (page: number) => {
+  pagination.current = page;
+  clearSelection();
   fetchData();
 };
 
 const getStatusColor = (status: ApprovalTaskStatus) => {
   switch (status) {
-    case ApprovalTaskStatus.Pending:
-      return "orange";
-    case ApprovalTaskStatus.Approved:
-      return "green";
-    case ApprovalTaskStatus.Rejected:
-      return "red";
-    case ApprovalTaskStatus.Canceled:
-      return "default";
-    default:
-      return "default";
+    case ApprovalTaskStatus.Pending: return "processing";
+    case ApprovalTaskStatus.Approved: return "success";
+    case ApprovalTaskStatus.Rejected: return "error";
+    case ApprovalTaskStatus.Canceled: return "default";
+    default: return "default";
   }
 };
 
 const getStatusText = (status: ApprovalTaskStatus) => {
   switch (status) {
-    case ApprovalTaskStatus.Pending:
-      return "待审批";
-    case ApprovalTaskStatus.Approved:
-      return "已同意";
-    case ApprovalTaskStatus.Rejected:
-      return "已驳回";
-    case ApprovalTaskStatus.Canceled:
-      return "已取消";
-    default:
-      return "未知";
+    case ApprovalTaskStatus.Pending: return "待审批";
+    case ApprovalTaskStatus.Approved: return "已同意";
+    case ApprovalTaskStatus.Rejected: return "已驳回";
+    case ApprovalTaskStatus.Canceled: return "已取消";
+    default: return "未知";
   }
 };
 
@@ -234,57 +195,13 @@ const formatSla = (value: number) => {
   if (abs >= 60) {
     const hours = Math.floor(abs / 60);
     const minutes = abs % 60;
-    return value >= 0 ? `剩余 ${hours}h${minutes}m` : `超时 ${hours}h${minutes}m`;
+    return value >= 0 ? `剩 ${hours}h${minutes}m` : `超 ${hours}h${minutes}m`;
   }
-  return value >= 0 ? `剩余 ${abs}m` : `超时 ${abs}m`;
+  return value >= 0 ? `剩 ${abs}m` : `超 ${abs}m`;
 };
 
-const handleApprove = (record: ApprovalTaskResponse) => {
-  currentTask.value = record;
-  modalTitle.value = "审批通过";
-  decideForm.value.comment = "";
-  modalVisible.value = true;
-};
-
-const handleReject = (record: ApprovalTaskResponse) => {
-  currentTask.value = record;
-  modalTitle.value = "驳回";
-  decideForm.value.comment = "";
-  modalVisible.value = true;
-};
-
-const handleView = (record: ApprovalTaskResponse) => {
-  router.push(`/process/tasks/${record.id}`);
-};
-
-const handleDecide = async () => {
-  if (!currentTask.value) return;
-
-  const approved = modalTitle.value === "审批通过";
-  if (!approved && !decideForm.value.comment.trim()) {
-    message.warning("驳回时必须填写审批意见");
-    return;
-  }
-  try {
-    await decideApprovalTask({
-      taskId: currentTask.value.id,
-      approved,
-      comment: decideForm.value.comment || undefined
-    });
-    message.success(approved ? "审批成功" : "驳回成功");
-    modalVisible.value = false;
-    currentTask.value = null;
-    decideForm.value.comment = "";
-    fetchData();
-  } catch (err) {
-    message.error(err instanceof Error ? err.message : "操作失败");
-  }
-};
-
-const handleModalCancel = () => {
-  modalVisible.value = false;
-  currentTask.value = null;
-  decideForm.value.comment = "";
+const formatTime = (value: string) => {
+  return new Date(value).toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit' });
 };
 
 onMounted(async () => {
@@ -294,12 +211,151 @@ onMounted(async () => {
 
 watch(statusFilter, () => {
   pagination.current = 1;
+  clearSelection();
   fetchData();
 });
 </script>
 
 <style scoped>
-.toolbar {
-  margin-bottom: 16px;
+.approval-tasks-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--header-height) - 40px); /* Adjust based on global layout spacing */
+  padding: 0;
+  background: var(--color-bg-base);
+}
+
+.page-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: var(--color-bg-container);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.master-detail-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: var(--color-bg-base);
+}
+
+.master-list {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg-base);
+  transition: all 0.3s;
+}
+
+.has-detail .master-list {
+  width: 380px;
+  min-width: 380px;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-container);
+}
+
+.detail-panel {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-bg-container);
+  box-shadow: -2px 0 8px rgba(0,0,0,0.02);
+  z-index: 2;
+  overflow: hidden;
+}
+
+/* Card List Styles */
+.task-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.task-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.task-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.task-card.is-active {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+}
+
+.task-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.task-flow {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.task-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+
+.sla-ok { color: var(--color-success); }
+.sla-error { color: var(--color-error-text); }
+
+.task-card-time {
+  font-size: 12px;
+  color: var(--color-text-quaternary);
+}
+
+.pagination-wrapper {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-container);
+  display: flex;
+  justify-content: center;
+}
+
+/* Response handling for mobile */
+@media screen and (max-width: 768px) {
+  .master-detail-container {
+    position: relative;
+  }
+  .has-detail .master-list {
+    display: none; /* Hide list on mobile when detail is shown */
+  }
 }
 </style>

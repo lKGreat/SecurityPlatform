@@ -66,6 +66,7 @@ export interface PagedRequest {
   keyword?: string;
   sortBy?: string;
   sortDesc?: boolean;
+  departmentId?: number;
 }
 
 export interface RoleQueryRequest extends PagedRequest {

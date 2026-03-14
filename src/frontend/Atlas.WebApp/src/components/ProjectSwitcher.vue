@@ -1,16 +1,18 @@
 <template>
   <div v-if="enabled" class="project-switcher">
-    <a-space>
-      <span class="project-label">当前项目</span>
+    <a-space :size="4">
+      <span class="project-icon">
+        <svg viewBox="0 0 1024 1024" width="16" height="16" fill="currentColor"><path d="M880 312H512l-51.2-56.888a72 72 0 0 0-53.52-23.112H144c-39.768 0-72 32.232-72 72v536c0 39.768 32.232 72 72 72h736c39.768 0 72-32.232 72-72V384c0-39.768-32.232-72-72-72zM144 304h263.28l51.2 56.888c14.248 15.824 34.624 23.112 53.52 23.112H880v456H144V304z"/></svg>
+      </span>
       <a-select
         v-model:value="selectedProjectId"
         :options="options"
         :loading="loading"
         show-search
-        allow-clear
-        placeholder="选择项目"
+        :bordered="false"
+        placeholder="切换项目..."
         :filter-option="false"
-        style="min-width: 200px"
+        style="min-width: 160px; font-weight: 500;"
         @search="handleSearch"
         @focus="handleFocus"
         @change="handleChange"
@@ -157,10 +159,15 @@ onUnmounted(() => {
 .project-switcher {
   display: flex;
   align-items: center;
+  background: var(--color-bg-hover);
+  padding: 0 8px 0 12px;
+  border-radius: var(--border-radius-md);
+  margin-left: 8px;
 }
 
-.project-label {
-  color: var(--color-text-primary);
-  opacity: 0.9;
+.project-icon {
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
 }
 </style>

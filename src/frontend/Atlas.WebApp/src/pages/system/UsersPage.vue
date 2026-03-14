@@ -24,7 +24,65 @@
     </template>
 
     <template #table>
+      <a-row v-if="showTreeLayout" :gutter="16" style="height: 100%">
+        <a-col :span="5" style="height: 100%; border-right: 1px solid var(--color-border); padding-right: 16px;">
+          <div style="margin-bottom: 12px">
+            <a-input
+              v-model:value="treeKeyword"
+              placeholder="搜索部门"
+              allow-clear
+              size="small"
+            />
+          </div>
+          <a-skeleton :loading="treeLoading" active>
+             <a-tree
+              :tree-data="treeData"
+              :selected-keys="selectedTreeKeys"
+              :expanded-keys="expandedTreeKeys"
+              :auto-expand-parent="true"
+              @select="handleTreeSelect"
+              style="height: calc(100vh - 250px); overflow-y: auto;"
+            />
+          </a-skeleton>
+        </a-col>
+        <a-col :span="19">
+          <a-table
+            :columns="tableColumns"
+            :data-source="dataSource"
+            :pagination="pagination"
+            :loading="loading"
+            :size="tableSize"
+            row-key="id"
+            @change="onTableChange"
+          >
+            <!-- 保持原有的 columns 渲染 -->
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'status'">
+                <a-tag :color="record.isActive ? 'green' : 'red'">
+                  {{ record.isActive ? "启用" : "停用" }}
+                </a-tag>
+              </template>
+              <template v-else-if="column.key === 'actions'">
+                <a-space>
+                  <a-button v-if="canUpdate || canAssignRoles || canAssignDepartments || canAssignPositions" type="link" @click="handleOpenEdit(record.id)">编辑</a-button>
+                  <a-popconfirm
+                    v-if="canDelete"
+                    title="确认删除该员工？"
+                    ok-text="删除"
+                    cancel-text="取消"
+                    @confirm="handleDelete(record.id)"
+                  >
+                    <a-button type="link" danger>删除</a-button>
+                  </a-popconfirm>
+                </a-space>
+              </template>
+            </template>
+          </a-table>
+        </a-col>
+      </a-row>
+
       <a-table
+        v-else
         :columns="tableColumns"
         :data-source="dataSource"
         :pagination="pagination"
@@ -191,7 +249,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
 import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import CrudPageLayout from "@/components/crud/CrudPageLayout.vue";
@@ -204,6 +262,7 @@ import {
   createUser,
   deleteUser,
   getDepartmentsPaged,
+  getDepartmentsAll,
   getPositionsPaged,
   getRolesPaged,
   getUserDetail,
@@ -222,6 +281,7 @@ import type {
   UserUpdateRequest,
   PositionListItem
 } from "@/types/api";
+import { getAuthProfile, hasPermission } from "@/utils/auth";
 
 const activeTab = ref("basic");
 const submitting = ref(false);
@@ -230,6 +290,96 @@ const { exporting, importing, exportUsers, downloadImportTemplate, importUsers }
 const importModalVisible = ref(false);
 const importFile = ref<File | null>(null);
 const importResult = ref<ImportResult | null>(null);
+
+const treeKeyword = ref("");
+const treeLoading = ref(false);
+const allDepartments = ref<DepartmentListItem[]>([]);
+const selectedDepartmentId = ref<number | null>(null);
+
+const profile = getAuthProfile();
+const showTreeLayout = true; // For users page, generally everyone with permission to view users can see the tree or at least their part
+
+interface TreeNode {
+  key: string;
+  title: string;
+  children?: TreeNode[];
+}
+
+const buildTree = (items: DepartmentListItem[]) => {
+  const nodeMap = new Map<string, TreeNode>();
+  const rootNodes: TreeNode[] = [];
+
+  items.forEach((item) => {
+    nodeMap.set(item.id, { key: item.id, title: item.name, children: [] });
+  });
+
+  items.forEach((item) => {
+    const node = nodeMap.get(item.id);
+    if (!node) return;
+    if (item.parentId) {
+      const parent = nodeMap.get(item.parentId.toString());
+      if (parent) {
+        parent.children = parent.children ?? [];
+        parent.children.push(node);
+        return;
+      }
+    }
+    rootNodes.push(node);
+  });
+  return rootNodes;
+};
+
+const filterTree = (nodes: TreeNode[], keywordValue: string): TreeNode[] => {
+  if (!keywordValue) return nodes;
+  const matcher = keywordValue.trim();
+  if (!matcher) return nodes;
+  const result: TreeNode[] = [];
+  nodes.forEach((node) => {
+    const children = node.children ? filterTree(node.children, matcher) : [];
+    if (node.title.includes(matcher) || children.length > 0) {
+      result.push({ ...node, children });
+    }
+  });
+  return result;
+};
+
+const treeData = computed(() => {
+  const rootNodes = buildTree(allDepartments.value);
+  const fullTree = [{ key: 'all', title: '全部部门', children: rootNodes }];
+  return filterTree(fullTree, treeKeyword.value);
+});
+
+const selectedTreeKeys = computed(() => {
+  if (selectedDepartmentId.value === null) return ['all'];
+  return [selectedDepartmentId.value.toString()];
+});
+
+const expandedTreeKeys = computed(() => {
+  if (!treeKeyword.value.trim()) return ['all'];
+  return ['all', ...allDepartments.value.map((item) => item.id)];
+});
+
+const loadAllDepartments = async () => {
+  if (!showTreeLayout) return;
+  treeLoading.value = true;
+  try {
+    allDepartments.value = await getDepartmentsAll();
+  } catch (error) {
+    message.error((error as Error).message || "加载部门树失败");
+  } finally {
+    treeLoading.value = false;
+  }
+};
+
+const handleTreeSelect = (keys: (string | number)[]) => {
+  if (!keys.length || keys[0] === 'all') {
+    selectedDepartmentId.value = null;
+  } else {
+    selectedDepartmentId.value = Number(keys[0]);
+  }
+  crud.handleSearch();
+};
+
 
 const handleExport = () => exportUsers(keyword.value);
 
@@ -255,6 +405,10 @@ const handleImport = async () => {
     fetchData();
   }
 };
+
+onMounted(() => {
+  loadAllDepartments();
+});
 
 const handleImportCancel = () => {
   importModalVisible.value = false;
@@ -316,7 +470,7 @@ const crud = useCrudPage<UserListItem, UserDetail, UserCreateRequest, UserUpdate
     assignPositions: "users:assign-positions"
   },
   api: {
-    list: getUsersPaged,
+    list: (req) => getUsersPaged({ ...req, departmentId: selectedDepartmentId.value || undefined }),
     detail: getUserDetail,
     create: createUser,
     update: updateUser,
@@ -445,3 +599,14 @@ const handleSubmit = async () => {
   }
 };
 </script>
+
+<style scoped>
+.import-modal-body {
+  padding: 10px 0;
+}
+:deep(.ant-tree-node-content-wrapper) {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+</style>

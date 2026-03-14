@@ -1,6 +1,6 @@
 <template>
   <a-menu
-    theme="dark"
+    theme="light"
     mode="inline"
     :selected-keys="selectedKeys"
     :open-keys="openKeys"
