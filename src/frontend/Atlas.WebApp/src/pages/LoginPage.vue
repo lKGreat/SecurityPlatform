@@ -143,6 +143,7 @@
             :disabled="loading"
             @finish="handleSubmit"
           >
+            <!-- 验证码和MFA相关表单项，插入在密码之后 -->
             <a-form-item
               label="租户 / 组织"
               name="tenantId"
@@ -195,6 +196,46 @@
               <div v-if="capsLockOn" class="caps-tip">Caps Lock 已开启</div>
             </a-form-item>
 
+            <a-form-item
+              v-if="needsCaptcha"
+              label="图片验证码"
+              name="captchaCode"
+              :rules="[{ required: true, message: '请输入验证码' }]"
+            >
+              <div style="display: flex; gap: 8px;">
+                <a-input
+                  v-model:value="form.captchaCode"
+                  placeholder="请输入图片验证码"
+                  autocomplete="off"
+                  @focus="errorMessage = ''"
+                />
+                <img 
+                  v-if="captchaImage" 
+                  :src="captchaImage" 
+                  alt="验证码" 
+                  title="点击刷新"
+                  style="cursor: pointer; height: 32px; border-radius: 4px;"
+                  @click="loadCaptcha" 
+                />
+              </div>
+            </a-form-item>
+
+            <a-form-item
+              v-if="needsMfa"
+              label="两步验证码 (MFA)"
+              name="totpCode"
+              :rules="[{ required: true, message: '请输入6位动态验证码' }]"
+              help="该账号已启用两步验证"
+            >
+              <a-input
+                v-model:value="form.totpCode"
+                placeholder="请输入 6 位动态验证码"
+                :maxlength="6"
+                autocomplete="off"
+                @focus="errorMessage = ''"
+              />
+            </a-form-item>
+
             <div class="form-extra">
               <a-checkbox v-model:checked="form.rememberMe">记住我</a-checkbox>
               <a href="/password-reset" class="forgot-link">忘记密码？</a>
@@ -241,8 +282,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { UploadOutlined } from "@ant-design/icons-vue";
-import { getLicenseStatus, activateLicense } from "@/services/api";
+import { UploadOutlined, UserOutlined, LockOutlined, SafetyOutlined, KeyOutlined } from "@ant-design/icons-vue";
+import { getLicenseStatus, activateLicense, getCaptcha } from "@/services/api";
 import { useUserStore } from "@/stores/user";
 import { usePermissionStore } from "@/stores/permission";
 import type { RequestOptions } from "@/services/api";
@@ -283,8 +324,27 @@ const form = reactive({
   tenantId: getTenantId() ?? "",
   username: "",
   password: "",
-  rememberMe: localStorage.getItem(REMEMBER_ME_KEY) === "true"
+  rememberMe: localStorage.getItem(REMEMBER_ME_KEY) === "true",
+  captchaKey: "",
+  captchaCode: "",
+  totpCode: ""
 });
+
+const needsCaptcha = ref(false);
+const captchaImage = ref("");
+const needsMfa = ref(false);
+
+const loadCaptcha = async () => {
+  if (!form.tenantId) return;
+  try {
+    const res = await getCaptcha(form.tenantId.trim());
+    form.captchaKey = res.captchaKey;
+    captchaImage.value = res.captchaImage;
+    form.captchaCode = "";
+  } catch (e) {
+    // ignore
+  }
+};
 
 const licenseLoading = ref(true);
 const licenseActivating = ref(false);
@@ -380,7 +440,10 @@ const handleSubmit = async () => {
       form.password,
       tokenOptions,
       {
-        rememberMe: form.rememberMe
+        rememberMe: form.rememberMe,
+        captchaKey: form.captchaKey || undefined,
+        captchaCode: form.captchaCode || undefined,
+        totpCode: form.totpCode || undefined
       }
     );
     await userStore.getInfo();
@@ -409,6 +472,24 @@ const handleSubmit = async () => {
   } catch (error) {
     clearAuthStorage();
     failedAttempts.value += 1;
+    
+    const loginError = error as LoginApiError;
+    const code = loginError?.payload?.code ?? "";
+    const rawMsg = error instanceof Error ? error.message : "";
+
+    if (code === "MFA_REQUIRED") {
+      needsMfa.value = true;
+      errorMessage.value = "需进行两步验证，请输入动态验证码";
+      return;
+    }
+
+    if (rawMsg.includes("验证码") || failedAttempts.value >= COOLDOWN_THRESHOLD) {
+      if (!needsCaptcha.value) {
+         needsCaptcha.value = true;
+      }
+      loadCaptcha(); // Refresh captcha on failure
+    }
+
     errorMessage.value = normalizeError(error);
     if (failedAttempts.value >= COOLDOWN_THRESHOLD) {
       startCooldown();

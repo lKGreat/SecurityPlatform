@@ -42,10 +42,22 @@ const PluginMarketPage = () => import("@/pages/lowcode/PluginMarketPage.vue");
 const PluginManagePage = () => import("@/pages/system/PluginManagePage.vue");
 const WebhooksPage = () => import("@/pages/system/WebhooksPage.vue");
 const MessageQueuePage = () => import("@/pages/monitor/MessageQueuePage.vue");
+const ServerInfoPage = () => import("@/pages/monitor/ServerInfoPage.vue");
+const ScheduledJobsPage = () => import("@/pages/monitor/ScheduledJobsPage.vue");
+const LoginLogsPage = () => import("@/pages/system/LoginLogsPage.vue");
+const OnlineUsersPage = () => import("@/pages/system/OnlineUsersPage.vue");
+const NotificationManagePage = () => import("@/pages/system/NotificationManagePage.vue");
 const LicensePage = () => import("@/pages/LicensePage.vue");
 const ToolsAuthorizationPage = () => import("@/pages/console/ToolsAuthorizationPage.vue");
 const WorkflowListPage = () => import("@/pages/workflow/WorkflowListPage.vue");
 const WorkflowEditorPage = () => import("@/pages/workflow/WorkflowEditorPage.vue");
+const ApprovalDesignerPage = () => import("@/pages/ApprovalDesignerPage.vue");
+const ApprovalFlowManagePage = () => import("@/pages/ApprovalFlowManagePage.vue");
+const ApprovalFlowsPage = () => import("@/pages/ApprovalFlowsPage.vue");
+const ApprovalInstanceManagePage = () => import("@/pages/ApprovalInstanceManagePage.vue");
+const ApprovalInstancesPage = () => import("@/pages/ApprovalInstancesPage.vue");
+const ApprovalInboxPage = () => import("@/pages/ApprovalInboxPage.vue");
+const ApprovalTasksPage = () => import("@/pages/ApprovalTasksPage.vue");
 
 declare module "vue-router" {
   interface RouteMeta {
@@ -81,6 +93,7 @@ const router = createRouter({
     { path: "/r/:appKey/:pageKey", name: "runtime-delivery-page", component: PageRuntimeRenderer, meta: { requiresAuth: true, title: "运行交付面" } },
     { path: "/process/instances/:id", name: "process-instance-detail", component: ApprovalInstanceDetailPage, meta: { requiresAuth: true, title: "流程详情", requiresPermission: "approval:flow:view" } },
     { path: "/system/notifications", name: "system-notifications", component: NotificationsPage, meta: { requiresAuth: true, title: "通知中心" } },
+    { path: "/system/notifications/manage", name: "system-notifications-manage", component: NotificationManagePage, meta: { requiresAuth: true, title: "公告管理", requiresPermission: "notification:manage" } },
     { path: "/notifications", name: "system-notifications-legacy", redirect: "/system/notifications", meta: { requiresAuth: true, title: "通知中心" } },
     { path: "/settings/system/dict-types", name: "settings-system-dict-types", component: DictTypesPage, meta: { requiresAuth: true, title: "字典管理", requiresPermission: "dict:type:view" } },
     { path: "/settings/system/configs", name: "settings-system-configs", component: SystemConfigsPage, meta: { requiresAuth: true, title: "参数配置", requiresPermission: "config:view" } },
@@ -89,6 +102,11 @@ const router = createRouter({
     { path: "/settings/system/plugins", name: "settings-plugins", component: PluginManagePage, meta: { requiresAuth: true, title: "插件管理", requiresPermission: "system:admin" } },
     { path: "/settings/system/webhooks", name: "settings-webhooks", component: WebhooksPage, meta: { requiresAuth: true, title: "Webhook 管理" } },
     { path: "/monitor/message-queue", name: "monitor-message-queue", component: MessageQueuePage, meta: { requiresAuth: true, title: "消息队列监控", requiresPermission: "system:admin" } },
+    { path: "/monitor/server-info", name: "monitor-server-info", component: ServerInfoPage, meta: { requiresAuth: true, title: "服务器监控", requiresPermission: "system:admin" } },
+    { path: "/monitor/scheduled-jobs", name: "monitor-scheduled-jobs", component: ScheduledJobsPage, meta: { requiresAuth: true, title: "定时任务" } },
+    { path: "/system/login-logs", name: "system-login-logs", component: LoginLogsPage, meta: { requiresAuth: true, title: "登录日志", requiresPermission: "system:admin" } },
+    { path: "/system/online-users", name: "system-online-users", component: OnlineUsersPage, meta: { requiresAuth: true, title: "在线用户" } },
+
     { path: "/settings/license", name: "settings-license", component: LicensePage, meta: { requiresAuth: true, title: "授权管理", requiresPermission: "system:license:view" } },
     {
       path: "/settings/:pathMatch(.*)*",
@@ -115,6 +133,13 @@ const router = createRouter({
     { path: "/monitor/writeback-failures", name: "monitor-writeback-failures", component: WritebackMonitorPage, meta: { requiresAuth: true, title: "回写监控", requiresPermission: "system:admin" } },
     { path: "/workflow", name: "workflow-list", component: WorkflowListPage, meta: { requiresAuth: true, title: "工作流管理" } },
     { path: "/workflow/:id/editor", name: "workflow-editor", component: WorkflowEditorPage, meta: { requiresAuth: true, title: "工作流设计器" } },
+    { path: "/approval/designer", name: "approval-designer", component: ApprovalDesignerPage, meta: { requiresAuth: true, title: "流程设计器", requiresPermission: "approval:flow:create" } },
+    { path: "/approval/flows/manage", name: "approval-flows-manage", component: ApprovalFlowManagePage, meta: { requiresAuth: true, title: "流程发布总览", requiresPermission: "approval:flow:manage" } },
+    { path: "/approval/flows", name: "approval-flows", component: ApprovalFlowsPage, meta: { requiresAuth: true, title: "流程定义列表", requiresPermission: "approval:flow:view" } },
+    { path: "/approval/instances/manage", name: "approval-instances-manage", component: ApprovalInstanceManagePage, meta: { requiresAuth: true, title: "所有审批实例", requiresPermission: "system:admin" } },
+    { path: "/approval/instances", name: "approval-instances", component: ApprovalInstancesPage, meta: { requiresAuth: true, title: "我的申请" } },
+    { path: "/approval/inbox", name: "approval-inbox", component: ApprovalInboxPage, meta: { requiresAuth: true, title: "审批待办" } },
+    { path: "/approval/tasks", name: "approval-tasks", component: ApprovalTasksPage, meta: { requiresAuth: true, title: "我的待办" } },
     { path: "/:pathMatch(.*)*", name: "not-found", component: NotFoundPage }
   ]
 });
