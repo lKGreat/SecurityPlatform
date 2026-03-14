@@ -583,6 +583,9 @@ export interface UserUpdateRequest {
   email?: string;
   phoneNumber?: string;
   isActive: boolean;
+  roleIds?: number[];
+  departmentIds?: number[];
+  positionIds?: number[];
 }
 
 export interface UserAssignRolesRequest {

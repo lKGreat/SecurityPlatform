@@ -155,7 +155,57 @@ public sealed class UserCommandService : IUserCommandService
             user.Deactivate();
         }
 
-        await _userRepository.UpdateAsync(user, cancellationToken);
+        var roles = request.RoleIds != null 
+            ? await EnsureRolesExistAsync(tenantId, request.RoleIds.Distinct().ToArray(), cancellationToken) 
+            : Array.Empty<Role>();
+            
+        if (request.DepartmentIds != null)
+        {
+            await EnsureDepartmentsExistAsync(tenantId, request.DepartmentIds.Distinct().ToArray(), cancellationToken);
+        }
+        
+        if (request.PositionIds != null)
+        {
+            await EnsurePositionsExistAsync(tenantId, request.PositionIds.Distinct().ToArray(), cancellationToken);
+        }
+
+        if (request.RoleIds != null)
+        {
+            user.UpdateRoles(string.Join(',', roles.Select(x => x.Code)));
+        }
+
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            if (request.RoleIds != null)
+            {
+                await _userRoleRepository.DeleteByUserIdAsync(tenantId, userId, cancellationToken);
+                await _userRoleRepository.AddRangeAsync(
+                    roles.Select(role => new UserRole(tenantId, userId, role.Id, _idGeneratorAccessor.NextId())).ToArray(),
+                    cancellationToken);
+            }
+
+            if (request.DepartmentIds != null)
+            {
+                await _userDepartmentRepository.DeleteByUserIdAsync(tenantId, userId, cancellationToken);
+                await _userDepartmentRepository.AddRangeAsync(
+                    request.DepartmentIds.Distinct()
+                        .Select(depId => new UserDepartment(tenantId, userId, depId, _idGeneratorAccessor.NextId(), false))
+                        .ToArray(),
+                    cancellationToken);
+            }
+
+            if (request.PositionIds != null)
+            {
+                await _userPositionRepository.DeleteByUserIdAsync(tenantId, userId, cancellationToken);
+                await _userPositionRepository.AddRangeAsync(
+                    request.PositionIds.Distinct()
+                        .Select(posId => new UserPosition(tenantId, userId, posId, _idGeneratorAccessor.NextId(), false))
+                        .ToArray(),
+                    cancellationToken);
+            }
+
+            await _userRepository.UpdateAsync(user, cancellationToken);
+        }, cancellationToken);
     }
 
     public async Task UpdateRolesAsync(

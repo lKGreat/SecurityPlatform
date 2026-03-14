@@ -1,24 +1,20 @@
 <template>
   <div class="approval-done-page">
-    <div class="page-toolbar">
-      <a-space>
-        <a-input-search
-          v-model:value="keyword"
-          allow-clear
-          style="width: 240px"
-          placeholder="按任务标题检索"
-          @search="fetchData"
-        />
-        <a-select v-model:value="statusFilter" style="width: 140px" :options="statusOptions" />
-        <a-button @click="fetchData">刷新</a-button>
-      </a-space>
-    </div>
+    <FilterToolbar
+      v-model:keyword="keyword"
+      :show-search="true"
+      search-placeholder="按任务标题检索"
+      :search-width="240"
+      :show-refresh="true"
+      @search="handleFilterUpdate"
+      @refresh="fetchData"
+    >
+      <a-select v-model:value="statusFilter" style="width: 140px" :options="statusOptions" @change="handleFilterUpdate" />
+    </FilterToolbar>
 
     <!-- 主从布局容器 -->
-    <div class="master-detail-container" :class="{ 'has-detail': isDetailVisible }">
-      
-      <!-- 左侧卡片列表 (Master) -->
-      <div class="master-list">
+    <MasterDetailLayout :detail-visible="isDetailVisible" :master-width="380">
+      <template #master>
         <a-spin :spinning="loading">
           <div class="task-list">
             <template v-if="dataSource.length > 0">
@@ -53,18 +49,18 @@
             />
           </div>
         </a-spin>
-      </div>
+      </template>
 
       <!-- 右侧详情面板 (Detail) -->
-      <div v-if="isDetailVisible" class="detail-panel">
+      <template #detail>
         <ApprovalTaskDetailPanel
           v-if="selectedItem"
           :task-id="selectedItem.id"
           @close="clearSelection"
           @refresh="fetchDataAndRetainSelection"
         />
-      </div>
-    </div>
+      </template>
+    </MasterDetailLayout>
   </div>
 </template>
 
@@ -75,12 +71,23 @@ import type { TablePaginationConfig } from 'ant-design-vue';
 import { ApprovalTaskStatus, type ApprovalTaskResponse } from '@/types/api';
 import { getMyTasksPaged } from '@/services/api';
 import { useMasterDetail } from '@/composables/useMasterDetail';
+import MasterDetailLayout from '@/components/layout/MasterDetailLayout.vue';
+import FilterToolbar from '@/components/common/FilterToolbar.vue';
 import ApprovalTaskDetailPanel from '@/components/approval/ApprovalTaskDetailPanel.vue';
+
+const props = defineProps<{
+  urlKeyword?: string;
+  urlStatus?: string;
+}>();
+
+const emit = defineEmits<{
+  'update-filter': [{keyword: string, status: string}];
+}>();
 
 const dataSource = ref<ApprovalTaskResponse[]>([]);
 const loading = ref(false);
-const keyword = ref('');
-const statusFilter = ref<ApprovalTaskStatus | 'all'>('all');
+const keyword = ref(props.urlKeyword || '');
+const statusFilter = ref<ApprovalTaskStatus | 'all'>((props.urlStatus as unknown as ApprovalTaskStatus) || 'all');
 const doneStatusSet = new Set<ApprovalTaskStatus>([
   ApprovalTaskStatus.Approved,
   ApprovalTaskStatus.Rejected,
@@ -107,8 +114,8 @@ const fetchData = async () => {
     const statusValue = statusFilter.value === 'all' ? undefined : statusFilter.value;
     const result = await getMyTasksPaged(
       {
-        pageIndex: pagination.current ?? 1,
-        pageSize: pagination.pageSize ?? 10,
+        pageIndex: Number(pagination.current ?? 1),
+        pageSize: Number(pagination.pageSize ?? 10),
         keyword: keyword.value || undefined,
       },
       statusValue,
@@ -133,8 +140,13 @@ const fetchDataAndRetainSelection = async () => {
   }
 };
 
+const handleFilterUpdate = () => {
+  emit('update-filter', { keyword: keyword.value, status: String(statusFilter.value) });
+  fetchData();
+};
+
 const onPageChange = (page: number) => {
-  pagination.current = page;
+  pagination.current = Number(page);
   clearSelection();
   fetchData();
 };
@@ -182,50 +194,6 @@ watch(statusFilter, () => {
   height: 100%;
   padding: 0;
   background: var(--color-bg-base);
-}
-
-.page-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: var(--color-bg-container);
-  border-bottom: 1px solid var(--color-border);
-}
-
-/* Keep standard flex container */
-
-.master-detail-container {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  background: var(--color-bg-base);
-}
-
-.master-list {
-  width: 100%;
-  max-width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--color-bg-base);
-  transition: all 0.3s;
-}
-
-.has-detail .master-list {
-  width: 380px;
-  min-width: 380px;
-  border-right: 1px solid var(--color-border);
-  background: var(--color-bg-container);
-}
-
-.detail-panel {
-  flex: 1;
-  min-width: 0;
-  background: var(--color-bg-container);
-  box-shadow: -2px 0 8px rgba(0,0,0,0.02);
-  z-index: 2;
-  overflow: hidden;
 }
 
 /* Card List Styles */
@@ -300,12 +268,4 @@ watch(statusFilter, () => {
   justify-content: center;
 }
 
-@media screen and (max-width: 768px) {
-  .master-detail-container {
-    position: relative;
-  }
-  .has-detail .master-list {
-    display: none;
-  }
-}
 </style>

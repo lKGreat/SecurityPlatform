@@ -1,11 +1,11 @@
 <template>
   <a-card title="我的抄送" class="page-card">
-    <div class="toolbar">
-      <a-space>
-        <a-select v-model:value="readFilter" style="width: 150px" :options="readOptions" />
-        <a-button @click="fetchData">刷新</a-button>
-      </a-space>
-    </div>
+    <FilterToolbar
+      :show-refresh="true"
+      @refresh="fetchData"
+    >
+      <a-select v-model:value="readFilter" style="width: 150px" :options="readOptions" />
+    </FilterToolbar>
 
     <a-table
       :columns="columns"
@@ -46,6 +46,7 @@ import { message } from 'ant-design-vue';
 import type { TablePaginationConfig } from 'ant-design-vue';
 import type { ApprovalCopyRecordResponse } from '@/types/api';
 import { getMyCopyRecordsPaged, markCopyRecordAsRead } from '@/services/api';
+import FilterToolbar from '@/components/common/FilterToolbar.vue';
 
 const router = useRouter();
 const columns = [
@@ -122,7 +123,5 @@ watch(readFilter, () => {
 </script>
 
 <style scoped>
-.toolbar {
-  margin-bottom: 16px;
-}
+/* Scoped styles */
 </style>

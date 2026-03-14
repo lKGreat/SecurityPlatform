@@ -1,15 +1,16 @@
 <template>
   <a-card :bordered="false" class="page-card tab-content-card">
-    <div class="toolbar">
-      <a-space>
-        <a-select
-          v-model:value="statusFilter"
-          style="width: 140px"
-          :options="statusOptions"
-        />
-        <a-button @click="fetchData">刷新</a-button>
-      </a-space>
-    </div>
+    <FilterToolbar
+      :show-refresh="true"
+      @refresh="fetchData"
+    >
+      <a-select
+        v-model:value="statusFilter"
+        style="width: 140px"
+        :options="statusOptions"
+        @change="handleFilterUpdate"
+      />
+    </FilterToolbar>
     <a-table
       :columns="columns"
       :data-source="dataSource"
@@ -142,6 +143,16 @@ import {
   type ApprovalHistoryEventResponse
 } from "@/types/api";
 import { message } from "ant-design-vue";
+import FilterToolbar from "@/components/common/FilterToolbar.vue";
+
+const props = defineProps<{
+  urlKeyword?: string;
+  urlStatus?: string;
+}>();
+
+const emit = defineEmits<{
+  'update-filter': [{keyword: string, status: string}];
+}>();
 
 const columns = [
   { title: "流程名称", dataIndex: "flowName", key: "flowName" },
@@ -162,7 +173,7 @@ const taskColumns = [
 
 const dataSource = ref<ApprovalInstanceListItem[]>([]);
 const loading = ref(false);
-const statusFilter = ref<ApprovalInstanceStatus | "all">("all");
+const statusFilter = ref<ApprovalInstanceStatus | "all">((props.urlStatus as unknown as ApprovalInstanceStatus) || "all");
 const statusOptions = [
   { label: "全部", value: "all" },
   { label: "运行中", value: ApprovalInstanceStatus.Running },
@@ -193,8 +204,8 @@ const fetchData = async () => {
   try {
     const statusValue = statusFilter.value === "all" ? undefined : statusFilter.value;
     const result = await getMyInstancesPaged({
-      pageIndex: pagination.current ?? 1,
-      pageSize: pagination.pageSize ?? 10
+      pageIndex: Number(pagination.current ?? 1),
+      pageSize: Number(pagination.pageSize ?? 10)
     }, statusValue);
     dataSource.value = result.items;
     pagination.total = result.total;
@@ -375,6 +386,11 @@ const handleDrawerClose = () => {
   businessData.value = [];
 };
 
+const handleFilterUpdate = () => {
+  emit('update-filter', { keyword: '', status: String(statusFilter.value) });
+  fetchData();
+};
+
 onMounted(fetchData);
 
 watch(statusFilter, () => {
@@ -384,9 +400,6 @@ watch(statusFilter, () => {
 </script>
 
 <style scoped>
-.toolbar {
-  margin-bottom: 16px;
-}
 .tab-content-card {
   height: 100%;
   display: flex;

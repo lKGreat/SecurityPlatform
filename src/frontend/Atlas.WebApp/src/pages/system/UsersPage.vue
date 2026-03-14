@@ -236,10 +236,7 @@ import {
   getRolesPaged,
   getUserDetail,
   getUsersPaged,
-  updateUser,
-  updateUserDepartments,
-  updateUserPositions,
-  updateUserRoles
+  updateUser
 } from "@/services/api";
 import type {
   DepartmentListItem,
@@ -475,7 +472,10 @@ const crud = useCrudPage<UserListItem, UserDetail, UserCreateRequest, UserUpdate
     displayName: model.displayName,
     email: model.email || undefined,
     phoneNumber: model.phoneNumber || undefined,
-    isActive: model.isActive
+    isActive: model.isActive,
+    roleIds: model.roleIds,
+    departmentIds: model.departmentIds,
+    positionIds: model.positionIds
   }),
   mapDetailToForm: (detail, model) => {
     model.username = detail.username;
@@ -524,43 +524,9 @@ const handleSubmit = async () => {
   if (submitting.value) {
     return;
   }
-
   submitting.value = true;
   try {
-    if (formMode.value === "create") {
-      await crud.submitForm();
-    } else if (selectedId.value) {
-      // Update basic info
-      try {
-        await updateUser(selectedId.value, {
-          displayName: formModel.displayName,
-          email: formModel.email || undefined,
-          phoneNumber: formModel.phoneNumber || undefined,
-          isActive: formModel.isActive
-        });
-
-        // Update assignments in parallel
-        const promises: Promise<void>[] = [];
-        if (canAssignRoles) {
-          promises.push(updateUserRoles(selectedId.value, { roleIds: formModel.roleIds }));
-        }
-        if (canAssignDepartments) {
-          promises.push(updateUserDepartments(selectedId.value, { departmentIds: formModel.departmentIds }));
-        }
-        if (canAssignPositions) {
-          promises.push(updateUserPositions(selectedId.value, { positionIds: formModel.positionIds }));
-        }
-        if (promises.length) {
-          await Promise.all(promises);
-        }
-
-        message.success("更新成功");
-        formVisible.value = false;
-        fetchData();
-      } catch (error) {
-        message.error((error as Error).message || "更新失败");
-      }
-    }
+    await crud.submitForm();
   } finally {
     submitting.value = false;
   }

@@ -6,9 +6,9 @@
     </div>
     
     <div class="workspace-content">
-      <ApprovalTasksPage v-if="activeTab === 'pending'" />
-      <ApprovalDonePage v-else-if="activeTab === 'done'" />
-      <ApprovalInstancesPage v-else-if="activeTab === 'requests'" />
+      <ApprovalTasksPage v-if="activeTab === 'pending'" :url-keyword="urlKeyword" :url-status="urlStatus" @update-filter="handleFilterUpdate" />
+      <ApprovalDonePage v-else-if="activeTab === 'done'" :url-keyword="urlKeyword" :url-status="urlStatus" @update-filter="handleFilterUpdate" />
+      <ApprovalInstancesPage v-else-if="activeTab === 'requests'" :url-keyword="urlKeyword" :url-status="urlStatus" @update-filter="handleFilterUpdate" />
       <ApprovalCcPage v-else-if="activeTab === 'cc'" />
     </div>
   </div>
@@ -26,6 +26,9 @@ const route = useRoute();
 const router = useRouter();
 
 const activeTab = ref('pending');
+const urlKeyword = ref<string>('');
+const urlStatus = ref<string>('');
+
 const tabOptions = [
   { label: '待办任务', value: 'pending' },
   { label: '已办任务', value: 'done' },
@@ -33,16 +36,26 @@ const tabOptions = [
   { label: '抄送我的', value: 'cc' },
 ];
 
+const handleFilterUpdate = (filter: { keyword: string; status: string }) => {
+  router.replace({ 
+    query: { ...route.query, k: filter.keyword || undefined, s: filter.status || undefined } 
+  });
+};
+
 onMounted(() => {
   const tab = route.query.tab as string;
   if (tab && tabOptions.some(t => t.value === tab)) {
     activeTab.value = tab;
   }
+  urlKeyword.value = (route.query.k as string) || '';
+  urlStatus.value = (route.query.s as string) || '';
 });
 
 watch(activeTab, (newVal) => {
-  // Update URL to persist active tab
-  router.replace({ query: { ...route.query, tab: newVal } });
+  // Clear sub-filters when switching tabs
+  urlKeyword.value = '';
+  urlStatus.value = '';
+  router.replace({ query: { tab: newVal } });
 });
 </script>
 
