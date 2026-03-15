@@ -1,9 +1,21 @@
 # Plan: 平台控制台与应用数据源
 
-> 本文档定义平台控制台布局、应用工作台、应用级数据源、数据共享策略及实体别名的完整需求与设计约束。  
+> 本文档定义平台控制台布局、应用工作台、租户应用数据源、数据共享策略及实体别名的完整需求与设计约束。  
 > 更新规则：架构变更或功能完成时同步更新本文档。
 
 ---
+
+## 术语对齐声明（SEC-22）
+
+本文采用 `docs/analysis/unified-terminology-glossary-v1.md` 术语基线：
+
+- 平台侧“应用定义”统一称为 `ApplicationCatalog`。
+- 租户开通关系统一称为 `TenantApplication`。
+- 运行态实例统一称为 `TenantAppInstance`。
+- 数据连接资源统一称为 `TenantDataSource`（禁止裸用 DataSource）。
+- 创作语境下“项目”统一称为 `ProjectAsset`。
+
+> 本文保留既有 API 路径（如 `/api/v1/apps`）用于兼容描述，语义上均按上述术语解释。
 
 ## 一、背景与目标
 
@@ -31,9 +43,9 @@
 
 | 约束 | 说明 |
 |------|------|
-| **创建后不可更改** | 应用创建时绑定的数据源（`DataSourceId`）一旦确定，**永不允许修改** |
+| **创建后不可更改** | 应用创建时绑定的租户数据源（`TenantDataSourceId`）一旦确定，**永不允许修改** |
 | **原因** | 数据源绑定物理存储位置，应用内所有动态表、表单数据、审批记录已写入该数据源；变更会导致历史数据孤立、schema 缺失、关联失效 |
-| **实现** | `LowCodeApp.DataSourceId` 仅构造函数可设，无 `UpdateDataSource` 方法；`PUT /api/v1/apps/{id}` 的 DTO 不含 `DataSourceId` |
+| **实现** | `LowCodeApp.TenantDataSourceId` 仅构造函数可设，无 `UpdateDataSource` 方法；`PUT /api/v1/apps/{id}` 的 DTO 不含 `TenantDataSourceId` |
 
 ### 2.2 可修改的基础数据
 
@@ -49,7 +61,7 @@
 | 不可修改项 | 说明 |
 |------------|------|
 | AppKey | 应用唯一标识，创建后不可改 |
-| DataSourceId | 数据源绑定，创建后不可改 |
+| TenantDataSourceId | 数据源绑定，创建后不可改 |
 
 ---
 
@@ -103,9 +115,9 @@
 ```csharp
 // 新增/修改属性
 
-/// <summary>绑定的应用级数据源 ID（null 表示使用平台默认数据源）</summary>
+/// <summary>绑定的租户应用数据源 ID（null 表示使用平台默认数据源）</summary>
 /// <remarks>创建后不可更改，仅构造函数可设</remarks>
-public long? DataSourceId { get; private set; }
+public long? TenantDataSourceId { get; private set; }
 
 /// <summary>是否继承平台用户池</summary>
 public bool UseSharedUsers { get; private set; } = true;
@@ -162,7 +174,7 @@ Tenant (租户)
   ├── TenantDataSource [AppId = null]  ← 平台级数据源
   │
   └── LowCodeApp (应用)
-        ├── DataSourceId → TenantDataSource [AppId = AppId] ← 应用专属（创建后不可改）
+        ├── TenantDataSourceId → TenantDataSource [AppId = AppId] ← 应用专属（创建后不可改）
         ├── UseSharedUsers / Roles / Departments
         └── AppEntityAlias[] ← 实体别名（可修改）
 ```
@@ -186,7 +198,7 @@ Tenant (租户)
 
 | 选项 | 说明 |
 |------|------|
-| 使用平台默认数据源 | DataSourceId = null |
+| 使用平台默认数据源 | TenantDataSourceId = null |
 | 选择已有数据源 | 从租户下已有数据源下拉选择 |
 | 创建新数据源 | 填写连接参数，测试通过后创建并绑定 |
 
@@ -203,7 +215,7 @@ Tenant (租户)
 | 部门组织来源 | 平台共享 / 应用独立 |
 | 实体别名 | user→员工、role→岗位、department→部门 等（可选） |
 
-**校验**：若 UseSharedXxx = false，则 DataSourceId 必须非空（独立数据需独立数据源存储）。
+**校验**：若 UseSharedXxx = false，则 TenantDataSourceId 必须非空（独立数据需独立数据源存储）。
 
 ---
 
@@ -456,7 +468,7 @@ Tenant (租户)
 ### 里程碑
 
 - M1（S1）：控制台骨架 + 灰度可用
-- M2（S2）：应用级数据源/共享策略闭环
+- M2（S2）：租户应用数据源/共享策略闭环
 - M3（S3+S4）：运行态数据闭环 + 动态表应用化
 - M4（S5+S6）：审批/工作流统一 + 模板生态可用
 - M5（S7+S8+Gate）：移动端适配 + 全链路验收 + DB 提交
@@ -493,3 +505,4 @@ Tenant (租户)
 |------|----------|
 | 2025-03-07 | 初稿：平台控制台、应用数据源、共享策略、实体别名、数据源不可变约束 |
 | 2026-03-07 | 升级为 8 Sprint + 强制 Gate 路线图，加入 GUI 全链路测试与 `atlas.db` 提交要求，并补充 X-App-Id 受控覆盖策略 |
+| 2026-03-16 | SEC-22 术语对齐：统一 ApplicationCatalog/TenantApplication/TenantDataSource/ProjectAsset 语义边界 |

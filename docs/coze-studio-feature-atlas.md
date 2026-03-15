@@ -6,6 +6,18 @@
 
 ---
 
+## 术语对齐声明（SEC-22）
+
+为与平台主模型对齐，本文在分析 Coze 语境时采用以下映射：
+
+- 文中“App（平台目录语境）”映射为 `ApplicationCatalog`。
+- 文中“租户开通后的应用”映射为 `TenantApplication / TenantAppInstance`。
+- 文中“Project（创作语境）”映射为 `ProjectAsset`。
+- 文中“Workflow”区分为 `WorkflowDefinition`（定义态）与 `RuntimeExecution`（运行态）。
+- 文中“DataSource/Database 资源”统一归并为 `TenantDataSource` 语义域。
+
+---
+
 ## 一、功能清单总览（按业务域分组）
 
 ### 1.1 用户可见功能（前台）
@@ -53,7 +65,7 @@
 
 ---
 
-#### 域 4：项目 IDE（Project / App）
+#### 域 4：项目资产 IDE（ProjectAsset / App）
 
 | # | 功能名称 | API 入口 | 相关表 | 双实现/废弃风险 |
 |---|---------|----------|--------|----------------|
@@ -68,20 +80,20 @@
 
 ---
 
-#### 域 5：工作流（Workflow）
+#### 域 5：工作流（WorkflowDefinition / RuntimeExecution）
 
 | # | 功能名称 | 功能简介 | API 入口 | 相关表 | 双实现/废弃风险 |
 |---|---------|---------|----------|--------|----------------|
 | 23 | 工作流 CRUD | 创建/保存/删除/复制 | `POST /api/workflow_api/create|save|delete|copy` | `workflow_meta`, `workflow_draft` | — |
 | 24 | 发布工作流 | 草稿发布为版本 | `POST /api/workflow_api/publish` | `workflow_version` | — |
-| 25 | 测试运行工作流 | 完整流程调试 | `POST /api/workflow_api/test_run` | `workflow_execution` | — |
+| 25 | 测试运行工作流 | RuntimeExecution 调试运行 | `POST /api/workflow_api/test_run` | `workflow_execution` | — |
 | 26 | 单节点调试（v2） | 调试单个节点 | `POST /api/workflow_api/nodeDebug` | `node_execution` | v2 实现 |
 | 27 | 恢复/取消执行 | 断点恢复/终止 | `POST /api/workflow_api/test_resume|cancel` | `workflow_execution` | — |
 | 28 | 获取执行进度 | 实时查看执行状态 | `GET /api/workflow_api/get_process` | `workflow_execution` | — |
 | 29 | 执行 Trace | 获取节点链路 trace | `POST /api/workflow_api/get_trace|list_spans` | `workflow_execution` | — |
 | 30 | ChatFlow 角色管理 | ChatFlow 角色配置 | `POST/GET /api/workflow_api/chat_flow_role/*` | `chat_flow_role_config` | — |
 | 31 | 会话模板管理（项目） | App 内会话定义 | `POST/GET /api/workflow_api/project_conversation/*` | `app_conversation_template_*` | — |
-| 32 | 运行工作流（Open API） | 外部同步/流式调用 | `POST /v1/workflow/run|stream_run|stream_resume` | `workflow_execution` | — |
+| 32 | 运行工作流（Open API） | 外部触发 RuntimeExecution（同步/流式） | `POST /v1/workflow/run|stream_run|stream_resume` | `workflow_execution` | — |
 | 33 | ChatFlow 运行（Open API） | 对话式工作流调用 | `POST /v1/workflows/chat` | `workflow_execution` | — |
 
 **Application：** `application/workflow` · **Domain：** `domain/workflow`（最复杂，含 Eino 运行时）· **前端：** `workflow/*` → `/work_flow`
