@@ -9,8 +9,8 @@
           data-testid="e2e-crud-search-input"
           @press-enter="$emit('search')"
         />
-        <a-button data-testid="e2e-crud-search-submit" @click="$emit('search')">Search</a-button>
-        <a-button data-testid="e2e-crud-search-reset" @click="$emit('reset')">Reset</a-button>
+        <a-button data-testid="e2e-crud-search-submit" @click="$emit('search')">{{ t("crud.search") }}</a-button>
+        <a-button data-testid="e2e-crud-search-reset" @click="$emit('reset')">{{ t("crud.reset") }}</a-button>
         <slot name="toolbar-actions" />
       </a-space>
       <a-space wrap data-testid="e2e-crud-toolbar-right">
@@ -20,7 +20,7 @@
 
     <div v-if="$slots.filter" class="crud-filter-bar" data-testid="e2e-crud-filter-bar">
       <a-space wrap>
-        <span class="crud-filter-label">Filters</span>
+        <span class="crud-filter-label">{{ t("crud.filters") }}</span>
         <slot name="filter" />
       </a-space>
     </div>
@@ -46,7 +46,7 @@
             :disabled="submitDisabled || submitLoading"
             @click="$emit('close-form')"
           >
-            Cancel
+            {{ t("crud.cancel") }}
           </a-button>
           <a-button
             type="primary"
@@ -55,7 +55,7 @@
             data-testid="e2e-crud-drawer-submit"
             @click="$emit('submit')"
           >
-            Save
+            {{ t("crud.save") }}
           </a-button>
         </a-space>
       </template>
@@ -67,6 +67,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
 const props = defineProps<{
   title: string;
@@ -87,6 +88,8 @@ const emit = defineEmits<{
   (e: "close-form"): void;
   (e: "submit"): void;
 }>();
+
+const { t } = useI18n();
 
 const submitLoading = computed(() => props.submitLoading ?? false);
 const submitDisabled = computed(() => props.submitDisabled ?? false);

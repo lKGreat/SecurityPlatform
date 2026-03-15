@@ -6,7 +6,7 @@
         style="min-width: 220px"
         show-search
         allow-clear
-        placeholder="Saved view"
+        :placeholder="t('tableView.savedViewPlaceholder')"
         :filter-option="false"
         :options="viewOptions"
         :loading="controller.state.loading"
@@ -15,34 +15,34 @@
         @focus="handleFocus"
         @change="handleSelect"
       />
-      <a-button type="primary" data-testid="e2e-table-view-save" @click="handleSave">Save</a-button>
-      <a-button data-testid="e2e-table-view-save-as" @click="openSaveAs">Save as</a-button>
+      <a-button type="primary" data-testid="e2e-table-view-save" @click="handleSave">{{ t("tableView.save") }}</a-button>
+      <a-button data-testid="e2e-table-view-save-as" @click="openSaveAs">{{ t("tableView.saveAs") }}</a-button>
       <a-button
         :disabled="!controller.state.currentViewId"
         data-testid="e2e-table-view-set-default"
         @click="handleSetDefault"
       >
-        Set default
+        {{ t("tableView.setDefault") }}
       </a-button>
-      <a-button data-testid="e2e-table-view-reset-current" @click="handleResetCurrent">Reset current</a-button>
-      <a-button data-testid="e2e-table-view-reset-default" @click="handleResetDefault">Reset default</a-button>
+      <a-button data-testid="e2e-table-view-reset-current" @click="handleResetCurrent">{{ t("tableView.resetCurrent") }}</a-button>
+      <a-button data-testid="e2e-table-view-reset-default" @click="handleResetDefault">{{ t("tableView.resetDefault") }}</a-button>
       <a-dropdown>
-        <a-button data-testid="e2e-table-view-density">Density: {{ densityLabel }}</a-button>
+        <a-button data-testid="e2e-table-view-density">{{ t("tableView.density") }}: {{ densityLabel }}</a-button>
         <template #overlay>
           <a-menu @click="handleDensityChange">
-            <a-menu-item key="compact">Compact</a-menu-item>
-            <a-menu-item key="default">Default</a-menu-item>
-            <a-menu-item key="comfortable">Comfortable</a-menu-item>
+            <a-menu-item key="compact">{{ t("tableView.densityCompact") }}</a-menu-item>
+            <a-menu-item key="default">{{ t("tableView.densityDefault") }}</a-menu-item>
+            <a-menu-item key="comfortable">{{ t("tableView.densityComfortable") }}</a-menu-item>
           </a-menu>
         </template>
       </a-dropdown>
-      <a-button data-testid="e2e-table-view-columns" @click="columnsVisible = true">Columns</a-button>
+      <a-button data-testid="e2e-table-view-columns" @click="columnsVisible = true">{{ t("tableView.columns") }}</a-button>
     </a-space>
   </div>
 
   <a-drawer
     v-model:open="columnsVisible"
-    title="Columns"
+    :title="t('tableView.columnsTitle')"
     placement="right"
     width="420"
     destroy-on-close
@@ -50,7 +50,7 @@
   >
     <a-input
       v-model:value="columnKeyword"
-      placeholder="Search columns"
+      :placeholder="t('tableView.searchColumns')"
       allow-clear
       style="margin-bottom: 12px"
       data-testid="e2e-table-view-columns-search"
@@ -71,12 +71,12 @@
             style="width: 88px"
             @change="(val: string) => controller.setPinned(item.key, val === 'none' ? undefined : val as 'left' | 'right')"
           >
-            <a-select-option value="none">None</a-select-option>
-            <a-select-option value="left">Left</a-select-option>
-            <a-select-option value="right">Right</a-select-option>
+            <a-select-option value="none">{{ t("tableView.pinNone") }}</a-select-option>
+            <a-select-option value="left">{{ t("tableView.pinLeft") }}</a-select-option>
+            <a-select-option value="right">{{ t("tableView.pinRight") }}</a-select-option>
           </a-select>
-          <a-button size="small" @click="controller.moveColumn(item.key, 'up')">Up</a-button>
-          <a-button size="small" @click="controller.moveColumn(item.key, 'down')">Down</a-button>
+          <a-button size="small" @click="controller.moveColumn(item.key, 'up')">{{ t("tableView.moveUp") }}</a-button>
+          <a-button size="small" @click="controller.moveColumn(item.key, 'down')">{{ t("tableView.moveDown") }}</a-button>
         </div>
       </div>
     </div>
@@ -84,25 +84,25 @@
 
   <a-drawer
     v-model:open="saveAsVisible"
-    title="Save as view"
+    :title="t('tableView.saveAsView')"
     placement="right"
     width="380"
     destroy-on-close
     data-testid="e2e-table-view-save-as-drawer"
   >
     <a-form layout="vertical">
-      <a-form-item label="View name">
+      <a-form-item :label="t('tableView.viewName')">
         <a-input
           v-model:value="saveAsName"
-          placeholder="Enter view name"
+          :placeholder="t('tableView.enterViewName')"
           data-testid="e2e-table-view-save-as-name"
         />
       </a-form-item>
     </a-form>
     <template #footer>
       <a-space data-testid="e2e-table-view-save-as-footer">
-        <a-button data-testid="e2e-table-view-save-as-cancel" @click="saveAsVisible = false">Cancel</a-button>
-        <a-button type="primary" data-testid="e2e-table-view-save-as-submit" @click="handleSaveAs">Save</a-button>
+        <a-button data-testid="e2e-table-view-save-as-cancel" @click="saveAsVisible = false">{{ t("common.cancel") }}</a-button>
+        <a-button type="primary" data-testid="e2e-table-view-save-as-submit" @click="handleSaveAs">{{ t("common.save") }}</a-button>
       </a-space>
     </template>
   </a-drawer>
@@ -111,6 +111,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { MenuProps } from "ant-design-vue";
+import { useI18n } from "vue-i18n";
 import type { TableViewController, TableViewDensity } from "@/composables/useTableView";
 
 const props = defineProps<{
@@ -121,10 +122,11 @@ const columnsVisible = ref(false);
 const columnKeyword = ref("");
 const saveAsVisible = ref(false);
 const saveAsName = ref("");
+const { t } = useI18n();
 
 const viewOptions = computed(() =>
   props.controller.state.views.map((item) => ({
-    label: item.isDefault ? `${item.name} (default)` : item.name,
+    label: item.isDefault ? `${item.name} (${t("tableView.defaultSuffix")})` : item.name,
     value: item.id
   }))
 );
@@ -138,9 +140,9 @@ const filteredColumns = computed(() => {
 });
 
 const densityLabel = computed(() => {
-  if (props.controller.state.density === "compact") return "Compact";
-  if (props.controller.state.density === "comfortable") return "Comfortable";
-  return "Default";
+  if (props.controller.state.density === "compact") return t("tableView.densityCompact");
+  if (props.controller.state.density === "comfortable") return t("tableView.densityComfortable");
+  return t("tableView.densityDefault");
 });
 
 const handleSearch = async (value: string) => {

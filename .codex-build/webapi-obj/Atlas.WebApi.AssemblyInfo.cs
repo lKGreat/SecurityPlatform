@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Atlas.WebApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+29dbbb9e164778941f0e8ec6970a6fc3b4ee59ab")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a804e8f98fe6dffde9db520cbad391f5a7869d5")]
 [assembly: System.Reflection.AssemblyProductAttribute("Atlas.WebApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Atlas.WebApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

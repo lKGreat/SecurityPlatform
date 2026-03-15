@@ -86,6 +86,12 @@ public sealed class ExceptionHandlingMiddleware
             return fallbackMessage;
         }
 
+        var directLocalized = localizer[code];
+        if (!directLocalized.ResourceNotFound)
+        {
+            return directLocalized.Value;
+        }
+
         var resourceKey = code switch
         {
             ErrorCodes.ValidationError => "ValidationError",

@@ -7,6 +7,7 @@ import legacyZhCN from "../locales/zh";
 import { extraMessages } from "./extra-messages";
 import platformEnUS from "./en-US";
 import platformZhCN from "./zh-CN";
+import { runtimeMessages } from "./runtime-messages";
 
 export type SupportedLocale = "zh-CN" | "en-US";
 
@@ -86,14 +87,27 @@ export function getAntdLocale(locale: SupportedLocale): AntdLocale {
   return locale === "en-US" ? antdEnUS : antdZhCN;
 }
 
+export function translate(key: string, params?: Record<string, unknown>): string {
+  const translator = i18n.global as unknown as {
+    t: (messageKey: string, values?: Record<string, unknown>) => string;
+  };
+  return translator.t(key, params);
+}
+
 const messages = {
   "zh-CN": deepMergeMessages(
-    deepMergeMessages(legacyZhCN as MessageTree, platformZhCN as MessageTree),
-    extraMessages["zh-CN"]
+    deepMergeMessages(
+      deepMergeMessages(legacyZhCN as MessageTree, platformZhCN as MessageTree),
+      extraMessages["zh-CN"]
+    ),
+    runtimeMessages["zh-CN"]
   ),
   "en-US": deepMergeMessages(
-    deepMergeMessages(legacyEnUS as MessageTree, platformEnUS as MessageTree),
-    extraMessages["en-US"]
+    deepMergeMessages(
+      deepMergeMessages(legacyEnUS as MessageTree, platformEnUS as MessageTree),
+      extraMessages["en-US"]
+    ),
+    runtimeMessages["en-US"]
   )
 };
 
