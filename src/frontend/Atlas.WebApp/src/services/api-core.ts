@@ -28,6 +28,18 @@ import { getLocale } from "@/i18n";
 
 export const API_BASE = import.meta.env.VITE_API_BASE ?? "/api/v1";
 
+function resolveRequestUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
+  if (path.startsWith("/api/")) {
+    return path;
+  }
+
+  return `${API_BASE}${path}`;
+}
+
 export interface RequestOptions {
   disableAutoRefresh?: boolean;
   isRetry?: boolean;
@@ -203,7 +215,7 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
   };
 
   const runRequest = async () => {
-    const response = await fetch(`${API_BASE}${path}`, requestInit);
+    const response = await fetch(resolveRequestUrl(path), requestInit);
 
     const shouldAttemptRefresh = !options?.disableAutoRefresh && !options?.isRetry;
     if (response.status === 401 && shouldAttemptRefresh) {
@@ -354,7 +366,7 @@ export async function requestApiBlob(path: string, init?: RequestInit, options?:
 
   const requestInit: RequestInit = { ...init, headers, credentials: "include" };
   const runRequest = async () => {
-    const response = await fetch(`${API_BASE}${path}`, requestInit);
+    const response = await fetch(resolveRequestUrl(path), requestInit);
 
     if (response.status === 401) {
       const refreshed = await tryRefreshTokens();
