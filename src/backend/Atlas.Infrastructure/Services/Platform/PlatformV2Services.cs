@@ -4,7 +4,9 @@ using Atlas.Application.Platform.Models;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.AiPlatform.Entities;
+using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.Platform.Entities;
+using Atlas.Domain.System.Entities;
 using SqlSugar;
 
 namespace Atlas.Infrastructure.Services.Platform;
@@ -68,10 +70,14 @@ public sealed class ApplicationCatalogQueryService : IApplicationCatalogQuerySer
 public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryService
 {
     private readonly ILowCodeAppQueryService _lowCodeAppQueryService;
+    private readonly ISqlSugarClient _db;
 
-    public TenantAppInstanceQueryService(ILowCodeAppQueryService lowCodeAppQueryService)
+    public TenantAppInstanceQueryService(
+        ILowCodeAppQueryService lowCodeAppQueryService,
+        ISqlSugarClient db)
     {
         _lowCodeAppQueryService = lowCodeAppQueryService;
+        _db = db;
     }
 
     public async Task<PagedResult<TenantAppInstanceListItem>> QueryAsync(
@@ -118,6 +124,62 @@ public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryServi
             item.Icon,
             item.PublishedAt?.ToString("O"),
             item.DataSourceId);
+    }
+
+    public async Task<IReadOnlyList<TenantAppDataSourceBinding>> GetDataSourceBindingsAsync(
+        TenantId tenantId,
+        IReadOnlyCollection<long>? appInstanceIds,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantValue = tenantId.Value;
+        var appQuery = _db.Queryable<LowCodeApp>()
+            .Where(app => app.TenantIdValue == tenantValue);
+        if (appInstanceIds is { Count: > 0 })
+        {
+            var appIds = appInstanceIds.ToArray();
+            appQuery = appQuery.Where(app => appIds.Contains(app.Id));
+        }
+
+        var apps = await appQuery
+            .OrderByDescending(app => app.Id)
+            .ToListAsync(cancellationToken);
+        if (apps.Count == 0)
+        {
+            return [];
+        }
+
+        var dataSourceIds = apps
+            .Where(app => app.DataSourceId.HasValue)
+            .Select(app => app.DataSourceId!.Value)
+            .Distinct()
+            .ToArray();
+        var tenantIdText = tenantId.ToString();
+        var dataSourceDict = new Dictionary<long, TenantDataSource>();
+        if (dataSourceIds.Length > 0)
+        {
+            var tenantDataSources = await _db.Queryable<TenantDataSource>()
+                .Where(ds => ds.TenantIdValue == tenantIdText)
+                .ToListAsync(cancellationToken);
+            dataSourceDict = tenantDataSources
+                .Where(ds => dataSourceIds.Contains(ds.Id))
+                .ToDictionary(ds => ds.Id);
+        }
+
+        return apps
+            .Select(app =>
+            {
+                var dataSource = app.DataSourceId.HasValue && dataSourceDict.TryGetValue(app.DataSourceId.Value, out var item)
+                    ? item
+                    : null;
+                return new TenantAppDataSourceBinding(
+                    app.Id.ToString(),
+                    app.DataSourceId?.ToString(),
+                    dataSource?.Name,
+                    dataSource?.DbType,
+                    dataSource?.IsActive,
+                    dataSource?.LastTestedAt?.ToString("O"));
+            })
+            .ToArray();
     }
 }
 
@@ -255,5 +317,69 @@ public sealed class RuntimeExecutionQueryService : IRuntimeExecutionQueryService
             execution.InputsJson,
             execution.OutputsJson,
             execution.ErrorMessage);
+    }
+}
+
+public sealed class ResourceCenterQueryService : IResourceCenterQueryService
+{
+    private readonly ISqlSugarClient _db;
+
+    public ResourceCenterQueryService(ISqlSugarClient db)
+    {
+        _db = db;
+    }
+
+    public async Task<IReadOnlyList<ResourceCenterGroupItem>> GetGroupsAsync(
+        TenantId tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantIdValue = tenantId.Value;
+        var tenantIdText = tenantId.ToString();
+
+        var catalogsTask = _db.Queryable<AppManifest>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.UpdatedAt)
+            .ToListAsync(cancellationToken);
+        var appInstancesTask = _db.Queryable<LowCodeApp>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.UpdatedAt)
+            .ToListAsync(cancellationToken);
+        var dataSourcesTask = _db.Queryable<TenantDataSource>()
+            .Where(item => item.TenantIdValue == tenantIdText)
+            .OrderByDescending(item => item.UpdatedAt)
+            .ToListAsync(cancellationToken);
+        await Task.WhenAll(catalogsTask, appInstancesTask, dataSourcesTask);
+
+        var catalogItems = catalogsTask.Result
+            .Select(item => new ResourceCenterGroupEntry(
+                item.Id.ToString(),
+                item.Name,
+                "ApplicationCatalog",
+                item.Status.ToString(),
+                item.Description))
+            .ToArray();
+        var appInstanceItems = appInstancesTask.Result
+            .Select(item => new ResourceCenterGroupEntry(
+                item.Id.ToString(),
+                item.Name,
+                "TenantAppInstance",
+                item.Status.ToString(),
+                item.Description))
+            .ToArray();
+        var dataSourceItems = dataSourcesTask.Result
+            .Select(item => new ResourceCenterGroupEntry(
+                item.Id.ToString(),
+                item.Name,
+                "TenantDataSource",
+                item.IsActive ? "Active" : "Disabled",
+                item.LastTestMessage))
+            .ToArray();
+
+        return
+        [
+            new ResourceCenterGroupItem("catalogs", "应用目录", catalogItems.Length, catalogItems),
+            new ResourceCenterGroupItem("instances", "租户应用实例", appInstanceItems.Length, appInstanceItems),
+            new ResourceCenterGroupItem("datasources", "租户数据源", dataSourceItems.Length, dataSourceItems)
+        ];
     }
 }

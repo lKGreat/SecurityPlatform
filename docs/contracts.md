@@ -185,6 +185,15 @@
 - `GET /api/v2/runtime-executions`
 - `GET /api/v2/runtime-executions/{id}`
 
+#### v2 P1 扩展读接口（资源中心与绑定关系）
+
+- `GET /api/v2/tenant-app-instances/data-source-bindings?appIds=1&appIds=2`
+  - 用于查询租户应用实例与租户数据源绑定关系。
+  - `appIds` 可选；未传时返回当前租户全部实例绑定。
+- `GET /api/v2/resource-center/groups`
+  - 返回资源中心分组聚合（`catalogs`/`instances`/`datasources`）。
+  - 要求服务端采用批量查询 + 内存聚合，禁止循环内数据库访问。
+
 #### 前端主路径约定与弃用窗口（SEC-92）
 
 | 主路径（规范） | 兼容路径（Deprecated） | 弃用窗口 | 备注 |

@@ -28,3 +28,8 @@ X-Tenant-Id: {{tenantId}}
 GET {{baseUrl}}/api/v2/tenant-app-instances/1
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
+
+### 查询实例数据源绑定（可选 appIds 过滤）
+GET {{baseUrl}}/api/v2/tenant-app-instances/data-source-bindings?appIds=1&appIds=2
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}

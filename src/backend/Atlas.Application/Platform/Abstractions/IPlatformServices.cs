@@ -55,6 +55,10 @@ public interface ITenantAppInstanceQueryService
 {
     Task<PagedResult<TenantAppInstanceListItem>> QueryAsync(TenantId tenantId, PagedRequest request, CancellationToken cancellationToken = default);
     Task<TenantAppInstanceDetail?> GetByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TenantAppDataSourceBinding>> GetDataSourceBindingsAsync(
+        TenantId tenantId,
+        IReadOnlyCollection<long>? appInstanceIds,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IRuntimeContextQueryService
@@ -83,5 +87,12 @@ public interface IRuntimeExecutionQueryService
     Task<RuntimeExecutionDetail?> GetByIdAsync(
         TenantId tenantId,
         long executionId,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IResourceCenterQueryService
+{
+    Task<IReadOnlyList<ResourceCenterGroupItem>> GetGroupsAsync(
+        TenantId tenantId,
         CancellationToken cancellationToken = default);
 }

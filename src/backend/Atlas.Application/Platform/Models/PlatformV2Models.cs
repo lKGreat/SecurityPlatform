@@ -53,6 +53,14 @@ public sealed record TenantAppInstanceDetail(
     string? PublishedAt,
     string? DataSourceId);
 
+public sealed record TenantAppDataSourceBinding(
+    string TenantAppInstanceId,
+    string? DataSourceId,
+    string? DataSourceName,
+    string? DbType,
+    bool? DataSourceActive,
+    string? LastTestedAt);
+
 public sealed record RuntimeContextListItem(
     string Id,
     string AppKey,
@@ -86,3 +94,16 @@ public sealed record RuntimeExecutionDetail(
     string? InputsJson,
     string? OutputsJson,
     string? ErrorMessage);
+
+public sealed record ResourceCenterGroupEntry(
+    string ResourceId,
+    string ResourceName,
+    string ResourceType,
+    string? Status,
+    string? Description);
+
+public sealed record ResourceCenterGroupItem(
+    string GroupKey,
+    string GroupName,
+    int Total,
+    IReadOnlyList<ResourceCenterGroupEntry> Items);

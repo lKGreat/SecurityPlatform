@@ -50,4 +50,16 @@ public sealed class TenantAppInstancesV2Controller : ControllerBase
 
         return Ok(ApiResponse<TenantAppInstanceDetail>.Ok(result, HttpContext.TraceIdentifier));
     }
+
+    [HttpGet("data-source-bindings")]
+    [Authorize(Policy = PermissionPolicies.AppsView)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<TenantAppDataSourceBinding>>>> GetDataSourceBindings(
+        [FromQuery] long[]? appIds,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        IReadOnlyCollection<long>? appInstanceIds = appIds is { Length: > 0 } ? appIds : null;
+        var result = await _queryService.GetDataSourceBindingsAsync(tenantId, appInstanceIds, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<TenantAppDataSourceBinding>>.Ok(result, HttpContext.TraceIdentifier));
+    }
 }
