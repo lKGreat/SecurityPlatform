@@ -42,8 +42,11 @@ export async function getReleaseCenterDetail(releaseId: string): Promise<Release
 }
 
 export async function rollbackReleaseCenter(releaseId: string): Promise<void> {
+  const idempotencyKey = `release-center-rollback-${releaseId}-${Date.now()}`;
   const response = await requestApi<ApiResponse<{ id: string }>>(`${RELEASE_CENTER_BASE}/${releaseId}/rollback`, {
     method: "POST"
+  }, {
+    idempotencyKey
   });
   if (!response.success) {
     throw new Error(response.message || "发布回滚失败");
