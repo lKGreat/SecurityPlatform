@@ -81,7 +81,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import type { FormInstance } from "ant-design-vue";
 import {
@@ -92,7 +92,9 @@ import {
   type AgentListItem
 } from "@/services/api-agent";
 import { getEnabledModelConfigs, type ModelConfigDto } from "@/services/api-model-config";
+import { getCurrentAppIdFromStorage } from "@/utils/app-context";
 
+const route = useRoute();
 const router = useRouter();
 const list = ref<AgentListItem[]>([]);
 const keyword = ref("");
@@ -173,8 +175,22 @@ function handleModelSearch(value: string) {
   void loadModelConfigs(value);
 }
 
+function resolveAppId() {
+  const routeAppId = typeof route.params.appId === "string" ? route.params.appId.trim() : "";
+  if (routeAppId) {
+    return routeAppId;
+  }
+
+  return getCurrentAppIdFromStorage();
+}
+
 function goEdit(id: number) {
-  void router.push(`/ai/agents/${id}/edit`);
+  const currentAppId = resolveAppId();
+  if (!currentAppId) {
+    void router.push("/console/apps");
+    return;
+  }
+  void router.push(`/apps/${currentAppId}/agents/${id}/edit`);
 }
 
 function openCreate() {

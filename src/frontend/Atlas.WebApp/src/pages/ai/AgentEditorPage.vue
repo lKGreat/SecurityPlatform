@@ -84,6 +84,7 @@ import {
   updateAgent
 } from "@/services/api-agent";
 import { getEnabledModelConfigs, type ModelConfigDto } from "@/services/api-model-config";
+import { getCurrentAppIdFromStorage } from "@/utils/app-context";
 
 const route = useRoute();
 const router = useRouter();
@@ -114,7 +115,13 @@ const modelOptions = computed(() =>
 );
 
 function goBack() {
-  void router.push("/ai/agents");
+  const routeAppId = typeof route.params.appId === "string" ? route.params.appId.trim() : "";
+  const currentAppId = routeAppId || getCurrentAppIdFromStorage();
+  if (!currentAppId) {
+    void router.push("/console/apps");
+    return;
+  }
+  void router.push(`/apps/${currentAppId}/agents`);
 }
 
 async function loadData() {

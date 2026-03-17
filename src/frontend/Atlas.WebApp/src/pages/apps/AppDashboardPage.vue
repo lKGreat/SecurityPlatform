@@ -29,8 +29,10 @@
       <a-space wrap>
         <a-button @click="go(`/apps/${appId}/builder`)">页面设计器</a-button>
         <a-button @click="go(`/apps/${appId}/settings`)">应用设置</a-button>
-        <a-button @click="go('/process/inbox')">审批待办</a-button>
-        <a-button @click="go('/workflow/designer')">工作流设计</a-button>
+        <a-button @click="go(`/apps/${appId}/agents`)">Agent 管理</a-button>
+        <a-button @click="go(`/apps/${appId}/workflows`)">Workflow 管理</a-button>
+        <a-button @click="go(`/apps/${appId}/prompts`)">Prompt 模板</a-button>
+        <a-button @click="go(`/apps/${appId}/plugins`)">插件配置</a-button>
       </a-space>
     </a-card>
   </div>

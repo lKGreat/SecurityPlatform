@@ -3,7 +3,7 @@
     <!-- 顶部工具栏 -->
     <div class="editor-header">
       <div class="header-left">
-        <a-button type="text" @click="$router.push('/workflow')" style="color:#fff">
+        <a-button type="text" @click="backToList" style="color:#fff">
           <LeftOutlined />
         </a-button>
         <a-input
@@ -94,7 +94,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, markRaw } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
   LeftOutlined,
@@ -122,6 +122,7 @@ import TestRunPanel from '@/components/workflow/panels/TestRunPanel.vue'
 import WorkflowNodeRenderer from '@/components/workflow/nodes/WorkflowNodeRenderer.vue'
 
 import { workflowV2Api } from '@/services/api-workflow-v2'
+import { getCurrentAppIdFromStorage } from '@/utils/app-context'
 import type {
   CanvasSchema,
   NodeSchema,
@@ -131,6 +132,7 @@ import type {
 } from '@/types/workflow-v2'
 
 const route = useRoute()
+const router = useRouter()
 const workflowId = computed(() => Number(route.params.id))
 
 const workflowName = ref('未命名工作流')
@@ -169,6 +171,16 @@ const defaultEdgeOptions = {
 }
 
 let draggingNodeType: string | null = null
+
+function backToList() {
+  const routeAppId = typeof route.params.appId === 'string' ? route.params.appId.trim() : ''
+  const currentAppId = routeAppId || getCurrentAppIdFromStorage()
+  if (!currentAppId) {
+    router.push('/console/apps')
+    return
+  }
+  router.push(`/apps/${currentAppId}/workflows`)
+}
 
 const currentCanvas = computed<CanvasSchema>(() => {
   const nodes: NodeSchema[] = vfNodes.value.map(n => ({

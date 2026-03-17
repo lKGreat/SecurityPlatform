@@ -28,6 +28,18 @@
           <a-menu-item :key="flowsPath">
             <span data-testid="e2e-app-workspace-menu-flows">Flows</span>
           </a-menu-item>
+          <a-menu-item :key="agentsPath">
+            <span data-testid="e2e-app-workspace-menu-agents">Agents</span>
+          </a-menu-item>
+          <a-menu-item :key="workflowsPath">
+            <span data-testid="e2e-app-workspace-menu-workflows">Workflows</span>
+          </a-menu-item>
+          <a-menu-item :key="promptsPath">
+            <span data-testid="e2e-app-workspace-menu-prompts">Prompts</span>
+          </a-menu-item>
+          <a-menu-item :key="pluginsPath">
+            <span data-testid="e2e-app-workspace-menu-plugins">Plugins</span>
+          </a-menu-item>
           <a-menu-item :key="dataPath">
             <span data-testid="e2e-app-workspace-menu-data">Data</span>
           </a-menu-item>
@@ -117,6 +129,10 @@ const builderPath = computed(() => `/apps/${appId.value}/builder`);
 const pagesPath = computed(() => `/apps/${appId.value}/pages`);
 const formsPath = computed(() => `/apps/${appId.value}/forms`);
 const flowsPath = computed(() => `/apps/${appId.value}/flows`);
+const agentsPath = computed(() => `/apps/${appId.value}/agents`);
+const workflowsPath = computed(() => `/apps/${appId.value}/workflows`);
+const promptsPath = computed(() => `/apps/${appId.value}/prompts`);
+const pluginsPath = computed(() => `/apps/${appId.value}/plugins`);
 const dataPath = computed(() => `/apps/${appId.value}/data`);
 const runtimeHomePath = computed(() => `/apps/${appId.value}/run/home`);
 const settingsPath = computed(() => `/apps/${appId.value}/settings`);
@@ -131,14 +147,23 @@ const selectedKeys = computed(() => {
   if (route.path.startsWith(formsPath.value)) {
     return [formsPath.value];
   }
-  if (route.path.startsWith(flowsPath.value) || route.path.startsWith(`/apps/${appId.value}/workflows/`)) {
+  if (route.path.startsWith(flowsPath.value)) {
     return [flowsPath.value];
+  }
+  if (route.path.startsWith(agentsPath.value)) {
+    return [agentsPath.value];
+  }
+  if (route.path.startsWith(workflowsPath.value)) {
+    return [workflowsPath.value];
+  }
+  if (route.path.startsWith(promptsPath.value)) {
+    return [promptsPath.value];
+  }
+  if (route.path.startsWith(pluginsPath.value)) {
+    return [pluginsPath.value];
   }
   if (route.path.startsWith(dataPath.value)) {
     return [dataPath.value];
-  }
-  if (route.path.startsWith(`/apps/${appId.value}/agents/`)) {
-    return [dashboardPath.value];
   }
   if (route.path.startsWith(`/apps/${appId.value}/run/`)) {
     return [runtimeHomePath.value];

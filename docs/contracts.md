@@ -232,9 +232,30 @@
 | `/apps/:appId/*` | `/ai/*`、`/lowcode/*`、`/workflow/*` | 6 个月 | 应用工作台主入口，编辑页需下沉 |
 | `/r/:appKey/:pageKey` | `/apps/:appId/run/:pageKey` | 6 个月 | 运行交付面主入口 |
 
+#### App Workspace 编辑入口收敛清单（2026-03-17）
+
+| 能力域 | 规范路径 | 兼容路径（Deprecated） |
+|---|---|---|
+| Agent | `/apps/:appId/agents`、`/apps/:appId/agents/:id/edit` | `/ai/agents`、`/ai/agents/:id/edit` |
+| Workflow | `/apps/:appId/workflows`、`/apps/:appId/workflows/:id/editor` | `/workflow`、`/workflow/:id/editor`、`/ai/workflows`、`/ai/workflows/:id/edit` |
+| Prompt | `/apps/:appId/prompts` | `/ai/prompts` |
+| PluginConfig | `/apps/:appId/plugins`、`/apps/:appId/plugins/:id`、`/apps/:appId/plugins/:id/apis/:apiId` | `/ai/plugins`、`/ai/plugins/:id`、`/ai/plugins/:id/apis/:apiId` |
+
 - 兼容路径必须返回可追踪的迁移提示（页面提示或响应头提示），禁止直接返回 404。
 - 兼容窗口内仅允许新增 redirect 与安全修复，不允许在兼容路径上新增业务功能。
 - 兼容窗口结束后移除旧路径时，必须同步更新 `router`、`titleKey`、`.http` 与发布说明。
+
+#### 迁移卡 Done 与观测口径（治理约束）
+
+- Done 最低标准：
+  - 主路径可访问、兼容路径可重定向、关键菜单高亮正确。
+  - 页面内部返回链路回到 `/apps/:appId/*`，不再写死 legacy 路径。
+  - 至少完成一次 `dotnet build` 与 `npm run build` 验证。
+- 观测指标建议：
+  - Redirect 命中率：legacy -> 新路径命中比例。
+  - 404 率：迁移相关路径 404 数量。
+  - 入口收敛率：新入口 `/apps/:appId/*` 访问占比。
+  - 回退率：legacy 路径直接访问占比。
 
 #### 迁移联调顺序与禁止事项（SEC-94）
 

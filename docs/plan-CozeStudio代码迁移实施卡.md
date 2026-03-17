@@ -433,6 +433,9 @@
 - `P1-BE-01`：补齐 `tenant-app-instances` v2 写链路（create/update/publish/delete/export/import）。
 - `P1-FE-01`：应用管理写链路切换到 `/api/v2/tenant-app-instances/*`，并新增 `TenantApplication` 前端类型与 API 客户端。
 - `P0-FE-02`：补充 legacy 路由迁移提示，收口四段式入口下的 titleKey。
+- `P0-FE-02`：将 Agent/Workflow/Prompt/Plugin 四类入口下沉至 `/apps/:appId/*`，并补齐 `/ai/*`、`/workflow/*` 兼容重定向。
+- `P0-FE-02`：统一 App Workspace 侧边菜单与页面内返回跳转，消除 `/ai/*`、`/workflow/*` 的内部硬编码。
+- `P0-CT-01`：补充迁移主链映射、Done 定义、观测指标与 Owner/Backup Owner 责任口径。
 
 下一步建议（未执行）：
 
@@ -475,3 +478,40 @@
 - 本文档覆盖本轮 14 份分析文档的主要实施出口。
 - 每张卡都具备前置依赖、交付范围、验收标准，可直接进入开发排期。
 - 后续若新增补充分析文档，应优先更新本矩阵，再调整 Linear 项目任务。
+
+---
+
+## 7. 迁移治理补充（2026-03-17）
+
+### 7.1 主链映射（Main Chain）
+
+1. **入口层**：`/console/*`（治理入口） -> `/apps/:appId/*`（应用装配） -> `/r/:appKey/:pageKey`（运行交付）。
+2. **应用装配层关键入口**：
+   - `Agent`：`/apps/:appId/agents`、`/apps/:appId/agents/:id/edit`
+   - `Workflow`：`/apps/:appId/workflows`、`/apps/:appId/workflows/:id/editor`
+   - `Prompt`：`/apps/:appId/prompts`
+   - `PluginConfig`：`/apps/:appId/plugins`、`/apps/:appId/plugins/:id`
+3. **兼容层**：`/ai/*`、`/workflow/*` 仅保留 Redirect + Deprecated 提示，不再承载新功能。
+
+### 7.2 Done 定义（本轮迁移卡）
+
+- 路由：主路径可访问，旧路径可重定向且无 404。
+- 菜单：App Workspace 菜单可直达主链入口，选中高亮准确。
+- 页面跳转：列表/详情/编辑返回链路均回到 `/apps/:appId/*`。
+- 文档：`docs/contracts.md` 与本计划文档同步更新。
+- 验证：至少包含 `dotnet build`、`npm run build` 与关键路由手工验证记录。
+
+### 7.3 观测口径（Migration Observability）
+
+- **Redirect 命中率**：统计 `/ai/*`、`/workflow/*` 到 `/apps/:appId/*` 的跳转命中。
+- **404 率**：关注迁移路径相关 404 是否归零。
+- **入口收敛率**：新会话进入 `/apps/:appId/*` 占比，目标持续上升。
+- **回退率**：用户从新入口回退到 legacy 路由比例，目标持续下降。
+
+### 7.4 Owner / Backup Owner
+
+- **Owner（前端迁移）**：前端负责人（路由、菜单、页面跳转、兼容提示）。
+- **Backup Owner（契约治理）**：后端/架构负责人（contracts、弃用窗口、v1/v2 映射口径）。
+- **协作规则**：
+  - 任何主路径变更必须先更新 `docs/contracts.md` 再改代码。
+  - 任何兼容路径移除必须满足 6 个月弃用窗口并在发布说明显式公告。
