@@ -174,6 +174,17 @@
 | `/api/v1/app-manifests/*` | `/api/v2/application-catalogs/*` | v1 保留只读/兼容映射 |
 | `/api/v1/runtime/*`（混用） | `/api/v2/runtime-contexts/*` + `/api/v2/runtime-executions/*` | 先并行，后下线 |
 
+#### v2 最小读接口（P0 占位基线）
+
+- `GET /api/v2/application-catalogs`
+- `GET /api/v2/application-catalogs/{id}`
+- `GET /api/v2/tenant-app-instances`
+- `GET /api/v2/tenant-app-instances/{id}`
+- `GET /api/v2/runtime-contexts`
+- `GET /api/v2/runtime-contexts/{appKey}/{pageKey}`
+- `GET /api/v2/runtime-executions`
+- `GET /api/v2/runtime-executions/{id}`
+
 #### 前端主路径约定与弃用窗口（SEC-92）
 
 | 主路径（规范） | 兼容路径（Deprecated） | 弃用窗口 | 备注 |

@@ -1,0 +1,88 @@
+namespace Atlas.Application.Platform.Models;
+
+public sealed record ApplicationCatalogListItem(
+    string Id,
+    string CatalogKey,
+    string Name,
+    string Status,
+    int Version,
+    string? Description,
+    string? Category,
+    string? Icon,
+    string? PublishedAt);
+
+public sealed record ApplicationCatalogDetail(
+    string Id,
+    string CatalogKey,
+    string Name,
+    string Status,
+    int Version,
+    string? Description,
+    string? Category,
+    string? Icon,
+    string? PublishedAt,
+    string? DataSourceId);
+
+public sealed record TenantApplicationListItem(
+    string Id,
+    string CatalogId,
+    string TenantId,
+    string Status,
+    string? OpenedAt);
+
+public sealed record TenantAppInstanceListItem(
+    string Id,
+    string AppKey,
+    string Name,
+    string Status,
+    int Version,
+    string? Description,
+    string? Category,
+    string? Icon,
+    string? PublishedAt);
+
+public sealed record TenantAppInstanceDetail(
+    string Id,
+    string AppKey,
+    string Name,
+    string Status,
+    int Version,
+    string? Description,
+    string? Category,
+    string? Icon,
+    string? PublishedAt,
+    string? DataSourceId);
+
+public sealed record RuntimeContextListItem(
+    string Id,
+    string AppKey,
+    string PageKey,
+    int SchemaVersion,
+    string EnvironmentCode,
+    bool IsActive);
+
+public sealed record RuntimeContextDetail(
+    string Id,
+    string AppKey,
+    string PageKey,
+    int SchemaVersion,
+    string EnvironmentCode,
+    bool IsActive);
+
+public sealed record RuntimeExecutionListItem(
+    string Id,
+    string RuntimeContextId,
+    string Status,
+    string StartedAt,
+    string? CompletedAt,
+    string? ErrorMessage);
+
+public sealed record RuntimeExecutionDetail(
+    string Id,
+    string RuntimeContextId,
+    string Status,
+    string StartedAt,
+    string? CompletedAt,
+    string? InputsJson,
+    string? OutputsJson,
+    string? ErrorMessage);

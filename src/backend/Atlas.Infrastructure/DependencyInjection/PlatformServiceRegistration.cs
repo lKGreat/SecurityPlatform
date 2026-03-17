@@ -13,8 +13,12 @@ public static class PlatformServiceRegistration
         services.AddScoped<IRuntimeRouteRepository, RuntimeRouteRepository>();
         services.AddScoped<IPlatformQueryService, PlatformQueryService>();
         services.AddScoped<IAppManifestQueryService, AppManifestQueryService>();
+        services.AddScoped<IApplicationCatalogQueryService, ApplicationCatalogQueryService>();
         services.AddScoped<IAppManifestCommandService, AppManifestCommandService>();
         services.AddScoped<IAppReleaseCommandService, AppReleaseCommandService>();
+        services.AddScoped<ITenantAppInstanceQueryService, TenantAppInstanceQueryService>();
+        services.AddScoped<IRuntimeContextQueryService, RuntimeContextQueryService>();
+        services.AddScoped<IRuntimeExecutionQueryService, RuntimeExecutionQueryService>();
         services.AddScoped<IRuntimeRouteQueryService, RuntimeRouteQueryService>();
         return services;
     }

@@ -44,3 +44,44 @@ public interface IRuntimeRouteQueryService
     Task<RuntimeMenuResponse> GetRuntimeMenuAsync(TenantId tenantId, string appKey, CancellationToken cancellationToken = default);
     Task<bool> ExecuteRuntimeTaskActionAsync(TenantId tenantId, long userId, long taskId, RuntimeTaskActionRequest request, CancellationToken cancellationToken = default);
 }
+
+public interface IApplicationCatalogQueryService
+{
+    Task<PagedResult<ApplicationCatalogListItem>> QueryAsync(TenantId tenantId, PagedRequest request, CancellationToken cancellationToken = default);
+    Task<ApplicationCatalogDetail?> GetByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default);
+}
+
+public interface ITenantAppInstanceQueryService
+{
+    Task<PagedResult<TenantAppInstanceListItem>> QueryAsync(TenantId tenantId, PagedRequest request, CancellationToken cancellationToken = default);
+    Task<TenantAppInstanceDetail?> GetByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default);
+}
+
+public interface IRuntimeContextQueryService
+{
+    Task<PagedResult<RuntimeContextListItem>> QueryAsync(
+        TenantId tenantId,
+        PagedRequest request,
+        string? appKey = null,
+        string? pageKey = null,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeContextDetail?> GetByRouteAsync(
+        TenantId tenantId,
+        string appKey,
+        string pageKey,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IRuntimeExecutionQueryService
+{
+    Task<PagedResult<RuntimeExecutionListItem>> QueryAsync(
+        TenantId tenantId,
+        PagedRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeExecutionDetail?> GetByIdAsync(
+        TenantId tenantId,
+        long executionId,
+        CancellationToken cancellationToken = default);
+}
