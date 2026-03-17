@@ -361,7 +361,7 @@ const licenseExpireText = computed(() => {
   return "";
 });
 
-const allowLoginForm = computed(() => licenseStatusCode.value === "Active" || import.meta.env.DEV);
+const allowLoginForm = computed(() => licenseStatusCode.value === "Active");
 
 const isSubmitDisabled = computed(
   () =>

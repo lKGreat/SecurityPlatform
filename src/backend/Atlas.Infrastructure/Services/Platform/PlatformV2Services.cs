@@ -200,10 +200,11 @@ public sealed class RuntimeContextQueryService : IRuntimeContextQueryService
         string? pageKey = null,
         CancellationToken cancellationToken = default)
     {
-        _ = tenantId;
+        var tenantValue = tenantId.Value;
         var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
         var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
-        var query = _db.Queryable<RuntimeRoute>();
+        var query = _db.Queryable<RuntimeRoute>()
+            .Where(route => route.TenantIdValue == tenantValue);
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             var keyword = request.Keyword.Trim();
@@ -245,9 +246,11 @@ public sealed class RuntimeContextQueryService : IRuntimeContextQueryService
         string pageKey,
         CancellationToken cancellationToken = default)
     {
-        _ = tenantId;
+        var tenantValue = tenantId.Value;
         var route = await _db.Queryable<RuntimeRoute>()
-            .FirstAsync(x => x.AppKey == appKey && x.PageKey == pageKey, cancellationToken);
+            .FirstAsync(
+                x => x.TenantIdValue == tenantValue && x.AppKey == appKey && x.PageKey == pageKey,
+                cancellationToken);
         if (route is null)
         {
             return null;
@@ -277,10 +280,11 @@ public sealed class RuntimeExecutionQueryService : IRuntimeExecutionQueryService
         PagedRequest request,
         CancellationToken cancellationToken = default)
     {
-        _ = tenantId;
+        var tenantValue = tenantId.Value;
         var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
         var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
-        var query = _db.Queryable<WorkflowExecution>();
+        var query = _db.Queryable<WorkflowExecution>()
+            .Where(execution => execution.TenantIdValue == tenantValue);
         var total = await query.CountAsync(cancellationToken);
         var rows = await query
             .OrderByDescending(execution => execution.StartedAt)
@@ -301,9 +305,9 @@ public sealed class RuntimeExecutionQueryService : IRuntimeExecutionQueryService
         long executionId,
         CancellationToken cancellationToken = default)
     {
-        _ = tenantId;
+        var tenantValue = tenantId.Value;
         var execution = await _db.Queryable<WorkflowExecution>()
-            .FirstAsync(item => item.Id == executionId, cancellationToken);
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == executionId, cancellationToken);
         if (execution is null)
         {
             return null;
@@ -330,8 +334,13 @@ public sealed class RuntimeExecutionQueryService : IRuntimeExecutionQueryService
         var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
         var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
         var executionIdText = executionId.ToString();
+        var workflowExecutionTarget = $"WorkflowExecution:{executionIdText}";
+        var runtimeExecutionTarget = $"RuntimeExecution:{executionIdText}";
         var query = _db.Queryable<AuditRecord>()
-            .Where(item => item.TenantIdValue == tenantValue && item.Target.Contains(executionIdText));
+            .Where(item => item.TenantIdValue == tenantValue
+                && (item.Target == executionIdText
+                    || item.Target == workflowExecutionTarget
+                    || item.Target == runtimeExecutionTarget));
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             var keyword = request.Keyword.Trim();
