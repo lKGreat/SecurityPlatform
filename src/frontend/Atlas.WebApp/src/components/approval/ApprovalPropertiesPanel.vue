@@ -73,6 +73,17 @@
                 />
               </a-form-item>
 
+              <a-form-item label="逐级审批上限" v-else-if="approveForm.assigneeType === 3">
+                <a-input-number
+                  v-model:value="assigneeLevel"
+                  :min="1"
+                  :max="20"
+                  style="width: 100%"
+                  placeholder="最多向上查找层级"
+                />
+                <div class="dd-form-hint">系统会沿组织架构逐级向上查找审批人，直到指定层级。</div>
+              </a-form-item>
+
               <a-form-item label="审批层级" v-else-if="approveForm.assigneeType === 4">
                 <a-input-number
                   v-model:value="assigneeLevel"
@@ -81,17 +92,34 @@
                   style="width: 100%"
                   placeholder="请输入向上审批层级"
                 />
+                <div class="dd-form-hint">指定固定层级的领导作为审批人。</div>
               </a-form-item>
 
-              <a-form-item
-                label="业务字段路径"
-                v-else-if="approveForm.assigneeType === 9"
-              >
-                <a-input
-                  v-model:value="assigneeExpression"
-                  placeholder="示例：formData.ownerId"
-                />
-              </a-form-item>
+              <template v-else-if="approveForm.assigneeType === 9">
+                <a-form-item label="人员字段">
+                  <a-select
+                    v-if="formFields && formFields.length > 0"
+                    v-model:value="assigneeExpression"
+                    placeholder="选择包含审批人信息的表单字段"
+                    allow-clear
+                    show-search
+                  >
+                    <a-select-option
+                      v-for="field in formFields"
+                      :key="field.id || field.fieldId"
+                      :value="field.id || field.fieldId"
+                    >
+                      {{ field.label || field.fieldName }}
+                    </a-select-option>
+                  </a-select>
+                  <a-input
+                    v-else
+                    v-model:value="assigneeExpression"
+                    placeholder="示例：formData.ownerId"
+                  />
+                  <div class="dd-form-hint">从提交表单中动态提取审批人信息。</div>
+                </a-form-item>
+              </template>
 
               <a-form-item
                 label="外部人员字段"
@@ -101,6 +129,7 @@
                   v-model:value="assigneeExpression"
                   placeholder="示例：externalApprovers"
                 />
+                <div class="dd-form-hint">从外部系统传入的审批人标识字段。</div>
               </a-form-item>
 
               <a-alert
@@ -982,6 +1011,12 @@ function getAssigneeTypeHint(type: ApproveNode['assigneeType']): string {
   margin-left: 8px;
   font-size: 12px;
   color: #8c8c8c;
+}
+.dd-form-hint {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: 4px;
+  line-height: 1.5;
 }
 .dd-empty-rule {
   padding: 8px 0;
