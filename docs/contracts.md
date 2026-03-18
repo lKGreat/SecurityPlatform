@@ -218,6 +218,30 @@
   - `export` 为只读接口，不要求幂等头。
   - `import` 的 `package` 契约沿用 `LowCodeAppExportPackage`，用于兼容窗口内平滑迁移。
 
+#### v2 P0 应用成员与应用角色接口（App-level Isolation）
+
+- 应用成员（`UseSharedUsers=false` 时启用）：
+  - `GET /api/v2/tenant-app-instances/{appId}/members`
+  - `GET /api/v2/tenant-app-instances/{appId}/members/{userId}`
+  - `POST /api/v2/tenant-app-instances/{appId}/members`
+  - `PUT /api/v2/tenant-app-instances/{appId}/members/{userId}/roles`
+  - `DELETE /api/v2/tenant-app-instances/{appId}/members/{userId}`
+- 应用角色（`UseSharedRoles=false` 时启用）：
+  - `GET /api/v2/tenant-app-instances/{appId}/roles`
+  - `GET /api/v2/tenant-app-instances/{appId}/roles/{roleId}`
+  - `POST /api/v2/tenant-app-instances/{appId}/roles`
+  - `PUT /api/v2/tenant-app-instances/{appId}/roles/{roleId}`
+  - `PUT /api/v2/tenant-app-instances/{appId}/roles/{roleId}/permissions`
+  - `DELETE /api/v2/tenant-app-instances/{appId}/roles/{roleId}`
+
+约束说明：
+
+- 当应用启用共享用户/共享角色时，对应接口返回 `VALIDATION_ERROR`。
+- 应用工作台中 `app:user` / `app:admin` 受保护接口会触发成员中间件校验：
+  - `UseSharedUsers=false` 且用户未入组时返回 `FORBIDDEN`。
+  - 平台管理员/系统管理员允许绕过成员校验。
+- 成员与角色绑定操作必须采用批量查询与批量写入，禁止在循环内数据库操作。
+
 #### v2 P2 发布闭环接口（首批）
 
 - `GET /api/v2/release-center/releases`

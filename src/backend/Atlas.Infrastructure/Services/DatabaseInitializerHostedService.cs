@@ -82,6 +82,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
 
         // 关键兼容迁移：平台管理员标记字段缺失会导致登录链路失败，需始终检查并补齐。
         await EnsureUserAccountSchemaAsync(db, cancellationToken);
+        await EnsureAppMembershipSchemaAsync(db, cancellationToken);
 
         // Schema 迁移检查（兼容历史版本字段结构）
         if (!_initializerOptions.SkipSchemaMigrations)
@@ -215,6 +216,10 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(FileUploadSession),
             typeof(TenantDataSource),
             typeof(TenantAppDataSourceBinding),
+            typeof(AppMember),
+            typeof(AppRole),
+            typeof(AppUserRole),
+            typeof(AppRolePermission),
             typeof(Tenant),
             // Low code module (types already registered above: LowCodeApp, AppEntityAlias, LowCodePage, FormDefinition)
             typeof(LowCodeAppVersion),
@@ -1230,6 +1235,23 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         cancellationToken.ThrowIfCancellationRequested();
         await db.Ado.ExecuteCommandAsync(
             "ALTER TABLE UserAccount ADD COLUMN IsPlatformAdmin INTEGER NOT NULL DEFAULT 0");
+    }
+
+    private static Task EnsureAppMembershipSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
+    {
+        var missingTables =
+            !db.DbMaintenance.IsAnyTable("AppMember", false)
+            || !db.DbMaintenance.IsAnyTable("AppRole", false)
+            || !db.DbMaintenance.IsAnyTable("AppUserRole", false)
+            || !db.DbMaintenance.IsAnyTable("AppRolePermission", false);
+        if (!missingTables)
+        {
+            return Task.CompletedTask;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        db.CodeFirst.InitTables<AppMember, AppRole, AppUserRole, AppRolePermission>();
+        return Task.CompletedTask;
     }
 
     private static async Task EnsureAuthSessionSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)
