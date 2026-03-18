@@ -9,7 +9,8 @@ import type {
   TenantAppInstanceDetail,
   TenantAppInstanceListItem,
   TenantAppDataSourceBinding,
-  ResourceCenterGroupItem
+  ResourceCenterGroupItem,
+  ResourceCenterDataSourceConsumptionResponse
 } from "@/types/platform-v2";
 import { requestApi, requestApiBlob } from "@/services/api-core";
 
@@ -128,6 +129,17 @@ export async function getResourceCenterGroups(): Promise<ResourceCenterGroupItem
   const response = await requestApi<ApiResponse<ResourceCenterGroupItem[]>>(`${RESOURCE_CENTER_BASE}/groups`);
   if (!response.data) {
     throw new Error(response.message || "查询资源中心分组失败");
+  }
+
+  return response.data;
+}
+
+export async function getResourceCenterDataSourceConsumption(): Promise<ResourceCenterDataSourceConsumptionResponse> {
+  const response = await requestApi<ApiResponse<ResourceCenterDataSourceConsumptionResponse>>(
+    `${RESOURCE_CENTER_BASE}/datasource-consumption`
+  );
+  if (!response.data) {
+    throw new Error(response.message || "查询数据源消费模型失败");
   }
 
   return response.data;

@@ -82,7 +82,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import {
@@ -92,7 +92,9 @@ import {
   deleteWorkflow,
 } from '@/services/api-workflow-v2'
 import type { WorkflowListItem } from '@/types/workflow-v2'
+import { resolveCurrentAppId } from '@/utils/app-context'
 
+const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const creating = ref(false)
@@ -144,7 +146,12 @@ function handleTableChange(pag: { current: number; pageSize: number }) {
 }
 
 function openEditor(id: number) {
-  router.push(`/workflow/${id}/editor`)
+  const currentAppId = resolveCurrentAppId(route)
+  if (!currentAppId) {
+    router.push('/console/apps')
+    return
+  }
+  router.push(`/apps/${currentAppId}/workflows/${id}/editor`)
 }
 
 async function handleCreate() {
@@ -158,7 +165,12 @@ async function handleCreate() {
     if (res.success && res.data) {
       showCreateModal.value = false
       message.success('创建成功')
-      router.push(`/workflow/${res.data}/editor`)
+      const currentAppId = resolveCurrentAppId(route)
+      if (!currentAppId) {
+        router.push('/console/apps')
+        return
+      }
+      router.push(`/apps/${currentAppId}/workflows/${res.data}/editor`)
     }
   } finally {
     creating.value = false

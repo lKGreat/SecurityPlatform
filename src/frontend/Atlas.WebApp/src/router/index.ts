@@ -39,6 +39,11 @@ const AiMockSetsPage = () => import("@/pages/ai/AiMockSetsPage.vue");
 const AiShortcutsPage = () => import("@/pages/ai/AiShortcutsPage.vue");
 const AiSearchResultsPage = () => import("@/pages/ai/AiSearchResultsPage.vue");
 const AiMarketplacePage = () => import("@/pages/ai/AiMarketplacePage.vue");
+const AiPromptLibraryPage = () => import("@/pages/ai/AiPromptLibraryPage.vue");
+const AiPluginListPage = () => import("@/pages/ai/AiPluginListPage.vue");
+const AiPluginDetailPage = () => import("@/pages/ai/AiPluginDetailPage.vue");
+const AiPluginApiEditorPage = () => import("@/pages/ai/AiPluginApiEditorPage.vue");
+const AgentListPage = () => import("@/pages/ai/AgentListPage.vue");
 const AgentEditorPage = () => import("@/pages/ai/AgentEditorPage.vue");
 const PageRuntimeRenderer = () => import("@/pages/runtime/PageRuntimeRenderer.vue");
 const AppListPage = () => import("@/pages/lowcode/AppListPage.vue");
@@ -112,6 +117,12 @@ const router = createRouter({
     { path: "/apps/:appId/forms", name: "app-workspace-forms", component: AppFormsPage, meta: { requiresAuth: true, title: "表单管理", titleKey: "route.forms", requiresPermission: "apps:view" } },
     { path: "/apps/:appId/forms/:id/designer", name: "app-workspace-form-designer", component: FormDesignerPage, meta: { requiresAuth: true, title: "表单设计器", requiresPermission: "apps:update" } },
     { path: "/apps/:appId/flows", name: "app-workspace-flows", component: AppFlowsPage, meta: { requiresAuth: true, title: "流程管理", titleKey: "route.processManage", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/agents", name: "app-workspace-agents", component: AgentListPage, meta: { requiresAuth: true, title: "Agent 列表", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/workflows", name: "app-workspace-workflows", component: WorkflowListPage, meta: { requiresAuth: true, title: "工作流列表", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/prompts", name: "app-workspace-prompts", component: AiPromptLibraryPage, meta: { requiresAuth: true, title: "Prompt 模板", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/plugins", name: "app-workspace-plugins", component: AiPluginListPage, meta: { requiresAuth: true, title: "插件配置", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/plugins/:id", name: "app-workspace-plugin-detail", component: AiPluginDetailPage, meta: { requiresAuth: true, title: "插件详情", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/plugins/:id/apis/:apiId", name: "app-workspace-plugin-api-editor", component: AiPluginApiEditorPage, meta: { requiresAuth: true, title: "插件 API 编辑器", requiresPermission: "apps:update" } },
     { path: "/apps/:appId/workflows/:id/editor", name: "app-workspace-workflow-editor", component: WorkflowEditorPage, meta: { requiresAuth: true, title: "工作流设计器" } },
     { path: "/apps/:appId/agents/:id/edit", name: "app-workspace-agent-editor", component: AgentEditorPage, meta: { requiresAuth: true, title: "Agent 编辑" } },
     { path: "/apps/:appId/data", name: "app-workspace-data", component: AppDataPage, meta: { requiresAuth: true, title: "数据管理", titleKey: "route.dataManage", requiresPermission: "apps:view" } },
@@ -137,10 +148,46 @@ const router = createRouter({
     { path: "/ai/search", name: "ai-search-static", component: AiSearchResultsPage, meta: { requiresAuth: true, title: "统一搜索" } },
     { path: "/ai/marketplace", name: "ai-marketplace-static", component: AiMarketplacePage, meta: { requiresAuth: true, title: "应用市场" } },
     {
+      path: "/ai/agents",
+      name: "ai-agent-list-static",
+      redirect: to => buildWorkspaceRedirectPath(to, appId => `/apps/${appId}/agents`),
+      meta: { requiresAuth: true, title: "Agent 列表(Deprecated)", deprecatedMessage: "旧路由 /ai/agents 已迁移至 /apps/:appId/agents。" }
+    },
+    {
       path: "/ai/agents/:id/edit",
       name: "ai-agent-edit-static",
       redirect: to => buildWorkspaceRedirectPath(to, appId => `/apps/${appId}/agents/${to.params.id}/edit`),
       meta: { requiresAuth: true, title: "Agent 编辑(Deprecated)" }
+    },
+    {
+      path: "/ai/workflows",
+      name: "ai-workflow-list-legacy",
+      redirect: to => buildWorkspaceRedirectPath(to, appId => `/apps/${appId}/workflows`),
+      meta: { requiresAuth: true, title: "工作流列表(Deprecated)", deprecatedMessage: "旧路由 /ai/workflows 已迁移至 /apps/:appId/workflows。" }
+    },
+    {
+      path: "/ai/prompts",
+      name: "ai-prompt-list-legacy",
+      redirect: to => buildWorkspaceRedirectPath(to, appId => `/apps/${appId}/prompts`),
+      meta: { requiresAuth: true, title: "Prompt 模板(Deprecated)", deprecatedMessage: "旧路由 /ai/prompts 已迁移至 /apps/:appId/prompts。" }
+    },
+    {
+      path: "/ai/plugins",
+      name: "ai-plugin-list-legacy",
+      redirect: to => buildWorkspaceRedirectPath(to, appId => `/apps/${appId}/plugins`),
+      meta: { requiresAuth: true, title: "插件配置(Deprecated)", deprecatedMessage: "旧路由 /ai/plugins 已迁移至 /apps/:appId/plugins。" }
+    },
+    {
+      path: "/ai/plugins/:id",
+      name: "ai-plugin-detail-legacy",
+      redirect: to => buildWorkspaceRedirectPath(to, appId => `/apps/${appId}/plugins/${to.params.id}`),
+      meta: { requiresAuth: true, title: "插件详情(Deprecated)", deprecatedMessage: "旧路由 /ai/plugins/:id 已迁移至 /apps/:appId/plugins/:id。" }
+    },
+    {
+      path: "/ai/plugins/:id/apis/:apiId",
+      name: "ai-plugin-api-editor-legacy",
+      redirect: to => buildWorkspaceRedirectPath(to, appId => `/apps/${appId}/plugins/${to.params.id}/apis/${to.params.apiId}`),
+      meta: { requiresAuth: true, title: "插件 API 编辑器(Deprecated)", deprecatedMessage: "旧路由 /ai/plugins/:id/apis/:apiId 已迁移至 /apps/:appId/plugins/:id/apis/:apiId。" }
     },
     { path: "/settings/auth/roles", name: "SettingsAuthRoles", component: RolesPage, meta: { requiresAuth: true, title: "角色管理", requiresPermission: "roles:view" } },
     { path: "/lowcode/plugin-market", name: "plugin-market", component: PluginMarketPage, meta: { requiresAuth: true, title: "插件市场" } },
@@ -187,7 +234,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "表单设计器(Deprecated)", requiresPermission: "apps:update", deprecatedMessage: "旧路由 /lowcode/forms/:id/designer 已迁移至 /apps/:appId/forms/:id/designer。" }
     },
     { path: "/monitor/writeback-failures", name: "monitor-writeback-failures", component: WritebackMonitorPage, meta: { requiresAuth: true, title: "回写监控", requiresPermission: "system:admin" } },
-    { path: "/workflow", name: "workflow-list", component: WorkflowListPage, meta: { requiresAuth: true, title: "工作流管理" } },
+    {
+      path: "/workflow",
+      name: "workflow-list",
+      redirect: to => buildWorkspaceRedirectPath(to, appId => `/apps/${appId}/workflows`),
+      meta: { requiresAuth: true, title: "工作流管理(Deprecated)", deprecatedMessage: "旧路由 /workflow 已迁移至 /apps/:appId/workflows。" }
+    },
     {
       path: "/workflow/:id/editor",
       name: "workflow-editor",

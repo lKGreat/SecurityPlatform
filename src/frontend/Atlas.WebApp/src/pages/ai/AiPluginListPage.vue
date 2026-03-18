@@ -100,7 +100,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import {
@@ -114,7 +114,9 @@ import {
   type AiPluginListItem,
   type AiPluginType
 } from "@/services/api-ai-plugin";
+import { resolveCurrentAppId } from "@/utils/app-context";
 
+const route = useRoute();
 const router = useRouter();
 const keyword = ref("");
 const list = ref<AiPluginListItem[]>([]);
@@ -187,7 +189,12 @@ function handleReset() {
 }
 
 function goDetail(id: number) {
-  void router.push(`/ai/plugins/${id}`);
+  const currentAppId = resolveCurrentAppId(route);
+  if (!currentAppId) {
+    void router.push("/console/apps");
+    return;
+  }
+  void router.push(`/apps/${currentAppId}/plugins/${id}`);
 }
 
 function openCreate() {

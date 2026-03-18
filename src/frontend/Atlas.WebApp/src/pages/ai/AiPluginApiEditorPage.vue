@@ -52,7 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
+import { useRoute } from "vue-router";
 import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import {
@@ -61,6 +62,7 @@ import {
   updateAiPluginApi
 } from "@/services/api-ai-plugin";
 
+const route = useRoute();
 const pluginId = ref<number | undefined>(undefined);
 const apiId = ref<number | undefined>(undefined);
 const formRef = ref<FormInstance>();
@@ -162,4 +164,16 @@ async function submit() {
     submitting.value = false;
   }
 }
+
+onMounted(() => {
+  const routePluginId = Number(route.params.id);
+  const routeApiId = Number(route.params.apiId);
+  if (Number.isFinite(routePluginId) && routePluginId > 0) {
+    pluginId.value = routePluginId;
+  }
+  if (Number.isFinite(routeApiId) && routeApiId > 0) {
+    apiId.value = routeApiId;
+    void loadFromServer();
+  }
+});
 </script>
