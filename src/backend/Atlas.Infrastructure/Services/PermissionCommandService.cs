@@ -11,10 +11,14 @@ namespace Atlas.Infrastructure.Services;
 public sealed class PermissionCommandService : IPermissionCommandService
 {
     private readonly IPermissionRepository _permissionRepository;
+    private readonly IPermissionDecisionService _permissionDecisionService;
 
-    public PermissionCommandService(IPermissionRepository permissionRepository)
+    public PermissionCommandService(
+        IPermissionRepository permissionRepository,
+        IPermissionDecisionService permissionDecisionService)
     {
         _permissionRepository = permissionRepository;
+        _permissionDecisionService = permissionDecisionService;
     }
 
     public async Task<long> CreateAsync(
@@ -32,6 +36,7 @@ public sealed class PermissionCommandService : IPermissionCommandService
         var permission = new Permission(tenantId, request.Name, request.Code, request.Type, id);
         permission.Update(request.Name, request.Type, request.Description);
         await _permissionRepository.AddAsync(permission, cancellationToken);
+        await _permissionDecisionService.InvalidateTenantAsync(tenantId, cancellationToken);
         return permission.Id;
     }
 
@@ -49,5 +54,6 @@ public sealed class PermissionCommandService : IPermissionCommandService
 
         permission.Update(request.Name, request.Type, request.Description);
         await _permissionRepository.UpdateAsync(permission, cancellationToken);
+        await _permissionDecisionService.InvalidateTenantAsync(tenantId, cancellationToken);
     }
 }

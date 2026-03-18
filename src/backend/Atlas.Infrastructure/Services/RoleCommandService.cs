@@ -23,6 +23,7 @@ public sealed class RoleCommandService : IRoleCommandService
     private readonly IDepartmentRepository _departmentRepository;
     private readonly IIdGeneratorAccessor _idGeneratorAccessor;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPermissionDecisionService _permissionDecisionService;
 
     public RoleCommandService(
         IRoleRepository roleRepository,
@@ -34,7 +35,8 @@ public sealed class RoleCommandService : IRoleCommandService
         IRoleDeptRepository roleDeptRepository,
         IDepartmentRepository departmentRepository,
         IIdGeneratorAccessor idGeneratorAccessor,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IPermissionDecisionService permissionDecisionService)
     {
         _roleRepository = roleRepository;
         _rolePermissionRepository = rolePermissionRepository;
@@ -46,6 +48,7 @@ public sealed class RoleCommandService : IRoleCommandService
         _departmentRepository = departmentRepository;
         _idGeneratorAccessor = idGeneratorAccessor;
         _unitOfWork = unitOfWork;
+        _permissionDecisionService = permissionDecisionService;
     }
 
     public async Task<long> CreateAsync(
@@ -80,6 +83,7 @@ public sealed class RoleCommandService : IRoleCommandService
 
         role.Update(request.Name, request.Description);
         await _roleRepository.UpdateAsync(role, cancellationToken);
+        await _permissionDecisionService.InvalidateRoleAsync(tenantId, roleId, cancellationToken);
     }
 
     public async Task UpdatePermissionsAsync(
@@ -100,6 +104,8 @@ public sealed class RoleCommandService : IRoleCommandService
                     .ToArray(),
                 cancellationToken);
         }, cancellationToken);
+
+        await _permissionDecisionService.InvalidateRoleAsync(tenantId, roleId, cancellationToken);
     }
 
     public async Task UpdateMenusAsync(
@@ -120,6 +126,8 @@ public sealed class RoleCommandService : IRoleCommandService
                     .ToArray(),
                 cancellationToken);
         }, cancellationToken);
+
+        await _permissionDecisionService.InvalidateRoleAsync(tenantId, roleId, cancellationToken);
     }
 
     public async Task DeleteAsync(
@@ -151,6 +159,8 @@ public sealed class RoleCommandService : IRoleCommandService
             await _userRoleRepository.DeleteByRoleIdAsync(tenantId, roleId, cancellationToken);
             await _roleRepository.DeleteAsync(tenantId, roleId, cancellationToken);
         }, cancellationToken);
+
+        await _permissionDecisionService.InvalidateRoleAsync(tenantId, roleId, cancellationToken);
     }
 
     public async Task SetDataScopeAsync(TenantId tenantId, long roleId, DataScopeType scope, IReadOnlyList<long>? deptIds, CancellationToken cancellationToken)
@@ -186,6 +196,8 @@ public sealed class RoleCommandService : IRoleCommandService
                     cancellationToken);
             }
         }, cancellationToken);
+
+        await _permissionDecisionService.InvalidateRoleAsync(tenantId, roleId, cancellationToken);
     }
 
     private async Task EnsureRoleExistsAsync(TenantId tenantId, long roleId, CancellationToken cancellationToken)
