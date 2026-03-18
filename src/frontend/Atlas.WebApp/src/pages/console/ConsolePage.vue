@@ -49,6 +49,68 @@
       </a-row>
     </a-card>
 
+    <a-card
+      :bordered="false"
+      class="widget-card datasource-consumption-card"
+      title="Datasource consumption"
+      :loading="resourceGroupLoading"
+    >
+      <a-row :gutter="[16, 16]">
+        <a-col :xs="24" :md="8">
+          <a-statistic title="Platform datasources" :value="dataSourceConsumption?.platformDataSourceTotal ?? 0" />
+        </a-col>
+        <a-col :xs="24" :md="8">
+          <a-statistic title="App scoped datasources" :value="dataSourceConsumption?.appScopedDataSourceTotal ?? 0" />
+        </a-col>
+        <a-col :xs="24" :md="8">
+          <a-statistic title="Unbound apps" :value="dataSourceConsumption?.unboundTenantAppTotal ?? 0" />
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="[16, 16]" style="margin-top: 16px">
+        <a-col :xs="24" :lg="12">
+          <a-card size="small" title="Platform datasource bindings">
+            <a-list
+              v-if="(dataSourceConsumption?.platformDataSources.length ?? 0) > 0"
+              :data-source="dataSourceConsumption?.platformDataSources.slice(0, 5) ?? []"
+              size="small"
+            >
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <a-list-item-meta :title="`${item.name} (${item.dbType})`">
+                    <template #description>
+                      Bound apps: {{ item.boundTenantAppCount }} · Last test: {{ formatLastTest(item.lastTestedAt) }}
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
+            <a-empty v-else description="No platform datasources" />
+          </a-card>
+        </a-col>
+        <a-col :xs="24" :lg="12">
+          <a-card size="small" title="App scoped datasource bindings">
+            <a-list
+              v-if="(dataSourceConsumption?.appScopedDataSources.length ?? 0) > 0"
+              :data-source="dataSourceConsumption?.appScopedDataSources.slice(0, 5) ?? []"
+              size="small"
+            >
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <a-list-item-meta :title="item.name">
+                    <template #description>
+                      Scope app: {{ item.scopeAppName || item.scopeAppId || "-" }} · Bound apps: {{ item.boundTenantAppCount }}
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
+            <a-empty v-else description="No app scoped datasources" />
+          </a-card>
+        </a-col>
+      </a-row>
+    </a-card>
+
     <a-card :bordered="false" class="widget-card app-list-card" title="Recent apps" :loading="loading">
       <template #extra>
         <a-space>
@@ -100,9 +162,17 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import AppCreateWizard from "@/pages/console/components/AppCreateWizard.vue";
-import { getResourceCenterGroups, getTenantAppInstancesPaged } from "@/services/api-tenant-app-instances";
+import {
+  getResourceCenterDataSourceConsumption,
+  getResourceCenterGroups,
+  getTenantAppInstancesPaged
+} from "@/services/api-tenant-app-instances";
 import { useUserStore } from "@/stores/user";
-import type { ResourceCenterGroupItem, TenantAppInstanceListItem } from "@/types/platform-v2";
+import type {
+  ResourceCenterDataSourceConsumptionResponse,
+  ResourceCenterGroupItem,
+  TenantAppInstanceListItem
+} from "@/types/platform-v2";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -111,6 +181,7 @@ const resourceGroupLoading = ref(false);
 const keyword = ref("");
 const apps = ref<TenantAppInstanceListItem[]>([]);
 const resourceGroups = ref<ResourceCenterGroupItem[]>([]);
+const dataSourceConsumption = ref<ResourceCenterDataSourceConsumptionResponse | null>(null);
 const createWizardVisible = ref(false);
 
 const profileDisplayName = computed(() => userStore.profile?.displayName || userStore.profile?.username || "Admin");
@@ -142,12 +213,30 @@ async function loadApps() {
 async function loadResourceGroups() {
   resourceGroupLoading.value = true;
   try {
-    resourceGroups.value = await getResourceCenterGroups();
+    const [groups, consumption] = await Promise.all([
+      getResourceCenterGroups(),
+      getResourceCenterDataSourceConsumption()
+    ]);
+    resourceGroups.value = groups;
+    dataSourceConsumption.value = consumption;
   } catch (error) {
-    message.error((error as Error).message || "Failed to load resource groups");
+    message.error((error as Error).message || "Failed to load resource center data");
   } finally {
     resourceGroupLoading.value = false;
   }
+}
+
+function formatLastTest(value?: string) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("en-US");
 }
 
 function openApp(id: string) {
@@ -202,6 +291,10 @@ onMounted(() => {
 }
 
 .resource-group-card {
+  margin-bottom: 24px;
+}
+
+.datasource-consumption-card {
   margin-bottom: 24px;
 }
 

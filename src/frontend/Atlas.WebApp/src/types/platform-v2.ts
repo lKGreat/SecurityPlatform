@@ -54,6 +54,36 @@ export interface ResourceCenterGroupItem {
   items: ResourceCenterGroupEntry[];
 }
 
+export interface TenantAppConsumerItem {
+  tenantAppInstanceId: string;
+  appKey: string;
+  name: string;
+  status: string;
+}
+
+export interface TenantDataSourceConsumptionItem {
+  dataSourceId: string;
+  name: string;
+  dbType: string;
+  isActive: boolean;
+  scope: "Platform" | "AppScoped";
+  scopeAppId?: string;
+  scopeAppName?: string;
+  boundTenantAppCount: number;
+  boundTenantApps: TenantAppConsumerItem[];
+  lastTestedAt?: string;
+  lastTestMessage?: string;
+}
+
+export interface ResourceCenterDataSourceConsumptionResponse {
+  platformDataSourceTotal: number;
+  appScopedDataSourceTotal: number;
+  unboundTenantAppTotal: number;
+  platformDataSources: TenantDataSourceConsumptionItem[];
+  appScopedDataSources: TenantDataSourceConsumptionItem[];
+  unboundTenantApps: TenantAppConsumerItem[];
+}
+
 export interface ReleaseCenterListItem {
   releaseId: string;
   applicationCatalogId: string;
