@@ -11,6 +11,8 @@ using Atlas.Domain.LowCode.Enums;
 using Atlas.Domain.Platform.Entities;
 using Atlas.Domain.System.Entities;
 using SqlSugar;
+using TenantAppDataSourceBindingDto = Atlas.Application.Platform.Models.TenantAppDataSourceBinding;
+using TenantAppDataSourceBindingEntity = Atlas.Domain.System.Entities.TenantAppDataSourceBinding;
 
 namespace Atlas.Infrastructure.Services.Platform;
 
@@ -320,7 +322,7 @@ public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryServi
             item.DataSourceId);
     }
 
-    public async Task<IReadOnlyList<TenantAppDataSourceBinding>> GetDataSourceBindingsAsync(
+    public async Task<IReadOnlyList<TenantAppDataSourceBindingDto>> GetDataSourceBindingsAsync(
         TenantId tenantId,
         IReadOnlyCollection<long>? appInstanceIds,
         CancellationToken cancellationToken = default)
@@ -330,8 +332,8 @@ public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryServi
             .Where(app => app.TenantIdValue == tenantValue);
         if (appInstanceIds is { Count: > 0 })
         {
-            var appIds = appInstanceIds.ToArray();
-            appQuery = appQuery.Where(app => appIds.Contains(app.Id));
+            var filterAppIds = appInstanceIds.ToArray();
+            appQuery = appQuery.Where(app => filterAppIds.Contains(app.Id));
         }
 
         var apps = await appQuery
@@ -342,12 +344,29 @@ public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryServi
             return [];
         }
 
-        var dataSourceIds = apps
-            .Where(app => app.DataSourceId.HasValue)
-            .Select(app => app.DataSourceId!.Value)
+        var appIds = apps.Select(app => app.Id).ToArray();
+        var bindings = await _db.Queryable<TenantAppDataSourceBindingEntity>()
+            .Where(binding => binding.TenantIdValue == tenantValue && appIds.Contains(binding.TenantAppInstanceId))
+            .ToListAsync(cancellationToken);
+        var preferredBindingsByAppId = bindings
+            .GroupBy(binding => binding.TenantAppInstanceId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(binding => binding.IsActive)
+                    .ThenBy(binding => binding.BindingType)
+                    .ThenByDescending(binding => binding.UpdatedAt ?? binding.BoundAt)
+                    .First());
+
+        var legacyDataSourceIds = apps
+            .Where(app => app.DataSourceId.HasValue && !preferredBindingsByAppId.ContainsKey(app.Id))
+            .Select(app => app.DataSourceId!.Value);
+        var dataSourceIds = preferredBindingsByAppId.Values
+            .Select(binding => binding.DataSourceId)
+            .Concat(legacyDataSourceIds)
             .Distinct()
             .ToArray();
-        var tenantIdText = tenantId.ToString();
+        var tenantIdText = tenantValue.ToString();
         var dataSourceDict = new Dictionary<long, TenantDataSource>();
         if (dataSourceIds.Length > 0)
         {
@@ -360,16 +379,56 @@ public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryServi
         return apps
             .Select(app =>
             {
-                var dataSource = app.DataSourceId.HasValue && dataSourceDict.TryGetValue(app.DataSourceId.Value, out var item)
-                    ? item
-                    : null;
-                return new TenantAppDataSourceBinding(
+                if (preferredBindingsByAppId.TryGetValue(app.Id, out var binding))
+                {
+                    var dataSource = dataSourceDict.TryGetValue(binding.DataSourceId, out var bindingDataSource)
+                        ? bindingDataSource
+                        : null;
+                    return new TenantAppDataSourceBindingDto(
+                        app.Id.ToString(),
+                        binding.DataSourceId.ToString(),
+                        dataSource?.Name,
+                        dataSource?.DbType,
+                        dataSource?.IsActive,
+                        dataSource?.LastTestedAt?.ToString("O"),
+                        binding.Id.ToString(),
+                        binding.BindingType.ToString(),
+                        binding.IsActive,
+                        binding.BoundAt.ToString("O"),
+                        "BindingTable");
+                }
+
+                if (app.DataSourceId.HasValue)
+                {
+                    var dataSource = dataSourceDict.TryGetValue(app.DataSourceId.Value, out var legacyDataSource)
+                        ? legacyDataSource
+                        : null;
+                    return new TenantAppDataSourceBindingDto(
+                        app.Id.ToString(),
+                        app.DataSourceId.Value.ToString(),
+                        dataSource?.Name,
+                        dataSource?.DbType,
+                        dataSource?.IsActive,
+                        dataSource?.LastTestedAt?.ToString("O"),
+                        null,
+                        TenantAppDataSourceBindingType.Primary.ToString(),
+                        null,
+                        null,
+                        "LegacyLowCodeApp.DataSourceId");
+                }
+
+                return new TenantAppDataSourceBindingDto(
                     app.Id.ToString(),
-                    app.DataSourceId?.ToString(),
-                    dataSource?.Name,
-                    dataSource?.DbType,
-                    dataSource?.IsActive,
-                    dataSource?.LastTestedAt?.ToString("O"));
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Unbound");
             })
             .ToArray();
     }
@@ -691,7 +750,7 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
         CancellationToken cancellationToken = default)
     {
         var tenantIdValue = tenantId.Value;
-        var tenantIdText = tenantId.ToString();
+        var tenantIdText = tenantIdValue.ToString();
 
         var dataSourcesTask = _db.Queryable<TenantDataSource>()
             .Where(item => item.TenantIdValue == tenantIdText)
@@ -701,22 +760,81 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             .Where(item => item.TenantIdValue == tenantIdValue)
             .OrderByDescending(item => item.UpdatedAt)
             .ToListAsync(cancellationToken);
-        await Task.WhenAll(dataSourcesTask, appInstancesTask);
+        var bindingsTask = _db.Queryable<TenantAppDataSourceBindingEntity>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.UpdatedAt ?? item.BoundAt)
+            .ToListAsync(cancellationToken);
+        await Task.WhenAll(dataSourcesTask, appInstancesTask, bindingsTask);
 
         var dataSources = dataSourcesTask.Result;
         var appInstances = appInstancesTask.Result;
+        var bindings = bindingsTask.Result;
 
         var appInstanceById = appInstances.ToDictionary(item => item.Id);
-        var appInstancesByDataSourceId = appInstances
-            .Where(item => item.DataSourceId.HasValue)
-            .GroupBy(item => item.DataSourceId!.Value)
-            .ToDictionary(group => group.Key, group => group.ToArray());
+        var bindingAppSet = bindings
+            .Select(item => item.TenantAppInstanceId)
+            .ToHashSet();
+        var allRelations = bindings
+            .Select(item => new DataSourceBindingRelation(
+                item.Id.ToString(),
+                item.TenantAppInstanceId,
+                item.DataSourceId,
+                item.BindingType.ToString(),
+                item.IsActive,
+                item.BoundAt,
+                item.UpdatedAt,
+                "BindingTable"))
+            .ToList();
+        allRelations.AddRange(
+            appInstances
+                .Where(item => item.DataSourceId.HasValue && !bindingAppSet.Contains(item.Id))
+                .Select(item => new DataSourceBindingRelation(
+                    $"legacy-{item.Id}-{item.DataSourceId!.Value}",
+                    item.Id,
+                    item.DataSourceId!.Value,
+                    TenantAppDataSourceBindingType.Primary.ToString(),
+                    true,
+                    null,
+                    null,
+                    "LegacyLowCodeApp.DataSourceId")));
+
+        var activeBoundAppSet = allRelations
+            .Where(item => item.IsActive)
+            .Select(item => item.TenantAppInstanceId)
+            .ToHashSet();
+        var relationsByDataSourceId = allRelations
+            .GroupBy(item => item.DataSourceId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(item => item.IsActive)
+                    .ThenBy(item => item.BindingType)
+                    .ThenByDescending(item => item.UpdatedAt ?? item.BoundAt ?? DateTimeOffset.MinValue)
+                    .ToArray());
 
         TenantDataSourceConsumptionItem MapDataSource(TenantDataSource dataSource)
         {
-            var boundApps = appInstancesByDataSourceId.TryGetValue(dataSource.Id, out var items)
-                ? items.Select(MapAppConsumer).ToArray()
+            var relations = relationsByDataSourceId.TryGetValue(dataSource.Id, out var dataSourceRelations)
+                ? dataSourceRelations
                 : [];
+            var bindingRelations = relations
+                .Select(item => new TenantDataSourceBindingRelationItem(
+                    item.BindingId,
+                    item.TenantAppInstanceId.ToString(),
+                    item.DataSourceId.ToString(),
+                    item.BindingType,
+                    item.IsActive,
+                    item.BoundAt?.ToString("O"),
+                    item.UpdatedAt?.ToString("O"),
+                    item.Source))
+                .ToArray();
+            var boundApps = relations
+                .Where(item => item.IsActive)
+                .Select(item => appInstanceById.TryGetValue(item.TenantAppInstanceId, out var app) ? MapAppConsumer(app) : null)
+                .Where(item => item is not null)
+                .GroupBy(item => item!.TenantAppInstanceId, StringComparer.Ordinal)
+                .Select(group => group.First()!)
+                .ToArray();
 
             var scope = dataSource.AppId.HasValue ? "AppScoped" : "Platform";
             string? scopeAppId = null;
@@ -741,6 +859,7 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
                 scopeAppName,
                 boundApps.Length,
                 boundApps,
+                bindingRelations,
                 dataSource.LastTestedAt?.ToString("O"),
                 dataSource.LastTestMessage);
         }
@@ -754,7 +873,7 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             .Select(MapDataSource)
             .ToArray();
         var unboundTenantApps = appInstances
-            .Where(item => !item.DataSourceId.HasValue)
+            .Where(item => !activeBoundAppSet.Contains(item.Id))
             .Select(MapAppConsumer)
             .ToArray();
 
@@ -775,6 +894,16 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             app.Name,
             app.Status.ToString());
     }
+
+    private sealed record DataSourceBindingRelation(
+        string BindingId,
+        long TenantAppInstanceId,
+        long DataSourceId,
+        string BindingType,
+        bool IsActive,
+        DateTimeOffset? BoundAt,
+        DateTimeOffset? UpdatedAt,
+        string Source);
 }
 
 public sealed class ReleaseCenterQueryService : IReleaseCenterQueryService

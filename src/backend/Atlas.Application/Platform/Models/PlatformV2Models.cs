@@ -75,7 +75,12 @@ public sealed record TenantAppDataSourceBinding(
     string? DataSourceName,
     string? DbType,
     bool? DataSourceActive,
-    string? LastTestedAt);
+    string? LastTestedAt,
+    string? BindingId,
+    string? BindingType,
+    bool? BindingActive,
+    string? BoundAt,
+    string? Source);
 
 public sealed record RuntimeContextListItem(
     string Id,
@@ -130,6 +135,16 @@ public sealed record TenantAppConsumerItem(
     string Name,
     string Status);
 
+public sealed record TenantDataSourceBindingRelationItem(
+    string BindingId,
+    string TenantAppInstanceId,
+    string DataSourceId,
+    string BindingType,
+    bool IsActive,
+    string? BoundAt,
+    string? UpdatedAt,
+    string Source);
+
 public sealed record TenantDataSourceConsumptionItem(
     string DataSourceId,
     string Name,
@@ -140,6 +155,7 @@ public sealed record TenantDataSourceConsumptionItem(
     string? ScopeAppName,
     int BoundTenantAppCount,
     IReadOnlyList<TenantAppConsumerItem> BoundTenantApps,
+    IReadOnlyList<TenantDataSourceBindingRelationItem> BindingRelations,
     string? LastTestedAt,
     string? LastTestMessage);
 

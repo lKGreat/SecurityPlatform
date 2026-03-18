@@ -210,6 +210,7 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             typeof(FileRecord),
             typeof(FileUploadSession),
             typeof(TenantDataSource),
+            typeof(TenantAppDataSourceBinding),
             typeof(Tenant),
             // Low code module (types already registered above: LowCodeApp, AppEntityAlias, LowCodePage, FormDefinition)
             typeof(LowCodeAppVersion),
@@ -253,6 +254,8 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         {
             _logger.LogInformation("[DatabaseInitializer] 已跳过 Schema 初始化（DatabaseInitializer:SkipSchemaInit=true）");
         }
+
+        await EnsureTenantAppDataSourceBindingBackfillAsync(scope.ServiceProvider, db, cancellationToken);
 
         // 种子数据初始化
         if (_initializerOptions.SkipSeedData)
@@ -1046,6 +1049,80 @@ public sealed class DatabaseInitializerHostedService : IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
+    private async Task EnsureTenantAppDataSourceBindingBackfillAsync(
+        IServiceProvider serviceProvider,
+        ISqlSugarClient db,
+        CancellationToken cancellationToken)
+    {
+        if (!db.DbMaintenance.IsAnyTable("TenantAppDataSourceBinding", false)
+            || !db.DbMaintenance.IsAnyTable("LowCodeApp", false))
+        {
+            return;
+        }
+
+        var legacyBindings = await db.Queryable<LowCodeApp>()
+            .Where(item => item.DataSourceId.HasValue)
+            .Select(item => new LegacyAppBindingProjection
+            {
+                TenantIdValue = item.TenantIdValue,
+                TenantAppInstanceId = item.Id,
+                DataSourceId = item.DataSourceId!.Value,
+                CreatedBy = item.CreatedBy,
+                UpdatedBy = item.UpdatedBy,
+                CreatedAt = item.CreatedAt,
+                UpdatedAt = item.UpdatedAt
+            })
+            .ToListAsync(cancellationToken);
+        if (legacyBindings.Count == 0)
+        {
+            return;
+        }
+
+        var appIds = legacyBindings.Select(item => item.TenantAppInstanceId).Distinct().ToArray();
+        var tenantIds = legacyBindings.Select(item => item.TenantIdValue).Distinct().ToArray();
+        var existedAppKeys = await db.Queryable<TenantAppDataSourceBinding>()
+            .Where(item => SqlFunc.ContainsArray(appIds, item.TenantAppInstanceId)
+                && SqlFunc.ContainsArray(tenantIds, item.TenantIdValue))
+            .Select(item => new { item.TenantIdValue, item.TenantAppInstanceId })
+            .ToListAsync(cancellationToken);
+        var existedAppSet = existedAppKeys
+            .Select(item => (item.TenantIdValue, item.TenantAppInstanceId))
+            .ToHashSet();
+
+        var idGenerator = serviceProvider.GetRequiredService<IIdGeneratorAccessor>();
+        var backfillRows = new List<TenantAppDataSourceBinding>();
+        foreach (var legacy in legacyBindings)
+        {
+            if (existedAppSet.Contains((legacy.TenantIdValue, legacy.TenantAppInstanceId)))
+            {
+                continue;
+            }
+
+            var now = legacy.UpdatedAt;
+            var actor = legacy.UpdatedBy > 0 ? legacy.UpdatedBy : legacy.CreatedBy;
+            var binding = new TenantAppDataSourceBinding(
+                new TenantId(legacy.TenantIdValue),
+                legacy.TenantAppInstanceId,
+                legacy.DataSourceId,
+                TenantAppDataSourceBindingType.Primary,
+                actor,
+                idGenerator.NextId(),
+                now,
+                "Migrated from LowCodeApp.DataSourceId");
+            backfillRows.Add(binding);
+        }
+
+        if (backfillRows.Count == 0)
+        {
+            return;
+        }
+
+        await db.Insertable(backfillRows).ExecuteCommandAsync(cancellationToken);
+        _logger.LogInformation(
+            "[DatabaseInitializer] 已回填 TenantAppDataSourceBinding 记录 {Count} 条。",
+            backfillRows.Count);
+    }
+
     private async Task LoadLicenseStatusAsync(IServiceScope scope, CancellationToken cancellationToken)
     {
         try
@@ -1345,6 +1422,23 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             entity.Update(seed.Value, seed.Name, seed.Remark);
             await repository.AddAsync(entity, cancellationToken);
         }
+    }
+
+    private sealed class LegacyAppBindingProjection
+    {
+        public Guid TenantIdValue { get; set; }
+
+        public long TenantAppInstanceId { get; set; }
+
+        public long DataSourceId { get; set; }
+
+        public long CreatedBy { get; set; }
+
+        public long UpdatedBy { get; set; }
+
+        public DateTimeOffset CreatedAt { get; set; }
+
+        public DateTimeOffset UpdatedAt { get; set; }
     }
 }
 
