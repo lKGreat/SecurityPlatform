@@ -80,11 +80,13 @@ public sealed class DatabaseInitializerHostedService : IHostedService
         var appContextAccessor = scope.ServiceProvider.GetRequiredService<IAppContextAccessor>();
         var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
 
+        // 关键兼容迁移：平台管理员标记字段缺失会导致登录链路失败，需始终检查并补齐。
+        await EnsureUserAccountSchemaAsync(db, cancellationToken);
+
         // Schema 迁移检查（兼容历史版本字段结构）
         if (!_initializerOptions.SkipSchemaMigrations)
         {
             _logger.LogInformation("[DatabaseInitializer] 开始执行 Schema 迁移检查...");
-            await EnsureUserAccountSchemaAsync(db, cancellationToken);
             await EnsureAuthSessionSchemaAsync(db, cancellationToken);
             await EnsureRefreshTokenSchemaAsync(db, cancellationToken);
             await EnsureApprovalSchemaAsync(db, cancellationToken);
@@ -1225,7 +1227,9 @@ public sealed class DatabaseInitializerHostedService : IHostedService
             return;
         }
 
-        await RebuildTableViaOrmAsync<UserAccount>(db, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        await db.Ado.ExecuteCommandAsync(
+            "ALTER TABLE UserAccount ADD COLUMN IsPlatformAdmin INTEGER NOT NULL DEFAULT 0");
     }
 
     private static async Task EnsureAuthSessionSchemaAsync(ISqlSugarClient db, CancellationToken cancellationToken)

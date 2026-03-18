@@ -171,11 +171,16 @@ public sealed class RoleCommandService : IRoleCommandService
             throw new BusinessException("Role not found.", ErrorCodes.NotFound);
         }
 
-        if (scope == DataScopeType.CustomDept && deptIds?.Count > 0)
+        var distinctDeptIds = deptIds?.Distinct().ToArray() ?? Array.Empty<long>();
+        if (scope == DataScopeType.CustomDept)
         {
-            var distinctIds = deptIds.Distinct().ToArray();
-            var depts = await _departmentRepository.QueryByIdsAsync(tenantId, distinctIds, cancellationToken);
-            if (depts.Count != distinctIds.Length)
+            if (distinctDeptIds.Length == 0)
+            {
+                throw new BusinessException("Custom department data scope requires at least one department.", ErrorCodes.ValidationError);
+            }
+
+            var depts = await _departmentRepository.QueryByIdsAsync(tenantId, distinctDeptIds, cancellationToken);
+            if (depts.Count != distinctDeptIds.Length)
             {
                 throw new BusinessException("Department not found.", ErrorCodes.ValidationError);
             }
@@ -187,10 +192,10 @@ public sealed class RoleCommandService : IRoleCommandService
             await _roleRepository.UpdateAsync(role, cancellationToken);
 
             await _roleDeptRepository.DeleteByRoleIdAsync(tenantId, roleId, cancellationToken);
-            if (scope == DataScopeType.CustomDept && deptIds?.Count > 0)
+            if (scope == DataScopeType.CustomDept && distinctDeptIds.Length > 0)
             {
                 await _roleDeptRepository.AddRangeAsync(
-                    deptIds.Distinct()
+                    distinctDeptIds
                         .Select(deptId => new RoleDept(tenantId, roleId, deptId, _idGeneratorAccessor.NextId()))
                         .ToArray(),
                     cancellationToken);
