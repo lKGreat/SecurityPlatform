@@ -49,9 +49,9 @@
             :loading="loading"
             :row-selection="rowSelection"
             :size="tableSize"
+            :custom-row="customRow"
             row-key="id"
             @change="onTableChange"
-            :custom-row="customRow"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'isSystem'">

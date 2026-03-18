@@ -20,7 +20,7 @@
 
     <a-card :bordered="false">
       <template #extra>
-        <a-button type="primary" @click="handleCreate" v-permission="'system:tenant:create'">
+        <a-button type="primary" v-permission="'system:tenant:create'" @click="handleCreate">
           <template #icon><PlusOutlined /></template>
           {{ t("systemTenants.createTenant") }}
         </a-button>
@@ -47,17 +47,17 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small" @click="handleEdit(record)" v-permission="'system:tenant:update'">
+              <a-button type="link" size="small" v-permission="'system:tenant:update'" @click="handleEdit(record)">
                 {{ t("common.edit") }}
               </a-button>
               <a-popconfirm
                 :title="t('systemTenants.deleteConfirm')"
-                @confirm="handleDelete(record)"
-                :okText="t('systemTenants.confirm')"
-                :cancelText="t('common.cancel')"
+                :ok-text="t('systemTenants.confirm')"
+                :cancel-text="t('common.cancel')"
                 :disabled="record.id === 1 || record.id === 10000"
+                @confirm="handleDelete(record)"
               >
-                <a-button type="link" size="small" danger :disabled="record.id === 1 || record.id === 10000" v-permission="'system:tenant:delete'">
+                <a-button type="link" size="small" danger v-permission="'system:tenant:delete'" :disabled="record.id === 1 || record.id === 10000">
                   {{ t("common.delete") }}
                 </a-button>
               </a-popconfirm>
@@ -71,9 +71,9 @@
     <a-modal
       v-model:open="modalVisible"
       :title="modalTitle"
+      :confirm-loading="modalConfirmLoading"
       @ok="handleModalOk"
       @cancel="handleModalCancel"
-      :confirm-loading="modalConfirmLoading"
     >
       <a-form
         ref="formRef"

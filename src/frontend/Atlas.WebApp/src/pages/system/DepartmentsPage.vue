@@ -107,8 +107,8 @@
       :title="formMode === 'create' ? t('systemDepartments.drawerCreateTitle') : t('systemDepartments.drawerEditTitle')"
       placement="right"
       :width="520"
-      @close="closeForm"
       destroy-on-close
+      @close="closeForm"
     >
       <a-form ref="formRef" :model="formModel" :rules="formRules" layout="vertical">
         <a-form-item :label="t('systemDepartments.departmentName')" name="name">

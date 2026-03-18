@@ -1,7 +1,7 @@
 <template>
   <CrudPageLayout
-    :title="t('systemPositions.pageTitle')"
     v-model:keyword="keyword"
+    :title="t('systemPositions.pageTitle')"
     :search-placeholder="t('systemPositions.searchPlaceholder')"
     :drawer-open="formVisible"
     :drawer-title="formMode === 'create' ? t('systemPositions.drawerCreateTitle') : t('systemPositions.drawerEditTitle')"
