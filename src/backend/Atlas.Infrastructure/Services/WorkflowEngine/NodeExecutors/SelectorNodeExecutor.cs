@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Atlas.Domain.AiPlatform.Enums;
 
 namespace Atlas.Infrastructure.Services.WorkflowEngine.NodeExecutors;
@@ -12,40 +13,13 @@ public sealed class SelectorNodeExecutor : INodeExecutor
 
     public Task<NodeExecutionResult> ExecuteAsync(NodeExecutionContext context, CancellationToken cancellationToken)
     {
-        var outputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var condition = context.Node.Config.GetValueOrDefault("condition") ?? string.Empty;
+        var outputs = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        var condition = context.GetConfigString("condition");
 
-        // 简单求值：支持 "variableName == expectedValue"
-        var result = EvaluateCondition(condition, context.Variables);
-        outputs["selector_result"] = result ? "true" : "false";
-        outputs["selected_branch"] = result ? "true_branch" : "false_branch";
+        var result = context.EvaluateCondition(condition);
+        outputs["selector_result"] = JsonSerializer.SerializeToElement(result);
+        outputs["selected_branch"] = VariableResolver.CreateStringElement(result ? "true_branch" : "false_branch");
 
         return Task.FromResult(new NodeExecutionResult(true, outputs));
-    }
-
-    private static bool EvaluateCondition(string condition, Dictionary<string, string> variables)
-    {
-        if (string.IsNullOrWhiteSpace(condition))
-        {
-            return true;
-        }
-
-        // 支持 "key == value" 和 "key != value"
-        var eqParts = condition.Split("==", 2, StringSplitOptions.TrimEntries);
-        if (eqParts.Length == 2)
-        {
-            var actual = variables.GetValueOrDefault(eqParts[0]) ?? string.Empty;
-            return string.Equals(actual, eqParts[1], StringComparison.OrdinalIgnoreCase);
-        }
-
-        var neParts = condition.Split("!=", 2, StringSplitOptions.TrimEntries);
-        if (neParts.Length == 2)
-        {
-            var actual = variables.GetValueOrDefault(neParts[0]) ?? string.Empty;
-            return !string.Equals(actual, neParts[1], StringComparison.OrdinalIgnoreCase);
-        }
-
-        // 默认：检查变量是否有值
-        return !string.IsNullOrWhiteSpace(variables.GetValueOrDefault(condition));
     }
 }

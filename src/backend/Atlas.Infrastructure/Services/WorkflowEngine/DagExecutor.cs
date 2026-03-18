@@ -47,14 +47,14 @@ public sealed class DagExecutor
         TenantId tenantId,
         WorkflowExecution execution,
         CanvasSchema canvas,
-        Dictionary<string, string> inputs,
+        Dictionary<string, JsonElement> inputs,
         Channel<SseEvent>? eventChannel,
         CancellationToken cancellationToken)
     {
         execution.Start();
         await _executionRepo.UpdateAsync(execution, cancellationToken);
 
-        var variables = new Dictionary<string, string>(inputs, StringComparer.OrdinalIgnoreCase);
+        var variables = new Dictionary<string, JsonElement>(inputs, StringComparer.OrdinalIgnoreCase);
 
         try
         {
@@ -76,7 +76,7 @@ public sealed class DagExecutor
                     continue;
                 }
 
-                var levelInput = new Dictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase);
+                var levelInput = new Dictionary<string, JsonElement>(variables, StringComparer.OrdinalIgnoreCase);
                 var levelTasks = executableNodeKeys
                     .Select(nodeKey => ExecuteNodeAsync(
                         tenantId,
@@ -260,7 +260,7 @@ public sealed class DagExecutor
         long executionId,
         string nodeKey,
         IReadOnlyDictionary<string, NodeSchema> nodeMap,
-        Dictionary<string, string> inputVariables,
+        Dictionary<string, JsonElement> inputVariables,
         Channel<SseEvent>? eventChannel,
         CancellationToken cancellationToken)
     {
@@ -338,7 +338,7 @@ public sealed class DagExecutor
         IReadOnlyDictionary<string, NodeSchema> nodeMap,
         Dictionary<string, List<string>> adjacency,
         Dictionary<string, List<ConnectionSchema>> connectionsBySource,
-        Dictionary<string, string> variables,
+        Dictionary<string, JsonElement> variables,
         Channel<SseEvent>? eventChannel,
         CancellationToken cancellationToken)
     {
@@ -360,7 +360,7 @@ public sealed class DagExecutor
 
             foreach (var bodyLevel in bodyLevels)
             {
-                var levelInput = new Dictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase);
+                var levelInput = new Dictionary<string, JsonElement>(variables, StringComparer.OrdinalIgnoreCase);
                 var bodyTasks = bodyLevel
                     .Select(nodeKey => ExecuteNodeAsync(
                         tenantId,
@@ -391,7 +391,7 @@ public sealed class DagExecutor
                 }
             }
 
-            var loopInput = new Dictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase);
+            var loopInput = new Dictionary<string, JsonElement>(variables, StringComparer.OrdinalIgnoreCase);
             var loopResult = await ExecuteNodeAsync(
                 tenantId,
                 executionId,
@@ -419,7 +419,7 @@ public sealed class DagExecutor
         return LoopIterationResult.Succeeded(loopNodeKey, bodyNodeKeys);
     }
 
-    private static bool IsLoopCompleted(Dictionary<string, string> outputs)
+    private static bool IsLoopCompleted(Dictionary<string, JsonElement> outputs)
     {
         if (!outputs.TryGetValue("loop_completed", out var completedRaw))
         {
@@ -427,17 +427,17 @@ public sealed class DagExecutor
             return true;
         }
 
-        if (bool.TryParse(completedRaw, out var completed))
+        if (VariableResolver.TryGetBoolean(completedRaw, out var completed))
         {
             return completed;
         }
 
-        return string.Equals(completedRaw, "1", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(VariableResolver.ToDisplayText(completedRaw), "1", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyList<string> ResolveSelectorBranchNodesToSkip(
         string selectorNodeKey,
-        Dictionary<string, string> outputs,
+        Dictionary<string, JsonElement> outputs,
         Dictionary<string, List<string>> adjacency,
         Dictionary<string, List<ConnectionSchema>> connectionsBySource)
     {
@@ -484,16 +484,17 @@ public sealed class DagExecutor
         return unselectedNodes.ToList();
     }
 
-    private static SelectorBranch? ResolveSelectedSelectorBranch(Dictionary<string, string> outputs)
+    private static SelectorBranch? ResolveSelectedSelectorBranch(Dictionary<string, JsonElement> outputs)
     {
         if (outputs.TryGetValue("selected_branch", out var selectedBranchRaw))
         {
-            if (selectedBranchRaw.Contains("true", StringComparison.OrdinalIgnoreCase))
+            var selectedBranchText = VariableResolver.ToDisplayText(selectedBranchRaw);
+            if (selectedBranchText.Contains("true", StringComparison.OrdinalIgnoreCase))
             {
                 return SelectorBranch.True;
             }
 
-            if (selectedBranchRaw.Contains("false", StringComparison.OrdinalIgnoreCase))
+            if (selectedBranchText.Contains("false", StringComparison.OrdinalIgnoreCase))
             {
                 return SelectorBranch.False;
             }
@@ -501,17 +502,18 @@ public sealed class DagExecutor
 
         if (outputs.TryGetValue("selector_result", out var selectorResultRaw))
         {
-            if (bool.TryParse(selectorResultRaw, out var boolResult))
+            if (VariableResolver.TryGetBoolean(selectorResultRaw, out var boolResult))
             {
                 return boolResult ? SelectorBranch.True : SelectorBranch.False;
             }
 
-            if (string.Equals(selectorResultRaw, "1", StringComparison.OrdinalIgnoreCase))
+            var selectorResultText = VariableResolver.ToDisplayText(selectorResultRaw);
+            if (string.Equals(selectorResultText, "1", StringComparison.OrdinalIgnoreCase))
             {
                 return SelectorBranch.True;
             }
 
-            if (string.Equals(selectorResultRaw, "0", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(selectorResultText, "0", StringComparison.OrdinalIgnoreCase))
             {
                 return SelectorBranch.False;
             }
@@ -580,9 +582,9 @@ public sealed class DagExecutor
         Dictionary<string, List<ConnectionSchema>> connectionsBySource)
     {
         if (loopNode.Config.TryGetValue("bodyNodeKeys", out var bodyNodeKeysConfig) &&
-            !string.IsNullOrWhiteSpace(bodyNodeKeysConfig))
+            !string.IsNullOrWhiteSpace(VariableResolver.ToDisplayText(bodyNodeKeysConfig)))
         {
-            return bodyNodeKeysConfig
+            return VariableResolver.ToDisplayText(bodyNodeKeysConfig)
                 .Split(new[] { ',', ';', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -850,7 +852,7 @@ public sealed class DagExecutor
         return levels;
     }
 
-    private static readonly Dictionary<string, string> EmptyOutputs = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, JsonElement> EmptyOutputs = new(StringComparer.OrdinalIgnoreCase);
 
     private enum SelectorBranch
     {
@@ -862,11 +864,11 @@ public sealed class DagExecutor
         string NodeKey,
         WorkflowNodeType? NodeType,
         bool Success,
-        Dictionary<string, string> Outputs,
+        Dictionary<string, JsonElement> Outputs,
         string? ErrorMessage,
         InterruptType InterruptType)
     {
-        public static NodeRunResult SuccessResult(string nodeKey, WorkflowNodeType? nodeType, Dictionary<string, string> outputs)
+        public static NodeRunResult SuccessResult(string nodeKey, WorkflowNodeType? nodeType, Dictionary<string, JsonElement> outputs)
             => new(nodeKey, nodeType, true, outputs, null, InterruptType.None);
 
         public static NodeRunResult FailedResult(string nodeKey, WorkflowNodeType? nodeType, string? errorMessage, InterruptType interruptType)

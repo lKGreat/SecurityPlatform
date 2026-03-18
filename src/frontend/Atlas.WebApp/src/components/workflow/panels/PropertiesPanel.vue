@@ -29,7 +29,7 @@
         <div class="section-title">节点配置</div>
 
         <!-- LLM 节点 -->
-        <template v-if="node.type === 'LLM'">
+        <template v-if="node.type === 'Llm'">
           <a-form layout="vertical" size="small">
             <a-form-item label="模型">
               <a-select v-model:value="localConfigs.model" @change="emitUpdate">
@@ -39,11 +39,11 @@
                 <a-select-option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</a-select-option>
               </a-select>
             </a-form-item>
-            <a-form-item label="系统提示词">
-              <a-textarea v-model:value="localConfigs.systemPrompt" :rows="3" @change="emitUpdate" />
+            <a-form-item label="Provider（可选）">
+              <a-input v-model:value="localConfigs.provider" placeholder="openai / deepseek / ollama" @change="emitUpdate" />
             </a-form-item>
-            <a-form-item label="用户提示词（支持 {{变量}} 模板）">
-              <a-textarea v-model:value="localConfigs.userPrompt" :rows="5" @change="emitUpdate" />
+            <a-form-item label="提示词（支持 {{变量}} 模板）">
+              <a-textarea v-model:value="localConfigs.prompt" :rows="5" @change="emitUpdate" />
             </a-form-item>
             <a-form-item label="Temperature">
               <a-slider v-model:value="localConfigs.temperature" :min="0" :max="2" :step="0.1" @change="emitUpdate" />
@@ -51,32 +51,22 @@
             <a-form-item label="最大 Token 数">
               <a-input-number v-model:value="localConfigs.maxTokens" :min="100" :max="8000" @change="emitUpdate" style="width:100%" />
             </a-form-item>
+            <a-form-item label="输出变量名">
+              <a-input v-model:value="localConfigs.outputKey" placeholder="llm_output" @change="emitUpdate" />
+            </a-form-item>
           </a-form>
         </template>
 
-        <!-- If 节点 -->
-        <template v-else-if="node.type === 'If'">
+        <!-- Selector 节点 -->
+        <template v-else-if="node.type === 'Selector'">
           <a-form layout="vertical" size="small">
-            <a-form-item label="逻辑关系">
-              <a-radio-group v-model:value="localConfigs.logic" @change="emitUpdate">
-                <a-radio value="and">AND（全部满足）</a-radio>
-                <a-radio value="or">OR（任一满足）</a-radio>
-              </a-radio-group>
-            </a-form-item>
-            <a-form-item label="条件列表">
-              <div v-for="(cond, idx) in conditions" :key="idx" class="condition-row">
-                <a-input v-model:value="cond.left" placeholder="变量引用" style="width:35%" size="small" />
-                <a-select v-model:value="cond.op" style="width:22%" size="small">
-                  <a-select-option value="eq">==</a-select-option>
-                  <a-select-option value="ne">!=</a-select-option>
-                  <a-select-option value="gt">&gt;</a-select-option>
-                  <a-select-option value="lt">&lt;</a-select-option>
-                  <a-select-option value="contains">包含</a-select-option>
-                </a-select>
-                <a-input v-model:value="cond.right" placeholder="值" style="width:30%" size="small" />
-                <a-button size="small" danger @click="removeCondition(idx)">-</a-button>
-              </div>
-              <a-button size="small" @click="addCondition">+ 添加条件</a-button>
+            <a-form-item label="条件表达式">
+              <a-textarea
+                v-model:value="localConfigs.condition"
+                :rows="4"
+                placeholder='示例：{{riskScore}} >= 80 && {{severity}} == "high"'
+                @change="emitUpdate"
+              />
             </a-form-item>
           </a-form>
         </template>
@@ -97,7 +87,7 @@
               <a-input v-model:value="localConfigs.url" @change="emitUpdate" />
             </a-form-item>
             <a-form-item label="请求体模板（JSON）">
-              <a-textarea v-model:value="localConfigs.bodyTemplate" :rows="4" @change="emitUpdate" />
+              <a-textarea v-model:value="localConfigs.body" :rows="4" @change="emitUpdate" />
             </a-form-item>
           </a-form>
         </template>
@@ -106,7 +96,7 @@
         <template v-else-if="node.type === 'CodeRunner'">
           <a-form layout="vertical" size="small">
             <a-form-item label="表达式（支持 {{变量}} 模板）">
-              <a-textarea v-model:value="localConfigs.expression" :rows="6" @change="emitUpdate" />
+              <a-textarea v-model:value="localConfigs.code" :rows="6" @change="emitUpdate" />
             </a-form-item>
           </a-form>
         </template>
@@ -114,8 +104,8 @@
         <!-- Loop 节点 -->
         <template v-else-if="node.type === 'Loop'">
           <a-form layout="vertical" size="small">
-            <a-form-item label="数组引用">
-              <a-input v-model:value="localConfigs.arrayRef" placeholder="如 entry_1.items" @change="emitUpdate" />
+            <a-form-item label="最大迭代次数">
+              <a-input-number v-model:value="localConfigs.maxIterations" :min="1" :max="1000" style="width:100%" @change="emitUpdate" />
             </a-form-item>
           </a-form>
         </template>
@@ -125,9 +115,6 @@
           <a-form layout="vertical" size="small">
             <a-form-item label="工作流 ID">
               <a-input-number v-model:value="localConfigs.workflowId" @change="emitUpdate" style="width:100%" />
-            </a-form-item>
-            <a-form-item label="版本（空 = 最新草稿）">
-              <a-input v-model:value="localConfigs.version" placeholder="如 1.0.0" @change="emitUpdate" />
             </a-form-item>
           </a-form>
         </template>
@@ -193,27 +180,6 @@ watch(() => props.node, (newNode) => {
   Object.keys(localInputMappings).forEach(k => delete localInputMappings[k])
   Object.assign(localInputMappings, newNode.inputMappings)
 }, { deep: true })
-
-// If 节点条件列表
-interface Condition { left: string; op: string; right: string }
-const conditions = computed<Condition[]>(() => {
-  const c = localConfigs.conditions
-  if (Array.isArray(c)) return c as Condition[]
-  return []
-})
-
-function addCondition() {
-  const arr = [...conditions.value, { left: '', op: 'eq', right: '' }]
-  localConfigs.conditions = arr
-  emitUpdate()
-}
-
-function removeCondition(idx: number) {
-  const arr = [...conditions.value]
-  arr.splice(idx, 1)
-  localConfigs.conditions = arr
-  emitUpdate()
-}
 
 // 通用配置 JSON
 const configsJson = computed(() => JSON.stringify(localConfigs, null, 2))

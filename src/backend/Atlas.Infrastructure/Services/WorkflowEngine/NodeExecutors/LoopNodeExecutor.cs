@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Atlas.Domain.AiPlatform.Enums;
 
 namespace Atlas.Infrastructure.Services.WorkflowEngine.NodeExecutors;
@@ -13,22 +14,37 @@ public sealed class LoopNodeExecutor : INodeExecutor
 
     public Task<NodeExecutionResult> ExecuteAsync(NodeExecutionContext context, CancellationToken cancellationToken)
     {
-        int.TryParse(context.Node.Config.GetValueOrDefault("maxIterations"), out var maxIterations);
-        if (maxIterations <= 0) maxIterations = 10;
+        var maxIterations = context.GetConfigInt32("maxIterations", 10);
+        if (maxIterations <= 0)
+        {
+            maxIterations = 10;
+        }
 
-        int.TryParse(context.Variables.GetValueOrDefault("loop_index"), out var currentIndex);
+        var currentIndex = 0;
+        if (context.Variables.TryGetValue("loop_index", out var loopIndexValue))
+        {
+            if (loopIndexValue.ValueKind == JsonValueKind.Number)
+            {
+                _ = loopIndexValue.TryGetInt32(out currentIndex);
+            }
+            else
+            {
+                var loopIndexText = VariableResolver.ToDisplayText(loopIndexValue);
+                _ = int.TryParse(loopIndexText, out currentIndex);
+            }
+        }
 
-        var outputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var outputs = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
 
         if (currentIndex < maxIterations)
         {
-            outputs["loop_index"] = (currentIndex + 1).ToString();
-            outputs["loop_completed"] = "false";
+            outputs["loop_index"] = JsonSerializer.SerializeToElement(currentIndex + 1);
+            outputs["loop_completed"] = JsonSerializer.SerializeToElement(false);
         }
         else
         {
-            outputs["loop_index"] = currentIndex.ToString();
-            outputs["loop_completed"] = "true";
+            outputs["loop_index"] = JsonSerializer.SerializeToElement(currentIndex);
+            outputs["loop_completed"] = JsonSerializer.SerializeToElement(true);
         }
 
         return Task.FromResult(new NodeExecutionResult(true, outputs));

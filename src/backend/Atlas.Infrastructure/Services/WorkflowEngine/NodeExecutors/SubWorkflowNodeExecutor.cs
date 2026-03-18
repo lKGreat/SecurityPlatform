@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Atlas.Domain.AiPlatform.Enums;
 
 namespace Atlas.Infrastructure.Services.WorkflowEngine.NodeExecutors;
@@ -12,11 +13,11 @@ public sealed class SubWorkflowNodeExecutor : INodeExecutor
 
     public Task<NodeExecutionResult> ExecuteAsync(NodeExecutionContext context, CancellationToken cancellationToken)
     {
-        var workflowId = context.Node.Config.GetValueOrDefault("workflowId");
-        var outputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        var workflowId = context.GetConfigString("workflowId");
+        var outputs = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
         {
-            ["subworkflow_id"] = workflowId ?? string.Empty,
-            ["subworkflow_status"] = "not_implemented"
+            ["subworkflow_id"] = VariableResolver.CreateStringElement(workflowId),
+            ["subworkflow_status"] = VariableResolver.CreateStringElement("not_implemented")
         };
 
         // 占位：TODO[coze-v2-subworkflow] 递归调用 DagExecutor 执行子工作流
