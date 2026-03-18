@@ -1,4 +1,5 @@
 using Atlas.Application.LowCode.Abstractions;
+using Atlas.Application.Identity;
 using Atlas.Application.LowCode.Models;
 using Atlas.Application.Platform.Abstractions;
 using Atlas.Application.Platform.Models;
@@ -6,11 +7,14 @@ using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.AiPlatform.Entities;
 using Atlas.Domain.Audit.Entities;
+using Atlas.Domain.Identity.Entities;
 using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.LowCode.Enums;
 using Atlas.Domain.Platform.Entities;
 using Atlas.Domain.System.Entities;
 using SqlSugar;
+using TenantAppDataSourceBindingDto = Atlas.Application.Platform.Models.TenantAppDataSourceBinding;
+using TenantAppDataSourceBindingEntity = Atlas.Domain.System.Entities.TenantAppDataSourceBinding;
 
 namespace Atlas.Infrastructure.Services.Platform;
 
@@ -110,7 +114,7 @@ public sealed class TenantApplicationQueryService : ITenantApplicationQueryServi
         if (catalogIds.Length > 0)
         {
             var catalogs = await _db.Queryable<AppManifest>()
-                .Where(item => item.TenantIdValue == tenantValue && catalogIds.Contains(item.Id))
+                .Where(item => item.TenantIdValue == tenantValue && SqlFunc.ContainsArray(catalogIds, item.Id))
                 .Select(item => new { item.Id, item.Name })
                 .ToListAsync(cancellationToken);
             catalogNameDict = catalogs.ToDictionary(item => item.Id, item => item.Name);
@@ -193,7 +197,7 @@ public sealed class TenantApplicationQueryService : ITenantApplicationQueryServi
 
         var appKeys = apps.Select(item => item.AppKey).Distinct().ToArray();
         var catalogs = await _db.Queryable<AppManifest>()
-            .Where(item => item.TenantIdValue == tenantValue && appKeys.Contains(item.AppKey))
+            .Where(item => item.TenantIdValue == tenantValue && SqlFunc.ContainsArray(appKeys, item.AppKey))
             .Select(item => new { item.Id, item.AppKey, item.Name })
             .ToListAsync(cancellationToken);
         var catalogByAppKey = catalogs
@@ -320,7 +324,7 @@ public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryServi
             item.DataSourceId);
     }
 
-    public async Task<IReadOnlyList<TenantAppDataSourceBinding>> GetDataSourceBindingsAsync(
+    public async Task<IReadOnlyList<TenantAppDataSourceBindingDto>> GetDataSourceBindingsAsync(
         TenantId tenantId,
         IReadOnlyCollection<long>? appInstanceIds,
         CancellationToken cancellationToken = default)
@@ -330,8 +334,8 @@ public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryServi
             .Where(app => app.TenantIdValue == tenantValue);
         if (appInstanceIds is { Count: > 0 })
         {
-            var appIds = appInstanceIds.ToArray();
-            appQuery = appQuery.Where(app => appIds.Contains(app.Id));
+            var filterAppIds = appInstanceIds.ToArray();
+            appQuery = appQuery.Where(app => SqlFunc.ContainsArray(filterAppIds, app.Id));
         }
 
         var apps = await appQuery
@@ -342,17 +346,34 @@ public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryServi
             return [];
         }
 
-        var dataSourceIds = apps
-            .Where(app => app.DataSourceId.HasValue)
-            .Select(app => app.DataSourceId!.Value)
+        var appIds = apps.Select(app => app.Id).ToArray();
+        var bindings = await _db.Queryable<TenantAppDataSourceBindingEntity>()
+            .Where(binding => binding.TenantIdValue == tenantValue && SqlFunc.ContainsArray(appIds, binding.TenantAppInstanceId))
+            .ToListAsync(cancellationToken);
+        var preferredBindingsByAppId = bindings
+            .GroupBy(binding => binding.TenantAppInstanceId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(binding => binding.IsActive)
+                    .ThenBy(binding => binding.BindingType)
+                    .ThenByDescending(binding => binding.UpdatedAt ?? binding.BoundAt)
+                    .First());
+
+        var legacyDataSourceIds = apps
+            .Where(app => app.DataSourceId.HasValue && !preferredBindingsByAppId.ContainsKey(app.Id))
+            .Select(app => app.DataSourceId!.Value);
+        var dataSourceIds = preferredBindingsByAppId.Values
+            .Select(binding => binding.DataSourceId)
+            .Concat(legacyDataSourceIds)
             .Distinct()
             .ToArray();
-        var tenantIdText = tenantId.ToString();
+        var tenantIdText = tenantValue.ToString();
         var dataSourceDict = new Dictionary<long, TenantDataSource>();
         if (dataSourceIds.Length > 0)
         {
             var tenantDataSources = await _db.Queryable<TenantDataSource>()
-                .Where(ds => ds.TenantIdValue == tenantIdText && dataSourceIds.Contains(ds.Id))
+                .Where(ds => ds.TenantIdValue == tenantIdText && SqlFunc.ContainsArray(dataSourceIds, ds.Id))
                 .ToListAsync(cancellationToken);
             dataSourceDict = tenantDataSources.ToDictionary(ds => ds.Id);
         }
@@ -360,16 +381,56 @@ public sealed class TenantAppInstanceQueryService : ITenantAppInstanceQueryServi
         return apps
             .Select(app =>
             {
-                var dataSource = app.DataSourceId.HasValue && dataSourceDict.TryGetValue(app.DataSourceId.Value, out var item)
-                    ? item
-                    : null;
-                return new TenantAppDataSourceBinding(
+                if (preferredBindingsByAppId.TryGetValue(app.Id, out var binding))
+                {
+                    var dataSource = dataSourceDict.TryGetValue(binding.DataSourceId, out var bindingDataSource)
+                        ? bindingDataSource
+                        : null;
+                    return new TenantAppDataSourceBindingDto(
+                        app.Id.ToString(),
+                        binding.DataSourceId.ToString(),
+                        dataSource?.Name,
+                        dataSource?.DbType,
+                        dataSource?.IsActive,
+                        dataSource?.LastTestedAt?.ToString("O"),
+                        binding.Id.ToString(),
+                        binding.BindingType.ToString(),
+                        binding.IsActive,
+                        binding.BoundAt.ToString("O"),
+                        "BindingTable");
+                }
+
+                if (app.DataSourceId.HasValue)
+                {
+                    var dataSource = dataSourceDict.TryGetValue(app.DataSourceId.Value, out var legacyDataSource)
+                        ? legacyDataSource
+                        : null;
+                    return new TenantAppDataSourceBindingDto(
+                        app.Id.ToString(),
+                        app.DataSourceId.Value.ToString(),
+                        dataSource?.Name,
+                        dataSource?.DbType,
+                        dataSource?.IsActive,
+                        dataSource?.LastTestedAt?.ToString("O"),
+                        null,
+                        TenantAppDataSourceBindingType.Primary.ToString(),
+                        null,
+                        null,
+                        "LegacyLowCodeApp.DataSourceId");
+                }
+
+                return new TenantAppDataSourceBindingDto(
                     app.Id.ToString(),
-                    app.DataSourceId?.ToString(),
-                    dataSource?.Name,
-                    dataSource?.DbType,
-                    dataSource?.IsActive,
-                    dataSource?.LastTestedAt?.ToString("O"));
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Unbound");
             })
             .ToArray();
     }
@@ -551,6 +612,9 @@ public sealed class RuntimeExecutionQueryService : IRuntimeExecutionQueryService
         var items = rows.Select(execution => new RuntimeExecutionListItem(
             execution.Id.ToString(),
             execution.WorkflowId.ToString(),
+            execution.RuntimeContextId?.ToString(),
+            execution.ReleaseId?.ToString(),
+            execution.AppId?.ToString(),
             execution.Status.ToString(),
             execution.StartedAt.ToString("O"),
             execution.CompletedAt?.ToString("O"),
@@ -575,6 +639,9 @@ public sealed class RuntimeExecutionQueryService : IRuntimeExecutionQueryService
         return new RuntimeExecutionDetail(
             execution.Id.ToString(),
             execution.WorkflowId.ToString(),
+            execution.RuntimeContextId?.ToString(),
+            execution.ReleaseId?.ToString(),
+            execution.AppId?.ToString(),
             execution.Status.ToString(),
             execution.StartedAt.ToString("O"),
             execution.CompletedAt?.ToString("O"),
@@ -592,14 +659,13 @@ public sealed class RuntimeExecutionQueryService : IRuntimeExecutionQueryService
         var tenantValue = tenantId.Value;
         var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
         var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
-        var executionIdText = executionId.ToString();
-        var workflowExecutionTarget = $"WorkflowExecution:{executionIdText}";
-        var runtimeExecutionTarget = $"RuntimeExecution:{executionIdText}";
+        var execution = await _db.Queryable<WorkflowExecution>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == executionId, cancellationToken);
+        var targetSet = BuildAuditTargetSet(executionId, execution);
+        var auditTargets = targetSet.ToArray();
         var query = _db.Queryable<AuditRecord>()
             .Where(item => item.TenantIdValue == tenantValue
-                && (item.Target == executionIdText
-                    || item.Target == workflowExecutionTarget
-                    || item.Target == runtimeExecutionTarget));
+                && SqlFunc.ContainsArray(auditTargets, item.Target));
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             var keyword = request.Keyword.Trim();
@@ -620,6 +686,37 @@ public sealed class RuntimeExecutionQueryService : IRuntimeExecutionQueryService
             .ToArray();
 
         return new PagedResult<RuntimeExecutionAuditTrailItem>(items, total, pageIndex, pageSize);
+    }
+
+    private static HashSet<string> BuildAuditTargetSet(long executionId, WorkflowExecution? execution)
+    {
+        var executionIdText = executionId.ToString();
+        var targetSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            executionIdText,
+            $"WorkflowExecution:{executionIdText}",
+            $"RuntimeExecution:{executionIdText}"
+        };
+
+        if (execution?.ReleaseId is { } releaseId)
+        {
+            targetSet.Add($"Release:{releaseId}");
+            targetSet.Add($"AppRelease:{releaseId}");
+        }
+
+        if (execution?.RuntimeContextId is { } runtimeContextId)
+        {
+            targetSet.Add($"RuntimeContext:{runtimeContextId}");
+            targetSet.Add($"RuntimeRoute:{runtimeContextId}");
+        }
+
+        if (execution?.AppId is { } appId)
+        {
+            targetSet.Add($"App:{appId}");
+            targetSet.Add($"AppManifest:{appId}");
+        }
+
+        return targetSet;
     }
 }
 
@@ -691,7 +788,7 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
         CancellationToken cancellationToken = default)
     {
         var tenantIdValue = tenantId.Value;
-        var tenantIdText = tenantId.ToString();
+        var tenantIdText = tenantIdValue.ToString();
 
         var dataSourcesTask = _db.Queryable<TenantDataSource>()
             .Where(item => item.TenantIdValue == tenantIdText)
@@ -701,22 +798,81 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             .Where(item => item.TenantIdValue == tenantIdValue)
             .OrderByDescending(item => item.UpdatedAt)
             .ToListAsync(cancellationToken);
-        await Task.WhenAll(dataSourcesTask, appInstancesTask);
+        var bindingsTask = _db.Queryable<TenantAppDataSourceBindingEntity>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.UpdatedAt ?? item.BoundAt)
+            .ToListAsync(cancellationToken);
+        await Task.WhenAll(dataSourcesTask, appInstancesTask, bindingsTask);
 
         var dataSources = dataSourcesTask.Result;
         var appInstances = appInstancesTask.Result;
+        var bindings = bindingsTask.Result;
 
         var appInstanceById = appInstances.ToDictionary(item => item.Id);
-        var appInstancesByDataSourceId = appInstances
-            .Where(item => item.DataSourceId.HasValue)
-            .GroupBy(item => item.DataSourceId!.Value)
-            .ToDictionary(group => group.Key, group => group.ToArray());
+        var bindingAppSet = bindings
+            .Select(item => item.TenantAppInstanceId)
+            .ToHashSet();
+        var allRelations = bindings
+            .Select(item => new DataSourceBindingRelation(
+                item.Id.ToString(),
+                item.TenantAppInstanceId,
+                item.DataSourceId,
+                item.BindingType.ToString(),
+                item.IsActive,
+                item.BoundAt,
+                item.UpdatedAt,
+                "BindingTable"))
+            .ToList();
+        allRelations.AddRange(
+            appInstances
+                .Where(item => item.DataSourceId.HasValue && !bindingAppSet.Contains(item.Id))
+                .Select(item => new DataSourceBindingRelation(
+                    $"legacy-{item.Id}-{item.DataSourceId!.Value}",
+                    item.Id,
+                    item.DataSourceId!.Value,
+                    TenantAppDataSourceBindingType.Primary.ToString(),
+                    true,
+                    null,
+                    null,
+                    "LegacyLowCodeApp.DataSourceId")));
+
+        var activeBoundAppSet = allRelations
+            .Where(item => item.IsActive)
+            .Select(item => item.TenantAppInstanceId)
+            .ToHashSet();
+        var relationsByDataSourceId = allRelations
+            .GroupBy(item => item.DataSourceId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(item => item.IsActive)
+                    .ThenBy(item => item.BindingType)
+                    .ThenByDescending(item => item.UpdatedAt ?? item.BoundAt ?? DateTimeOffset.MinValue)
+                    .ToArray());
 
         TenantDataSourceConsumptionItem MapDataSource(TenantDataSource dataSource)
         {
-            var boundApps = appInstancesByDataSourceId.TryGetValue(dataSource.Id, out var items)
-                ? items.Select(MapAppConsumer).ToArray()
+            var relations = relationsByDataSourceId.TryGetValue(dataSource.Id, out var dataSourceRelations)
+                ? dataSourceRelations
                 : [];
+            var bindingRelations = relations
+                .Select(item => new TenantDataSourceBindingRelationItem(
+                    item.BindingId,
+                    item.TenantAppInstanceId.ToString(),
+                    item.DataSourceId.ToString(),
+                    item.BindingType,
+                    item.IsActive,
+                    item.BoundAt?.ToString("O"),
+                    item.UpdatedAt?.ToString("O"),
+                    item.Source))
+                .ToArray();
+            var boundApps = relations
+                .Where(item => item.IsActive)
+                .Select(item => appInstanceById.TryGetValue(item.TenantAppInstanceId, out var app) ? MapAppConsumer(app) : null)
+                .Where(item => item is not null)
+                .GroupBy(item => item!.TenantAppInstanceId, StringComparer.Ordinal)
+                .Select(group => group.First()!)
+                .ToArray();
 
             var scope = dataSource.AppId.HasValue ? "AppScoped" : "Platform";
             string? scopeAppId = null;
@@ -741,6 +897,7 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
                 scopeAppName,
                 boundApps.Length,
                 boundApps,
+                bindingRelations,
                 dataSource.LastTestedAt?.ToString("O"),
                 dataSource.LastTestMessage);
         }
@@ -754,7 +911,7 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             .Select(MapDataSource)
             .ToArray();
         var unboundTenantApps = appInstances
-            .Where(item => !item.DataSourceId.HasValue)
+            .Where(item => !activeBoundAppSet.Contains(item.Id))
             .Select(MapAppConsumer)
             .ToArray();
 
@@ -775,6 +932,16 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             app.Name,
             app.Status.ToString());
     }
+
+    private sealed record DataSourceBindingRelation(
+        string BindingId,
+        long TenantAppInstanceId,
+        long DataSourceId,
+        string BindingType,
+        bool IsActive,
+        DateTimeOffset? BoundAt,
+        DateTimeOffset? UpdatedAt,
+        string Source);
 }
 
 public sealed class ReleaseCenterQueryService : IReleaseCenterQueryService
@@ -912,26 +1079,60 @@ public sealed class CozeMappingQueryService : ICozeMappingQueryService
 
 public sealed class DebugLayerQueryService : IDebugLayerQueryService
 {
-    public Task<DebugLayerEmbedMetadata> GetEmbedMetadataAsync(
+    private readonly ISqlSugarClient _db;
+
+    public DebugLayerQueryService(ISqlSugarClient db)
+    {
+        _db = db;
+    }
+
+    public async Task<DebugLayerEmbedMetadata> GetEmbedMetadataAsync(
         TenantId tenantId,
+        long userId,
         string appId,
         long? projectId,
         bool projectScopeEnabled,
         CancellationToken cancellationToken = default)
     {
-        _ = cancellationToken;
-        var resources = new[]
+        var roleIds = await _db.Queryable<UserRole>()
+            .Where(item => item.TenantIdValue == tenantId.Value && item.UserId == userId)
+            .Select(item => item.RoleId)
+            .ToListAsync(cancellationToken);
+        var grantedPermissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (roleIds.Count > 0)
         {
-            new DebugLayerResourceItem("workflow-executions", "运行执行观测", "apps:view", "查看执行状态、输入输出与错误消息"),
-            new DebugLayerResourceItem("runtime-audit-trails", "运行审计追溯", "audit:view", "查看与执行ID关联的审计轨迹"),
-            new DebugLayerResourceItem("rollback-ops", "回滚操作入口", "apps:update", "触发发布版本回滚操作")
-        };
+            var roleIdArray = roleIds.Distinct().ToArray();
+            var permissionIds = await _db.Queryable<RolePermission>()
+                .Where(item => item.TenantIdValue == tenantId.Value && SqlFunc.ContainsArray(roleIdArray, item.RoleId))
+                .Select(item => item.PermissionId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            if (permissionIds.Count > 0)
+            {
+                var permissionIdArray = permissionIds.ToArray();
+                var permissionCodes = await _db.Queryable<Permission>()
+                    .Where(item => item.TenantIdValue == tenantId.Value && SqlFunc.ContainsArray(permissionIdArray, item.Id))
+                    .Select(item => item.Code)
+                    .ToListAsync(cancellationToken);
+                grantedPermissions = permissionCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
+        }
 
-        return Task.FromResult(new DebugLayerEmbedMetadata(
+        var resourceDefinitions = new[]
+        {
+            new DebugLayerResourceItem("workflow-executions", "运行执行观测", PermissionCodes.DebugView, "查看执行状态、输入输出与错误消息"),
+            new DebugLayerResourceItem("runtime-audit-trails", "运行审计追溯", PermissionCodes.DebugRun, "查看与执行ID关联的审计轨迹"),
+            new DebugLayerResourceItem("rollback-ops", "回滚操作入口", PermissionCodes.DebugManage, "触发发布版本回滚操作")
+        };
+        var resources = resourceDefinitions
+            .Where(item => grantedPermissions.Contains(item.RequiredPermission))
+            .ToArray();
+
+        return new DebugLayerEmbedMetadata(
             tenantId.ToString(),
             appId,
             projectId?.ToString(),
             projectScopeEnabled,
-            resources));
+            resources);
     }
 }
