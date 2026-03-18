@@ -183,6 +183,7 @@ export interface ApprovalNode {
   callAsync?: boolean;
   timerConfig?: string;
   triggerType?: string;
+  routeTargetNodeId?: string;
 }
 
 export interface ConditionRule {

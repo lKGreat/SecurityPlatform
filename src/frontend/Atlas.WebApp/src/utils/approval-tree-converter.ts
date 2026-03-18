@@ -446,15 +446,10 @@ export class ApprovalTreeConverter {
 
     if (node.nodeType === 'route') {
       const routeNode = node as RouteNode;
-      // 路由节点没有特殊配置，目标节点ID通常通过连线体现，或者作为属性存储
-      // FlowLong 中路由节点是直接跳转，不生成任务
-      // 我们需要确保 routeTargetNodeId 被保存
-      // 但 ApprovalNode 定义中没有 routeTargetNodeId 字段，可能需要扩展 ApprovalNode
-      // 暂时存入 properties 或 data
-      // 假设后端 FlowNode 有 GetRouteTarget 方法，说明它是通过出边来判断的
-      // 所以这里不需要额外保存 targetId，只要保证连线正确即可
-      // 但 treeToGraph 会处理连线。treeToDefinitionJson 是给后端用的。
-      // 后端解析器通过 edges 来判断路由目标。
+      // 路由节点的目标节点 ID 存储在 routeTargetNodeId 属性中
+      // 后端通过 edges 来判断路由目标，但我们也需要在定义中保留此属性
+      // 以便前端加载时能恢复
+      base.routeTargetNodeId = routeNode.routeTargetNodeId;
     }
 
     if (node.nodeType === 'callProcess') {
@@ -598,7 +593,7 @@ export class ApprovalTreeConverter {
         return {
             ...base,
             nodeType: 'route',
-            // routeTargetNodeId 从边获取，这里无法直接获取，需要在 graphToTree 中处理
+            routeTargetNodeId: node.routeTargetNodeId,
         } as RouteNode;
       case 'callProcess':
         return {
