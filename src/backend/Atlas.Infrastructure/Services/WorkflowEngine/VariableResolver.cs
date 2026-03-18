@@ -258,6 +258,48 @@ public static class VariableResolver
             : defaultValue;
     }
 
+    public static long GetConfigInt64(
+        IReadOnlyDictionary<string, JsonElement> config,
+        string key,
+        long defaultValue = 0L)
+    {
+        if (!config.TryGetValue(key, out var raw))
+        {
+            return defaultValue;
+        }
+
+        if (raw.ValueKind == JsonValueKind.Number && raw.TryGetInt64(out var longFromNumber))
+        {
+            return longFromNumber;
+        }
+
+        var text = ToDisplayText(raw);
+        return long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longValue)
+            ? longValue
+            : defaultValue;
+    }
+
+    public static bool GetConfigBoolean(
+        IReadOnlyDictionary<string, JsonElement> config,
+        string key,
+        bool defaultValue = false)
+    {
+        if (!config.TryGetValue(key, out var raw))
+        {
+            return defaultValue;
+        }
+
+        if (TryGetBoolean(raw, out var fromRaw))
+        {
+            return fromRaw;
+        }
+
+        var text = ToDisplayText(raw);
+        return bool.TryParse(text, out var parsed)
+            ? parsed
+            : defaultValue;
+    }
+
     public static bool TryGetConfigValue(
         IReadOnlyDictionary<string, JsonElement> config,
         string key,

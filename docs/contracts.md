@@ -2321,17 +2321,23 @@ event: execution_start
 data: {"executionId":"123456"}
 
 event: node_start
-data: {"nodeKey":"text_1","nodeType":"TextProcessor"}
+data: {"executionId":"123456","nodeKey":"text_1","nodeType":"TextProcessor"}
+
+event: node_output
+data: {"executionId":"123456","nodeKey":"text_1","nodeType":"TextProcessor","outputs":{"text_output":"hello"}}
 
 event: node_complete
-data: {"nodeKey":"text_1","durationMs":15}
+data: {"executionId":"123456","nodeKey":"text_1","nodeType":"TextProcessor","durationMs":15}
+
+event: node_failed
+data: {"executionId":"123456","nodeKey":"loop_1","nodeType":"Loop","durationMs":2,"errorMessage":"Loop 节点未找到集合变量：items","interruptType":"None"}
 
 event: llm_output
 data: 大模型生成的文本内容...
 
 # 仅在执行成功时发送
 event: execution_complete
-data: {"executionId":"123456"}
+data: {"executionId":"123456","outputsJson":"{\"result\":\"ok\"}"}
 
 # 执行失败（包含业务失败/运行时异常）
 event: execution_failed
@@ -2343,7 +2349,7 @@ data: {"executionId":"123456"}
 
 # 执行中断（等待人工介入/外部输入）
 event: execution_interrupted
-data: {"executionId":"123456","interruptType":"ManualApproval","nodeKey":"approval_1"}
+data: {"executionId":"123456","interruptType":"ManualApproval","nodeKey":"approval_1","outputsJson":"{\"draft\":\"pending\"}"}
 ```
 
 ### Canvas JSON Schema

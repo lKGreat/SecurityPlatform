@@ -247,17 +247,37 @@ export interface ExecutionStartEvent {
 }
 
 export interface NodeStartEvent {
+  executionId: string
   nodeKey: string
   nodeType: string
 }
 
 export interface NodeCompleteEvent {
+  executionId: string
   nodeKey: string
+  nodeType: string
   durationMs: number
+}
+
+export interface NodeOutputEvent {
+  executionId: string
+  nodeKey: string
+  nodeType: string
+  outputs: Record<string, unknown>
+}
+
+export interface NodeFailedEvent {
+  executionId: string
+  nodeKey: string
+  nodeType: string
+  durationMs?: number
+  errorMessage: string
+  interruptType?: string
 }
 
 export interface ExecutionCompleteEvent {
   executionId: string
+  outputsJson?: string
 }
 
 export interface ExecutionFailedEvent {
@@ -267,18 +287,22 @@ export interface ExecutionFailedEvent {
 
 export interface ExecutionCancelledEvent {
   executionId: string
+  errorMessage?: string
 }
 
 export interface ExecutionInterruptedEvent {
   executionId: string
   interruptType: string
   nodeKey?: string
+  outputsJson?: string
 }
 
 export type SseEventData =
   | ExecutionStartEvent
   | NodeStartEvent
   | NodeCompleteEvent
+  | NodeOutputEvent
+  | NodeFailedEvent
   | ExecutionCompleteEvent
   | ExecutionFailedEvent
   | ExecutionCancelledEvent

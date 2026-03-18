@@ -49,12 +49,16 @@ public sealed class DagExecutor
         CanvasSchema canvas,
         Dictionary<string, JsonElement> inputs,
         Channel<SseEvent>? eventChannel,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<long>? workflowCallStack = null)
     {
         execution.Start();
         await _executionRepo.UpdateAsync(execution, cancellationToken);
 
         var variables = new Dictionary<string, JsonElement>(inputs, StringComparer.OrdinalIgnoreCase);
+        var currentCallStack = workflowCallStack is not null && workflowCallStack.Count > 0
+            ? workflowCallStack
+            : new[] { execution.WorkflowId };
 
         try
         {
@@ -80,7 +84,9 @@ public sealed class DagExecutor
                 var levelTasks = executableNodeKeys
                     .Select(nodeKey => ExecuteNodeAsync(
                         tenantId,
+                        execution.WorkflowId,
                         execution.Id,
+                        currentCallStack,
                         nodeKey,
                         nodeMap,
                         levelInput,
@@ -137,7 +143,9 @@ public sealed class DagExecutor
                 {
                     var loopResult = await ExecuteLoopIterationsAsync(
                         tenantId,
+                        execution.WorkflowId,
                         execution.Id,
+                        currentCallStack,
                         loopNode.NodeKey,
                         nodeMap,
                         adjacency,
@@ -257,7 +265,9 @@ public sealed class DagExecutor
 
     private async Task<NodeRunResult> ExecuteNodeAsync(
         TenantId tenantId,
+        long workflowId,
         long executionId,
+        IReadOnlyList<long> workflowCallStack,
         string nodeKey,
         IReadOnlyDictionary<string, NodeSchema> nodeMap,
         Dictionary<string, JsonElement> inputVariables,
@@ -283,12 +293,25 @@ public sealed class DagExecutor
         if (eventChannel is not null)
         {
             await eventChannel.Writer.WriteAsync(
-                new SseEvent("node_start", JsonSerializer.Serialize(new { nodeKey, nodeType = node.Type.ToString() })),
+                new SseEvent("node_start", JsonSerializer.Serialize(new
+                {
+                    executionId = executionId.ToString(),
+                    nodeKey,
+                    nodeType = node.Type.ToString()
+                })),
                 cancellationToken);
         }
 
         var sw = Stopwatch.StartNew();
-        var context = new NodeExecutionContext(node, inputVariables, _serviceProvider, executionId, eventChannel);
+        var context = new NodeExecutionContext(
+            node,
+            inputVariables,
+            _serviceProvider,
+            tenantId,
+            workflowId,
+            executionId,
+            workflowCallStack,
+            eventChannel);
 
         try
         {
@@ -303,7 +326,23 @@ public sealed class DagExecutor
                 if (eventChannel is not null)
                 {
                     await eventChannel.Writer.WriteAsync(
-                        new SseEvent("node_complete", JsonSerializer.Serialize(new { nodeKey, durationMs = sw.ElapsedMilliseconds })),
+                        new SseEvent("node_output", JsonSerializer.Serialize(new
+                        {
+                            executionId = executionId.ToString(),
+                            nodeKey,
+                            nodeType = node.Type.ToString(),
+                            outputs = result.Outputs
+                        })),
+                        cancellationToken);
+
+                    await eventChannel.Writer.WriteAsync(
+                        new SseEvent("node_complete", JsonSerializer.Serialize(new
+                        {
+                            executionId = executionId.ToString(),
+                            nodeKey,
+                            nodeType = node.Type.ToString(),
+                            durationMs = sw.ElapsedMilliseconds
+                        })),
                         cancellationToken);
                 }
 
@@ -312,6 +351,21 @@ public sealed class DagExecutor
 
             nodeExec.Fail(result.ErrorMessage ?? "节点执行失败");
             await _nodeExecutionRepo.UpdateAsync(nodeExec, cancellationToken);
+            if (eventChannel is not null)
+            {
+                await eventChannel.Writer.WriteAsync(
+                    new SseEvent("node_failed", JsonSerializer.Serialize(new
+                    {
+                        executionId = executionId.ToString(),
+                        nodeKey,
+                        nodeType = node.Type.ToString(),
+                        durationMs = sw.ElapsedMilliseconds,
+                        errorMessage = result.ErrorMessage ?? "节点执行失败",
+                        interruptType = result.InterruptType.ToString()
+                    })),
+                    cancellationToken);
+            }
+
             return NodeRunResult.FailedResult(nodeKey, node.Type, result.ErrorMessage, result.InterruptType);
         }
         catch (OperationCanceledException)
@@ -327,13 +381,30 @@ public sealed class DagExecutor
             _logger.LogError(ex, "节点 {NodeKey} 执行异常", nodeKey);
             nodeExec.Fail(ex.Message);
             await _nodeExecutionRepo.UpdateAsync(nodeExec, cancellationToken);
+            if (eventChannel is not null)
+            {
+                await eventChannel.Writer.WriteAsync(
+                    new SseEvent("node_failed", JsonSerializer.Serialize(new
+                    {
+                        executionId = executionId.ToString(),
+                        nodeKey,
+                        nodeType = node.Type.ToString(),
+                        durationMs = sw.ElapsedMilliseconds,
+                        errorMessage = ex.Message,
+                        interruptType = InterruptType.None.ToString()
+                    })),
+                    cancellationToken);
+            }
+
             return NodeRunResult.FailedResult(nodeKey, node.Type, $"节点 {nodeKey} 执行异常: {ex.Message}", InterruptType.None);
         }
     }
 
     private async Task<LoopIterationResult> ExecuteLoopIterationsAsync(
         TenantId tenantId,
+        long workflowId,
         long executionId,
+        IReadOnlyList<long> workflowCallStack,
         string loopNodeKey,
         IReadOnlyDictionary<string, NodeSchema> nodeMap,
         Dictionary<string, List<string>> adjacency,
@@ -364,7 +435,9 @@ public sealed class DagExecutor
                 var bodyTasks = bodyLevel
                     .Select(nodeKey => ExecuteNodeAsync(
                         tenantId,
+                        workflowId,
                         executionId,
+                        workflowCallStack,
                         nodeKey,
                         nodeMap,
                         levelInput,
@@ -394,7 +467,9 @@ public sealed class DagExecutor
             var loopInput = new Dictionary<string, JsonElement>(variables, StringComparer.OrdinalIgnoreCase);
             var loopResult = await ExecuteNodeAsync(
                 tenantId,
+                workflowId,
                 executionId,
+                workflowCallStack,
                 loopNodeKey,
                 nodeMap,
                 loopInput,
@@ -581,10 +656,9 @@ public sealed class DagExecutor
         Dictionary<string, List<string>> adjacency,
         Dictionary<string, List<ConnectionSchema>> connectionsBySource)
     {
-        if (loopNode.Config.TryGetValue("bodyNodeKeys", out var bodyNodeKeysConfig) &&
-            !string.IsNullOrWhiteSpace(VariableResolver.ToDisplayText(bodyNodeKeysConfig)))
+        if (!string.IsNullOrWhiteSpace(VariableResolver.GetConfigString(loopNode.Config, "bodyNodeKeys")))
         {
-            return VariableResolver.ToDisplayText(bodyNodeKeysConfig)
+            return VariableResolver.GetConfigString(loopNode.Config, "bodyNodeKeys")
                 .Split(new[] { ',', ';', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();

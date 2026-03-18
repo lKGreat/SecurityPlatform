@@ -32,6 +32,8 @@ import type {
   NodeDebugResponse,
   NodeStartEvent,
   NodeCompleteEvent,
+  NodeOutputEvent,
+  NodeFailedEvent,
 } from '@/types/workflow-v2'
 import type { ApiResponse, PagedResult } from '@/types/api'
 
@@ -45,7 +47,9 @@ const DEFAULT_NODE_HEIGHT = 60
 export interface StreamCallbacks {
   onExecutionStarted?: (ev: ExecutionStartEvent) => void
   onNodeStarted?: (ev: NodeStartEvent) => void
+  onNodeOutput?: (ev: NodeOutputEvent) => void
   onNodeCompleted?: (ev: NodeCompleteEvent) => void
+  onNodeFailed?: (ev: NodeFailedEvent) => void
   onLlmOutput?: (content: string) => void
   onExecutionCompleted?: (ev: ExecutionCompleteEvent) => void
   onExecutionFailed?: (ev: ExecutionFailedEvent) => void
@@ -343,6 +347,12 @@ function handleStreamEvent(eventName: string, dataText: string, callbacks: Strea
       break
     case 'node_complete':
       callbacks.onNodeCompleted?.(safeJsonParse<NodeCompleteEvent>(dataText))
+      break
+    case 'node_output':
+      callbacks.onNodeOutput?.(safeJsonParse<NodeOutputEvent>(dataText))
+      break
+    case 'node_failed':
+      callbacks.onNodeFailed?.(safeJsonParse<NodeFailedEvent>(dataText))
       break
     case 'llm_output':
       callbacks.onLlmOutput?.(dataText)

@@ -183,7 +183,9 @@ const executionEvents = ref<ExecutionEvent[]>([])
 const EVENT_LABELS: Record<string, string> = {
   execution_start: '执行开始',
   node_start: '节点开始',
+  node_output: '节点输出',
   node_complete: '节点完成',
+  node_failed: '节点失败',
   llm_output: '模型输出',
   execution_complete: '执行完成',
   execution_failed: '执行失败',
@@ -283,20 +285,33 @@ async function startRun(mode: 'sync' | 'stream') {
             addEvent('node_start', `[${ev.nodeKey}] 开始执行`)
             emit('node-status-update', ev.nodeKey, 'running')
           },
+          onNodeOutput: ev => {
+            addEvent('node_output', `[${ev.nodeKey}] 输出: ${JSON.stringify(ev.outputs)}`)
+          },
           onNodeCompleted: ev => {
             addEvent('node_complete', `[${ev.nodeKey}] 完成，耗时 ${ev.durationMs}ms`)
             emit('node-status-update', ev.nodeKey, 'success')
+          },
+          onNodeFailed: ev => {
+            addEvent('node_failed', `[${ev.nodeKey}] 失败: ${ev.errorMessage}`)
+            emit('node-status-update', ev.nodeKey, 'failed')
           },
           onLlmOutput: content => {
             addEvent('llm_output', content)
           },
           onExecutionCompleted: async ev => {
             addEvent('execution_complete', `执行完成: ${ev.executionId}`)
+            if (ev.outputsJson) {
+              finalOutput.value = ev.outputsJson
+            }
             await refreshExecutionDetail(ev.executionId)
             isStreaming.value = false
           },
-          onExecutionFailed: ev => {
+          onExecutionFailed: async ev => {
             addEvent('execution_failed', ev.errorMessage || '执行失败')
+            if (currentExecutionId.value) {
+              await refreshExecutionDetail(currentExecutionId.value)
+            }
             isStreaming.value = false
           },
           onExecutionCancelled: ev => {
@@ -476,7 +491,9 @@ async function refreshExecutionDetail(executionId: string) {
 }
 
 .type-node_start { color: #58a6ff; }
+.type-node_output { color: #58a6ff; }
 .type-node_complete { color: #52c41a; }
+.type-node_failed { color: #ff4d4f; }
 .type-execution_failed,
 .type-workflow_error { color: #ff4d4f; }
 .type-execution_complete { color: #52c41a; }

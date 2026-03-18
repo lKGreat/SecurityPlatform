@@ -52,7 +52,11 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
     {
         var (execution, canvas, inputs) = await PrepareExecutionAsync(tenantId, workflowId, userId, request, cancellationToken);
         await _dagExecutor.RunAsync(tenantId, execution, canvas, inputs, eventChannel: null, cancellationToken);
-        return new WorkflowV2RunResult(execution.Id.ToString());
+        return new WorkflowV2RunResult(
+            execution.Id.ToString(),
+            execution.Status,
+            execution.OutputsJson,
+            execution.ErrorMessage);
     }
 
     public async Task<WorkflowV2RunResult> AsyncRunAsync(
@@ -84,7 +88,11 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
             }
         }, CancellationToken.None);
 
-        return new WorkflowV2RunResult(execution.Id.ToString());
+        return new WorkflowV2RunResult(
+            execution.Id.ToString(),
+            ExecutionStatus.Pending,
+            null,
+            null);
     }
 
     public async Task CancelAsync(TenantId tenantId, long executionId, CancellationToken cancellationToken)
@@ -148,7 +156,12 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
         await _executionRepo.AddAsync(execution, cancellationToken);
 
         await _dagExecutor.RunAsync(tenantId, execution, debugCanvas, inputs, eventChannel: null, cancellationToken);
-        return new WorkflowV2RunResult(execution.Id.ToString());
+        return new WorkflowV2RunResult(
+            execution.Id.ToString(),
+            execution.Status,
+            execution.OutputsJson,
+            execution.ErrorMessage,
+            request.NodeKey);
     }
 
     public async IAsyncEnumerable<SseEvent> StreamRunAsync(
@@ -226,13 +239,15 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
             case ExecutionStatus.Completed:
                 yield return new SseEvent("execution_complete", JsonSerializer.Serialize(new
                 {
-                    executionId = execution.Id.ToString()
+                    executionId = execution.Id.ToString(),
+                    outputsJson = latestExecution.OutputsJson
                 }));
                 break;
             case ExecutionStatus.Cancelled:
                 yield return new SseEvent("execution_cancelled", JsonSerializer.Serialize(new
                 {
-                    executionId = execution.Id.ToString()
+                    executionId = execution.Id.ToString(),
+                    errorMessage = latestExecution.ErrorMessage
                 }));
                 break;
             case ExecutionStatus.Interrupted:
@@ -240,7 +255,8 @@ public sealed class WorkflowV2ExecutionService : IWorkflowV2ExecutionService
                 {
                     executionId = execution.Id.ToString(),
                     interruptType = latestExecution.InterruptType.ToString(),
-                    nodeKey = latestExecution.InterruptNodeKey
+                    nodeKey = latestExecution.InterruptNodeKey,
+                    outputsJson = latestExecution.OutputsJson
                 }));
                 break;
             default:

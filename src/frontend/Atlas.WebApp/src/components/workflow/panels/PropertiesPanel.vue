@@ -104,9 +104,33 @@
         <!-- Loop 节点 -->
         <template v-else-if="node.type === 'Loop'">
           <a-form layout="vertical" size="small">
+            <a-form-item label="循环模式">
+              <a-select v-model:value="localConfigs.mode" @change="emitUpdate">
+                <a-select-option value="count">计数循环</a-select-option>
+                <a-select-option value="while">条件循环（while）</a-select-option>
+                <a-select-option value="forEach">集合循环（forEach）</a-select-option>
+              </a-select>
+            </a-form-item>
             <a-form-item label="最大迭代次数">
               <a-input-number v-model:value="localConfigs.maxIterations" :min="1" :max="1000" style="width:100%" @change="emitUpdate" />
             </a-form-item>
+            <a-form-item label="索引变量名">
+              <a-input v-model:value="localConfigs.indexVariable" placeholder="loop_index" @change="emitUpdate" />
+            </a-form-item>
+            <a-form-item v-if="localConfigs.mode === 'while'" label="条件表达式">
+              <a-textarea v-model:value="localConfigs.condition" :rows="3" placeholder='如 {{risk}} > 80 && {{approved}} == false' @change="emitUpdate" />
+            </a-form-item>
+            <template v-if="localConfigs.mode === 'forEach'">
+              <a-form-item label="集合变量路径">
+                <a-input v-model:value="localConfigs.collectionPath" placeholder="如 input.items" @change="emitUpdate" />
+              </a-form-item>
+              <a-form-item label="当前项变量名">
+                <a-input v-model:value="localConfigs.itemVariable" placeholder="loop_item" @change="emitUpdate" />
+              </a-form-item>
+              <a-form-item label="当前项索引变量名">
+                <a-input v-model:value="localConfigs.itemIndexVariable" placeholder="loop_item_index" @change="emitUpdate" />
+              </a-form-item>
+            </template>
           </a-form>
         </template>
 
@@ -115,6 +139,21 @@
           <a-form layout="vertical" size="small">
             <a-form-item label="工作流 ID">
               <a-input-number v-model:value="localConfigs.workflowId" @change="emitUpdate" style="width:100%" />
+            </a-form-item>
+            <a-form-item label="最大递归深度">
+              <a-input-number v-model:value="localConfigs.maxDepth" :min="1" :max="10" @change="emitUpdate" style="width:100%" />
+            </a-form-item>
+            <a-form-item label="继承父级变量">
+              <a-switch v-model:checked="localConfigs.inheritVariables" @change="emitUpdate" />
+            </a-form-item>
+            <a-form-item v-if="!localConfigs.inheritVariables" label="输入变量路径">
+              <a-input v-model:value="localConfigs.inputsVariable" placeholder="如 payload.subInput" @change="emitUpdate" />
+            </a-form-item>
+            <a-form-item label="合并子流程输出到当前上下文">
+              <a-switch v-model:checked="localConfigs.mergeOutputs" @change="emitUpdate" />
+            </a-form-item>
+            <a-form-item label="子流程输出聚合变量名">
+              <a-input v-model:value="localConfigs.outputKey" placeholder="subworkflow_output" @change="emitUpdate" />
             </a-form-item>
           </a-form>
         </template>
@@ -173,10 +212,12 @@ const emit = defineEmits<{
 const localTitle = ref(props.node.title)
 const localConfigs = reactive<Record<string, unknown>>({ ...props.node.configs })
 const localInputMappings = reactive<Record<string, string>>({ ...props.node.inputMappings })
+applyNodeDefaults(props.node.type, localConfigs)
 
 watch(() => props.node, (newNode) => {
   localTitle.value = newNode.title
   Object.assign(localConfigs, newNode.configs)
+  applyNodeDefaults(newNode.type, localConfigs)
   Object.keys(localInputMappings).forEach(k => delete localInputMappings[k])
   Object.assign(localInputMappings, newNode.inputMappings)
 }, { deep: true })
@@ -220,6 +261,32 @@ function emitUpdate() {
     { ...localInputMappings },
     localTitle.value,
   )
+}
+
+function applyNodeDefaults(nodeType: string, configs: Record<string, unknown>) {
+  if (nodeType === 'Selector') {
+    configs.condition ??= ''
+    return
+  }
+
+  if (nodeType === 'Loop') {
+    configs.mode ??= 'count'
+    configs.maxIterations ??= 10
+    configs.indexVariable ??= 'loop_index'
+    configs.condition ??= ''
+    configs.collectionPath ??= ''
+    configs.itemVariable ??= 'loop_item'
+    configs.itemIndexVariable ??= 'loop_item_index'
+    return
+  }
+
+  if (nodeType === 'SubWorkflow') {
+    configs.maxDepth ??= 4
+    configs.inheritVariables ??= true
+    configs.inputsVariable ??= ''
+    configs.mergeOutputs ??= true
+    configs.outputKey ??= 'subworkflow_output'
+  }
 }
 </script>
 
