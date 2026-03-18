@@ -396,9 +396,12 @@ function createNode(nodeType: string): TreeNode {
 
 // ── Store 定义 ──
 
+// NOTE: Use `any` for flowTree in state interface to avoid "Type instantiation is
+// excessively deep" error caused by the deeply recursive TreeNode union type.
+// All public getters and actions still use properly typed signatures.
 interface ApprovalFlowState {
   /** 流程树（唯一事实来源） */
-  flowTree: ApprovalFlowTree;
+  flowTree: any; // runtime: ApprovalFlowTree
   /** 当前选中的节点或分支 */
   selectedNodeId: string | null;
   /** 校验错误映射：nodeId → 错误消息列表 */

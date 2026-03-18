@@ -48,6 +48,11 @@ const ASSIGNEE_TYPE_MAP: Record<number, string> = {
 };
 
 const assigneeLabel = computed(() => {
+  // 优先使用 Store 计算的展示标签
+  if (data.value._displayLabel) {
+    return data.value._displayLabel as string;
+  }
+  // 回退到本地计算
   const val = data.value.assigneeValue as string;
   const typeNum = (data.value.assigneeType ?? 0) as number;
   const typeName = ASSIGNEE_TYPE_MAP[typeNum] || '指定人员';

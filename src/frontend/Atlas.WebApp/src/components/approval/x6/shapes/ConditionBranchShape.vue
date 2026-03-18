@@ -63,8 +63,14 @@ const isFirst = computed(() => branchIndex.value <= 1);
 const isLast = computed(() => branchIndex.value >= totalBranches.value);
 
 const conditionLabel = computed(() => {
+  // 优先使用 Store 计算的展示标签
+  if (data.value._displayLabel) {
+    return data.value._displayLabel as string;
+  }
+
+  // 回退到本地计算
   // 新版条件组
-  const groups = data.value.conditionGroups as Array<{ conditions: Array<any> }> | undefined;
+  const groups = data.value.conditionGroups as Array<{ conditions: Array<Record<string, unknown>> }> | undefined;
   if (groups && groups.length > 0) {
     const count = groups.reduce((acc, g) => acc + (g.conditions?.length || 0), 0);
     return `${groups.length}个条件组, 共${count}个条件`;

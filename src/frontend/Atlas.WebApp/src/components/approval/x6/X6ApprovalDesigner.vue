@@ -128,6 +128,7 @@ import {
 import type { ApprovalFlowTree, TreeNode, ConditionBranch, NodeType } from '@/types/approval-tree';
 import { registerAllShapes } from './shapes/register';
 import { syncGraphFromTree, highlightNode, resetSyncCache } from './sync';
+import { useApprovalFlowStore } from '@/stores/approvalFlow';
 
 // Simplified type to avoid TS2589 deep type instantiation on recursive TreeNode union
 interface ContextMenuNode {
@@ -423,7 +424,8 @@ function getCellNodeType(cellId: string): NodeType | null {
 // ── 渲染 ──
 function renderTree(forceFullRender = false) {
   if (!graphRef.value) return;
-  syncGraphFromTree(graphRef.value, props.flowTree, forceFullRender);
+  const store = useApprovalFlowStore();
+  syncGraphFromTree(graphRef.value, props.flowTree, forceFullRender, store.nodeDisplayLabels);
 }
 
 // ── 缩放 ──

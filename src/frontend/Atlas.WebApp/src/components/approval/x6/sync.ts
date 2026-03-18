@@ -287,13 +287,25 @@ function addEdgeToGraph(graph: Graph, le: LayoutEdge) {
  * - 后续调用：计算 Diff 并精确更新
  *
  * @param forceFullRender 强制全量渲染（例如加载新流程时）
+ * @param displayLabels 由 Store getter 计算的节点展示标签 (nodeId → label)
  */
 export function syncGraphFromTree(
   graph: Graph,
   tree: ApprovalFlowTree,
   forceFullRender = false,
+  displayLabels?: Record<string, string>,
 ) {
   const layout = computeLayout(tree);
+
+  // 注入 Store 计算的展示标签到布局节点数据
+  if (displayLabels) {
+    for (const n of layout.nodes) {
+      const label = displayLabels[n.id];
+      if (label !== undefined) {
+        n.data._displayLabel = label;
+      }
+    }
+  }
 
   // 构建新布局的查找映射
   const newNodeMap = new Map<string, LayoutNode>();
