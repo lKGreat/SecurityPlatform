@@ -253,3 +253,27 @@ Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 Idempotency-Key: {{$guid}}
 X-CSRF-TOKEN: {{csrfToken}}
+
+### 强制终止流程实例（管理员操作，需要权限: approval:flow:manage）
+POST {{baseUrl}}/api/v1/approval/instances/{instanceId}/termination
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+"管理员强制终止该流程"
+
+### 暂存草稿
+POST {{baseUrl}}/api/v1/approval/instances/draft
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "definitionId": 1,
+  "businessKey": "draft-001",
+  "dataJson": "{\"leaveType\":\"annual\",\"reason\":\"休息\"}"
+}

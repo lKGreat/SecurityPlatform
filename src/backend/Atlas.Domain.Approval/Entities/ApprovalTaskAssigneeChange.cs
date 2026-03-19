@@ -83,5 +83,8 @@ public enum AssigneeChangeType
     RemoveFuture = 3,
 
     /// <summary>变更处理人</summary>
-    Change = 4
+    Change = 4,
+
+    /// <summary>后加签（当前任务完成后由引擎创建加签任务）</summary>
+    AddAfter = 5
 }

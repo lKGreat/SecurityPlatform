@@ -22,6 +22,14 @@ public sealed class ApprovalOperationRequest
     /// <summary>额外审批人列表（用于加签）</summary>
     public List<string>? AdditionalAssigneeValues { get; set; }
 
+    /// <summary>
+    /// 加签类型（仅在 OperationType = AddAssignee 时有效）
+    /// 0 = 并行加签（默认，在当前节点创建并行任务）
+    /// 1 = 前加签（挂起当前任务，加签人先审，完成后恢复原任务）
+    /// 2 = 后加签（当前任务正常审批，完成后流转到加签人）
+    /// </summary>
+    public int AddSignType { get; set; }
+
     /// <summary>幂等键（用于防止重复提交，由客户端生成）</summary>
     public string? IdempotencyKey { get; set; }
 }

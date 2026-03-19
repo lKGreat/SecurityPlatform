@@ -182,7 +182,19 @@ public sealed class ApprovalTask : TenantEntity
     }
 
     /// <summary>
-    /// 激活任务（顺序会签中使用）
+    /// 挂起任务（前加签时使用：暂停当前任务，等加签人完成后恢复）
+    /// </summary>
+    public void Suspend()
+    {
+        if (Status != ApprovalTaskStatus.Pending)
+        {
+            throw new InvalidOperationException($"Cannot suspend task in '{Status}' status. Expected: Pending.");
+        }
+        Status = ApprovalTaskStatus.Waiting;
+    }
+
+    /// <summary>
+    /// 激活任务（顺序会签或前加签完成后恢复）
     /// </summary>
     public void Activate()
     {
