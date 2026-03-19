@@ -120,6 +120,14 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 跳转节点选择器 -->
+    <JumpNodeSelector
+      :visible="jumpVisible"
+      :flow-definition="parsedDefinition"
+      @update:visible="jumpVisible = $event"
+      @select="handleJump"
+    />
   </div>
 </template>
 
@@ -132,6 +140,7 @@ import {
   decideApprovalTask, transferTask, getApprovalFlowById, getCurrentUser
 } from '@/services/api';
 import CommunicationPanel from '@/components/approval/runtime/CommunicationPanel.vue';
+import JumpNodeSelector from '@/components/approval/runtime/JumpNodeSelector.vue';
 import LfFormRenderer from '@/components/approval/runtime/LfFormRenderer.vue';
 import AmisRenderer from '@/components/amis/amis-renderer.vue';
 import UserRolePicker from '@/components/common/UserRolePicker.vue';
@@ -258,6 +267,22 @@ const handleDelegate = async () => {
     emit('refresh');
   } catch {
     message.error('委派失败');
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const handleJump = async (targetNodeId: string) => {
+  if (!instance.value || !task.value) return;
+  submitting.value = true;
+  try {
+    const { jumpTask } = await import('@/services/api-approval');
+    await jumpTask(String(instance.value.id), targetNodeId, props.taskId);
+    message.success('跳转成功');
+    jumpVisible.value = false;
+    emit('refresh');
+  } catch {
+    message.error('跳转失败');
   } finally {
     submitting.value = false;
   }
