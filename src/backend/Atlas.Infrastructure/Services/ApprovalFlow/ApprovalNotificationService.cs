@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Atlas.Application.Abstractions;
 using Atlas.Application.Approval.Abstractions;
 using Atlas.Application.Approval.Repositories;
 using Atlas.Core.Abstractions;
@@ -15,18 +17,24 @@ public sealed class ApprovalNotificationService : IApprovalNotificationService
     private readonly IApprovalNotificationTemplateRepository _templateRepository;
     private readonly IApprovalInboxMessageRepository _inboxRepository;
     private readonly IEnumerable<IApprovalNotificationSender> _senders;
+    private readonly IApprovalFlowRepository _flowRepository;
+    private readonly IUserAccountRepository? _userAccountRepository;
     private readonly IIdGeneratorAccessor _idGeneratorAccessor;
 
     public ApprovalNotificationService(
         IApprovalNotificationTemplateRepository templateRepository,
         IApprovalInboxMessageRepository inboxRepository,
         IEnumerable<IApprovalNotificationSender> senders,
-        IIdGeneratorAccessor idGeneratorAccessor)
+        IApprovalFlowRepository flowRepository,
+        IIdGeneratorAccessor idGeneratorAccessor,
+        IUserAccountRepository? userAccountRepository = null)
     {
         _templateRepository = templateRepository;
         _inboxRepository = inboxRepository;
         _senders = senders;
+        _flowRepository = flowRepository;
         _idGeneratorAccessor = idGeneratorAccessor;
+        _userAccountRepository = userAccountRepository;
     }
 
     public async Task NotifyAsync(
@@ -60,6 +68,9 @@ public sealed class ApprovalNotificationService : IApprovalNotificationService
             .GroupBy(x => x.Channel)
             .ToDictionary(x => x.Key, x => x.First());
 
+        // 预加载模板变量上下文（避免在循环内查询数据库）
+        var variableContext = await BuildVariableContextAsync(tenantId, instance, task, cancellationToken);
+
         // 获取所有通知渠道的模板
         var channels = Enum.GetValues<ApprovalNotificationChannel>();
         var messages = new List<ApprovalInboxMessage>();
@@ -76,8 +87,8 @@ public sealed class ApprovalNotificationService : IApprovalNotificationService
             }
 
             // 替换模板变量
-            var title = ReplaceTemplateVariables(template.TitleTemplate, instance, task);
-            var content = ReplaceTemplateVariables(template.ContentTemplate, instance, task);
+            var title = ReplaceTemplateVariables(template.TitleTemplate, variableContext);
+            var content = ReplaceTemplateVariables(template.ContentTemplate, variableContext);
 
             // 为每个收件人发送通知
             foreach (var recipientUserId in recipientUserIds)
@@ -108,8 +119,8 @@ public sealed class ApprovalNotificationService : IApprovalNotificationService
                         }
                         catch
                         {
-                            // 发送失败不影响流程主链路，当前版本不做持久化重试与告警聚合。
-                            // 跟踪任务：APRV-NOTIFY-94（https://tracker.local/APRV-NOTIFY-94），预计版本：v1.5。
+                            // 发送失败不影响流程主链路。
+                            // Phase 9 将引入持久化重试机制，届时替换此 catch 块。
                         }
                     }
                 }
@@ -124,41 +135,106 @@ public sealed class ApprovalNotificationService : IApprovalNotificationService
     }
 
     /// <summary>
-    /// 替换模板变量
+    /// 构建模板变量上下文（在循环外一次性加载所有需要的数据）
     /// </summary>
-    private static string ReplaceTemplateVariables(
-        string template,
+    private async Task<Dictionary<string, string>> BuildVariableContextAsync(
+        TenantId tenantId,
         ApprovalProcessInstance instance,
-        ApprovalTask? task)
+        ApprovalTask? task,
+        CancellationToken cancellationToken)
     {
-        var result = template;
+        var context = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        // 基础变量
-        result = result.Replace("{InstanceId}", instance.Id.ToString());
-        result = result.Replace("{BusinessKey}", instance.BusinessKey);
-        result = result.Replace("{InitiatorUserId}", instance.InitiatorUserId.ToString());
-        result = result.Replace("{Status}", instance.Status.ToString());
+        // 基础实例变量
+        context["{InstanceId}"] = instance.Id.ToString();
+        context["{BusinessKey}"] = instance.BusinessKey;
+        context["{InitiatorUserId}"] = instance.InitiatorUserId.ToString();
+        context["{Status}"] = instance.Status.ToString();
 
         // 任务相关变量
         if (task != null)
         {
-            result = result.Replace("{TaskId}", task.Id.ToString());
-            result = result.Replace("{TaskTitle}", task.Title);
-            result = result.Replace("{NodeId}", task.NodeId);
-            result = result.Replace("{AssigneeType}", task.AssigneeType.ToString());
+            context["{TaskId}"] = task.Id.ToString();
+            context["{TaskTitle}"] = task.Title;
+            context["{NodeId}"] = task.NodeId;
+            context["{AssigneeType}"] = task.AssigneeType.ToString();
         }
 
-        // 当前能力边界：仅支持实例与任务基础变量替换，扩展变量需补充跨域查询与缓存策略。
-        // 跟踪任务：APRV-NOTIFY-93（https://tracker.local/APRV-NOTIFY-93），预计版本：v1.4。
-        // - {FlowName} - 流程名称（需要查询流程定义）
-        // - {InitiatorName} - 发起人姓名（需要查询用户信息）
-        // - {CurrentTime} - 当前时间
-        // - 自定义变量（从 DataJson 中提取）
+        // 当前时间
+        context["{CurrentTime}"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+
+        // 流程名称（查询流程定义）
+        try
+        {
+            var flowDef = await _flowRepository.GetByIdAsync(tenantId, instance.DefinitionId, cancellationToken);
+            context["{FlowName}"] = flowDef?.Name ?? string.Empty;
+        }
+        catch
+        {
+            context["{FlowName}"] = string.Empty;
+        }
+
+        // 发起人姓名（查询用户信息）
+        if (_userAccountRepository != null)
+        {
+            try
+            {
+                var initiator = await _userAccountRepository.FindByIdAsync(tenantId, instance.InitiatorUserId, cancellationToken);
+                context["{InitiatorName}"] = initiator?.DisplayName ?? instance.InitiatorUserId.ToString();
+            }
+            catch
+            {
+                context["{InitiatorName}"] = instance.InitiatorUserId.ToString();
+            }
+        }
+        else
+        {
+            context["{InitiatorName}"] = instance.InitiatorUserId.ToString();
+        }
+
+        // 从 DataJson 中提取自定义变量（支持 {DataJson.fieldName} 语法）
+        if (!string.IsNullOrEmpty(instance.DataJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(instance.DataJson);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    var key = $"{{DataJson.{prop.Name}}}";
+                    context[key] = prop.Value.ValueKind switch
+                    {
+                        JsonValueKind.String => prop.Value.GetString() ?? string.Empty,
+                        JsonValueKind.Number => prop.Value.GetRawText(),
+                        JsonValueKind.True => "true",
+                        JsonValueKind.False => "false",
+                        JsonValueKind.Null => string.Empty,
+                        _ => prop.Value.GetRawText()
+                    };
+                }
+            }
+            catch
+            {
+                // DataJson 解析失败不影响通知发送
+            }
+        }
+
+        return context;
+    }
+
+    /// <summary>
+    /// 替换模板变量（使用预构建的上下文字典）
+    /// </summary>
+    private static string ReplaceTemplateVariables(
+        string template,
+        Dictionary<string, string> variableContext)
+    {
+        var result = template;
+
+        foreach (var (key, value) in variableContext)
+        {
+            result = result.Replace(key, value);
+        }
 
         return result;
     }
 }
-
-
-
-
