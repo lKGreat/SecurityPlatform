@@ -38,7 +38,13 @@ export * from "@/services/api-tenant-applications";
 export * from "@/services/api-application-catalogs";
 export * from "@/services/api-runtime-contexts";
 export * from "@/services/api-runtime-executions";
-export * from "@/services/api-coze-runtime";
+export {
+  getReleaseCenterPaged,
+  getReleaseCenterDetail,
+  rollbackReleaseCenter,
+  getCozeLayerMappingsOverview,
+  getDebugLayerEmbedMetadata
+} from "@/services/api-coze-runtime";
 export {
   workflowV2Api,
   createWorkflow,
