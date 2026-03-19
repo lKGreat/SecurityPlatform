@@ -37,4 +37,10 @@ public sealed class ApprovalOperationRequest
     public List<string>? AdditionalAssigneeValues { get; set; }
     public Dictionary<string, object>? Variables { get; set; }
     public string? IdempotencyKey { get; set; }
+
+    /// <summary>
+    /// 加签类型（仅在 OperationType = AddAssignee 时有效）
+    /// 0 = 并行加签（默认），1 = 前加签，2 = 后加签
+    /// </summary>
+    public int AddSignType { get; set; }
 }
