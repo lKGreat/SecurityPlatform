@@ -55,6 +55,13 @@ const pathComponentFallbackMap: Record<string, string> = {
   "/ai/workflows/:id/edit": "../pages/ai/AiWorkflowEditorPage.vue"
 };
 
+const pathTitleKeyFallbackMap: Record<string, string> = {
+  "/console/catalog": "route.consoleCatalog",
+  "/console/tenant-applications": "route.consoleTenantApplications",
+  "/console/runtime-contexts": "route.consoleRuntimeContexts",
+  "/console/runtime-executions": "route.consoleRuntimeExecutions"
+};
+
 function resolveByPathFallback(path?: string) {
   if (!path) {
     return null;
@@ -174,7 +181,7 @@ function toRouteRecord(item: RouterVo, type: boolean): RouteRecordRaw | null {
 
   const baseMeta = {
     title: item.meta?.title ?? item.name,
-    titleKey: item.meta?.titleKey,
+    titleKey: item.meta?.titleKey || pathTitleKeyFallbackMap[item.path],
     icon: item.meta?.icon,
     requiresAuth: true,
     requiresPermission: item.meta?.permi,
