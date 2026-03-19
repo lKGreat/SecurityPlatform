@@ -34,7 +34,17 @@ export * from "@/services/api-ai-workspace";
 export * from "@/services/api-ai-shortcut";
 export * from "@/services/api-pat";
 export * from "@/services/api-tenant-app-instances";
-export * from "@/services/api-coze-runtime";
+export * from "@/services/api-tenant-applications";
+export * from "@/services/api-application-catalogs";
+export * from "@/services/api-runtime-contexts";
+export * from "@/services/api-runtime-executions";
+export {
+  getReleaseCenterPaged,
+  getReleaseCenterDetail,
+  rollbackReleaseCenter,
+  getCozeLayerMappingsOverview,
+  getDebugLayerEmbedMetadata
+} from "@/services/api-coze-runtime";
 export {
   workflowV2Api,
   createWorkflow,

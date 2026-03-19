@@ -20,6 +20,10 @@ const RegisterPage = () => import("@/pages/RegisterPage.vue");
 const ProfilePage = () => import("@/pages/ProfilePage.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
 const ConsolePage = () => import("@/pages/console/ConsolePage.vue");
+const ApplicationCatalogPage = () => import("@/pages/console/ApplicationCatalogPage.vue");
+const TenantApplicationsPage = () => import("@/pages/console/TenantApplicationsPage.vue");
+const RuntimeContextsPage = () => import("@/pages/console/RuntimeContextsPage.vue");
+const RuntimeExecutionsPage = () => import("@/pages/console/RuntimeExecutionsPage.vue");
 const ReleaseCenterPage = () => import("@/pages/console/ReleaseCenterPage.vue");
 const CozeDebugPage = () => import("@/pages/console/CozeDebugPage.vue");
 const AppDashboardPage = () => import("@/pages/apps/AppDashboardPage.vue");
@@ -104,6 +108,10 @@ const router = createRouter({
     { path: "/profile", name: "profile", component: ProfilePage, meta: { requiresAuth: true, title: "个人中心", titleKey: "route.profile" } },
     { path: "/console", name: "console-home", component: ConsolePage, meta: { requiresAuth: true, title: "平台控制台", titleKey: "route.console", requiresPermission: "apps:view" } },
     { path: "/console/apps", name: "console-apps", component: ConsolePage, meta: { requiresAuth: true, title: "应用中心", titleKey: "route.consoleApps", requiresPermission: "apps:view" } },
+    { path: "/console/catalog", name: "console-catalog", component: ApplicationCatalogPage, meta: { requiresAuth: true, title: "应用目录", titleKey: "route.consoleCatalog", requiresPermission: "apps:view" } },
+    { path: "/console/tenant-applications", name: "console-tenant-applications", component: TenantApplicationsPage, meta: { requiresAuth: true, title: "租户开通", titleKey: "route.consoleTenantApplications", requiresPermission: "apps:view" } },
+    { path: "/console/runtime-contexts", name: "console-runtime-contexts", component: RuntimeContextsPage, meta: { requiresAuth: true, title: "运行上下文", titleKey: "route.consoleRuntimeContexts", requiresPermission: "apps:view" } },
+    { path: "/console/runtime-executions", name: "console-runtime-executions", component: RuntimeExecutionsPage, meta: { requiresAuth: true, title: "执行记录", titleKey: "route.consoleRuntimeExecutions", requiresPermission: "apps:view" } },
     { path: "/console/resources", name: "console-resources", component: ConsolePage, meta: { requiresAuth: true, title: "资源中心", titleKey: "route.consoleResources", requiresPermission: "apps:view" } },
     { path: "/console/releases", name: "console-releases", component: ReleaseCenterPage, meta: { requiresAuth: true, title: "发布中心", titleKey: "route.consoleReleases", requiresPermission: "apps:view" } },
     { path: "/console/debug", name: "console-debug-layer", component: CozeDebugPage, meta: { requiresAuth: true, title: "调试层", titleKey: "route.consoleDebugLayer", requiresPermission: "apps:view" } },

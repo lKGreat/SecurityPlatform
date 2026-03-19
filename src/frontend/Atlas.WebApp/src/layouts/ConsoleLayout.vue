@@ -15,6 +15,10 @@
               >
                 <a-menu-item key="/console">平台首页</a-menu-item>
                 <a-menu-item key="/console/apps">应用管理</a-menu-item>
+                <a-menu-item key="/console/catalog">应用目录</a-menu-item>
+                <a-menu-item key="/console/tenant-applications">租户开通</a-menu-item>
+                <a-menu-item key="/console/runtime-contexts">运行上下文</a-menu-item>
+                <a-menu-item key="/console/runtime-executions">执行记录</a-menu-item>
                 <a-menu-item key="/console/releases">发布中心</a-menu-item>
                 <a-menu-item key="/console/debug">调试层</a-menu-item>
                 <a-menu-item key="/console/datasources">数据源管理</a-menu-item>
@@ -78,6 +82,18 @@ const selectedKeys = computed(() => {
   const path = route.path;
   if (path.startsWith("/console/apps")) {
     return ["/console/apps"];
+  }
+  if (path.startsWith("/console/catalog")) {
+    return ["/console/catalog"];
+  }
+  if (path.startsWith("/console/tenant-applications")) {
+    return ["/console/tenant-applications"];
+  }
+  if (path.startsWith("/console/runtime-contexts")) {
+    return ["/console/runtime-contexts"];
+  }
+  if (path.startsWith("/console/runtime-executions")) {
+    return ["/console/runtime-executions"];
   }
   if (path.startsWith("/console/releases")) {
     return ["/console/releases"];
