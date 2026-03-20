@@ -181,7 +181,18 @@ const router = createRouter({
     { path: "/process/instances/:id", name: "process-instance-detail", component: ApprovalInstanceDetailPage, meta: { requiresAuth: true, title: "流程详情", titleKey: "route.processDetail", requiresPermission: "approval:flow:view" } },
     { path: "/system/notifications", name: "system-notifications", component: NotificationsPage, meta: { requiresAuth: true, title: "通知中心", titleKey: "route.notifications" } },
     { path: "/system/notifications/manage", name: "system-notifications-manage", component: NotificationManagePage, meta: { requiresAuth: true, title: "公告管理", titleKey: "route.notificationsManage", requiresPermission: "notification:view" } },
-    { path: "/notifications", name: "system-notifications-legacy", redirect: "/system/notifications", meta: { requiresAuth: true, title: "通知中心", titleKey: "route.notifications" } },
+    {
+      path: "/notifications",
+      name: "system-notifications-legacy",
+      redirect: to => ({ path: "/system/notifications", query: to.query, hash: to.hash }),
+      meta: { requiresAuth: true, title: "通知中心", titleKey: "route.notifications" }
+    },
+    {
+      path: "/inbox",
+      name: "system-notifications-inbox-alias",
+      redirect: to => ({ path: "/system/notifications", query: to.query, hash: to.hash }),
+      meta: { requiresAuth: true, title: "通知中心", titleKey: "route.notifications" }
+    },
     { path: "/settings/system/dict-types", name: "settings-system-dict-types", component: DictTypesPage, meta: { requiresAuth: true, title: "字典管理", titleKey: "route.dictTypes", requiresPermission: "dict:type:view" } },
     { path: "/settings/system/datasources", name: "settings-system-datasources", component: TenantDataSourcesPage, meta: { requiresAuth: true, title: "数据源管理", titleKey: "route.datasources", requiresPermission: "system:admin" } },
     { path: "/settings/system/configs", name: "settings-system-configs", component: SystemConfigsPage, meta: { requiresAuth: true, title: "参数配置", titleKey: "route.systemConfigs", requiresPermission: "config:view" } },

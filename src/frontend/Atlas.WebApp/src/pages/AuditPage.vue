@@ -24,28 +24,6 @@
         <a-button @click="handleReset">{{ t("common.reset") }}</a-button>
       </a-space>
     </div>
-    <a-alert
-      class="data-scope-hint"
-      type="info"
-      show-icon
-      :message="t('auditPage.dataScopeHintTitle')"
-      :description="t('auditPage.dataScopeHintDescription', { projectScope: dataScopeProjectLabel })"
-    />
-    <a-alert
-      class="data-scope-checkpoints"
-      type="success"
-      show-icon
-      :message="t('auditPage.dataScopeCheckpointsTitle')"
-    >
-      <template #description>
-        <ul class="checkpoint-list">
-          <li>{{ t("auditPage.dataScopeCheckpointSelf") }}</li>
-          <li>{{ t("auditPage.dataScopeCheckpointProject") }}</li>
-          <li>{{ t("auditPage.dataScopeCheckpointAudit") }}</li>
-        </ul>
-      </template>
-    </a-alert>
-
     <a-table
       :columns="columns"
       :data-source="dataSource"
@@ -76,7 +54,6 @@ import type { TablePaginationConfig } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import { formatDateTime } from "@/utils/common";
 import { useI18n } from "vue-i18n";
-import { getProjectId, getProjectScopeEnabled } from "@/utils/auth";
 
 interface AuditRow {
   id: string;
@@ -119,26 +96,10 @@ const actionFilter = ref<string>("all");
 const resultFilter = ref<string>("all");
 const dataSource = ref<AuditRow[]>([]);
 const loading = ref(false);
-const projectScopeEnabled = ref(false);
-const projectId = ref<string | null>(null);
-
-const syncProjectContext = () => {
-  projectScopeEnabled.value = getProjectScopeEnabled();
-  projectId.value = getProjectId();
-};
-
 const handleProjectChanged = () => {
-  syncProjectContext();
   pagination.current = 1;
   void fetchData();
 };
-
-const dataScopeProjectLabel = computed(() => {
-  if (!projectScopeEnabled.value) {
-    return t("auditPage.projectScopeDisabled");
-  }
-  return projectId.value || t("auditPage.projectScopeNotSelected");
-});
 
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
@@ -186,7 +147,6 @@ const onTableChange = (pager: TablePaginationConfig) => {
 };
 
 onMounted(() => {
-  syncProjectContext();
   window.addEventListener("project-changed", handleProjectChanged);
   void fetchData();
 });
@@ -206,16 +166,4 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
-.data-scope-hint {
-  margin-bottom: 8px;
-}
-
-.data-scope-checkpoints {
-  margin-bottom: 12px;
-}
-
-.checkpoint-list {
-  margin: 0;
-  padding-left: 16px;
-}
 </style>

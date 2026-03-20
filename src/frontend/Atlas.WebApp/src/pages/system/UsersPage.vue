@@ -24,27 +24,6 @@
     </template>
 
     <template #table>
-      <a-alert
-        class="data-scope-hint"
-        type="info"
-        show-icon
-        :message="t('systemUsers.dataScopeHintTitle')"
-        :description="t('systemUsers.dataScopeHintDescription', { projectScope: dataScopeProjectLabel })"
-      />
-      <a-alert
-        class="data-scope-checkpoints"
-        type="success"
-        show-icon
-        :message="t('systemUsers.dataScopeCheckpointsTitle')"
-      >
-        <template #description>
-          <ul class="checkpoint-list">
-            <li>{{ t("systemUsers.dataScopeCheckpointSelf") }}</li>
-            <li>{{ t("systemUsers.dataScopeCheckpointDept") }}</li>
-            <li>{{ t("systemUsers.dataScopeCheckpointProject") }}</li>
-          </ul>
-        </template>
-      </a-alert>
       <a-row :gutter="16" style="height: 100%">
         <a-col :span="5" style="height: 100%; border-right: 1px solid var(--color-border); padding-right: 16px;">
           <div style="margin-bottom: 12px">
@@ -238,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import { useI18n } from "vue-i18n";
@@ -260,7 +239,6 @@ import {
   getUsersPaged,
   updateUser
 } from "@/services/api";
-import { getProjectId, getProjectScopeEnabled } from "@/utils/auth";
 import type {
   DepartmentListItem,
   PositionListItem,
@@ -284,21 +262,6 @@ const treeKeyword = ref("");
 const treeLoading = ref(false);
 const allDepartments = ref<DepartmentListItem[]>([]);
 const selectedDepartmentId = ref<number | null>(null);
-const projectScopeEnabled = ref(false);
-const projectId = ref<string | null>(null);
-
-const syncProjectContext = () => {
-  projectScopeEnabled.value = getProjectScopeEnabled();
-  projectId.value = getProjectId();
-};
-
-const dataScopeProjectLabel = computed(() => {
-  if (!projectScopeEnabled.value) {
-    return t("systemUsers.projectScopeDisabled");
-  }
-  return projectId.value || t("systemUsers.projectScopeNotSelected");
-});
-
 interface TreeNode {
   key: string;
   title: string;
@@ -410,7 +373,6 @@ const beforeUpload = (file: File) => {
 };
 
 onMounted(() => {
-  syncProjectContext();
   void loadAllDepartments();
 });
 
@@ -564,9 +526,6 @@ const {
   fetchData
 } = crud;
 
-// 每次 useCrudPage 刷新数据（含项目切换触发的刷新）后同步显示标签
-watch(dataSource, syncProjectContext);
-
 const canAssignRoles = crud.hasPermissionFor("assignRoles");
 const canAssignDepartments = crud.hasPermissionFor("assignDepartments");
 const canAssignPositions = crud.hasPermissionFor("assignPositions");
@@ -617,19 +576,6 @@ const handleStatusChange = async (id: string, isActive: boolean) => {
 <style scoped>
 .import-modal-body {
   padding: 10px 0;
-}
-
-.data-scope-hint {
-  margin-bottom: 8px;
-}
-
-.data-scope-checkpoints {
-  margin-bottom: 12px;
-}
-
-.checkpoint-list {
-  margin: 0;
-  padding-left: 16px;
 }
 
 :deep(.ant-tree-node-content-wrapper) {

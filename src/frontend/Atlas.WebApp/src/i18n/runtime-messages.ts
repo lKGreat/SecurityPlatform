@@ -125,10 +125,6 @@ export const runtimeMessages: Record<SupportedLocale, MessageTree> = {
       displayNameRequired: "请输入姓名",
       dataScopeHintTitle: "数据范围生效说明",
       dataScopeHintDescription: "当前列表结果由后端按角色 DataScope 自动过滤；项目上下文：{projectScope}。",
-      dataScopeCheckpointsTitle: "联调校验点",
-      dataScopeCheckpointSelf: "将角色数据范围设为“仅本人”后，本页应仅保留当前登录用户记录。",
-      dataScopeCheckpointDept: "将角色数据范围设为“本部门/本部门及下级”后，切换部门树时结果应被进一步收敛。",
-      dataScopeCheckpointProject: "将角色数据范围设为“项目维度”后，切换项目应触发列表刷新且结果集变化。",
       projectScopeDisabled: "未启用项目模式",
       projectScopeNotSelected: "已启用项目模式但未选择项目"
     },
@@ -152,10 +148,6 @@ export const runtimeMessages: Record<SupportedLocale, MessageTree> = {
       actionClientError: "前端异常",
       dataScopeHintTitle: "数据范围生效说明",
       dataScopeHintDescription: "审计查询结果由后端按角色 DataScope 自动过滤；项目上下文：{projectScope}。",
-      dataScopeCheckpointsTitle: "联调校验点",
-      dataScopeCheckpointSelf: "将角色数据范围设为“仅本人”后，本页应仅出现当前用户产生的审计记录。",
-      dataScopeCheckpointProject: "将角色数据范围设为“项目维度”后，切换项目并刷新，本页记录范围应变化。",
-      dataScopeCheckpointAudit: "在角色页保存 DataScope 后，重新查询本页应立即看到过滤结果变化。",
       projectScopeDisabled: "未启用项目模式",
       projectScopeNotSelected: "已启用项目模式但未选择项目"
     },
@@ -539,10 +531,6 @@ export const runtimeMessages: Record<SupportedLocale, MessageTree> = {
       displayNameRequired: "Enter the name",
       dataScopeHintTitle: "Data scope hint",
       dataScopeHintDescription: "The backend applies role-based DataScope filtering to this list automatically; project context: {projectScope}.",
-      dataScopeCheckpointsTitle: "Integration checkpoints",
-      dataScopeCheckpointSelf: "After setting role scope to \"Self only\", this page should only keep the current user.",
-      dataScopeCheckpointDept: "After setting role scope to \"Current dept / Current dept and below\", selecting departments should further narrow results.",
-      dataScopeCheckpointProject: "After setting role scope to \"Project\", switching project should refresh and change the result set.",
       projectScopeDisabled: "Project mode disabled",
       projectScopeNotSelected: "Project mode enabled but no project selected"
     },
@@ -566,10 +554,6 @@ export const runtimeMessages: Record<SupportedLocale, MessageTree> = {
       actionClientError: "Client error",
       dataScopeHintTitle: "Data scope hint",
       dataScopeHintDescription: "The backend applies role-based DataScope filtering to audit queries automatically; project context: {projectScope}.",
-      dataScopeCheckpointsTitle: "Integration checkpoints",
-      dataScopeCheckpointSelf: "After setting role scope to \"Self only\", this page should only show records produced by current user.",
-      dataScopeCheckpointProject: "After setting role scope to \"Project\", switch project and refresh to observe scope changes.",
-      dataScopeCheckpointAudit: "After saving DataScope on role page, querying this page should reflect filtering immediately.",
       projectScopeDisabled: "Project mode disabled",
       projectScopeNotSelected: "Project mode enabled but no project selected"
     },

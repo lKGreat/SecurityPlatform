@@ -186,4 +186,58 @@ describe("requestApi 写请求防重复", () => {
     await requestApi("/projects/my/paged?PageIndex=1&PageSize=20");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("项目域开启时通知收件箱等租户级接口允许无项目上下文访问", async () => {
+    authState.projectScopeEnabled = true;
+    authState.projectId = null;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            success: true,
+            code: "SUCCESS",
+            message: "OK",
+            traceId: "trace-notify",
+            data: { pageIndex: 1, pageSize: 20, total: 0, items: [] }
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await requestApi("/notifications/unread-count");
+    await requestApi("/notifications/inbox?pageIndex=1&pageSize=20");
+    await requestApi("/tenant-datasources");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("项目域开启时 /api/v2 控制台类路径归一化后允许无项目上下文访问", async () => {
+    authState.projectScopeEnabled = true;
+    authState.projectId = null;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            success: true,
+            code: "SUCCESS",
+            message: "OK",
+            traceId: "trace-v2",
+            data: { pageIndex: 1, pageSize: 20, total: 0, items: [] }
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await requestApi("/api/v2/tenant-app-instances?pageIndex=1&pageSize=20");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
