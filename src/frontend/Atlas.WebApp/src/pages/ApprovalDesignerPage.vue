@@ -38,7 +38,7 @@
         <div v-show="activeMenu === 'basic'" class="dd-content-panel dd-body--scroll">
           <DesignerBasicInfo
             v-model:flowName="flowName"
-            :definitionMeta="definitionMeta"
+            v-model:definitionMeta="definitionMeta"
             v-model:visibilityScopeType="visibilityScopeType"
             v-model:visibilityScopeIds="visibilityScopeIds"
           />
@@ -165,7 +165,7 @@ import ValidationErrorPanel from '@/components/approval/designer/ValidationError
 import { useApprovalTree } from '@/composables/useApprovalTree';
 import { ApprovalTreeConverter } from '@/utils/approval-tree-converter';
 import { extractAmisFields } from '@/utils/amis-field-extractor';
-import type { ApprovalDefinitionMeta, LfFormPayload, FormJson, VisibilityScope } from '@/types/approval-definition';
+import type { ApprovalDefinitionMeta, LfFormField, LfFormPayload, FormJson, VisibilityScope } from '@/types/approval-definition';
 import type { TreeNode, ConditionBranch } from '@/types/approval-tree';
 import type { ApprovalFlowValidationIssue, ApprovalFlowValidationResult, ApprovalFlowVersionListItem } from '@/types/api';
 import {
@@ -206,7 +206,7 @@ const activeMenu = computed({
 const definitionMeta = ref<ApprovalDefinitionMeta>({ flowName: '', isLowCodeFlow: true });
 const amisSchemaText = ref('');
 const amisSchemaModel = ref<unknown | undefined>(undefined);
-const amisFormFields = ref<any[]>([]);
+const amisFormFields = ref<LfFormField[]>([]);
 const effectiveFormFields = computed(() => amisFormFields.value);
 
 const visibilityScopeType = ref<'All' | 'Department' | 'Role' | 'User'>('All');
@@ -452,7 +452,7 @@ const handleSave = async () => {
       const result = await createApprovalFlow(payload);
       flowId.value = result.id;
       flowVersion.value = result.version;
-      router.replace(`/process/designer/${result.id}`);
+      router.replace(`/approval/designer/${result.id}`);
       message.success('创建成功');
     }
   } catch (err) { message.error(err instanceof Error ? err.message : '保存失败'); }

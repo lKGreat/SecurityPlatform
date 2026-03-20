@@ -27,6 +27,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
+import type { TablePaginationConfig } from 'ant-design-vue';
 import { getTaskPool, claimTask } from '@/services/api';
 import type { ApprovalTaskResponse } from '@/types/api';
 
@@ -65,9 +66,9 @@ const fetchTasks = async () => {
   }
 };
 
-const handleTableChange = (pag: any) => {
-  pagination.value.current = pag.current;
-  pagination.value.pageSize = pag.pageSize;
+const handleTableChange = (pag: TablePaginationConfig) => {
+  pagination.value.current = pag.current ?? pagination.value.current;
+  pagination.value.pageSize = pag.pageSize ?? pagination.value.pageSize;
   fetchTasks();
 };
 

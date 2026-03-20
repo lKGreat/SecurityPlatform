@@ -50,7 +50,7 @@ export async function getMyNotifications(
 ): Promise<PagedResult<UserNotificationDto>> {
   const query = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize) });
   if (typeof isRead === "boolean") query.set("isRead", String(isRead));
-  const response = await requestApi<ApiResponse<PagedResult<UserNotificationDto>>>(`/notifications?${query}`);
+  const response = await requestApi<ApiResponse<PagedResult<UserNotificationDto>>>(`/notifications/inbox?${query}`);
   if (!response.data) throw new Error(response.message || "查询失败");
   return response.data;
 }
@@ -108,4 +108,8 @@ export async function updateNotification(id: string, request: UpdateNotification
 
 export async function deleteNotification(id: string): Promise<void> {
   await requestApi<ApiResponse<object>>(`/notifications/manage/${id}`, { method: "DELETE" });
+}
+
+export async function revokeNotification(id: string): Promise<void> {
+  await requestApi<ApiResponse<object>>(`/notifications/manage/${id}/revoke`, { method: "PUT" });
 }

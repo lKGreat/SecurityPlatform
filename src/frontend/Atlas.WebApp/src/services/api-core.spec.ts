@@ -42,7 +42,7 @@ vi.mock("@/utils/auth", () => ({
   clearAntiforgeryToken: vi.fn()
 }));
 
-import { requestApi } from "@/services/api-core";
+import { requestApi, requestApiBlob } from "@/services/api-core";
 
 describe("requestApi 写请求防重复", () => {
   beforeEach(() => {
@@ -131,5 +131,113 @@ describe("requestApi 写请求防重复", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("项目域开启但未选择项目时会在发送前阻断 JSON 请求", async () => {
+    authState.projectScopeEnabled = true;
+    authState.projectId = null;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { message } = await import("ant-design-vue");
+
+    await expect(requestApi("/approval/workspace?tab=pending")).rejects.toMatchObject({
+      message: "缺少项目上下文",
+      status: 400
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(message.warning).toHaveBeenCalledTimes(1);
+  });
+
+  it("项目域开启但未选择项目时会在发送前阻断 Blob 请求", async () => {
+    authState.projectScopeEnabled = true;
+    authState.projectId = null;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(requestApiBlob("/approval/export")).rejects.toMatchObject({
+      message: "缺少项目上下文",
+      status: 400
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("项目域开启时项目管理接口允许无项目上下文访问", async () => {
+    authState.projectScopeEnabled = true;
+    authState.projectId = null;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            success: true,
+            code: "SUCCESS",
+            message: "OK",
+            traceId: "trace-3",
+            data: { pageIndex: 1, pageSize: 20, total: 0, items: [] }
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await requestApi("/projects/my/paged?PageIndex=1&PageSize=20");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("项目域开启时通知收件箱等租户级接口允许无项目上下文访问", async () => {
+    authState.projectScopeEnabled = true;
+    authState.projectId = null;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            success: true,
+            code: "SUCCESS",
+            message: "OK",
+            traceId: "trace-notify",
+            data: { pageIndex: 1, pageSize: 20, total: 0, items: [] }
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await requestApi("/notifications/unread-count");
+    await requestApi("/notifications/inbox?pageIndex=1&pageSize=20");
+    await requestApi("/tenant-datasources");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("项目域开启时 /api/v2 控制台类路径归一化后允许无项目上下文访问", async () => {
+    authState.projectScopeEnabled = true;
+    authState.projectId = null;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            success: true,
+            code: "SUCCESS",
+            message: "OK",
+            traceId: "trace-v2",
+            data: { pageIndex: 1, pageSize: 20, total: 0, items: [] }
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await requestApi("/api/v2/tenant-app-instances?pageIndex=1&pageSize=20");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

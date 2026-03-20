@@ -186,7 +186,10 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
       message.warning("请先选择项目");
       missingProjectWarningAt = now;
     }
-    throw new Error("缺少项目上下文");
+    throw buildApiError("缺少项目上下文", 400, {
+      code: ErrorCodes.ProjectRequired,
+      message: "请先选择项目"
+    }, "缺少项目上下文");
   }
 
   if (shouldAttachSecurityHeaders && isUnsafeMethod(method)) {
@@ -356,6 +359,17 @@ export async function requestApiBlob(path: string, init?: RequestInit, options?:
   if (projectScopeEnabled && projectId && !headers.has("X-Project-Id")) {
     headers.set("X-Project-Id", projectId);
   }
+  if (projectScopeEnabled && !projectId && shouldRequireProjectContext(path)) {
+    const now = Date.now();
+    if (now - missingProjectWarningAt > 1500) {
+      message.warning("请先选择项目");
+      missingProjectWarningAt = now;
+    }
+    throw buildApiError("缺少项目上下文", 400, {
+      code: ErrorCodes.ProjectRequired,
+      message: "请先选择项目"
+    }, "缺少项目上下文");
+  }
 
   const writeRequestSignature = shouldEnableWriteRequestDeduplication(method, shouldAttachSecurityHeaders, options)
     ? buildWriteRequestSignature(path, method, init?.body, tenantId, projectId, appId, "blob")
@@ -502,9 +516,87 @@ function normalizeRequestBodyForSignature(body: BodyInit | null | undefined) {
   return String(body);
 }
 
+/**
+ * 将请求 path 规范为「去版本前缀、去 query」后的形态，便于与豁免表匹配。
+ * 支持：`/notifications/...`、`/api/v1/users`、`/api/v2/tenant-app-instances`、`https://host/api/v1/x`。
+ */
+function normalizePathForProjectContext(path: string): string {
+  let p = path;
+  const qIndex = p.indexOf("?");
+  if (qIndex >= 0) {
+    p = p.slice(0, qIndex);
+  }
+
+  if (p.startsWith("http://") || p.startsWith("https://")) {
+    try {
+      p = new URL(p).pathname;
+    } catch {
+      return p.startsWith("/") ? p : `/${p}`;
+    }
+  }
+
+  const versioned = p.match(/^(\/api\/v\d+)(?=\/|$)/);
+  if (versioned) {
+    const rest = p.slice(versioned[1].length);
+    if (rest.length === 0 || rest === "/") {
+      p = "/";
+    } else {
+      p = rest.startsWith("/") ? rest : `/${rest}`;
+    }
+  }
+
+  return p.startsWith("/") ? p : `/${p}`;
+}
+
+/**
+ * 项目域开启时，仅对「应用/流程/运行态等业务资源」要求 X-Project-Id；
+ * 租户级管理接口（通知、数据源、用户角色等）不得因未选项目而被前端误拦。
+ */
 function shouldRequireProjectContext(path: string): boolean {
-  const exemptPrefixes = ["/apps", "/projects", "/auth", "/secure"];
-  return !exemptPrefixes.some((prefix) => path.startsWith(prefix));
+  const normalized = normalizePathForProjectContext(path);
+  const exemptPrefixes = [
+    "/admin",
+    "/application-catalogs",
+    "/apps",
+    "/assets",
+    "/audit",
+    "/auth",
+    "/coze-mappings",
+    "/debug-layer",
+    "/departments",
+    "/dict-data",
+    "/dict-types",
+    "/license",
+    "/login-logs",
+    "/menus",
+    "/model-configs",
+    "/monitor",
+    "/notifications",
+    "/permissions",
+    "/personal-access-tokens",
+    "/platform",
+    "/plugin-market",
+    "/plugins",
+    "/positions",
+    "/projects",
+    "/resource-center",
+    "/release-center",
+    "/runtime-contexts",
+    "/runtime-executions",
+    "/roles",
+    "/secure",
+    "/sessions",
+    "/system-configs",
+    "/table-views",
+    "/templates",
+    "/tenant-applications",
+    "/tenant-app-instances",
+    "/tenant-datasources",
+    "/tenants",
+    "/users",
+    "/webhooks"
+  ];
+  return !exemptPrefixes.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
 }
 
 function resolveCurrentAppId(): string | null {

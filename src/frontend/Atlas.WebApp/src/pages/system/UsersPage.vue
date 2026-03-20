@@ -262,7 +262,6 @@ const treeKeyword = ref("");
 const treeLoading = ref(false);
 const allDepartments = ref<DepartmentListItem[]>([]);
 const selectedDepartmentId = ref<number | null>(null);
-
 interface TreeNode {
   key: string;
   title: string;

@@ -40,7 +40,7 @@
 
 | # | 整改项 | 文档状态 | 代码实际状态 | 结论 |
 |---|---|---|---|---|
-| P2-1 | 建立前端质量闸门：`lint + build + security scan + type check` | ❌ 待改 | 🟡 **部分就绪** — `npm run check` 命令已定义（`vue-tsc --noEmit && eslint && vite build`），但未见 CI/CD 集成 | 🟡 **部分完成** |
+| P2-1 | 建立前端质量闸门：`lint + build + security scan + type check` | ❌ 待改 | ✅ **已接入 CI** — `.github/workflows/ci.yml` 前端任务已改为 `npm run check`，将 `type check + lint + build` 作为 PR/Push 门禁执行 | ✅ **已完成** |
 | P2-2 | 增加前端单测与关键路径 E2E（登录/审批提交/流程设计保存） | ❌ 待改 | 🟡 **骨架已有** — Vitest + Playwright 已配置，有少量 spec 文件（[api-core.spec.ts](file:///e:/codeding/SecurityPlatform/src/frontend/Atlas.WebApp/src/services/api-core.spec.ts)、[useTimeNormalize.spec.ts](file:///e:/codeding/SecurityPlatform/src/frontend/Atlas.WebApp/src/composables/useTimeNormalize.spec.ts)、[workflow-node-guards.spec.ts](file:///e:/codeding/SecurityPlatform/src/frontend/Atlas.WebApp/src/utils/workflow-node-guards.spec.ts)、[useWorkflowSerializer.spec.ts](file:///e:/codeding/SecurityPlatform/src/frontend/Atlas.WebApp/src/composables/useWorkflowSerializer.spec.ts)），但覆盖极少 | 🟡 **部分完成** |
 
 ---
@@ -171,3 +171,52 @@
 3. **修复 key=idx 问题** (P1 #6) — 1-2 小时即可完成
 4. **按 Case 优先级逐个标记前端完成** — 与后端联调配合进行
 5. **`any` 治理和巨型页面拆分** — 作为持续改进，每次迭代覆盖一批
+
+---
+
+## 九、增量更新（2026-03-20）
+
+- **Case 02（动态表 CRUD）联调补齐（前端）**
+  - 新增应用工作台子路由：`/apps/:appId/data/:tableKey`（记录 CRUD 页可直达）。
+  - 修复 AMIS 列表“进入数据”跳转路径：由历史路径改为 `/apps/${appId}/data/${tableKey}`。
+  - `DynamicTablesPage.vue` 注入 `appId` 运行数据给 AMIS，确保链接与应用上下文一致。
+  - 动态路由 fallback 补齐：`/apps/:appId/data/:tableKey -> DynamicTableCrudPage.vue`。
+- **Case 02 联调补齐（后端）**
+  - `DynamicAmisController` 权限口径调整：列表/设计器使用 AppAdmin，CRUD/表单 Schema 使用 AppUser。
+  - 动态 Schema 查询补齐应用上下文：`GetFieldsAsync` 使用 `ResolveAppId()`，避免跨应用语义漂移。
+- **Case 03（审批流设计运行）联调补齐**
+  - 修复流程定义页新建/设计入口：`/process/designer*` 统一切换到 `/approval/designer*`。
+  - 新增审批设计器编辑路由：`/approval/designer/:id`，保障“流程列表 -> 设计器”直达。
+  - 增加历史路由兼容：`/process/designer`、`/process/designer/:id`、`/process/tasks/:taskId` 统一重定向到审批工作台新入口。
+  - 通知中心审批深链统一切换到 `/approval/workspace?tab=pending&taskId=*`，避免旧路径 404。
+  - 待办列表支持按 `taskId` 查询参数自动聚焦任务详情，闭合“通知 -> 待办 -> 处理”主链路。
+- **Case 06（项目域权限隔离）联调补齐**
+  - `ProjectSwitcher.vue` 新增应用上下文变更监听：当 `appId` 切换时自动重载项目范围，避免跨应用沿用旧项目列表。
+  - `useCrudPage.ts` 增加全局 `project-changed` 监听：切换项目后自动重查列表数据，闭合“切换上下文 -> 数据刷新”链路。
+  - `api-core.ts` 统一 JSON/Blob 请求的项目域校验：项目域开启但缺少项目时，发送前即阻断并返回一致错误模型（`PROJECT_REQUIRED`）。
+  - `api-core.spec.ts` 补充项目域校验测试，覆盖 JSON/Blob 阻断与项目管理接口豁免场景。
+- **Case 07（多数据源接入）联调补齐**
+  - `TenantDataSourcesController` 新增 `POST /api/v1/tenant-datasources/{id}/test`，支持已保存数据源直接测试（无需回传明文连接串）。
+  - `TenantDataSourceService` 收敛租户边界：列表/详情/更新/删除均按 `tenantId` 过滤，避免跨租户越权操作。
+  - 更新数据源支持连接串留空保留密文（仅更新名称/类型/池参数），降低凭据暴露与误覆盖风险。
+  - `TestConnectionResult` 增加 `latencyMs`，前端页面与消息提示展示测试延迟，提升联调可观测性。
+  - `TenantDataSourcesPage.vue` 增加“行内测试”按钮与最近测试状态/时间列，编辑态留空连接串可直接测试已保存配置。
+- **Case 11（通知公告闭环）联调补齐**
+  - 新增收件箱别名接口：`GET /api/v1/notifications/inbox`，与前端通知服务对齐。
+  - 补齐公告撤回接口：`PUT /api/v1/notifications/manage/{id}/revoke`，修复管理页撤回按钮 404 断点。
+  - 发布/编辑的 `noticeType` 输入统一归一化为 `Announcement|System|Reminder`，消除“1/2/中文/大小写”口径不一致问题。
+  - 阅读审计补齐：单条已读与全部已读均写入 `NOTIFICATION_READ` 审计事件。
+  - 管理页权限改为 `notification:view` 入口权限，按钮按 `create/update/delete` 细分控制，避免路由权限码失配。
+- **Phase C（质量与安全硬化）增量**
+  - `MarkdownRenderer.vue` 新增链接协议白名单（`http/https/mailto/tel` + 站内相对路径），阻断 `javascript:` 等危险协议注入。
+  - `AmisEditor.vue`、`amis-renderer.vue` 移除 `innerHTML` 清空容器写法，统一改为 `replaceChildren()`，降低 DOM 注入误用风险。
+  - Approval/Workflow 主链路完成一批 `any` 治理：`ApprovalDesignerPage.vue`、`ApprovalTaskPoolPage.vue`、`DesignerFlowProcess.vue`、`X6ApprovalDesigner.vue` 改为显式类型与类型守卫，减少弱类型传递风险。
+  - 补齐 shapes 链路弱类型治理：`TimerNodeShape.vue`、`InclusiveBranchShape.vue` 去除 `any` 强转，改为结构化类型解析与守卫。
+  - 修复 `DesignerBasicInfo.vue` 的 `vue/no-mutating-props` 存量错误（改为子组件 emit 回写），并验证 `npm run check` 全量通过。
+  - CI 闸门落地：`.github/workflows/ci.yml` 的前端构建任务已切换为 `npm run check`，将类型检查、ESLint 与生产构建统一纳入持续集成阻断条件。
+- **Phase D（权限与数据治理补强）增量**
+  - 修复角色配置入口权限一致性：`RolesPage.vue` 中“权限配置”入口不再仅依赖 `roles:assign-*`，当具备 `roles:update` 时也可进入并维护 DataScope。
+  - `RoleAssignPanel.vue` 中 DataScope Tab 改为按 `canManageDataScope` 显式控制，避免无更新权限用户误操作。
+  - 新增数据范围预览文案与项目模式一致性提示（选择“项目维度”但当前应用未开启项目模式时提示）。
+  - 角色配置面板远程下拉统一为默认 20 条并支持搜索（权限/菜单/部门/动态表），与前端交互约束对齐。
+  - `UsersPage.vue` 与 `AuditPage.vue` 增加 DataScope 生效可视化说明（含当前项目上下文）与“联调校验点”提示，便于验证“角色配置 -> 查询过滤”链路是否即时生效。

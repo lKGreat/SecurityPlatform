@@ -47,6 +47,7 @@ public sealed class NotificationsController : ControllerBase
 
     /// <summary>当前用户通知列表（分页）</summary>
     [HttpGet]
+    [HttpGet("inbox")]
     public async Task<ActionResult<ApiResponse<PagedResult<UserNotificationDto>>>> GetMyNotifications(
         [FromQuery] PagedRequest request,
         [FromQuery] bool? isRead = null,
@@ -83,6 +84,7 @@ public sealed class NotificationsController : ControllerBase
             ?? throw new UnauthorizedAccessException();
 
         await _commandService.MarkReadAsync(tenantId, currentUser.UserId, notificationId, cancellationToken);
+        await RecordAuditAsync("NOTIFICATION_READ", notificationId.ToString(), cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { }, HttpContext.TraceIdentifier));
     }
 
@@ -94,7 +96,12 @@ public sealed class NotificationsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser()
             ?? throw new UnauthorizedAccessException();
 
+        var unreadBefore = await _queryService.GetUnreadCountAsync(tenantId, currentUser.UserId, cancellationToken);
         await _commandService.MarkAllReadAsync(tenantId, currentUser.UserId, cancellationToken);
+        if (unreadBefore > 0)
+        {
+            await RecordAuditAsync("NOTIFICATION_READ", $"all:{unreadBefore}", cancellationToken);
+        }
         return Ok(ApiResponse<object>.Ok(new { }, HttpContext.TraceIdentifier));
     }
 
@@ -132,7 +139,7 @@ public sealed class NotificationsController : ControllerBase
             currentUser.Username ?? currentUser.UserId.ToString(),
             request, cancellationToken);
 
-        await RecordAuditAsync("CREATE_NOTIFICATION", request.Title, cancellationToken);
+        await RecordAuditAsync("NOTIFICATION_PUBLISH", id.ToString(), cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
     }
 
@@ -147,7 +154,7 @@ public sealed class NotificationsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         await _commandService.UpdateAsync(tenantId, id, request, cancellationToken);
 
-        await RecordAuditAsync("UPDATE_NOTIFICATION", id.ToString(), cancellationToken);
+        await RecordAuditAsync("NOTIFICATION_UPDATE", id.ToString(), cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
     }
 
@@ -160,7 +167,21 @@ public sealed class NotificationsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         await _commandService.DeleteAsync(tenantId, id, cancellationToken);
 
-        await RecordAuditAsync("DELETE_NOTIFICATION", id.ToString(), cancellationToken);
+        await RecordAuditAsync("NOTIFICATION_DELETE", id.ToString(), cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>管理员：撤回公告</summary>
+    [HttpPut("manage/{id:long}/revoke")]
+    [Authorize(Policy = PermissionPolicies.NotificationUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> Revoke(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        await _commandService.RevokeAsync(tenantId, id, cancellationToken);
+
+        await RecordAuditAsync("NOTIFICATION_UPDATE", $"revoke:{id}", cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
     }
 

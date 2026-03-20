@@ -1,4 +1,4 @@
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, onUnmounted, reactive, ref } from "vue";
 import type { ComputedRef, Ref } from "vue";
 import type { TablePaginationConfig, FormInstance } from "ant-design-vue";
 import type { Rule } from "ant-design-vue/es/form";
@@ -258,11 +258,29 @@ export function useCrudPage<
     }
   };
 
-  if (autoFetch) {
-    onMounted(() => {
+  const handleProjectChanged = () => {
+    if (!autoFetch) {
+      return;
+    }
+    pagination.current = 1;
+    void fetchData();
+  };
+
+  onMounted(() => {
+    if (typeof window !== "undefined") {
+      window.addEventListener("project-changed", handleProjectChanged);
+    }
+
+    if (autoFetch) {
       void fetchData();
-    });
-  }
+    }
+  });
+
+  onUnmounted(() => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("project-changed", handleProjectChanged);
+    }
+  });
 
   return {
     dataSource,

@@ -19,9 +19,10 @@ public sealed class TenantDataSourceRepository
             .FirstAsync(ct);
     }
 
-    public async Task<List<TenantDataSource>> QueryAllAsync(CancellationToken ct = default)
+    public async Task<List<TenantDataSource>> QueryByTenantAsync(string tenantId, CancellationToken ct = default)
     {
         return await _db.Queryable<TenantDataSource>()
+            .Where(x => x.TenantIdValue == tenantId)
             .OrderBy(x => x.CreatedAt, OrderByType.Desc)
             .ToListAsync(ct);
     }
@@ -58,8 +59,11 @@ public sealed class TenantDataSourceRepository
         await _db.Updateable(entity).ExecuteCommandAsync(ct);
     }
 
-    public async Task DeleteAsync(long id, CancellationToken ct = default)
+    public async Task<bool> DeleteByTenantAndIdAsync(string tenantId, long id, CancellationToken ct = default)
     {
-        await _db.Deleteable<TenantDataSource>().Where(x => x.Id == id).ExecuteCommandAsync(ct);
+        var affected = await _db.Deleteable<TenantDataSource>()
+            .Where(x => x.TenantIdValue == tenantId && x.Id == id)
+            .ExecuteCommandAsync(ct);
+        return affected > 0;
     }
 }

@@ -850,12 +850,16 @@ export interface TenantDataSourceCreateRequest {
   name: string;
   connectionString: string;
   dbType: string;
+  maxPoolSize?: number;
+  connectionTimeoutSeconds?: number;
 }
 
 export interface TenantDataSourceUpdateRequest {
   name: string;
-  connectionString: string;
+  connectionString?: string;
   dbType: string;
+  maxPoolSize?: number;
+  connectionTimeoutSeconds?: number;
 }
 
 export interface TenantDataSourceTestConnectionRequest {
@@ -866,6 +870,7 @@ export interface TenantDataSourceTestConnectionRequest {
 export interface TenantDataSourceTestConnectionResult {
   success: boolean;
   errorMessage?: string;
+  latencyMs?: number;
 }
 
 export interface PositionListItem {

@@ -26,13 +26,13 @@ public sealed record TenantDataSourceCreateRequest(
 
 public sealed record TenantDataSourceUpdateRequest(
     string Name,
-    string ConnectionString,
+    string? ConnectionString,
     string DbType,
     int MaxPoolSize = 50,
     int ConnectionTimeoutSeconds = 15);
 
 public sealed record TestConnectionRequest(string ConnectionString, string DbType = "SQLite");
 
-public sealed record TestConnectionResult(bool Success, string? ErrorMessage = null);
+public sealed record TestConnectionResult(bool Success, string? ErrorMessage = null, int? LatencyMs = null);
 
 public sealed record TenantDbConnectionInfo(string ConnectionString, string DbType);

@@ -28,16 +28,19 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { message } from "ant-design-vue";
 import { getCurrentAppConfig, getMyProjectsPaged } from "@/services/api";
 import type { ProjectListItem } from "@/types/api";
 import { clearProjectId, getProjectId, setProjectId, setProjectScopeEnabled } from "@/utils/auth";
+import { getCurrentAppIdFromStorage } from "@/utils/app-context";
 
 const enabled = ref(false);
 const loading = ref(false);
 const options = ref<{ label: string; value: string }[]>([]);
 const selectedProjectId = ref<string | undefined>(undefined);
+const route = useRoute();
 let searchTimer: number | undefined;
 
 const loadProjects = async (keyword?: string) => {
@@ -53,7 +56,20 @@ const loadProjects = async (keyword?: string) => {
   }));
 };
 
-const loadProjectContext = async () => {
+const emitProjectChanged = (projectId: string | null) => {
+  window.dispatchEvent(new CustomEvent("project-changed", { detail: { projectId } }));
+};
+
+const resolvedAppId = computed(() => {
+  const routeAppId = typeof route.params.appId === "string" ? route.params.appId.trim() : "";
+  if (routeAppId) {
+    return routeAppId;
+  }
+
+  return getCurrentAppIdFromStorage() || "";
+});
+
+const loadProjectContext = async (skipEvent = false) => {
   loading.value = true;
   try {
     const appConfig = await getCurrentAppConfig();
@@ -65,6 +81,7 @@ const loadProjectContext = async () => {
       clearProjectId();
       selectedProjectId.value = undefined;
       options.value = [];
+      if (!skipEvent) emitProjectChanged(null);
       return;
     }
 
@@ -74,17 +91,15 @@ const loadProjectContext = async () => {
     const hasStored = stored && options.value.some((item) => item.value === stored);
     if (hasStored) {
       selectedProjectId.value = stored ?? undefined;
-      window.dispatchEvent(new CustomEvent("project-changed", { detail: { projectId: stored } }));
+      if (!skipEvent) emitProjectChanged(stored ?? null);
     } else if (options.value.length > 0) {
       selectedProjectId.value = options.value[0].value;
       setProjectId(options.value[0].value);
-      window.dispatchEvent(new CustomEvent("project-changed", { detail: { projectId: options.value[0].value } }));
-      message.success("Default project selected");
+      if (!skipEvent) emitProjectChanged(options.value[0].value);
     } else {
       clearProjectId();
       selectedProjectId.value = undefined;
-      window.dispatchEvent(new CustomEvent("project-changed", { detail: { projectId: null } }));
-      message.warning("No project assigned");
+      if (!skipEvent) emitProjectChanged(null);
     }
   } catch (error) {
     message.error((error as Error).message || "Failed to load projects");
@@ -135,7 +150,7 @@ const handleChange = (value?: string) => {
   if (!value) {
     clearProjectId();
     message.warning("Project cleared");
-    window.dispatchEvent(new CustomEvent("project-changed", { detail: { projectId: null } }));
+    emitProjectChanged(null);
     return;
   }
 
@@ -146,17 +161,30 @@ const handleChange = (value?: string) => {
   setProjectId(value);
   selectedProjectId.value = value;
   message.success("Project switched");
-  window.dispatchEvent(new CustomEvent("project-changed", { detail: { projectId: value } }));
+  emitProjectChanged(value);
 };
 
-onMounted(loadProjectContext);
+const handleAppConfigChanged = () => {
+  void loadProjectContext();
+};
+
+let isFirstAppIdLoad = true;
+watch(
+  () => resolvedAppId.value,
+  () => {
+    const skipEvent = isFirstAppIdLoad;
+    isFirstAppIdLoad = false;
+    void loadProjectContext(skipEvent);
+  },
+  { immediate: true }
+);
 
 onMounted(() => {
-  window.addEventListener("app-config-changed", loadProjectContext);
+  window.addEventListener("app-config-changed", handleAppConfigChanged);
 });
 
 onUnmounted(() => {
-  window.removeEventListener("app-config-changed", loadProjectContext);
+  window.removeEventListener("app-config-changed", handleAppConfigChanged);
   if (searchTimer) {
     window.clearTimeout(searchTimer);
     searchTimer = undefined;

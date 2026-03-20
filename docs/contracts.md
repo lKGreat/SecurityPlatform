@@ -577,6 +577,7 @@ JWT Claims（新增）：
 - `PUT /api/v1/tenant-datasources/{id}`：更新数据源
 - `DELETE /api/v1/tenant-datasources/{id}`：删除数据源
 - `POST /api/v1/tenant-datasources/test`：测试数据源连接
+- `POST /api/v1/tenant-datasources/{id}/test`：测试已保存数据源连接（无需回传明文连接串）
 
 ### 数据源类型
 
@@ -608,10 +609,43 @@ JWT Claims（新增）：
   "traceId": "00-...",
   "data": {
     "success": true,
-    "errorMessage": null
+    "errorMessage": null,
+    "latencyMs": 12
   }
 }
 ```
+
+### 更新数据源（连接串可选）
+
+`PUT /api/v1/tenant-datasources/{id}`
+
+说明：
+
+- `connectionString` 允许留空（或不传），表示保持现有密文连接串不变，仅更新名称/类型/池参数。
+- 若传入 `connectionString`，服务端按配置重新加密后覆盖存储。
+
+## 通知公告契约
+
+### 用户侧
+
+- `GET /api/v1/notifications/inbox`：我的收件箱（支持 `isRead` 过滤）
+- `GET /api/v1/notifications/unread-count`：未读数量
+- `PUT /api/v1/notifications/{id}/read`：单条标记已读
+- `PUT /api/v1/notifications/read-all`：全部标记已读
+
+### 管理侧
+
+- `GET /api/v1/notifications/manage`：公告管理列表
+- `POST /api/v1/notifications/manage`：发布公告
+- `PUT /api/v1/notifications/manage/{id}`：编辑公告
+- `PUT /api/v1/notifications/manage/{id}/revoke`：撤回公告（置为非激活）
+- `DELETE /api/v1/notifications/manage/{id}`：删除公告
+
+说明：
+
+- `noticeType` 统一返回为 `Announcement | System | Reminder`。
+- 历史输入值（如 `1/2`、中文“通知/公告”）由服务端归一化为上述标准枚举。
+- 阅读行为会记录审计事件 `NOTIFICATION_READ`。
 
 ## 角色、权限与菜单契约
 

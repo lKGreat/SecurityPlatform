@@ -34,6 +34,7 @@ const AppPagesPage = () => import("@/pages/apps/AppPagesPage.vue");
 const AppFormsPage = () => import("@/pages/lowcode/FormListPage.vue");
 const AppFlowsPage = () => import("@/pages/ApprovalFlowsPage.vue");
 const AppDataPage = () => import("@/pages/dynamic/DynamicTablesPage.vue");
+const DynamicTableCrudPage = () => import("@/pages/dynamic/DynamicTableCrudPage.vue");
 const AppUsersPage = () => import("@/pages/apps/AppUsersPage.vue");
 const AppPermissionsPage = () => import("@/pages/system/PermissionsPage.vue");
 const ModelConfigsPage = () => import("@/pages/ai/ModelConfigsPage.vue");
@@ -119,8 +120,30 @@ const router = createRouter({
     { path: "/console/releases", name: "console-releases", component: ReleaseCenterPage, meta: { requiresAuth: true, title: "发布中心", titleKey: "route.consoleReleases", requiresPermission: "apps:view" } },
     { path: "/console/debug", name: "console-debug-layer", component: CozeDebugPage, meta: { requiresAuth: true, title: "调试层", titleKey: "route.consoleDebugLayer", requiresPermission: "apps:view" } },
     { path: "/console/tools", name: "console-tools", component: ToolsAuthorizationPage, meta: { requiresAuth: true, title: "工具授权中心", titleKey: "route.consoleTools", requiresPermission: "system:admin" } },
-    { path: "/console/datasources", name: "console-datasources", component: TenantDataSourcesPage, meta: { requiresAuth: true, title: "数据源管理", titleKey: "route.consoleDatasources", requiresPermission: "system:admin" } },
-    { path: "/console/settings/system/configs", name: "console-system-configs", component: SystemConfigsPage, meta: { requiresAuth: true, title: "系统设置", titleKey: "route.consoleSystemConfigs", requiresPermission: "config:view" } },
+    {
+      path: "/console/datasources",
+      name: "console-datasources-legacy",
+      redirect: "/settings/system/datasources",
+      meta: {
+        requiresAuth: true,
+        title: "数据源管理(Deprecated)",
+        titleKey: "route.consoleDatasources",
+        requiresPermission: "system:admin",
+        deprecatedMessage: "旧入口 /console/datasources 已迁移至 /settings/system/datasources。"
+      }
+    },
+    {
+      path: "/console/settings/system/configs",
+      name: "console-system-configs-legacy",
+      redirect: "/settings/system/configs",
+      meta: {
+        requiresAuth: true,
+        title: "系统设置(Deprecated)",
+        titleKey: "route.consoleSystemConfigs",
+        requiresPermission: "config:view",
+        deprecatedMessage: "旧入口 /console/settings/system/configs 已迁移至 /settings/system/configs。"
+      }
+    },
     { path: "/apps/:appId", name: "app-workspace-root", redirect: to => `/apps/${to.params.appId}/dashboard`, meta: { requiresAuth: true, title: "应用工作台", titleKey: "route.appWorkspace", requiresPermission: "apps:view" } },
     { path: "/apps/:appId/dashboard", name: "app-workspace-dashboard", component: AppDashboardPage, meta: { requiresAuth: true, title: "应用仪表盘", titleKey: "route.appDashboard", requiresPermission: "apps:view" } },
     { path: "/apps/:appId/builder", name: "app-workspace-builder", component: AppBuilderPage, meta: { requiresAuth: true, title: "应用设计器", titleKey: "route.appBuilder", requiresPermission: "apps:update" } },
@@ -138,15 +161,38 @@ const router = createRouter({
     { path: "/apps/:appId/workflows/:id/editor", name: "app-workspace-workflow-editor", component: WorkflowEditorPage, meta: { requiresAuth: true, title: "工作流设计器", titleKey: "route.workflowEditor" } },
     { path: "/apps/:appId/agents/:id/edit", name: "app-workspace-agent-editor", component: AgentEditorPage, meta: { requiresAuth: true, title: "Agent 编辑", titleKey: "route.aiAgentEdit" } },
     { path: "/apps/:appId/data", name: "app-workspace-data", component: AppDataPage, meta: { requiresAuth: true, title: "数据管理", titleKey: "route.dataManage", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/data/:tableKey", name: "app-workspace-data-crud", component: DynamicTableCrudPage, meta: { requiresAuth: true, title: "动态数据管理", titleKey: "route.dataManage", requiresPermission: "apps:view" } },
     { path: "/apps/:appId/users", name: "app-workspace-users", component: AppUsersPage, meta: { requiresAuth: true, title: "应用成员", titleKey: "route.appUsers", requiresPermission: "apps:members:view" } },
     { path: "/apps/:appId/permissions", name: "app-workspace-permissions", component: AppPermissionsPage, meta: { requiresAuth: true, title: "权限入口", titleKey: "route.permissionsEntry", requiresPermission: "apps:view" } },
-    { path: "/apps/:appId/run/:pageKey", name: "app-workspace-runtime", component: PageRuntimeRenderer, meta: { requiresAuth: true, title: "应用运行态", titleKey: "route.appRuntime", requiresPermission: "apps:view" } },
+    {
+      path: "/apps/:appId/run/:pageKey",
+      name: "app-workspace-runtime",
+      component: PageRuntimeRenderer,
+      meta: {
+        requiresAuth: true,
+        title: "应用运行预览",
+        titleKey: "route.appRuntime",
+        requiresPermission: "apps:view",
+        deprecatedMessage: "推荐使用 /r/:appKey/:pageKey 作为正式运行入口；/apps/:appId/run/* 仅用于工作台辅助预览。"
+      }
+    },
     { path: "/r/:appKey/:pageKey", name: "runtime-delivery-page", component: PageRuntimeRenderer, meta: { requiresAuth: true, title: "运行交付面", titleKey: "route.runtimeDelivery" } },
     { path: "/runtime/:appKey/:pageKey", name: "runtime-legacy", redirect: to => `/r/${to.params.appKey}/${to.params.pageKey}`, meta: { requiresAuth: true, title: "运行交付面(Deprecated)", titleKey: "route.runtimeDeliveryDeprecated", deprecatedMessage: "路由 /runtime/* 已迁移至 /r/*，请更新收藏和调用方。" } },
     { path: "/process/instances/:id", name: "process-instance-detail", component: ApprovalInstanceDetailPage, meta: { requiresAuth: true, title: "流程详情", titleKey: "route.processDetail", requiresPermission: "approval:flow:view" } },
     { path: "/system/notifications", name: "system-notifications", component: NotificationsPage, meta: { requiresAuth: true, title: "通知中心", titleKey: "route.notifications" } },
-    { path: "/system/notifications/manage", name: "system-notifications-manage", component: NotificationManagePage, meta: { requiresAuth: true, title: "公告管理", titleKey: "route.notificationsManage", requiresPermission: "notification:manage" } },
-    { path: "/notifications", name: "system-notifications-legacy", redirect: "/system/notifications", meta: { requiresAuth: true, title: "通知中心", titleKey: "route.notifications" } },
+    { path: "/system/notifications/manage", name: "system-notifications-manage", component: NotificationManagePage, meta: { requiresAuth: true, title: "公告管理", titleKey: "route.notificationsManage", requiresPermission: "notification:view" } },
+    {
+      path: "/notifications",
+      name: "system-notifications-legacy",
+      redirect: to => ({ path: "/system/notifications", query: to.query, hash: to.hash }),
+      meta: { requiresAuth: true, title: "通知中心", titleKey: "route.notifications" }
+    },
+    {
+      path: "/inbox",
+      name: "system-notifications-inbox-alias",
+      redirect: to => ({ path: "/system/notifications", query: to.query, hash: to.hash }),
+      meta: { requiresAuth: true, title: "通知中心", titleKey: "route.notifications" }
+    },
     { path: "/settings/system/dict-types", name: "settings-system-dict-types", component: DictTypesPage, meta: { requiresAuth: true, title: "字典管理", titleKey: "route.dictTypes", requiresPermission: "dict:type:view" } },
     { path: "/settings/system/datasources", name: "settings-system-datasources", component: TenantDataSourcesPage, meta: { requiresAuth: true, title: "数据源管理", titleKey: "route.datasources", requiresPermission: "system:admin" } },
     { path: "/settings/system/configs", name: "settings-system-configs", component: SystemConfigsPage, meta: { requiresAuth: true, title: "参数配置", titleKey: "route.systemConfigs", requiresPermission: "config:view" } },
@@ -214,8 +260,8 @@ const router = createRouter({
 
     { path: "/settings/license", name: "settings-license", component: LicensePage, meta: { requiresAuth: true, title: "授权管理", titleKey: "route.license", requiresPermission: "system:license:view" } },
     {
-      path: "/settings/:pathMatch(.*)*",
-      name: "settings-legacy",
+      path: "/console/settings/:pathMatch(.*)*",
+      name: "console-settings-legacy",
       redirect: (to) => {
         const pathMatch = to.params.pathMatch;
         const suffix = Array.isArray(pathMatch)
@@ -223,9 +269,14 @@ const router = createRouter({
           : typeof pathMatch === "string"
             ? pathMatch
             : "";
-        return `/console/settings/${suffix}`;
+        return `/settings/${suffix}`;
       },
-      meta: { requiresAuth: true, title: "兼容设置路由（Deprecated）", titleKey: "route.settingsLegacyDeprecated" }
+      meta: {
+        requiresAuth: true,
+        title: "兼容控制台设置路由（Deprecated）",
+        titleKey: "route.settingsLegacyDeprecated",
+        deprecatedMessage: "旧入口 /console/settings/* 已迁移至 /settings/*。"
+      }
     },
     { path: "/system/dict-types", name: "system-dict-types-legacy", redirect: "/settings/system/dict-types", meta: { requiresAuth: true, title: "字典管理", titleKey: "route.dictTypes" } },
     { path: "/system/configs", name: "system-configs-legacy", redirect: "/settings/system/configs", meta: { requiresAuth: true, title: "参数配置", titleKey: "route.systemConfigs" } },
@@ -266,6 +317,7 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "AI 工作流设计器(Deprecated)", titleKey: "route.aiWorkflowEditorDeprecated", deprecatedMessage: "旧路由 /ai/workflows/:id/edit 已迁移至 /apps/:appId/workflows/:id/editor。" }
     },
     { path: "/approval/designer", name: "approval-designer", component: ApprovalDesignerPage, meta: { requiresAuth: true, title: "流程设计器", titleKey: "route.approvalDesigner", requiresPermission: "approval:flow:create" } },
+    { path: "/approval/designer/:id", name: "approval-designer-edit", component: ApprovalDesignerPage, meta: { requiresAuth: true, title: "流程设计器", titleKey: "route.approvalDesigner", requiresPermission: "approval:flow:update" } },
     { path: "/approval/flows/manage", name: "approval-flows-manage", component: ApprovalFlowManagePage, meta: { requiresAuth: true, title: "流程发布总览", titleKey: "route.approvalFlowManage", requiresPermission: "approval:flow:manage" } },
     { path: "/approval/flows", name: "approval-flows", component: ApprovalFlowsPage, meta: { requiresAuth: true, title: "流程定义列表", titleKey: "route.approvalFlows", requiresPermission: "approval:flow:view" } },
     { path: "/approval/instances/manage", name: "approval-instances-manage", component: ApprovalInstanceManagePage, meta: { requiresAuth: true, title: "所有审批实例", titleKey: "route.approvalInstancesManage", requiresPermission: "system:admin" } },
@@ -284,6 +336,10 @@ const router = createRouter({
     { path: "/approval/tasks", name: "approval-tasks", redirect: "/approval/workspace?tab=pending", meta: { title: "我的待办(Deprecated)", titleKey: "route.approvalTasksDeprecated" } },
     { path: "/approval/done", redirect: "/approval/workspace?tab=done", meta: { title: "已办任务(Deprecated)", titleKey: "route.approvalDoneDeprecated" } },
     { path: "/approval/cc", redirect: "/approval/workspace?tab=cc", meta: { title: "我的抄送(Deprecated)", titleKey: "route.approvalCcDeprecated" } },
+    { path: "/process/tasks", name: "process-tasks-legacy", redirect: "/approval/workspace?tab=pending", meta: { title: "流程待办(Deprecated)", titleKey: "route.approvalTasksDeprecated", deprecatedMessage: "旧路由 /process/tasks 已迁移至 /approval/workspace?tab=pending。" } },
+    { path: "/process/tasks/:taskId", name: "process-task-detail-legacy", redirect: to => `/approval/workspace?tab=pending&taskId=${to.params.taskId}`, meta: { title: "流程待办详情(Deprecated)", titleKey: "route.approvalTasksDeprecated", deprecatedMessage: "旧路由 /process/tasks/:taskId 已迁移至 /approval/workspace?tab=pending&taskId=*。" } },
+    { path: "/process/designer", name: "process-designer-legacy", redirect: "/approval/designer", meta: { title: "流程设计器(Deprecated)", titleKey: "route.approvalDesigner", deprecatedMessage: "旧路由 /process/designer 已迁移至 /approval/designer。" } },
+    { path: "/process/designer/:id", name: "process-designer-edit-legacy", redirect: to => `/approval/designer/${to.params.id}`, meta: { title: "流程设计器(Deprecated)", titleKey: "route.approvalDesigner", deprecatedMessage: "旧路由 /process/designer/:id 已迁移至 /approval/designer/:id。" } },
     { path: "/:pathMatch(.*)*", name: "not-found", component: NotFoundPage }
   ]
 });
