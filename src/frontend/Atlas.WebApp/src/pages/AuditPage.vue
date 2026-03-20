@@ -4,7 +4,7 @@
       <a-space wrap>
         <a-input
           v-model:value="keyword"
-          placeholder="搜索账号/行为/目标"
+          :placeholder="t('auditPage.searchPlaceholder')"
           allow-clear
           @press-enter="handleSearch"
         />
@@ -20,17 +20,38 @@
           :options="resultOptions"
           @change="handleSearch"
         />
-        <a-button @click="handleSearch">查询</a-button>
-        <a-button @click="handleReset">重置</a-button>
+        <a-button @click="handleSearch">{{ t("common.search") }}</a-button>
+        <a-button @click="handleReset">{{ t("common.reset") }}</a-button>
       </a-space>
     </div>
+    <a-alert
+      class="data-scope-hint"
+      type="info"
+      show-icon
+      :message="t('auditPage.dataScopeHintTitle')"
+      :description="t('auditPage.dataScopeHintDescription', { projectScope: dataScopeProjectLabel })"
+    />
+    <a-alert
+      class="data-scope-checkpoints"
+      type="success"
+      show-icon
+      :message="t('auditPage.dataScopeCheckpointsTitle')"
+    >
+      <template #description>
+        <ul class="checkpoint-list">
+          <li>{{ t("auditPage.dataScopeCheckpointSelf") }}</li>
+          <li>{{ t("auditPage.dataScopeCheckpointProject") }}</li>
+          <li>{{ t("auditPage.dataScopeCheckpointAudit") }}</li>
+        </ul>
+      </template>
+    </a-alert>
 
     <a-table
       :columns="columns"
       :data-source="dataSource"
       :pagination="pagination"
       :loading="loading"
-      :locale="{ emptyText: '暂无审计记录' }"
+      :locale="{ emptyText: t('auditPage.emptyText') }"
       row-key="id"
       @change="onTableChange"
     >
@@ -40,7 +61,7 @@
         </template>
         <template v-else-if="column.key === 'result'">
           <a-tag :color="record.result === 'Success' ? 'green' : 'red'">
-            {{ record.result === 'Success' ? '成功' : '失败' }}
+            {{ record.result === 'Success' ? t("auditPage.resultSuccess") : t("auditPage.resultFailure") }}
           </a-tag>
         </template>
       </template>
@@ -49,11 +70,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { getAuditsPaged } from "@/services/api";
 import type { TablePaginationConfig } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import { formatDateTime } from "@/utils/common";
+import { useI18n } from "vue-i18n";
+import { getProjectId, getProjectScopeEnabled } from "@/utils/auth";
 
 interface AuditRow {
   id: string;
@@ -65,40 +88,61 @@ interface AuditRow {
   occurredAt: string;
 }
 
-const columns = [
-  { title: "账号", dataIndex: "actor", key: "actor" },
-  { title: "行为", dataIndex: "action", key: "action" },
-  { title: "结果", dataIndex: "result", key: "result", width: 80 },
-  { title: "目标", dataIndex: "target", key: "target", ellipsis: true },
-  { title: "IP", dataIndex: "ipAddress", key: "ipAddress" },
-  { title: "时间", dataIndex: "occurredAt", key: "occurredAt", width: 180 }
-];
+const { t } = useI18n();
 
-const resultOptions = [
-  { label: "全部结果", value: "all" },
-  { label: "成功", value: "Success" },
-  { label: "失败", value: "Failure" }
-];
+const columns = computed(() => [
+  { title: t("auditPage.colActor"), dataIndex: "actor", key: "actor" },
+  { title: t("auditPage.colAction"), dataIndex: "action", key: "action" },
+  { title: t("auditPage.colResult"), dataIndex: "result", key: "result", width: 80 },
+  { title: t("auditPage.colTarget"), dataIndex: "target", key: "target", ellipsis: true },
+  { title: t("auditPage.colIp"), dataIndex: "ipAddress", key: "ipAddress" },
+  { title: t("auditPage.colOccurredAt"), dataIndex: "occurredAt", key: "occurredAt", width: 180 }
+]);
 
-const actionOptions = [
-  { label: "全部行为", value: "all" },
-  { label: "登录", value: "LOGIN" },
-  { label: "登出", value: "LOGOUT" },
-  { label: "页面发布", value: "PUBLISH_PAGE" },
-  { label: "迁移执行", value: "EXECUTE_MIGRATION" },
-  { label: "前端异常", value: "CLIENT_ERROR" }
-];
+const resultOptions = computed(() => [
+  { label: t("auditPage.resultAll"), value: "all" },
+  { label: t("auditPage.resultSuccess"), value: "Success" },
+  { label: t("auditPage.resultFailure"), value: "Failure" }
+]);
+
+const actionOptions = computed(() => [
+  { label: t("auditPage.actionAll"), value: "all" },
+  { label: t("auditPage.actionLogin"), value: "LOGIN" },
+  { label: t("auditPage.actionLogout"), value: "LOGOUT" },
+  { label: t("auditPage.actionPublishPage"), value: "PUBLISH_PAGE" },
+  { label: t("auditPage.actionExecuteMigration"), value: "EXECUTE_MIGRATION" },
+  { label: t("auditPage.actionClientError"), value: "CLIENT_ERROR" }
+]);
 
 const keyword = ref("");
 const actionFilter = ref<string>("all");
 const resultFilter = ref<string>("all");
 const dataSource = ref<AuditRow[]>([]);
 const loading = ref(false);
+const projectScopeEnabled = ref(false);
+const projectId = ref<string | null>(null);
+
+const syncProjectContext = () => {
+  projectScopeEnabled.value = getProjectScopeEnabled();
+  projectId.value = getProjectId();
+};
+
+const handleProjectChanged = () => {
+  syncProjectContext();
+};
+
+const dataScopeProjectLabel = computed(() => {
+  if (!projectScopeEnabled.value) {
+    return t("auditPage.projectScopeDisabled");
+  }
+  return projectId.value || t("auditPage.projectScopeNotSelected");
+});
+
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
   pageSize: 10,
   total: 0,
-  showTotal: (total) => `共 ${total} 条`
+  showTotal: (total) => t("common.total", { total })
 });
 
 const fetchData = async () => {
@@ -115,7 +159,7 @@ const fetchData = async () => {
     dataSource.value = result.items;
     pagination.total = result.total;
   } catch (error) {
-    message.error((error as Error).message || "查询失败");
+    message.error((error as Error).message || t("crud.queryFailed"));
   } finally {
     loading.value = false;
   }
@@ -139,7 +183,15 @@ const onTableChange = (pager: TablePaginationConfig) => {
   fetchData();
 };
 
-onMounted(fetchData);
+onMounted(() => {
+  syncProjectContext();
+  window.addEventListener("project-changed", handleProjectChanged);
+  void fetchData();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("project-changed", handleProjectChanged);
+});
 </script>
 
 <style scoped>
@@ -150,5 +202,18 @@ onMounted(fetchData);
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.data-scope-hint {
+  margin-bottom: 8px;
+}
+
+.data-scope-checkpoints {
+  margin-bottom: 12px;
+}
+
+.checkpoint-list {
+  margin: 0;
+  padding-left: 16px;
 }
 </style>
