@@ -43,7 +43,7 @@
               "type": "button",
               "label": "进入数据",
               "actionType": "link",
-              "link": "/dynamic-tables/${tableKey}"
+              "link": "/apps/${appId}/data/${tableKey}"
             },
             {
               "type": "button",

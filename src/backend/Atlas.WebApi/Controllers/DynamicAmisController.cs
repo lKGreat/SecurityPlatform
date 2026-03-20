@@ -2,6 +2,7 @@ using System.Text.Json;
 using Atlas.Application.DynamicTables.Abstractions;
 using Atlas.Application.DynamicTables.Models;
 using Atlas.Core.Models;
+using Atlas.Core.Identity;
 using Atlas.WebApi.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,20 +16,23 @@ public sealed class DynamicAmisController : ControllerBase
 {
     private readonly IDynamicTableQueryService _queryService;
     private readonly Atlas.Core.Tenancy.ITenantProvider _tenantProvider;
+    private readonly IAppContextAccessor _appContextAccessor;
     private readonly string _schemaDirectory;
 
     public DynamicAmisController(
         IDynamicTableQueryService queryService,
         Atlas.Core.Tenancy.ITenantProvider tenantProvider,
+        IAppContextAccessor appContextAccessor,
         IHostEnvironment environment)
     {
         _queryService = queryService;
         _tenantProvider = tenantProvider;
+        _appContextAccessor = appContextAccessor;
         _schemaDirectory = Path.Combine(environment.ContentRootPath, "AmisSchemas", "dynamic-tables");
     }
 
     [HttpGet("list")]
-    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    [Authorize(Policy = PermissionPolicies.AppAdmin)]
     public async Task<ActionResult<ApiResponse<JsonElement>>> GetListSchema(CancellationToken cancellationToken)
     {
         var schema = await ReadSchemaAsync("list.json", cancellationToken);
@@ -44,7 +48,7 @@ public sealed class DynamicAmisController : ControllerBase
     }
 
     [HttpGet("designer")]
-    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    [Authorize(Policy = PermissionPolicies.AppAdmin)]
     public async Task<ActionResult<ApiResponse<JsonElement>>> GetDesignerSchema(CancellationToken cancellationToken)
     {
         var schema = await ReadSchemaAsync("designer.json", cancellationToken);
@@ -60,7 +64,7 @@ public sealed class DynamicAmisController : ControllerBase
     }
 
     [HttpGet("{tableKey}/crud")]
-    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    [Authorize(Policy = PermissionPolicies.AppUser)]
     public async Task<ActionResult<ApiResponse<JsonElement>>> GetCrudSchema(
         string tableKey,
         CancellationToken cancellationToken)
@@ -69,14 +73,14 @@ public sealed class DynamicAmisController : ControllerBase
         var fields = await _queryService.GetFieldsAsync(
             tenantId,
             tableKey,
-            null,
+            _appContextAccessor.ResolveAppId(),
             cancellationToken);
         var schema = BuildCrudSchema(tableKey, fields);
         return Ok(ApiResponse<JsonElement>.Ok(schema, HttpContext.TraceIdentifier));
     }
 
     [HttpGet("{tableKey}/forms/create")]
-    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    [Authorize(Policy = PermissionPolicies.AppUser)]
     public async Task<ActionResult<ApiResponse<JsonElement>>> GetCreateForm(
         string tableKey,
         CancellationToken cancellationToken)
@@ -85,14 +89,14 @@ public sealed class DynamicAmisController : ControllerBase
         var fields = await _queryService.GetFieldsAsync(
             tenantId,
             tableKey,
-            null,
+            _appContextAccessor.ResolveAppId(),
             cancellationToken);
         var schema = BuildFormSchema(tableKey, fields, isEdit: false);
         return Ok(ApiResponse<JsonElement>.Ok(schema, HttpContext.TraceIdentifier));
     }
 
     [HttpGet("{tableKey}/forms/edit")]
-    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    [Authorize(Policy = PermissionPolicies.AppUser)]
     public async Task<ActionResult<ApiResponse<JsonElement>>> GetEditForm(
         string tableKey,
         [FromQuery] long id,
@@ -102,14 +106,14 @@ public sealed class DynamicAmisController : ControllerBase
         var fields = await _queryService.GetFieldsAsync(
             tenantId,
             tableKey,
-            null,
+            _appContextAccessor.ResolveAppId(),
             cancellationToken);
         var schema = BuildFormSchema(tableKey, fields, isEdit: true, id);
         return Ok(ApiResponse<JsonElement>.Ok(schema, HttpContext.TraceIdentifier));
     }
 
     [HttpGet("{tableKey}/forms/detail")]
-    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
+    [Authorize(Policy = PermissionPolicies.AppUser)]
     public async Task<ActionResult<ApiResponse<JsonElement>>> GetDetailForm(
         string tableKey,
         [FromQuery] long id,
@@ -119,7 +123,7 @@ public sealed class DynamicAmisController : ControllerBase
         var fields = await _queryService.GetFieldsAsync(
             tenantId,
             tableKey,
-            null,
+            _appContextAccessor.ResolveAppId(),
             cancellationToken);
         var schema = BuildDetailSchema(tableKey, fields, id);
         return Ok(ApiResponse<JsonElement>.Ok(schema, HttpContext.TraceIdentifier));

@@ -16,14 +16,15 @@
       </a-space>
     </template>
     <a-spin :spinning="loading">
-      <AmisRenderer v-if="schema" :schema="schema" />
+      <AmisRenderer v-if="schema" :schema="schema" :data="pageData" />
       <a-empty v-else-if="!loading" description="未找到页面配置" />
     </a-spin>
   </a-card>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import AmisRenderer from "@/components/amis/amis-renderer.vue";
 import { getDynamicAmisSchema } from "@/services/dynamic-tables";
@@ -31,12 +32,22 @@ import { getLowCodeAppsPaged } from "@/services/lowcode";
 import type { AmisSchema } from "@/types/amis";
 import { getCurrentAppIdFromStorage, setCurrentAppIdToStorage } from "@/utils/app-context";
 
+const route = useRoute();
+const router = useRouter();
 const loading = ref(false);
 const schema = ref<AmisSchema | null>(null);
 const pageTitle = ref("动态表管理");
 const appLoading = ref(false);
-const selectedAppId = ref<string | undefined>(getCurrentAppIdFromStorage() ?? undefined);
+const selectedAppId = ref<string | undefined>(
+  typeof route.params.appId === "string" && route.params.appId.trim()
+    ? route.params.appId
+    : getCurrentAppIdFromStorage() ?? undefined
+);
 const appOptions = ref<Array<{ label: string; value: string }>>([]);
+const pageData = computed(() => ({
+  appId: selectedAppId.value ?? null,
+  currentAppId: selectedAppId.value ?? null
+}));
 
 const loadSchema = async () => {
   loading.value = true;
@@ -67,6 +78,10 @@ const loadAppOptions = async () => {
 
 const handleAppScopeChange = (value: string | undefined) => {
   setCurrentAppIdToStorage(value);
+  if (value && value !== route.params.appId) {
+    void router.push(`/apps/${value}/data`);
+    return;
+  }
   void loadSchema();
 };
 

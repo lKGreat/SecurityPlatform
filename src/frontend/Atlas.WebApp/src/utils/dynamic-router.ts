@@ -29,6 +29,7 @@ const pathComponentFallbackMap: Record<string, string> = {
   "/apps/:appId/plugins/:id/apis/:apiId": "../pages/ai/AiPluginApiEditorPage.vue",
   "/apps/:appId/workflows/:id/editor": "../pages/workflow/WorkflowEditorPage.vue",
   "/apps/:appId/agents/:id/edit": "../pages/ai/AgentEditorPage.vue",
+  "/apps/:appId/data/:tableKey": "../pages/dynamic/DynamicTableCrudPage.vue",
   "/apps/:appId/run/:pageKey": "../pages/runtime/PageRuntimeRenderer.vue",
   "/r/:appKey/:pageKey": "../pages/runtime/PageRuntimeRenderer.vue",
   "/approval/flows": "../pages/ApprovalFlowsPage.vue",

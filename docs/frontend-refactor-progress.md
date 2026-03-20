@@ -171,3 +171,16 @@
 3. **修复 key=idx 问题** (P1 #6) — 1-2 小时即可完成
 4. **按 Case 优先级逐个标记前端完成** — 与后端联调配合进行
 5. **`any` 治理和巨型页面拆分** — 作为持续改进，每次迭代覆盖一批
+
+---
+
+## 九、增量更新（2026-03-20）
+
+- **Case 02（动态表 CRUD）联调补齐（前端）**
+  - 新增应用工作台子路由：`/apps/:appId/data/:tableKey`（记录 CRUD 页可直达）。
+  - 修复 AMIS 列表“进入数据”跳转路径：由历史路径改为 `/apps/${appId}/data/${tableKey}`。
+  - `DynamicTablesPage.vue` 注入 `appId` 运行数据给 AMIS，确保链接与应用上下文一致。
+  - 动态路由 fallback 补齐：`/apps/:appId/data/:tableKey -> DynamicTableCrudPage.vue`。
+- **Case 02 联调补齐（后端）**
+  - `DynamicAmisController` 权限口径调整：列表/设计器使用 AppAdmin，CRUD/表单 Schema 使用 AppUser。
+  - 动态 Schema 查询补齐应用上下文：`GetFieldsAsync` 使用 `ResolveAppId()`，避免跨应用语义漂移。
