@@ -214,3 +214,8 @@
   - 补齐 shapes 链路弱类型治理：`TimerNodeShape.vue`、`InclusiveBranchShape.vue` 去除 `any` 强转，改为结构化类型解析与守卫。
   - 修复 `DesignerBasicInfo.vue` 的 `vue/no-mutating-props` 存量错误（改为子组件 emit 回写），并验证 `npm run check` 全量通过。
   - CI 闸门落地：`.github/workflows/ci.yml` 的前端构建任务已切换为 `npm run check`，将类型检查、ESLint 与生产构建统一纳入持续集成阻断条件。
+- **Phase D（权限与数据治理补强）增量**
+  - 修复角色配置入口权限一致性：`RolesPage.vue` 中“权限配置”入口不再仅依赖 `roles:assign-*`，当具备 `roles:update` 时也可进入并维护 DataScope。
+  - `RoleAssignPanel.vue` 中 DataScope Tab 改为按 `canManageDataScope` 显式控制，避免无更新权限用户误操作。
+  - 新增数据范围预览文案与项目模式一致性提示（选择“项目维度”但当前应用未开启项目模式时提示）。
+  - 角色配置面板远程下拉统一为默认 20 条并支持搜索（权限/菜单/部门/动态表），与前端交互约束对齐。

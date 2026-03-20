@@ -2,17 +2,17 @@
   <div class="role-assign-panel">
     <div class="panel-header">
       <div class="panel-title">
-        角色配置：{{ roleName }} <span class="role-code">({{ roleCode }})</span>
+        {{ t("systemRoles.assignPanelTitle", { roleName, roleCode }) }}
       </div>
-      <a-button type="primary" :loading="submitting" @click="submitAssign">保存配置</a-button>
+      <a-button type="primary" :loading="submitting" @click="submitAssign">{{ t("systemRoles.saveAssign") }}</a-button>
     </div>
 
     <div class="panel-content">
       <a-spin :spinning="loading">
         <a-tabs v-model:activeKey="activeTab">
-          <a-tab-pane v-if="canAssignPermissions" key="permissions" tab="功能权限">
+          <a-tab-pane v-if="canAssignPermissions" key="permissions" :tab="t('systemRoles.permissionTab')">
             <a-alert
-              message="分配基础后端 API 权限"
+              :message="t('systemRoles.permissionTabHint')"
               type="info"
               show-icon
               style="margin-bottom: 12px"
@@ -21,7 +21,7 @@
               v-model:value="assignModel.permissionIds"
               mode="multiple"
               style="width: 100%"
-              placeholder="选择权限"
+              :placeholder="t('systemRoles.permissionSelectPlaceholder')"
               :options="permissionOptions"
               :loading="permissionLoading"
               :filter-option="false"
@@ -31,9 +31,9 @@
             />
           </a-tab-pane>
           
-          <a-tab-pane v-if="canAssignMenus" key="menus" tab="菜单分配">
+          <a-tab-pane v-if="canAssignMenus" key="menus" :tab="t('systemRoles.menuTab')">
             <a-alert
-              message="分配前端路由访问及菜单可见性"
+              :message="t('systemRoles.menuTabHint')"
               type="info"
               show-icon
               style="margin-bottom: 12px"
@@ -42,7 +42,7 @@
               v-model:value="assignModel.menuIds"
               mode="multiple"
               style="width: 100%"
-              placeholder="选择菜单"
+              :placeholder="t('systemRoles.menuSelectPlaceholder')"
               :options="menuOptions"
               :loading="menuLoading"
               :filter-option="false"
@@ -52,9 +52,9 @@
             />
           </a-tab-pane>
 
-          <a-tab-pane v-if="canAssignPermissions" key="field-permissions" tab="字段权限">
+          <a-tab-pane v-if="canAssignPermissions" key="field-permissions" :tab="t('systemRoles.fieldPermissionTab')">
             <a-alert
-              message="动态表级别可见/可编辑细粒度控制"
+              :message="t('systemRoles.fieldPermissionTabHint')"
               type="info"
               show-icon
               style="margin-bottom: 12px"
@@ -62,7 +62,7 @@
             <a-select
               v-model:value="fieldPermissionTableKey"
               style="width: 100%; margin-bottom: 12px"
-              placeholder="选择动态表（默认展示20条，可搜索）"
+              :placeholder="t('systemRoles.dynamicTableSelectPlaceholder')"
               :options="dynamicTableOptions"
               :loading="dynamicTableLoading"
               :filter-option="false"
@@ -80,8 +80,8 @@
                 size="small"
                 :scroll="{ y: 'calc(100vh - 350px)' }"
               >
-                <a-table-column key="label" title="字段" data-index="label" />
-                <a-table-column key="canView" title="可见" width="80" align="center">
+                <a-table-column key="label" :title="t('systemRoles.fieldColumnLabel')" data-index="label" />
+                <a-table-column key="canView" :title="t('systemRoles.fieldColumnCanView')" width="80" align="center">
                   <template #default="{ record }">
                     <a-switch
                       :checked="record.canView"
@@ -90,7 +90,7 @@
                     />
                   </template>
                 </a-table-column>
-                <a-table-column key="canEdit" title="可编辑" width="80" align="center">
+                <a-table-column key="canEdit" :title="t('systemRoles.fieldColumnCanEdit')" width="80" align="center">
                   <template #default="{ record }">
                     <a-switch
                       :checked="record.canEdit"
@@ -104,9 +104,9 @@
             </div>
           </a-tab-pane>
 
-          <a-tab-pane key="data-scope" tab="数据范围">
+          <a-tab-pane v-if="canManageDataScope" key="data-scope" :tab="t('systemRoles.dataScopeTab')">
             <a-alert
-              message="控制角色可访问的数据集范围"
+              :message="t('systemRoles.dataScopeTabHint')"
               type="info"
               show-icon
               style="margin-bottom: 16px"
@@ -130,7 +130,7 @@
                 v-model:value="assignModel.deptIds"
                 mode="multiple"
                 style="width: 100%"
-                placeholder="选择可访问部门（默认展示20条，可搜索）"
+                :placeholder="t('systemRoles.departmentSelectPlaceholder')"
                 :options="departmentOptions"
                 :loading="departmentLoading"
                 :filter-option="false"
@@ -139,6 +139,20 @@
                 @focus="() => loadDepartmentOptions()"
               />
             </div>
+            <a-alert
+              style="margin-top: 12px"
+              type="success"
+              show-icon
+              :message="dataScopePreviewTitle"
+              :description="dataScopePreviewDescription"
+            />
+            <a-alert
+              v-if="assignModel.dataScope === 6 && !projectScopeEnabled"
+              style="margin-top: 8px"
+              type="warning"
+              show-icon
+              :message="t('systemRoles.projectScopeConsistencyWarning')"
+            />
           </a-tab-pane>
         </a-tabs>
       </a-spin>
@@ -147,8 +161,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch, onBeforeUnmount } from 'vue';
+import { computed, reactive, ref, watch, onBeforeUnmount } from 'vue';
 import { message } from 'ant-design-vue';
+import { useI18n } from "vue-i18n";
 import {
   getRoleDetail,
   updateRolePermissions,
@@ -165,6 +180,9 @@ import {
   setDynamicFieldPermissions
 } from '@/services/dynamic-tables';
 import { debounce, type SelectOption } from '@/utils/common';
+import { getProjectScopeEnabled } from "@/utils/auth";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   roleId: string | null;
@@ -172,6 +190,7 @@ const props = defineProps<{
   roleName: string;
   canAssignPermissions: boolean;
   canAssignMenus: boolean;
+  canManageDataScope: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -185,15 +204,22 @@ onBeforeUnmount(() => {
 
 const loading = ref(false);
 const submitting = ref(false);
-const activeTab = ref(props.canAssignPermissions ? 'permissions' : 'menus');
+const activeTab = ref(
+  props.canAssignPermissions
+    ? 'permissions'
+    : props.canAssignMenus
+      ? 'menus'
+      : 'data-scope'
+);
+const projectScopeEnabled = getProjectScopeEnabled();
 
 const dataScopeOptions = [
-  { value: 0, label: "全部数据", description: "仅平台管理员角色可生效，其他角色自动收敛为租户范围" },
-  { value: 2, label: "自定义部门", description: "仅可查看指定部门数据（后续按部门配置）" },
-  { value: 3, label: "本部门", description: "仅可查看本人所在部门的数据" },
-  { value: 4, label: "本部门及下级", description: "可查看本部门及所有下级部门的数据" },
-  { value: 5, label: "仅本人", description: "仅可查看本人创建或归属的数据" },
-  { value: 6, label: "项目维度", description: "仅可查看当前项目范围内的数据" }
+  { value: 0, label: t("systemRoles.scopeAllLabel"), description: t("systemRoles.scopeAllDesc") },
+  { value: 2, label: t("systemRoles.scopeCustomDeptLabel"), description: t("systemRoles.scopeCustomDeptDesc") },
+  { value: 3, label: t("systemRoles.scopeCurrentDeptLabel"), description: t("systemRoles.scopeCurrentDeptDesc") },
+  { value: 4, label: t("systemRoles.scopeCurrentDeptAndBelowLabel"), description: t("systemRoles.scopeCurrentDeptAndBelowDesc") },
+  { value: 5, label: t("systemRoles.scopeOnlySelfLabel"), description: t("systemRoles.scopeOnlySelfDesc") },
+  { value: 6, label: t("systemRoles.scopeProjectLabel"), description: t("systemRoles.scopeProjectDesc") }
 ];
 
 const assignModel = reactive({
@@ -227,13 +253,25 @@ const fieldPermissionRows = ref<Array<{
   canEdit: boolean;
 }>>([]);
 
+const selectedDataScopeOption = computed(() => {
+  return dataScopeOptions.find((item) => item.value === assignModel.dataScope) ?? dataScopeOptions[0];
+});
+
+const dataScopePreviewTitle = computed(() => t("systemRoles.dataScopePreviewTitle"));
+const dataScopePreviewDescription = computed(() => {
+  if (assignModel.dataScope === 2) {
+    return t("systemRoles.dataScopePreviewCustomDept", { count: assignModel.deptIds.length });
+  }
+  return selectedDataScopeOption.value.description;
+});
+
 const loadPermissionOptions = async (keyword?: string) => {
   if (!isMounted.value) return;
   permissionLoading.value = true;
   try {
     const result = await getPermissionsPaged({
       pageIndex: 1,
-      pageSize: 50,
+      pageSize: 20,
       keyword: keyword?.trim() || undefined
     });
     if (!isMounted.value) return;
@@ -258,7 +296,7 @@ const loadMenuOptions = async (keyword?: string) => {
   try {
     const result = await getMenusPaged({
       pageIndex: 1,
-      pageSize: 50,
+      pageSize: 20,
       keyword: keyword?.trim() || undefined
     });
     if (!isMounted.value) return;
@@ -403,7 +441,7 @@ const fetchRoleDetail = async () => {
       props.canAssignPermissions ? loadPermissionOptions() : Promise.resolve(),
       props.canAssignMenus ? loadMenuOptions() : Promise.resolve(),
       props.canAssignPermissions ? loadDynamicTableOptions() : Promise.resolve(),
-      loadDepartmentOptions()
+      props.canManageDataScope ? loadDepartmentOptions() : Promise.resolve()
     ]);
 
     if (!isMounted.value) return;
@@ -442,11 +480,13 @@ const submitAssign = async () => {
       tasks.push(updateRoleMenus(props.roleId, { menuIds: assignModel.menuIds }));
     }
     
-    tasks.push(setRoleDataScope(
-      props.roleId,
-      assignModel.dataScope,
-      assignModel.dataScope === 2 ? assignModel.deptIds : undefined
-    ));
+    if (props.canManageDataScope) {
+      tasks.push(setRoleDataScope(
+        props.roleId,
+        assignModel.dataScope,
+        assignModel.dataScope === 2 ? assignModel.deptIds : undefined
+      ));
+    }
     
     if (fieldPermissionTableKey.value && props.roleCode) {
       const merged = existingFieldPermissions.value
@@ -466,11 +506,11 @@ const submitAssign = async () => {
     
     await Promise.all(tasks);
     if (!isMounted.value) return;
-    message.success("权限配置已保存完成");
+    message.success(t("systemRoles.assignSaveSuccess"));
     emit('success');
   } catch (error) {
     if (isMounted.value) {
-      message.error((error as Error).message || "更新权限配置失败");
+      message.error((error as Error).message || t("systemRoles.assignSaveFailed"));
     }
   } finally {
     if (isMounted.value) {

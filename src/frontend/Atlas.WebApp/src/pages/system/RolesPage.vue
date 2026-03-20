@@ -62,7 +62,7 @@
                 <a-space @click.stop>
                   <a-button v-if="canUpdate" type="link" @click="openEdit(record)">{{ t("common.edit") }}</a-button>
                   <a-button
-                    v-if="canAssignPermissions || canAssignMenus"
+                    v-if="canAssignPermissions || canAssignMenus || canManageDataScope"
                     type="link"
                     @click="openAssign(record)"
                   >
@@ -90,6 +90,7 @@
             :role-name="selectedItem.name"
             :can-assign-permissions="canAssignPermissions"
             :can-assign-menus="canAssignMenus"
+            :can-manage-data-scope="canManageDataScope"
             @success="handleAssignSuccess"
           />
         </template>
@@ -221,6 +222,7 @@ const {
 
 const canAssignPermissions = crud.hasPermissionFor("assignPermissions");
 const canAssignMenus = crud.hasPermissionFor("assignMenus");
+const canManageDataScope = canUpdate;
 
 const { selectedItem, isDetailVisible, selectItem } = useMasterDetail<RoleListItem>();
 
