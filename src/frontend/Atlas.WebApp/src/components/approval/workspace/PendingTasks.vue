@@ -91,7 +91,7 @@ import { onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { message } from "ant-design-vue";
 import { getMyTasksPaged } from "@/services/api";
-import { getApprovalFlowsPaged } from "@/services/api-approval";
+import { getApprovalFlowsPaged, getApprovalTaskById } from "@/services/api-approval";
 import { getLowCodeAppsPaged } from "@/services/lowcode";
 import type { TablePaginationConfig } from "ant-design-vue";
 import { ApprovalTaskStatus, type ApprovalTaskResponse } from "@/types/api";
@@ -156,12 +156,24 @@ const fetchData = async () => {
   }
 };
 
-const applyDeepLinkFocus = () => {
+const applyDeepLinkFocus = async () => {
   const urlTaskId = typeof route.query.taskId === "string" ? route.query.taskId : "";
   if (!urlTaskId) return;
+
+  // Fast path: task is already in the current page
   const matched = dataSource.value.find((item) => String(item.id) === urlTaskId);
   if (matched) {
     selectItem(matched);
+    return;
+  }
+
+  // Slow path: task lives on a different page — fetch it directly by ID so the
+  // deep-link still works regardless of which page the item would appear on.
+  try {
+    const task = await getApprovalTaskById(urlTaskId);
+    selectItem(task);
+  } catch {
+    // Task not found or caller lacks access — silently ignore so the list still renders normally
   }
 };
 
@@ -234,7 +246,7 @@ const formatTime = (value: string) => {
 onMounted(async () => {
   await Promise.all([loadAppOptions(), loadFlowOptions()]);
   await fetchData();
-  applyDeepLinkFocus();
+  await applyDeepLinkFocus();
 });
 
 watch(statusFilter, () => {
