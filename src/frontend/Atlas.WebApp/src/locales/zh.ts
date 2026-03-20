@@ -180,6 +180,8 @@ export default {
     tenantId: "租户ID",
     dbType: "数据库类型",
     connectionString: "连接字符串",
+    maxPoolSize: "连接池上限",
+    connectionTimeoutSeconds: "连接超时（秒）",
     testConnection: "测试连接",
     createSuccess: "数据源创建成功",
     updateSuccess: "数据源更新成功",
@@ -189,7 +191,7 @@ export default {
     saveFailed: "保存数据源失败",
     testSuccess: "连接测试成功",
     testFailed: "连接测试失败",
-    updateHint: "出于安全要求，编辑数据源时需要重新输入连接字符串。"
+    updateHint: "连接字符串留空表示保持不变；需要更新时再输入新值。"
   },
   fileUpload: {
     upload: "上传附件",

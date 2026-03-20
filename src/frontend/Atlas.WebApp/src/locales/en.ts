@@ -180,6 +180,8 @@ export default {
     tenantId: "Tenant ID",
     dbType: "Database Type",
     connectionString: "Connection String",
+    maxPoolSize: "Max Pool Size",
+    connectionTimeoutSeconds: "Connection Timeout (seconds)",
     testConnection: "Test Connection",
     createSuccess: "Data source created successfully",
     updateSuccess: "Data source updated successfully",
@@ -189,7 +191,7 @@ export default {
     saveFailed: "Failed to save data source",
     testSuccess: "Connection test passed",
     testFailed: "Connection test failed",
-    updateHint: "For security reasons, re-enter the connection string when editing."
+    updateHint: "Leave connection string empty to keep the current secret; enter a new value only when rotating."
   },
   fileUpload: {
     upload: "Upload Attachment",

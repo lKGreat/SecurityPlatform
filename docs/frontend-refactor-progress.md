@@ -195,3 +195,9 @@
   - `useCrudPage.ts` 增加全局 `project-changed` 监听：切换项目后自动重查列表数据，闭合“切换上下文 -> 数据刷新”链路。
   - `api-core.ts` 统一 JSON/Blob 请求的项目域校验：项目域开启但缺少项目时，发送前即阻断并返回一致错误模型（`PROJECT_REQUIRED`）。
   - `api-core.spec.ts` 补充项目域校验测试，覆盖 JSON/Blob 阻断与项目管理接口豁免场景。
+- **Case 07（多数据源接入）联调补齐**
+  - `TenantDataSourcesController` 新增 `POST /api/v1/tenant-datasources/{id}/test`，支持已保存数据源直接测试（无需回传明文连接串）。
+  - `TenantDataSourceService` 收敛租户边界：列表/详情/更新/删除均按 `tenantId` 过滤，避免跨租户越权操作。
+  - 更新数据源支持连接串留空保留密文（仅更新名称/类型/池参数），降低凭据暴露与误覆盖风险。
+  - `TestConnectionResult` 增加 `latencyMs`，前端页面与消息提示展示测试延迟，提升联调可观测性。
+  - `TenantDataSourcesPage.vue` 增加“行内测试”按钮与最近测试状态/时间列，编辑态留空连接串可直接测试已保存配置。

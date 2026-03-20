@@ -21,8 +21,21 @@
         <template v-else-if="column.key === 'updatedAt'">
           {{ record.updatedAt ? formatDateTime(record.updatedAt) : "-" }}
         </template>
+        <template v-else-if="column.key === 'lastTestSuccess'">
+          <a-tag
+            :color="record.lastTestSuccess === true ? 'green' : record.lastTestSuccess === false ? 'red' : 'default'"
+          >
+            {{ record.lastTestSuccess === true ? "成功" : record.lastTestSuccess === false ? "失败" : "-" }}
+          </a-tag>
+        </template>
+        <template v-else-if="column.key === 'lastTestedAt'">
+          {{ record.lastTestedAt ? formatDateTime(record.lastTestedAt) : "-" }}
+        </template>
         <template v-else-if="column.key === 'actions'">
           <a-space>
+            <a-button type="link" :disabled="!canManage || testingById[record.id]" @click="handleTestById(record)">
+              {{ t("datasource.testConnection") }}
+            </a-button>
             <a-button type="link" :disabled="!canManage" @click="openEdit(record)">{{ t("common.edit") }}</a-button>
             <a-popconfirm
               :title="t('datasource.deleteConfirm')"
@@ -70,6 +83,17 @@
           :placeholder="t('datasource.connectionString')"
         />
       </a-form-item>
+      <a-form-item :label="t('datasource.maxPoolSize')">
+        <a-input-number v-model:value="formModel.maxPoolSize" :min="1" :max="500" style="width: 100%" />
+      </a-form-item>
+      <a-form-item :label="t('datasource.connectionTimeoutSeconds')">
+        <a-input-number
+          v-model:value="formModel.connectionTimeoutSeconds"
+          :min="1"
+          :max="120"
+          style="width: 100%"
+        />
+      </a-form-item>
     </a-form>
     <template #footer>
       <a-space>
@@ -90,6 +114,7 @@ import {
   createTenantDataSource,
   deleteTenantDataSource,
   getTenantDataSources,
+  testTenantDataSourceConnectionById,
   testTenantDataSourceConnection,
   updateTenantDataSource
 } from "@/services/api";
@@ -118,7 +143,9 @@ const formModel = reactive({
   tenantIdValue: getTenantId() ?? "",
   name: "",
   dbType: "SQLite",
-  connectionString: ""
+  connectionString: "",
+  maxPoolSize: 50,
+  connectionTimeoutSeconds: 15
 });
 
 const dbTypeOptions = [
@@ -132,17 +159,26 @@ const formRules: Record<string, Rule[]> = {
   tenantIdValue: [{ required: true, message: "请输入租户ID" }],
   name: [{ required: true, message: "请输入数据源名称" }],
   dbType: [{ required: true, message: "请选择数据库类型" }],
-  connectionString: [{ required: true, message: "请输入连接字符串" }]
+  connectionString: [{
+    validator: async (_, value: string) => {
+      if (formMode.value === "create" && !value?.trim()) {
+        throw new Error("请输入连接字符串");
+      }
+    }
+  }]
 };
 
 const columns = [
   { title: "名称", dataIndex: "name", key: "name" },
   { title: "租户ID", dataIndex: "tenantIdValue", key: "tenantIdValue" },
   { title: "数据库类型", dataIndex: "dbType", key: "dbType" },
+  { title: "最近测试", key: "lastTestSuccess" },
+  { title: "测试时间", key: "lastTestedAt" },
   { title: "状态", key: "isActive" },
   { title: "更新时间", key: "updatedAt" },
   { title: "操作", key: "actions" }
 ];
+const testingById = reactive<Record<string, boolean>>({});
 
 const loadData = async () => {
   loading.value = true;
@@ -160,6 +196,8 @@ const resetFormModel = () => {
   formModel.name = "";
   formModel.dbType = "SQLite";
   formModel.connectionString = "";
+  formModel.maxPoolSize = 50;
+  formModel.connectionTimeoutSeconds = 15;
 };
 
 const openCreate = () => {
@@ -176,6 +214,8 @@ const openEdit = (record: TenantDataSourceDto) => {
   formModel.name = record.name;
   formModel.dbType = record.dbType;
   formModel.connectionString = "";
+  formModel.maxPoolSize = record.maxPoolSize ?? 50;
+  formModel.connectionTimeoutSeconds = record.connectionTimeoutSeconds ?? 15;
   formVisible.value = true;
 };
 
@@ -189,15 +229,19 @@ const handleTestConnection = async () => {
 
   testing.value = true;
   try {
-    const result = await testTenantDataSourceConnection({
-      connectionString: formModel.connectionString,
-      dbType: formModel.dbType
-    });
+    const result = formMode.value === "edit" && !formModel.connectionString.trim() && editingId.value
+      ? await testTenantDataSourceConnectionById(editingId.value)
+      : await testTenantDataSourceConnection({
+          connectionString: formModel.connectionString,
+          dbType: formModel.dbType
+        });
     if (result.success) {
-      message.success(t("datasource.testSuccess"));
+      message.success(result.latencyMs ? `${t("datasource.testSuccess")}（${result.latencyMs}ms）` : t("datasource.testSuccess"));
+      await loadData();
       return;
     }
-    message.error(result.errorMessage || t("datasource.testFailed"));
+    const suffix = result.latencyMs ? `（${result.latencyMs}ms）` : "";
+    message.error((result.errorMessage || t("datasource.testFailed")) + suffix);
   } catch (error) {
     message.error(error instanceof Error ? error.message : t("datasource.testFailed"));
   } finally {
@@ -216,7 +260,9 @@ const submitForm = async () => {
         tenantIdValue: formModel.tenantIdValue,
         name: formModel.name,
         dbType: formModel.dbType,
-        connectionString: formModel.connectionString
+        connectionString: formModel.connectionString,
+        maxPoolSize: formModel.maxPoolSize,
+        connectionTimeoutSeconds: formModel.connectionTimeoutSeconds
       };
       await createTenantDataSource(payload);
       message.success(t("datasource.createSuccess"));
@@ -224,7 +270,9 @@ const submitForm = async () => {
       const payload: TenantDataSourceUpdateRequest = {
         name: formModel.name,
         dbType: formModel.dbType,
-        connectionString: formModel.connectionString
+        connectionString: formModel.connectionString.trim() ? formModel.connectionString : undefined,
+        maxPoolSize: formModel.maxPoolSize,
+        connectionTimeoutSeconds: formModel.connectionTimeoutSeconds
       };
       await updateTenantDataSource(editingId.value, payload);
       message.success(t("datasource.updateSuccess"));
@@ -245,6 +293,27 @@ const handleDelete = async (id: string) => {
     await loadData();
   } catch (error) {
     message.error(error instanceof Error ? error.message : t("common.failed"));
+  }
+};
+
+const handleTestById = async (record: TenantDataSourceDto) => {
+  if (!canManage.value || testingById[record.id]) {
+    return;
+  }
+  testingById[record.id] = true;
+  try {
+    const result = await testTenantDataSourceConnectionById(record.id);
+    if (result.success) {
+      message.success(result.latencyMs ? `${t("datasource.testSuccess")}（${result.latencyMs}ms）` : t("datasource.testSuccess"));
+    } else {
+      const suffix = result.latencyMs ? `（${result.latencyMs}ms）` : "";
+      message.error((result.errorMessage || t("datasource.testFailed")) + suffix);
+    }
+    await loadData();
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : t("datasource.testFailed"));
+  } finally {
+    testingById[record.id] = false;
   }
 };
 

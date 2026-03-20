@@ -229,6 +229,16 @@ export async function testTenantDataSourceConnection(
   return response.data;
 }
 
+export async function testTenantDataSourceConnectionById(id: string): Promise<TenantDataSourceTestConnectionResult> {
+  const response = await requestApi<ApiResponse<TenantDataSourceTestConnectionResult>>(`/tenant-datasources/${id}/test`, {
+    method: "POST"
+  });
+  if (!response.data) {
+    throw new Error(response.message || "连接测试失败");
+  }
+  return response.data;
+}
+
 // ---------- Table Views (Personal) ----------
 export async function getTableViewsPaged(tableKey: string, pagedRequest: PagedRequest) {
   const queryParams = new URLSearchParams(toQuery(pagedRequest));

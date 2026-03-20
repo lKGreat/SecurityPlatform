@@ -6,6 +6,7 @@ using Atlas.Infrastructure.Repositories;
 using Atlas.Domain.System.Entities;
 using Microsoft.Extensions.Options;
 using SqlSugar;
+using System.Diagnostics;
 
 namespace Atlas.Infrastructure.Services;
 
@@ -28,26 +29,29 @@ public sealed class TenantDataSourceService : ITenantDataSourceService
         _encryptionOptions = encryptionOptions.Value;
     }
 
-    public async Task<IReadOnlyList<TenantDataSourceDto>> QueryAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<TenantDataSourceDto>> QueryAllAsync(string tenantIdValue, CancellationToken cancellationToken = default)
     {
-        var items = await _repository.QueryAllAsync(cancellationToken);
+        var items = await _repository.QueryByTenantAsync(tenantIdValue, cancellationToken);
         return items.Select(MapToDto).ToArray();
     }
 
-    public async Task<TenantDataSourceDto?> GetByIdAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<TenantDataSourceDto?> GetByIdAsync(string tenantIdValue, long id, CancellationToken cancellationToken = default)
     {
-        var entity = await _repository.FindByIdAsync(id, cancellationToken);
+        var entity = await _repository.FindByTenantAndIdAsync(tenantIdValue, id, cancellationToken);
         return entity is null ? null : MapToDto(entity);
     }
 
-    public async Task<long> CreateAsync(TenantDataSourceCreateRequest request, CancellationToken cancellationToken = default)
+    public async Task<long> CreateAsync(
+        string tenantIdValue,
+        TenantDataSourceCreateRequest request,
+        CancellationToken cancellationToken = default)
     {
         var encryptedConnectionString = _encryptionOptions.Enabled
             ? TenantDbConnectionFactory.Encrypt(request.ConnectionString, _encryptionOptions.Key)
             : request.ConnectionString;
 
         var entity = new TenantDataSource(
-            request.TenantIdValue,
+            tenantIdValue,
             request.Name,
             encryptedConnectionString,
             request.DbType,
@@ -57,21 +61,29 @@ public sealed class TenantDataSourceService : ITenantDataSourceService
             NormalizeConnectionTimeoutSeconds(request.ConnectionTimeoutSeconds));
 
         await _repository.AddAsync(entity, cancellationToken);
-        _tenantDbConnectionFactory.InvalidateCache(request.TenantIdValue);
+        _tenantDbConnectionFactory.InvalidateCache(tenantIdValue);
         return entity.Id;
     }
 
-    public async Task<bool> UpdateAsync(long id, TenantDataSourceUpdateRequest request, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(
+        string tenantIdValue,
+        long id,
+        TenantDataSourceUpdateRequest request,
+        CancellationToken cancellationToken = default)
     {
-        var entity = await _repository.FindByIdAsync(id, cancellationToken);
+        var entity = await _repository.FindByTenantAndIdAsync(tenantIdValue, id, cancellationToken);
         if (entity is null)
         {
             return false;
         }
 
-        var encryptedConnectionString = _encryptionOptions.Enabled
-            ? TenantDbConnectionFactory.Encrypt(request.ConnectionString, _encryptionOptions.Key)
-            : request.ConnectionString;
+        var encryptedConnectionString = entity.EncryptedConnectionString;
+        if (!string.IsNullOrWhiteSpace(request.ConnectionString))
+        {
+            encryptedConnectionString = _encryptionOptions.Enabled
+                ? TenantDbConnectionFactory.Encrypt(request.ConnectionString, _encryptionOptions.Key)
+                : request.ConnectionString;
+        }
 
         entity.Update(
             request.Name,
@@ -84,21 +96,22 @@ public sealed class TenantDataSourceService : ITenantDataSourceService
         return true;
     }
 
-    public async Task<bool> DeleteAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(string tenantIdValue, long id, CancellationToken cancellationToken = default)
     {
-        var entity = await _repository.FindByIdAsync(id, cancellationToken);
+        var entity = await _repository.FindByTenantAndIdAsync(tenantIdValue, id, cancellationToken);
         if (entity is null)
         {
             return false;
         }
 
-        await _repository.DeleteAsync(id, cancellationToken);
+        await _repository.DeleteByTenantAndIdAsync(tenantIdValue, id, cancellationToken);
         _tenantDbConnectionFactory.InvalidateCache(entity.TenantIdValue);
         return true;
     }
 
     public async Task<TestConnectionResult> TestConnectionAsync(TestConnectionRequest request, CancellationToken cancellationToken = default)
     {
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             using var client = new SqlSugarClient(new ConnectionConfig
@@ -110,12 +123,14 @@ public sealed class TenantDataSourceService : ITenantDataSourceService
 
             cancellationToken.ThrowIfCancellationRequested();
             _ = client.DbMaintenance.GetTableInfoList(false);
-            return new TestConnectionResult(true, null);
+            stopwatch.Stop();
+            return new TestConnectionResult(true, null, (int)stopwatch.ElapsedMilliseconds);
         }
         catch
         {
             // 等保要求：避免暴露底层连接异常细节
-            return new TestConnectionResult(false, "连接失败，请检查数据源配置");
+            stopwatch.Stop();
+            return new TestConnectionResult(false, "连接失败，请检查数据源配置", (int)stopwatch.ElapsedMilliseconds);
         }
     }
 

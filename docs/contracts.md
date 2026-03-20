@@ -577,6 +577,7 @@ JWT Claims（新增）：
 - `PUT /api/v1/tenant-datasources/{id}`：更新数据源
 - `DELETE /api/v1/tenant-datasources/{id}`：删除数据源
 - `POST /api/v1/tenant-datasources/test`：测试数据源连接
+- `POST /api/v1/tenant-datasources/{id}/test`：测试已保存数据源连接（无需回传明文连接串）
 
 ### 数据源类型
 
@@ -608,10 +609,20 @@ JWT Claims（新增）：
   "traceId": "00-...",
   "data": {
     "success": true,
-    "errorMessage": null
+    "errorMessage": null,
+    "latencyMs": 12
   }
 }
 ```
+
+### 更新数据源（连接串可选）
+
+`PUT /api/v1/tenant-datasources/{id}`
+
+说明：
+
+- `connectionString` 允许留空（或不传），表示保持现有密文连接串不变，仅更新名称/类型/池参数。
+- 若传入 `connectionString`，服务端按配置重新加密后覆盖存储。
 
 ## 角色、权限与菜单契约
 

@@ -89,9 +89,17 @@ X-CSRF-TOKEN: {{csrfToken}}
 
 {
   "name": "SQLite-DS-Updated",
-  "connectionString": "Data Source=tenant_a_v2.db",
-  "dbType": "SQLite"
+  "dbType": "SQLite",
+  "maxPoolSize": 80,
+  "connectionTimeoutSeconds": 20
 }
+
+### 测试已保存数据源连通性（不回传明文连接串）
+POST {{baseUrl}}/api/v1/tenant-datasources/{{sourceId}}/test
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
 
 ### 删除数据源
 DELETE {{baseUrl}}/api/v1/tenant-datasources/{{sourceId}}
