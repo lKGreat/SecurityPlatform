@@ -238,7 +238,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import { useI18n } from "vue-i18n";
@@ -290,10 +290,6 @@ const projectId = ref<string | null>(null);
 const syncProjectContext = () => {
   projectScopeEnabled.value = getProjectScopeEnabled();
   projectId.value = getProjectId();
-};
-
-const handleProjectChanged = () => {
-  syncProjectContext();
 };
 
 const dataScopeProjectLabel = computed(() => {
@@ -415,12 +411,7 @@ const beforeUpload = (file: File) => {
 
 onMounted(() => {
   syncProjectContext();
-  window.addEventListener("project-changed", handleProjectChanged);
   void loadAllDepartments();
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener("project-changed", handleProjectChanged);
 });
 
 const handleImportCancel = () => {
@@ -572,6 +563,9 @@ const {
   handleDelete,
   fetchData
 } = crud;
+
+// 每次 useCrudPage 刷新数据（含项目切换触发的刷新）后同步显示标签
+watch(dataSource, syncProjectContext);
 
 const canAssignRoles = crud.hasPermissionFor("assignRoles");
 const canAssignDepartments = crud.hasPermissionFor("assignDepartments");

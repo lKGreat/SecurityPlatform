@@ -129,6 +129,8 @@ const syncProjectContext = () => {
 
 const handleProjectChanged = () => {
   syncProjectContext();
+  pagination.current = 1;
+  void fetchData();
 };
 
 const dataScopeProjectLabel = computed(() => {

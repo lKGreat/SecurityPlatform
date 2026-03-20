@@ -149,17 +149,19 @@ const fetchData = async () => {
     }, statusValue);
     dataSource.value = result.items;
     pagination.total = result.total;
-    const urlTaskId = typeof route.query.taskId === "string" ? route.query.taskId : "";
-    if (urlTaskId) {
-      const matched = dataSource.value.find((item) => item.id === urlTaskId);
-      if (matched) {
-        selectItem(matched);
-      }
-    }
   } catch (err) {
     message.error(err instanceof Error ? err.message : "查询失败");
   } finally {
     loading.value = false;
+  }
+};
+
+const applyDeepLinkFocus = () => {
+  const urlTaskId = typeof route.query.taskId === "string" ? route.query.taskId : "";
+  if (!urlTaskId) return;
+  const matched = dataSource.value.find((item) => item.id === urlTaskId);
+  if (matched) {
+    selectItem(matched);
   }
 };
 
@@ -232,6 +234,7 @@ const formatTime = (value: string) => {
 onMounted(async () => {
   await Promise.all([loadAppOptions(), loadFlowOptions()]);
   await fetchData();
+  applyDeepLinkFocus();
 });
 
 watch(statusFilter, () => {
