@@ -40,7 +40,7 @@
 
 | # | 整改项 | 文档状态 | 代码实际状态 | 结论 |
 |---|---|---|---|---|
-| P2-1 | 建立前端质量闸门：`lint + build + security scan + type check` | ❌ 待改 | 🟡 **部分就绪** — `npm run check` 命令已定义（`vue-tsc --noEmit && eslint && vite build`），但未见 CI/CD 集成 | 🟡 **部分完成** |
+| P2-1 | 建立前端质量闸门：`lint + build + security scan + type check` | ❌ 待改 | ✅ **已接入 CI** — `.github/workflows/ci.yml` 前端任务已改为 `npm run check`，将 `type check + lint + build` 作为 PR/Push 门禁执行 | ✅ **已完成** |
 | P2-2 | 增加前端单测与关键路径 E2E（登录/审批提交/流程设计保存） | ❌ 待改 | 🟡 **骨架已有** — Vitest + Playwright 已配置，有少量 spec 文件（[api-core.spec.ts](file:///e:/codeding/SecurityPlatform/src/frontend/Atlas.WebApp/src/services/api-core.spec.ts)、[useTimeNormalize.spec.ts](file:///e:/codeding/SecurityPlatform/src/frontend/Atlas.WebApp/src/composables/useTimeNormalize.spec.ts)、[workflow-node-guards.spec.ts](file:///e:/codeding/SecurityPlatform/src/frontend/Atlas.WebApp/src/utils/workflow-node-guards.spec.ts)、[useWorkflowSerializer.spec.ts](file:///e:/codeding/SecurityPlatform/src/frontend/Atlas.WebApp/src/composables/useWorkflowSerializer.spec.ts)），但覆盖极少 | 🟡 **部分完成** |
 
 ---
@@ -213,3 +213,4 @@
   - Approval/Workflow 主链路完成一批 `any` 治理：`ApprovalDesignerPage.vue`、`ApprovalTaskPoolPage.vue`、`DesignerFlowProcess.vue`、`X6ApprovalDesigner.vue` 改为显式类型与类型守卫，减少弱类型传递风险。
   - 补齐 shapes 链路弱类型治理：`TimerNodeShape.vue`、`InclusiveBranchShape.vue` 去除 `any` 强转，改为结构化类型解析与守卫。
   - 修复 `DesignerBasicInfo.vue` 的 `vue/no-mutating-props` 存量错误（改为子组件 emit 回写），并验证 `npm run check` 全量通过。
+  - CI 闸门落地：`.github/workflows/ci.yml` 的前端构建任务已切换为 `npm run check`，将类型检查、ESLint 与生产构建统一纳入持续集成阻断条件。

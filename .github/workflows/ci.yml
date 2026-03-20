@@ -185,8 +185,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
-        run: npm run build
+      - name: Frontend quality gate (type + lint + build)
+        run: npm run check
 
   integration:
     name: integration (api + e2e)
