@@ -8,7 +8,7 @@
       "api": {
         "method": "get",
         "url": "/api/v1/dynamic-tables?pageIndex=${pageIndex}&pageSize=${pageSize}&keyword=${keyword}",
-        "adaptor": "if (!payload.success) { return { status: 1, msg: payload.message }; } var d = payload.data; return { status: 0, data: { items: d.items, total: d.total, pageIndex: d.pageIndex, pageSize: d.pageSize } };"
+        "adaptor": "if (!payload.success) { return { status: 1, msg: payload.message }; } var d = payload.data || {}; var routeAppId = ''; try { var matched = (window.location.pathname || '').match(/^\\/apps\\/([^/]+)/); routeAppId = matched && matched[1] ? decodeURIComponent(matched[1]) : ''; } catch (e) { routeAppId = ''; } var withApp = (d.items || []).map(function(it) { return Object.assign({}, it, { appId: routeAppId || it.appId || '' }); }); return { status: 0, data: { items: withApp, total: d.total || 0, pageIndex: d.pageIndex || 1, pageSize: d.pageSize || 20 } };"
       },
       "pageField": "pageIndex",
       "perPageField": "pageSize",
@@ -43,7 +43,7 @@
               "type": "button",
               "label": "进入数据",
               "actionType": "link",
-              "link": "/apps/${appId}/data/${tableKey}"
+              "link": "/apps/${appId || currentAppId}/data/${tableKey}"
             },
             {
               "type": "button",

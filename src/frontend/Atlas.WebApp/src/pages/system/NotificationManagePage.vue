@@ -207,8 +207,15 @@ function openEdit(record: NotificationDto) {
   formData.title = record.title;
   formData.content = record.content;
   formData.noticeType = record.noticeType;
-  formData.priority = record.priority;
+  formData.priority = normalizePriority(record.priority);
   formVisible.value = true;
+}
+
+function normalizePriority(priority: number | null | undefined): number {
+  if (priority === 1 || priority === 2) {
+    return priority;
+  }
+  return 0;
 }
 
 function closeForm() {
