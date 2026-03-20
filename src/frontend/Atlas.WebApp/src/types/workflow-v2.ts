@@ -228,6 +228,24 @@ export interface WorkflowProcessResponse {
 
 export interface NodeExecutionDetailResponse extends NodeExecutionItem {}
 
+export interface WorkflowExecutionCheckpointResponse {
+  executionId: number
+  workflowId: number
+  status: ExecutionStatus
+  lastNodeKey?: string
+  startedAt: string
+  completedAt?: string
+  inputsJson?: string
+  outputsJson?: string
+  errorMessage?: string
+}
+
+export interface WorkflowExecutionDebugViewResponse {
+  execution: WorkflowProcessResponse
+  focusNode?: NodeExecutionItem
+  focusReason: string
+}
+
 export interface WorkflowResumeRequest {
   data: Record<string, unknown>
 }

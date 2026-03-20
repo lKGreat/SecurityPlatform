@@ -27,6 +27,8 @@ import type {
   WorkflowRunResponse,
   WorkflowProcessResponse,
   NodeExecutionDetailResponse,
+  WorkflowExecutionCheckpointResponse,
+  WorkflowExecutionDebugViewResponse,
   WorkflowResumeRequest,
   NodeDebugRequest,
   NodeDebugResponse,
@@ -221,6 +223,12 @@ export const workflowV2Api = {
     return requestApi<ApiResponse<WorkflowProcessResponse>>(`${EXEC_BASE}/${executionId}/process`)
   },
 
+  getCheckpoint(executionId: number): Promise<ApiResponse<WorkflowExecutionCheckpointResponse>> {
+    return requestApi<ApiResponse<WorkflowExecutionCheckpointResponse>>(
+      `${EXEC_BASE}/${executionId}/checkpoint`,
+    )
+  },
+
   getNodeDetail(executionId: number, nodeKey: string): Promise<ApiResponse<NodeExecutionDetailResponse>> {
     return requestApi<ApiResponse<NodeExecutionDetailResponse>>(
       `${EXEC_BASE}/${executionId}/nodes/${encodeURIComponent(nodeKey)}`,
@@ -232,6 +240,24 @@ export const workflowV2Api = {
     return requestApi<ApiResponse<boolean>>(`${EXEC_BASE}/${executionId}/resume`, {
       method: 'POST',
     })
+  },
+
+  recover(executionId: number): Promise<ApiResponse<WorkflowRunResponse>> {
+    return requestApi<ApiResponse<WorkflowRunResponse>>(`${EXEC_BASE}/${executionId}/recover`, {
+      method: 'POST',
+    })
+  },
+
+  getDebugView(executionId: number): Promise<ApiResponse<WorkflowExecutionDebugViewResponse>> {
+    return requestApi<ApiResponse<WorkflowExecutionDebugViewResponse>>(
+      `${EXEC_BASE}/${executionId}/debug-view`,
+    )
+  },
+
+  listPublished(pageIndex = 1, pageSize = 20, keyword?: string): Promise<ApiResponse<PagedResult<WorkflowListItem>>> {
+    const params = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize) })
+    if (keyword) params.set('keyword', keyword)
+    return requestApi<ApiResponse<PagedResult<WorkflowListItem>>>(`${BASE}/published?${params}`)
   },
 
   debugNode(workflowId: number, nodeKey: string, req: NodeDebugRequest): Promise<ApiResponse<NodeDebugResponse>> {
@@ -313,12 +339,32 @@ export function getExecutionProcess(executionId: number): Promise<ApiResponse<Wo
   return workflowV2Api.getProcess(executionId)
 }
 
+export function getExecutionCheckpoint(executionId: number): Promise<ApiResponse<WorkflowExecutionCheckpointResponse>> {
+  return workflowV2Api.getCheckpoint(executionId)
+}
+
 export function getNodeExecutionDetail(executionId: number, nodeKey: string): Promise<ApiResponse<NodeExecutionDetailResponse>> {
   return workflowV2Api.getNodeDetail(executionId, nodeKey)
 }
 
 export function resumeExecution(executionId: number, req: WorkflowResumeRequest): Promise<ApiResponse<boolean>> {
   return workflowV2Api.resume(executionId, req)
+}
+
+export function recoverExecution(executionId: number): Promise<ApiResponse<WorkflowRunResponse>> {
+  return workflowV2Api.recover(executionId)
+}
+
+export function getExecutionDebugView(executionId: number): Promise<ApiResponse<WorkflowExecutionDebugViewResponse>> {
+  return workflowV2Api.getDebugView(executionId)
+}
+
+export function listPublishedWorkflows(
+  pageIndex = 1,
+  pageSize = 20,
+  keyword?: string,
+): Promise<ApiResponse<PagedResult<WorkflowListItem>>> {
+  return workflowV2Api.listPublished(pageIndex, pageSize, keyword)
 }
 
 export function debugNode(workflowId: number, nodeKey: string, req: NodeDebugRequest): Promise<ApiResponse<NodeDebugResponse>> {

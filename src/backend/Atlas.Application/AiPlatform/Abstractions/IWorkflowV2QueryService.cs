@@ -12,12 +12,21 @@ public interface IWorkflowV2QueryService
     Task<PagedResult<WorkflowV2ListItem>> ListAsync(
         TenantId tenantId, string? keyword, int pageIndex, int pageSize, CancellationToken cancellationToken);
 
+    Task<PagedResult<WorkflowV2ListItem>> ListPublishedAsync(
+        TenantId tenantId, string? keyword, int pageIndex, int pageSize, CancellationToken cancellationToken);
+
     Task<WorkflowV2DetailDto?> GetAsync(TenantId tenantId, long id, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<WorkflowV2VersionDto>> ListVersionsAsync(
         TenantId tenantId, long workflowId, CancellationToken cancellationToken);
 
     Task<WorkflowV2ExecutionDto?> GetExecutionProcessAsync(
+        TenantId tenantId, long executionId, CancellationToken cancellationToken);
+
+    Task<WorkflowV2ExecutionCheckpointDto?> GetExecutionCheckpointAsync(
+        TenantId tenantId, long executionId, CancellationToken cancellationToken);
+
+    Task<WorkflowV2ExecutionDebugViewDto?> GetExecutionDebugViewAsync(
         TenantId tenantId, long executionId, CancellationToken cancellationToken);
 
     Task<WorkflowV2NodeExecutionDto?> GetNodeExecutionDetailAsync(

@@ -89,6 +89,22 @@ public sealed record WorkflowV2NodeExecutionDto(
     DateTime? CompletedAt,
     long? DurationMs);
 
+public sealed record WorkflowV2ExecutionCheckpointDto(
+    long ExecutionId,
+    long WorkflowId,
+    ExecutionStatus Status,
+    string? LastNodeKey,
+    DateTime StartedAt,
+    DateTime? CompletedAt,
+    string? InputsJson,
+    string? OutputsJson,
+    string? ErrorMessage);
+
+public sealed record WorkflowV2ExecutionDebugViewDto(
+    WorkflowV2ExecutionDto Execution,
+    WorkflowV2NodeExecutionDto? FocusNode,
+    string FocusReason);
+
 public sealed record WorkflowV2RunResult(
     string ExecutionId,
     ExecutionStatus? Status = null,

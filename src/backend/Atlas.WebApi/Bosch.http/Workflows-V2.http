@@ -46,6 +46,11 @@ GET {{host}}/api/v2/workflows?pageIndex=1&pageSize=10&keyword=安全
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
+### ── List Published Workflows (paged) ──
+GET {{host}}/api/v2/workflows/published?pageIndex=1&pageSize=10
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
 ### ── Get Workflow Detail ──
 GET {{host}}/api/v2/workflows/{{workflowId}}
 Authorization: Bearer {{token}}
@@ -133,6 +138,11 @@ GET {{host}}/api/v2/workflows/executions/{{executionId}}/process
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 
+### ── Get Execution Checkpoint ──
+GET {{host}}/api/v2/workflows/executions/{{executionId}}/checkpoint
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
 ### ── Get Node Execution Detail ──
 GET {{host}}/api/v2/workflows/executions/{{executionId}}/nodes/text_1
 Authorization: Bearer {{token}}
@@ -145,6 +155,16 @@ X-Tenant-Id: {{tenantId}}
 
 ### ── Resume Execution ──
 POST {{host}}/api/v2/workflows/executions/{{executionId}}/resume
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Recover Execution ──
+POST {{host}}/api/v2/workflows/executions/{{executionId}}/recover
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+### ── Get Debug View ──
+GET {{host}}/api/v2/workflows/executions/{{executionId}}/debug-view
 Authorization: Bearer {{token}}
 X-Tenant-Id: {{tenantId}}
 

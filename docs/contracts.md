@@ -2283,6 +2283,7 @@ V2 工作流 API 采用 Coze 风格的 DAG 执行引擎，与 V1（`api/v1/ai-wo
 |---|---|---|---|
 | POST | `/` | 创建工作流 | `ai-workflow:create` |
 | GET | `/` | 工作流列表（分页） | `ai-workflow:view` |
+| GET | `/published` | 已发布工作流列表（分页） | `ai-workflow:view` |
 | GET | `/{id}` | 工作流详情（含 Draft） | `ai-workflow:view` |
 | PUT | `/{id}/meta` | 更新元信息 | `ai-workflow:update` |
 | PUT | `/{id}/draft` | 保存草稿 | `ai-workflow:update` |
@@ -2294,7 +2295,10 @@ V2 工作流 API 采用 Coze 风格的 DAG 执行引擎，与 V1（`api/v1/ai-wo
 | POST | `/{id}/stream` | SSE 流式运行 | `ai-workflow:execute` |
 | POST | `/executions/{id}/cancel` | 取消执行 | `ai-workflow:execute` |
 | POST | `/executions/{id}/resume` | 恢复执行 | `ai-workflow:execute` |
+| GET | `/executions/{id}/checkpoint` | 获取执行检查点 | `ai-workflow:view` |
+| POST | `/executions/{id}/recover` | 基于检查点恢复执行 | `ai-workflow:execute` |
 | GET | `/executions/{id}/process` | 执行进度 | `ai-workflow:view` |
+| GET | `/executions/{id}/debug-view` | 执行调试聚合视图 | `ai-workflow:view` |
 | GET | `/executions/{id}/nodes/{key}` | 节点执行详情 | `ai-workflow:view` |
 | POST | `/{id}/debug-node` | 单节点调试 | `ai-workflow:debug` |
 | GET | `/node-types` | 节点类型列表 | `ai-workflow:view` |
@@ -2394,6 +2398,24 @@ interface WorkflowV2NodeExecutionDto {
   startedAt?: string;
   completedAt?: string;
   durationMs?: number;
+}
+
+interface WorkflowV2ExecutionCheckpointDto {
+  executionId: number;
+  workflowId: number;
+  status: number;
+  lastNodeKey?: string;
+  startedAt: string;
+  completedAt?: string;
+  inputsJson?: string;
+  outputsJson?: string;
+  errorMessage?: string;
+}
+
+interface WorkflowV2ExecutionDebugViewDto {
+  execution: WorkflowV2ExecutionDto;
+  focusNode?: WorkflowV2NodeExecutionDto;
+  focusReason: string;
 }
 ```
 
