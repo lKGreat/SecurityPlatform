@@ -190,3 +190,8 @@
   - 增加历史路由兼容：`/process/designer`、`/process/designer/:id`、`/process/tasks/:taskId` 统一重定向到审批工作台新入口。
   - 通知中心审批深链统一切换到 `/approval/workspace?tab=pending&taskId=*`，避免旧路径 404。
   - 待办列表支持按 `taskId` 查询参数自动聚焦任务详情，闭合“通知 -> 待办 -> 处理”主链路。
+- **Case 06（项目域权限隔离）联调补齐**
+  - `ProjectSwitcher.vue` 新增应用上下文变更监听：当 `appId` 切换时自动重载项目范围，避免跨应用沿用旧项目列表。
+  - `useCrudPage.ts` 增加全局 `project-changed` 监听：切换项目后自动重查列表数据，闭合“切换上下文 -> 数据刷新”链路。
+  - `api-core.ts` 统一 JSON/Blob 请求的项目域校验：项目域开启但缺少项目时，发送前即阻断并返回一致错误模型（`PROJECT_REQUIRED`）。
+  - `api-core.spec.ts` 补充项目域校验测试，覆盖 JSON/Blob 阻断与项目管理接口豁免场景。

@@ -186,7 +186,10 @@ export async function requestApi<T>(path: string, init?: RequestInit, options?: 
       message.warning("请先选择项目");
       missingProjectWarningAt = now;
     }
-    throw new Error("缺少项目上下文");
+    throw buildApiError("缺少项目上下文", 400, {
+      code: ErrorCodes.ProjectRequired,
+      message: "请先选择项目"
+    }, "缺少项目上下文");
   }
 
   if (shouldAttachSecurityHeaders && isUnsafeMethod(method)) {
@@ -356,6 +359,17 @@ export async function requestApiBlob(path: string, init?: RequestInit, options?:
   if (projectScopeEnabled && projectId && !headers.has("X-Project-Id")) {
     headers.set("X-Project-Id", projectId);
   }
+  if (projectScopeEnabled && !projectId && shouldRequireProjectContext(path)) {
+    const now = Date.now();
+    if (now - missingProjectWarningAt > 1500) {
+      message.warning("请先选择项目");
+      missingProjectWarningAt = now;
+    }
+    throw buildApiError("缺少项目上下文", 400, {
+      code: ErrorCodes.ProjectRequired,
+      message: "请先选择项目"
+    }, "缺少项目上下文");
+  }
 
   const writeRequestSignature = shouldEnableWriteRequestDeduplication(method, shouldAttachSecurityHeaders, options)
     ? buildWriteRequestSignature(path, method, init?.body, tenantId, projectId, appId, "blob")
@@ -503,7 +517,16 @@ function normalizeRequestBodyForSignature(body: BodyInit | null | undefined) {
 }
 
 function shouldRequireProjectContext(path: string): boolean {
-  const exemptPrefixes = ["/apps", "/projects", "/auth", "/secure"];
+  const exemptPrefixes = [
+    "/apps",
+    "/projects",
+    "/auth",
+    "/secure",
+    "/api/v1/apps",
+    "/api/v1/projects",
+    "/api/v1/auth",
+    "/api/v1/secure"
+  ];
   return !exemptPrefixes.some((prefix) => path.startsWith(prefix));
 }
 
