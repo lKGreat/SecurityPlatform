@@ -187,7 +187,13 @@ public sealed record ResourceCenterGroupEntry(
     string ResourceName,
     string ResourceType,
     string? Status,
-    string? Description);
+    string? Description,
+    string? NavigationPath = null,
+    string? RelatedCatalogId = null,
+    string? RelatedInstanceId = null,
+    string? RelatedReleaseId = null,
+    string? RelatedRuntimeContextId = null,
+    string? RelatedExecutionId = null);
 
 public sealed record ResourceCenterGroupItem(
     string GroupKey,

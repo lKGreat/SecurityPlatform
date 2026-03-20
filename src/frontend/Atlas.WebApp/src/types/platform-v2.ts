@@ -132,6 +132,12 @@ export interface ResourceCenterGroupEntry {
   resourceType: string;
   status?: string;
   description?: string;
+  navigationPath?: string;
+  relatedCatalogId?: string;
+  relatedInstanceId?: string;
+  relatedReleaseId?: string;
+  relatedRuntimeContextId?: string;
+  relatedExecutionId?: string;
 }
 
 export interface ResourceCenterGroupItem {

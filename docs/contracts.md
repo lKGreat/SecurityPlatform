@@ -199,7 +199,8 @@
   - `appIds` 可选；未传时返回当前租户全部实例绑定。
   - 响应字段补充：`bindingId`、`bindingType`、`bindingActive`、`boundAt`、`source`（`BindingTable` / `LegacyLowCodeApp.DataSourceId` / `Unbound`）。
 - `GET /api/v2/resource-center/groups`
-  - 返回资源中心分组聚合（`catalogs`/`instances`/`datasources`）。
+  - 返回资源中心分组聚合（`catalogs` / `tenant-applications` / `instances` / `releases` / `runtime-contexts` / `runtime-executions` / `datasources` / `audit-summary` / `debug-entries`）。
+  - `ResourceCenterGroupEntry` 补充导航关联字段：`navigationPath`、`relatedCatalogId`、`relatedInstanceId`、`relatedReleaseId`、`relatedRuntimeContextId`、`relatedExecutionId`。
   - 要求服务端采用批量查询 + 内存聚合，禁止循环内数据库访问。
 - `GET /api/v2/resource-center/datasource-consumption`
   - 返回数据源双层消费模型：

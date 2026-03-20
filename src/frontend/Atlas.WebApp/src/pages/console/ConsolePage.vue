@@ -40,7 +40,7 @@
     <a-card :bordered="false" class="widget-card resource-group-card" title="Resource center groups" :loading="resourceGroupLoading">
       <a-row :gutter="[16, 16]">
         <a-col v-for="group in resourceGroups" :key="group.groupKey" :xs="24" :sm="12" :md="8">
-          <a-card size="small" class="resource-group-item">
+          <a-card size="small" class="resource-group-item" hoverable @click="openResourceGroup(group.groupKey)">
             <div class="resource-group-title">{{ group.groupName }}</div>
             <div class="resource-group-total">{{ group.total }}</div>
             <div class="resource-group-meta">{{ group.groupKey }}</div>
@@ -386,6 +386,13 @@ function openApp(id: string) {
 
 function go(path: string) {
   router.push(path);
+}
+
+function openResourceGroup(groupKey: string) {
+  router.push({
+    path: "/console/resources",
+    query: { groupKey }
+  });
 }
 
 onMounted(() => {

@@ -20,6 +20,7 @@ X-Tenant-Id: {{tenantId}}
 @accessToken = {{login.response.body.$.data.accessToken}}
 
 ### 查询资源中心分组
+# 预期分组：catalogs / tenant-applications / instances / releases / runtime-contexts / runtime-executions / datasources / audit-summary / debug-entries
 GET {{baseUrl}}/api/v2/resource-center/groups
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}

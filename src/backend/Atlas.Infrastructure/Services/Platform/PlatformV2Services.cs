@@ -939,6 +939,10 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             .Where(item => item.TenantIdValue == tenantIdValue)
             .OrderByDescending(item => item.UpdatedAt)
             .ToListAsync(cancellationToken);
+        var tenantApplicationsTask = _db.Queryable<TenantApplication>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.UpdatedAt)
+            .ToListAsync(cancellationToken);
         var appInstancesTask = _db.Queryable<LowCodeApp>()
             .Where(item => item.TenantIdValue == tenantIdValue)
             .OrderByDescending(item => item.UpdatedAt)
@@ -947,38 +951,169 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             .Where(item => item.TenantIdValue == tenantIdText)
             .OrderByDescending(item => item.UpdatedAt)
             .ToListAsync(cancellationToken);
-        await Task.WhenAll(catalogsTask, appInstancesTask, dataSourcesTask);
+        var releasesTask = _db.Queryable<AppRelease>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.ReleasedAt)
+            .ToListAsync(cancellationToken);
+        var runtimeContextsTask = _db.Queryable<RuntimeRoute>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.Id)
+            .ToListAsync(cancellationToken);
+        var runtimeExecutionsTask = _db.Queryable<WorkflowExecution>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.StartedAt)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+        var auditsTask = _db.Queryable<AuditRecord>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.OccurredAt)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+        await Task.WhenAll(
+            catalogsTask,
+            tenantApplicationsTask,
+            appInstancesTask,
+            dataSourcesTask,
+            releasesTask,
+            runtimeContextsTask,
+            runtimeExecutionsTask,
+            auditsTask);
 
-        var catalogItems = catalogsTask.Result
+        var catalogs = catalogsTask.Result;
+        var tenantApplications = tenantApplicationsTask.Result;
+        var appInstances = appInstancesTask.Result;
+        var dataSources = dataSourcesTask.Result;
+        var releases = releasesTask.Result;
+        var runtimeContexts = runtimeContextsTask.Result;
+        var runtimeExecutions = runtimeExecutionsTask.Result;
+        var audits = auditsTask.Result;
+
+        var catalogById = catalogs.ToDictionary(item => item.Id);
+        var appInstanceById = appInstances.ToDictionary(item => item.Id);
+
+        var catalogItems = catalogs
             .Select(item => new ResourceCenterGroupEntry(
                 item.Id.ToString(),
                 item.Name,
                 "ApplicationCatalog",
                 item.Status.ToString(),
-                item.Description))
+                item.Description,
+                $"/console/application-catalogs?catalogId={item.Id}",
+                item.Id.ToString()))
             .ToArray();
-        var appInstanceItems = appInstancesTask.Result
+        var tenantApplicationItems = tenantApplications
+            .Select(item => new ResourceCenterGroupEntry(
+                item.Id.ToString(),
+                item.Name,
+                "TenantApplication",
+                item.Status.ToString(),
+                $"AppKey={item.AppKey}",
+                $"/console/tenant-applications?applicationId={item.Id}",
+                item.CatalogId.ToString(),
+                item.AppInstanceId.ToString()))
+            .ToArray();
+        var appInstanceItems = appInstances
             .Select(item => new ResourceCenterGroupEntry(
                 item.Id.ToString(),
                 item.Name,
                 "TenantAppInstance",
                 item.Status.ToString(),
-                item.Description))
+                item.Description,
+                $"/console/tenant-app-instances?instanceId={item.Id}",
+                null,
+                item.Id.ToString()))
             .ToArray();
-        var dataSourceItems = dataSourcesTask.Result
+        var dataSourceItems = dataSources
             .Select(item => new ResourceCenterGroupEntry(
                 item.Id.ToString(),
                 item.Name,
                 "TenantDataSource",
                 item.IsActive ? "Active" : "Disabled",
-                item.LastTestMessage))
+                item.LastTestMessage,
+                $"/console/datasource-consumption?dataSourceId={item.Id}",
+                null,
+                item.AppId?.ToString()))
+            .ToArray();
+        var releaseItems = releases
+            .Select(item =>
+            {
+                var manifest = catalogById.TryGetValue(item.ManifestId, out var manifestValue) ? manifestValue : null;
+                return new ResourceCenterGroupEntry(
+                    item.Id.ToString(),
+                    $"v{item.Version}",
+                    "Release",
+                    item.Status.ToString(),
+                    manifest is null ? item.ReleaseNote : $"{manifest.Name} / {manifest.AppKey}",
+                    $"/console/releases?releaseId={item.Id}",
+                    item.ManifestId.ToString(),
+                    null,
+                    item.Id.ToString());
+            })
+            .ToArray();
+        var runtimeContextItems = runtimeContexts
+            .Select(item => new ResourceCenterGroupEntry(
+                item.Id.ToString(),
+                $"{item.AppKey}/{item.PageKey}",
+                "RuntimeContext",
+                item.IsActive ? "Active" : "Inactive",
+                $"SchemaVersion={item.SchemaVersion}, Env={item.EnvironmentCode}",
+                $"/console/runtime-contexts?contextId={item.Id}",
+                item.ManifestId.ToString(),
+                null,
+                null,
+                item.Id.ToString()))
+            .ToArray();
+        var runtimeExecutionItems = runtimeExecutions
+            .Select(item => new ResourceCenterGroupEntry(
+                item.Id.ToString(),
+                $"Workflow:{item.WorkflowId}",
+                "RuntimeExecution",
+                item.Status.ToString(),
+                $"StartedAt={item.StartedAt:O}",
+                $"/console/runtime-executions?executionId={item.Id}",
+                null,
+                item.AppId?.ToString(),
+                item.ReleaseId?.ToString(),
+                item.RuntimeContextId?.ToString(),
+                item.Id.ToString()))
+            .ToArray();
+        var auditSummaryItems = audits
+            .GroupBy(item => new { item.Action, item.Result })
+            .OrderByDescending(group => group.Count())
+            .Take(20)
+            .Select(group => new ResourceCenterGroupEntry(
+                $"{group.Key.Action}:{group.Key.Result}",
+                group.Key.Action,
+                "AuditSummary",
+                group.Key.Result,
+                $"近200条记录命中 {group.Count()} 次",
+                $"/audit?keyword={Uri.EscapeDataString(group.Key.Action)}"))
+            .ToArray();
+        var debugEntryItems = audits
+            .Where(item =>
+                item.Action.Contains("debug", StringComparison.OrdinalIgnoreCase) ||
+                item.Target.Contains("debug", StringComparison.OrdinalIgnoreCase))
+            .Take(20)
+            .Select(item => new ResourceCenterGroupEntry(
+                $"{item.Action}:{item.OccurredAt:yyyyMMddHHmmssfff}",
+                item.Action,
+                "DebugEntry",
+                item.Result,
+                $"{item.Target} @ {item.OccurredAt:O}",
+                "/console/debug"))
             .ToArray();
 
         return
         [
             new ResourceCenterGroupItem("catalogs", "应用目录", catalogItems.Length, catalogItems),
+            new ResourceCenterGroupItem("tenant-applications", "租户开通关系", tenantApplicationItems.Length, tenantApplicationItems),
             new ResourceCenterGroupItem("instances", "租户应用实例", appInstanceItems.Length, appInstanceItems),
-            new ResourceCenterGroupItem("datasources", "租户数据源", dataSourceItems.Length, dataSourceItems)
+            new ResourceCenterGroupItem("releases", "发布记录", releaseItems.Length, releaseItems),
+            new ResourceCenterGroupItem("runtime-contexts", "运行上下文", runtimeContextItems.Length, runtimeContextItems),
+            new ResourceCenterGroupItem("runtime-executions", "运行执行", runtimeExecutionItems.Length, runtimeExecutionItems),
+            new ResourceCenterGroupItem("datasources", "租户数据源", dataSourceItems.Length, dataSourceItems),
+            new ResourceCenterGroupItem("audit-summary", "审计汇总", auditSummaryItems.Length, auditSummaryItems),
+            new ResourceCenterGroupItem("debug-entries", "调试记录", debugEntryItems.Length, debugEntryItems)
         ];
     }
 
