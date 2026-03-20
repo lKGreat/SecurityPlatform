@@ -217,18 +217,18 @@ const getStatusText = (status: ApprovalFlowStatus) => {
 };
 
 const handleCreate = () => {
-  router.push("/process/designer");
+  router.push("/approval/designer");
 };
 
 const handleDesign = (id: string) => {
-  router.push(`/process/designer/${id}`);
+  router.push(`/approval/designer/${id}`);
 };
 
 const handleCopy = async (id: string) => {
   try {
     const result = await copyApprovalFlow(id);
     message.success("复制成功，已生成草稿");
-    router.push(`/process/designer/${result.id}`);
+    router.push(`/approval/designer/${result.id}`);
   } catch (err) {
     message.error(err instanceof Error ? err.message : "复制失败");
   }

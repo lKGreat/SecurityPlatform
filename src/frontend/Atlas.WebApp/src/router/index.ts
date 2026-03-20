@@ -306,6 +306,7 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "AI 工作流设计器(Deprecated)", titleKey: "route.aiWorkflowEditorDeprecated", deprecatedMessage: "旧路由 /ai/workflows/:id/edit 已迁移至 /apps/:appId/workflows/:id/editor。" }
     },
     { path: "/approval/designer", name: "approval-designer", component: ApprovalDesignerPage, meta: { requiresAuth: true, title: "流程设计器", titleKey: "route.approvalDesigner", requiresPermission: "approval:flow:create" } },
+    { path: "/approval/designer/:id", name: "approval-designer-edit", component: ApprovalDesignerPage, meta: { requiresAuth: true, title: "流程设计器", titleKey: "route.approvalDesigner", requiresPermission: "approval:flow:update" } },
     { path: "/approval/flows/manage", name: "approval-flows-manage", component: ApprovalFlowManagePage, meta: { requiresAuth: true, title: "流程发布总览", titleKey: "route.approvalFlowManage", requiresPermission: "approval:flow:manage" } },
     { path: "/approval/flows", name: "approval-flows", component: ApprovalFlowsPage, meta: { requiresAuth: true, title: "流程定义列表", titleKey: "route.approvalFlows", requiresPermission: "approval:flow:view" } },
     { path: "/approval/instances/manage", name: "approval-instances-manage", component: ApprovalInstanceManagePage, meta: { requiresAuth: true, title: "所有审批实例", titleKey: "route.approvalInstancesManage", requiresPermission: "system:admin" } },
@@ -324,6 +325,10 @@ const router = createRouter({
     { path: "/approval/tasks", name: "approval-tasks", redirect: "/approval/workspace?tab=pending", meta: { title: "我的待办(Deprecated)", titleKey: "route.approvalTasksDeprecated" } },
     { path: "/approval/done", redirect: "/approval/workspace?tab=done", meta: { title: "已办任务(Deprecated)", titleKey: "route.approvalDoneDeprecated" } },
     { path: "/approval/cc", redirect: "/approval/workspace?tab=cc", meta: { title: "我的抄送(Deprecated)", titleKey: "route.approvalCcDeprecated" } },
+    { path: "/process/tasks", name: "process-tasks-legacy", redirect: "/approval/workspace?tab=pending", meta: { title: "流程待办(Deprecated)", titleKey: "route.approvalTasksDeprecated", deprecatedMessage: "旧路由 /process/tasks 已迁移至 /approval/workspace?tab=pending。" } },
+    { path: "/process/tasks/:taskId", name: "process-task-detail-legacy", redirect: to => `/approval/workspace?tab=pending&taskId=${to.params.taskId}`, meta: { title: "流程待办详情(Deprecated)", titleKey: "route.approvalTasksDeprecated", deprecatedMessage: "旧路由 /process/tasks/:taskId 已迁移至 /approval/workspace?tab=pending&taskId=*。" } },
+    { path: "/process/designer", name: "process-designer-legacy", redirect: "/approval/designer", meta: { title: "流程设计器(Deprecated)", titleKey: "route.approvalDesigner", deprecatedMessage: "旧路由 /process/designer 已迁移至 /approval/designer。" } },
+    { path: "/process/designer/:id", name: "process-designer-edit-legacy", redirect: to => `/approval/designer/${to.params.id}`, meta: { title: "流程设计器(Deprecated)", titleKey: "route.approvalDesigner", deprecatedMessage: "旧路由 /process/designer/:id 已迁移至 /approval/designer/:id。" } },
     { path: "/:pathMatch(.*)*", name: "not-found", component: NotFoundPage }
   ]
 });

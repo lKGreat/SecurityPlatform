@@ -88,6 +88,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { message } from "ant-design-vue";
 import { getMyTasksPaged } from "@/services/api";
 import { getApprovalFlowsPaged } from "@/services/api-approval";
@@ -106,6 +107,7 @@ const props = defineProps<{
   urlKeyword?: string;
   urlStatus?: string;
 }>();
+const route = useRoute();
 
 const emit = defineEmits<{
   'update-filter': [{keyword: string, status: string}];
@@ -147,6 +149,13 @@ const fetchData = async () => {
     }, statusValue);
     dataSource.value = result.items;
     pagination.total = result.total;
+    const urlTaskId = typeof route.query.taskId === "string" ? route.query.taskId : "";
+    if (urlTaskId) {
+      const matched = dataSource.value.find((item) => item.id === urlTaskId);
+      if (matched) {
+        selectItem(matched);
+      }
+    }
   } catch (err) {
     message.error(err instanceof Error ? err.message : "查询失败");
   } finally {

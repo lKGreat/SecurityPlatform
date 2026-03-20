@@ -128,14 +128,17 @@ const handleMarkAll = async () => {
   }
 };
 
+const buildPendingTaskLink = (taskId: string) => `/approval/workspace?tab=pending&taskId=${encodeURIComponent(taskId)}`;
+
 const resolveDeepLink = (item: UserNotificationDto): string | null => {
   const directPath = item.content.match(/(\/process\/tasks\/[A-Za-z0-9\-]+)/);
   if (directPath?.[1]) {
-    return directPath[1];
+    const taskId = directPath[1].split("/").pop();
+    return taskId ? buildPendingTaskLink(taskId) : "/approval/workspace?tab=pending";
   }
   const taskIdMatch = item.content.match(/taskId[:=]\s*([A-Za-z0-9\-]+)/i);
   if (taskIdMatch?.[1]) {
-    return `/process/tasks/${taskIdMatch[1]}`;
+    return buildPendingTaskLink(taskIdMatch[1]);
   }
   return null;
 };

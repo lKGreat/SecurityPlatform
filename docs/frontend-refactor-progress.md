@@ -184,3 +184,9 @@
 - **Case 02 联调补齐（后端）**
   - `DynamicAmisController` 权限口径调整：列表/设计器使用 AppAdmin，CRUD/表单 Schema 使用 AppUser。
   - 动态 Schema 查询补齐应用上下文：`GetFieldsAsync` 使用 `ResolveAppId()`，避免跨应用语义漂移。
+- **Case 03（审批流设计运行）联调补齐**
+  - 修复流程定义页新建/设计入口：`/process/designer*` 统一切换到 `/approval/designer*`。
+  - 新增审批设计器编辑路由：`/approval/designer/:id`，保障“流程列表 -> 设计器”直达。
+  - 增加历史路由兼容：`/process/designer`、`/process/designer/:id`、`/process/tasks/:taskId` 统一重定向到审批工作台新入口。
+  - 通知中心审批深链统一切换到 `/approval/workspace?tab=pending&taskId=*`，避免旧路径 404。
+  - 待办列表支持按 `taskId` 查询参数自动聚焦任务详情，闭合“通知 -> 待办 -> 处理”主链路。

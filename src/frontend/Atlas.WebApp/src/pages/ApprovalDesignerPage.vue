@@ -452,7 +452,7 @@ const handleSave = async () => {
       const result = await createApprovalFlow(payload);
       flowId.value = result.id;
       flowVersion.value = result.version;
-      router.replace(`/process/designer/${result.id}`);
+      router.replace(`/approval/designer/${result.id}`);
       message.success('创建成功');
     }
   } catch (err) { message.error(err instanceof Error ? err.message : '保存失败'); }

@@ -17,7 +17,7 @@
             </div>
           </template>
           <template #extra>
-            <a-button type="link" @click="$router.push('/process/tasks')">查看全部</a-button>
+            <a-button type="link" @click="$router.push('/approval/workspace?tab=pending')">查看全部</a-button>
           </template>
           <a-skeleton :loading="loadingTasks" active :paragraph="{ rows: 3 }">
             <a-list
