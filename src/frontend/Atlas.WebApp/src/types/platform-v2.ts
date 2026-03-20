@@ -198,6 +198,40 @@ export interface ReleaseCenterDetail extends ReleaseCenterListItem {
   snapshotJson: string;
 }
 
+export interface ReleaseDiffSummary {
+  releaseId: string;
+  baselineReleaseId?: string;
+  addedCount: number;
+  removedCount: number;
+  changedCount: number;
+  addedKeys: string[];
+  removedKeys: string[];
+  changedKeys: string[];
+}
+
+export interface ReleaseImpactSummary {
+  releaseId: string;
+  appKey: string;
+  runtimeRouteCount: number;
+  activeRuntimeRouteCount: number;
+  runtimeContextCount: number;
+  recentExecutionCount: number;
+  runningExecutionCount: number;
+  failedExecutionCount: number;
+}
+
+export interface ReleaseRollbackResult {
+  manifestId: string;
+  targetReleaseId: string;
+  targetVersion: number;
+  previousReleaseId?: string;
+  previousVersion?: number;
+  switched: boolean;
+  reboundRouteCount: number;
+  result: string;
+  message?: string;
+}
+
 export interface RuntimeExecutionAuditTrailItem {
   auditId: string;
   actor: string;

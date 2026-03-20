@@ -263,14 +263,19 @@
 - `GET /api/v2/release-center/releases`
   - 支持筛选参数：`status`（`Pending/Released/RolledBack`）、`appKey`、`manifestId`。
 - `GET /api/v2/release-center/releases/{releaseId}`
+- `GET /api/v2/release-center/releases/{releaseId}/diff`
+  - 返回 `ReleaseDiffSummary`：`baselineReleaseId`、`addedCount/removedCount/changedCount` 与字段路径列表（`addedKeys/removedKeys/changedKeys`）。
+- `GET /api/v2/release-center/releases/{releaseId}/impact`
+  - 返回 `ReleaseImpactSummary`：运行路由数量、激活路由数量、运行上下文数量、近 24 小时执行次数、运行中/失败执行数量。
 - `POST /api/v2/release-center/releases/{releaseId}/rollback`
   - 回滚请求按写接口统一要求 `Idempotency-Key` + `X-CSRF-TOKEN`。
   - 服务端必须基于当前租户上下文校验发布记录归属后再执行回滚。
+  - 回滚响应返回 `ReleaseRollbackResult`（目标版本、原版本、是否发生切换、重绑路由数量、结果说明）。
   - 回滚后要求同步落库：
     - 原当前版本标记 `RolledBack`
     - 目标版本切回 `Released`
     - `RuntimeRoute` 按目标发布版本重绑 `SchemaVersion`
-    - 审计记录写入 `release.rollback` 与 `runtime.route.rebind`
+    - 审计记录写入 `release.rollback`、`release.switch` 与 `runtime.route.rebind`
 - `GET /api/v2/runtime-executions/{executionId}/audit-trails`
   - 通过执行ID关联审计轨迹，支持分页与关键字检索。
   - 审计目标匹配口径包含：`WorkflowExecution:{executionId}`、`RuntimeExecution:{executionId}`，以及执行记录上的 `ReleaseId` / `RuntimeContextId` / `AppId` 派生目标（`Release:*`、`RuntimeContext:*`、`AppManifest:*`）。

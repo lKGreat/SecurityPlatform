@@ -16,6 +16,7 @@ using Atlas.Domain.LowCode.Enums;
 using Atlas.Domain.Platform.Entities;
 using Atlas.Domain.System.Entities;
 using SqlSugar;
+using System.Text.Json;
 using TenantAppDataSourceBindingDto = Atlas.Application.Platform.Models.TenantAppDataSourceBinding;
 using TenantAppDataSourceBindingEntity = Atlas.Domain.System.Entities.TenantAppDataSourceBinding;
 
@@ -1252,6 +1253,176 @@ public sealed class ReleaseCenterQueryService : IReleaseCenterQueryService
             release.ReleasedAt.ToString("O"),
             release.ReleaseNote,
             release.SnapshotJson);
+    }
+
+    public async Task<ReleaseDiffSummary?> GetDiffAsync(
+        TenantId tenantId,
+        long releaseId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantValue = tenantId.Value;
+        var release = await _db.Queryable<AppRelease>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == releaseId, cancellationToken);
+        if (release is null)
+        {
+            return null;
+        }
+
+        var baselineRelease = await _db.Queryable<AppRelease>()
+            .Where(item => item.TenantIdValue == tenantValue && item.ManifestId == release.ManifestId && item.Id != releaseId)
+            .OrderByDescending(item => item.ReleasedAt)
+            .FirstAsync(cancellationToken);
+
+        var currentSnapshot = FlattenSnapshot(release.SnapshotJson);
+        var baselineSnapshot = baselineRelease is null
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : FlattenSnapshot(baselineRelease.SnapshotJson);
+
+        var addedKeys = currentSnapshot.Keys
+            .Where(key => !baselineSnapshot.ContainsKey(key))
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var removedKeys = baselineSnapshot.Keys
+            .Where(key => !currentSnapshot.ContainsKey(key))
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var changedKeys = currentSnapshot.Keys
+            .Where(key =>
+                baselineSnapshot.TryGetValue(key, out var baselineValue) &&
+                !string.Equals(currentSnapshot[key], baselineValue, StringComparison.Ordinal))
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return new ReleaseDiffSummary(
+            release.Id.ToString(),
+            baselineRelease?.Id.ToString(),
+            addedKeys.Length,
+            removedKeys.Length,
+            changedKeys.Length,
+            addedKeys,
+            removedKeys,
+            changedKeys);
+    }
+
+    public async Task<ReleaseImpactSummary?> GetImpactAsync(
+        TenantId tenantId,
+        long releaseId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantValue = tenantId.Value;
+        var release = await _db.Queryable<AppRelease>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == releaseId, cancellationToken);
+        if (release is null)
+        {
+            return null;
+        }
+
+        var manifest = await _db.Queryable<AppManifest>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == release.ManifestId, cancellationToken);
+        if (manifest is null)
+        {
+            return null;
+        }
+
+        var routeQuery = _db.Queryable<RuntimeRoute>()
+            .Where(item => item.TenantIdValue == tenantValue && item.ManifestId == release.ManifestId);
+        var executionQuery = _db.Queryable<WorkflowExecution>()
+            .Where(item => item.TenantIdValue == tenantValue && item.ReleaseId == release.Id);
+        var since = DateTime.UtcNow.AddHours(-24);
+
+        var runtimeRouteCountTask = routeQuery.CountAsync(cancellationToken);
+        var activeRuntimeRouteCountTask = routeQuery.CountAsync(item => item.IsActive, cancellationToken);
+        var recentExecutionCountTask = executionQuery.CountAsync(item => item.StartedAt >= since, cancellationToken);
+        var runningExecutionCountTask = executionQuery.CountAsync(item => item.Status == ExecutionStatus.Running, cancellationToken);
+        var failedExecutionCountTask = executionQuery.CountAsync(item => item.Status == ExecutionStatus.Failed, cancellationToken);
+
+        await Task.WhenAll(
+            runtimeRouteCountTask,
+            activeRuntimeRouteCountTask,
+            recentExecutionCountTask,
+            runningExecutionCountTask,
+            failedExecutionCountTask);
+
+        var runtimeRouteCount = runtimeRouteCountTask.Result;
+        return new ReleaseImpactSummary(
+            release.Id.ToString(),
+            manifest.AppKey,
+            runtimeRouteCount,
+            activeRuntimeRouteCountTask.Result,
+            runtimeRouteCount,
+            recentExecutionCountTask.Result,
+            runningExecutionCountTask.Result,
+            failedExecutionCountTask.Result);
+    }
+
+    private static Dictionary<string, string> FlattenSnapshot(string snapshotJson)
+    {
+        if (string.IsNullOrWhiteSpace(snapshotJson))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(snapshotJson);
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            PopulateSnapshotFields(document.RootElement, "$", result);
+            return result;
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["$"] = snapshotJson
+            };
+        }
+    }
+
+    private static void PopulateSnapshotFields(
+        JsonElement element,
+        string path,
+        IDictionary<string, string> output)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    var childPath = $"{path}.{property.Name}";
+                    PopulateSnapshotFields(property.Value, childPath, output);
+                }
+
+                break;
+            }
+            case JsonValueKind.Array:
+            {
+                var index = 0;
+                foreach (var item in element.EnumerateArray())
+                {
+                    var childPath = $"{path}[{index}]";
+                    PopulateSnapshotFields(item, childPath, output);
+                    index++;
+                }
+
+                break;
+            }
+            case JsonValueKind.String:
+                output[path] = element.GetString() ?? string.Empty;
+                break;
+            case JsonValueKind.Number:
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                output[path] = element.ToString();
+                break;
+            case JsonValueKind.Null:
+            case JsonValueKind.Undefined:
+                output[path] = string.Empty;
+                break;
+            default:
+                output[path] = element.ToString();
+                break;
+        }
     }
 }
 

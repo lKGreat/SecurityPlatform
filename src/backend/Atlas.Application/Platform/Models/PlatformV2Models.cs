@@ -254,6 +254,37 @@ public sealed record ReleaseCenterDetail(
     string? ReleaseNote,
     string SnapshotJson);
 
+public sealed record ReleaseDiffSummary(
+    string ReleaseId,
+    string? BaselineReleaseId,
+    int AddedCount,
+    int RemovedCount,
+    int ChangedCount,
+    IReadOnlyList<string> AddedKeys,
+    IReadOnlyList<string> RemovedKeys,
+    IReadOnlyList<string> ChangedKeys);
+
+public sealed record ReleaseImpactSummary(
+    string ReleaseId,
+    string AppKey,
+    int RuntimeRouteCount,
+    int ActiveRuntimeRouteCount,
+    int RuntimeContextCount,
+    int RecentExecutionCount,
+    int RunningExecutionCount,
+    int FailedExecutionCount);
+
+public sealed record ReleaseRollbackResult(
+    string ManifestId,
+    string TargetReleaseId,
+    int TargetVersion,
+    string? PreviousReleaseId,
+    int? PreviousVersion,
+    bool Switched,
+    int ReboundRouteCount,
+    string Result,
+    string? Message);
+
 public sealed record RuntimeExecutionAuditTrailItem(
     string AuditId,
     string Actor,

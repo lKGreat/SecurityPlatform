@@ -41,7 +41,7 @@ public interface IAppManifestCommandService
 public interface IAppReleaseCommandService
 {
     Task<long> CreateReleaseAsync(TenantId tenantId, long userId, long manifestId, string? releaseNote, CancellationToken cancellationToken = default);
-    Task RollbackAsync(TenantId tenantId, long userId, long manifestId, long releaseId, CancellationToken cancellationToken = default);
+    Task<ReleaseRollbackResult> RollbackAsync(TenantId tenantId, long userId, long manifestId, long releaseId, CancellationToken cancellationToken = default);
 }
 
 public interface IRuntimeRouteQueryService
@@ -296,6 +296,16 @@ public interface IReleaseCenterQueryService
         CancellationToken cancellationToken = default);
 
     Task<ReleaseCenterDetail?> GetByIdAsync(
+        TenantId tenantId,
+        long releaseId,
+        CancellationToken cancellationToken = default);
+
+    Task<ReleaseDiffSummary?> GetDiffAsync(
+        TenantId tenantId,
+        long releaseId,
+        CancellationToken cancellationToken = default);
+
+    Task<ReleaseImpactSummary?> GetImpactAsync(
         TenantId tenantId,
         long releaseId,
         CancellationToken cancellationToken = default);

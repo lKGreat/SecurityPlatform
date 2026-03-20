@@ -65,6 +65,14 @@
     </a-card>
 
     <a-modal v-model:open="detailVisible" title="发布详情" width="760px" :footer="null">
+      <a-alert
+        v-if="rollbackResult"
+        class="rollback-result"
+        :type="rollbackResult.switched ? 'success' : 'warning'"
+        show-icon
+        :message="rollbackResult.switched ? '回滚切换成功' : '回滚未发生切换'"
+        :description="buildRollbackMessage(rollbackResult)"
+      />
       <a-descriptions :column="2" bordered size="small">
         <a-descriptions-item label="发布ID">{{ detail?.releaseId }}</a-descriptions-item>
         <a-descriptions-item label="目录ID">{{ detail?.applicationCatalogId }}</a-descriptions-item>
@@ -74,6 +82,23 @@
         <a-descriptions-item label="状态">{{ detail?.status }}</a-descriptions-item>
         <a-descriptions-item label="发布时间" :span="2">{{ formatDate(detail?.releasedAt) }}</a-descriptions-item>
         <a-descriptions-item label="发布说明" :span="2">{{ detail?.releaseNote || "-" }}</a-descriptions-item>
+      </a-descriptions>
+      <a-typography-paragraph class="snapshot-title">版本差异摘要</a-typography-paragraph>
+      <a-descriptions bordered size="small" :column="3">
+        <a-descriptions-item label="基线版本">{{ diffSummary?.baselineReleaseId || "-" }}</a-descriptions-item>
+        <a-descriptions-item label="新增字段">{{ diffSummary?.addedCount ?? 0 }}</a-descriptions-item>
+        <a-descriptions-item label="移除字段">{{ diffSummary?.removedCount ?? 0 }}</a-descriptions-item>
+        <a-descriptions-item label="变更字段">{{ diffSummary?.changedCount ?? 0 }}</a-descriptions-item>
+      </a-descriptions>
+      <a-typography-paragraph class="snapshot-json">{{ formatDiffSummary(diffSummary) }}</a-typography-paragraph>
+      <a-typography-paragraph class="snapshot-title">影响范围摘要</a-typography-paragraph>
+      <a-descriptions bordered size="small" :column="2">
+        <a-descriptions-item label="运行路由数">{{ impactSummary?.runtimeRouteCount ?? 0 }}</a-descriptions-item>
+        <a-descriptions-item label="激活路由数">{{ impactSummary?.activeRuntimeRouteCount ?? 0 }}</a-descriptions-item>
+        <a-descriptions-item label="运行上下文数">{{ impactSummary?.runtimeContextCount ?? 0 }}</a-descriptions-item>
+        <a-descriptions-item label="24h执行次数">{{ impactSummary?.recentExecutionCount ?? 0 }}</a-descriptions-item>
+        <a-descriptions-item label="运行中执行">{{ impactSummary?.runningExecutionCount ?? 0 }}</a-descriptions-item>
+        <a-descriptions-item label="失败执行">{{ impactSummary?.failedExecutionCount ?? 0 }}</a-descriptions-item>
       </a-descriptions>
       <a-typography-paragraph class="snapshot-title">SnapshotJson</a-typography-paragraph>
       <a-typography-paragraph class="snapshot-json">{{ detail?.snapshotJson || "{}" }}</a-typography-paragraph>
@@ -87,11 +112,19 @@ import { useRoute, useRouter } from "vue-router";
 import type { TableColumnsType, TablePaginationConfig } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import {
+  getReleaseCenterDiff,
   getReleaseCenterDetail,
+  getReleaseCenterImpact,
   getReleaseCenterPaged,
   rollbackReleaseCenter
 } from "@/services/api-coze-runtime";
-import type { ReleaseCenterDetail, ReleaseCenterListItem } from "@/types/platform-v2";
+import type {
+  ReleaseCenterDetail,
+  ReleaseCenterListItem,
+  ReleaseDiffSummary,
+  ReleaseImpactSummary,
+  ReleaseRollbackResult
+} from "@/types/platform-v2";
 
 const route = useRoute();
 const router = useRouter();
@@ -102,6 +135,9 @@ const appKeyFilter = ref("");
 const manifestIdFilter = ref("");
 const rows = ref<ReleaseCenterListItem[]>([]);
 const detail = ref<ReleaseCenterDetail | null>(null);
+const diffSummary = ref<ReleaseDiffSummary | null>(null);
+const impactSummary = ref<ReleaseImpactSummary | null>(null);
+const rollbackResult = ref<ReleaseRollbackResult | null>(null);
 const detailVisible = ref(false);
 const pageIndex = ref(1);
 const pageSize = ref(10);
@@ -191,7 +227,14 @@ function resetFilters() {
 
 async function viewDetail(releaseId: string) {
   try {
-    detail.value = await getReleaseCenterDetail(releaseId);
+    const [detailData, diffData, impactData] = await Promise.all([
+      getReleaseCenterDetail(releaseId),
+      getReleaseCenterDiff(releaseId),
+      getReleaseCenterImpact(releaseId)
+    ]);
+    detail.value = detailData;
+    diffSummary.value = diffData;
+    impactSummary.value = impactData;
     detailVisible.value = true;
   } catch (error) {
     message.error((error as Error).message || "加载发布详情失败");
@@ -200,12 +243,42 @@ async function viewDetail(releaseId: string) {
 
 async function rollback(releaseId: string) {
   try {
-    await rollbackReleaseCenter(releaseId);
-    message.success("回滚任务已提交");
+    const result = await rollbackReleaseCenter(releaseId);
+    rollbackResult.value = result;
+    message.success(result.switched ? "回滚切换成功" : "回滚未发生切换");
     await loadReleases();
+    if (detailVisible.value && detail.value?.releaseId === releaseId) {
+      await viewDetail(releaseId);
+    }
   } catch (error) {
     message.error((error as Error).message || "回滚失败");
   }
+}
+
+function formatDiffSummary(summary: ReleaseDiffSummary | null) {
+  if (!summary) {
+    return "暂无差异摘要。";
+  }
+
+  return [
+    `新增: ${summary.addedKeys.join(", ") || "-"}`,
+    `移除: ${summary.removedKeys.join(", ") || "-"}`,
+    `变更: ${summary.changedKeys.join(", ") || "-"}`
+  ].join("\n");
+}
+
+function buildRollbackMessage(result: ReleaseRollbackResult) {
+  const parts = [
+    `目标版本: #${result.targetReleaseId} (v${result.targetVersion})`,
+    `原版本: ${result.previousReleaseId ? `#${result.previousReleaseId} (v${result.previousVersion ?? "-"})` : "-"}`,
+    `重绑路由: ${result.reboundRouteCount}`,
+    `结果: ${result.result}`
+  ];
+  if (result.message) {
+    parts.push(`说明: ${result.message}`);
+  }
+
+  return parts.join(" | ");
 }
 
 function openDebugTrace(releaseId: string) {
@@ -250,6 +323,10 @@ watch(
 
 .release-card {
   border-radius: 12px;
+}
+
+.rollback-result {
+  margin-bottom: 12px;
 }
 
 .snapshot-title {

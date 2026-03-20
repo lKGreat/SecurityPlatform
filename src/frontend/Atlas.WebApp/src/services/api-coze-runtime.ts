@@ -3,8 +3,11 @@ import type { ApiResponse, PagedRequest, PagedResult } from "@/types/api";
 import type {
   CozeLayerMappingOverview,
   DebugLayerEmbedMetadata,
+  ReleaseDiffSummary,
   ReleaseCenterDetail,
+  ReleaseImpactSummary,
   ReleaseCenterListItem,
+  ReleaseRollbackResult,
   RuntimeExecutionListItem,
   RuntimeExecutionAuditTrailItem
 } from "@/types/platform-v2";
@@ -51,13 +54,33 @@ export async function getReleaseCenterDetail(releaseId: string): Promise<Release
   return response.data;
 }
 
-export async function rollbackReleaseCenter(releaseId: string): Promise<void> {
-  const response = await requestApi<ApiResponse<{ id: string }>>(`${RELEASE_CENTER_BASE}/${releaseId}/rollback`, {
+export async function getReleaseCenterDiff(releaseId: string): Promise<ReleaseDiffSummary> {
+  const response = await requestApi<ApiResponse<ReleaseDiffSummary>>(`${RELEASE_CENTER_BASE}/${releaseId}/diff`);
+  if (!response.data) {
+    throw new Error(response.message || "查询发布差异失败");
+  }
+
+  return response.data;
+}
+
+export async function getReleaseCenterImpact(releaseId: string): Promise<ReleaseImpactSummary> {
+  const response = await requestApi<ApiResponse<ReleaseImpactSummary>>(`${RELEASE_CENTER_BASE}/${releaseId}/impact`);
+  if (!response.data) {
+    throw new Error(response.message || "查询发布影响范围失败");
+  }
+
+  return response.data;
+}
+
+export async function rollbackReleaseCenter(releaseId: string): Promise<ReleaseRollbackResult> {
+  const response = await requestApi<ApiResponse<ReleaseRollbackResult>>(`${RELEASE_CENTER_BASE}/${releaseId}/rollback`, {
     method: "POST"
   });
-  if (!response.success) {
+  if (!response.success || !response.data) {
     throw new Error(response.message || "发布回滚失败");
   }
+
+  return response.data;
 }
 
 export async function getRuntimeExecutionAuditTrails(
