@@ -201,3 +201,9 @@
   - 更新数据源支持连接串留空保留密文（仅更新名称/类型/池参数），降低凭据暴露与误覆盖风险。
   - `TestConnectionResult` 增加 `latencyMs`，前端页面与消息提示展示测试延迟，提升联调可观测性。
   - `TenantDataSourcesPage.vue` 增加“行内测试”按钮与最近测试状态/时间列，编辑态留空连接串可直接测试已保存配置。
+- **Case 11（通知公告闭环）联调补齐**
+  - 新增收件箱别名接口：`GET /api/v1/notifications/inbox`，与前端通知服务对齐。
+  - 补齐公告撤回接口：`PUT /api/v1/notifications/manage/{id}/revoke`，修复管理页撤回按钮 404 断点。
+  - 发布/编辑的 `noticeType` 输入统一归一化为 `Announcement|System|Reminder`，消除“1/2/中文/大小写”口径不一致问题。
+  - 阅读审计补齐：单条已读与全部已读均写入 `NOTIFICATION_READ` 审计事件。
+  - 管理页权限改为 `notification:view` 入口权限，按钮按 `create/update/delete` 细分控制，避免路由权限码失配。

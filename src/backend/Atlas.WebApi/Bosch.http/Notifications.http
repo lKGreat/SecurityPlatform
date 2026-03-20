@@ -32,6 +32,11 @@ GET {{baseUrl}}/api/v1/notifications?pageIndex=1&pageSize=20
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 我的收件箱（别名）
+GET {{baseUrl}}/api/v1/notifications/inbox?pageIndex=1&pageSize=20&isRead=false
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### 未读数
 GET {{baseUrl}}/api/v1/notifications/unread-count
 Authorization: Bearer {{accessToken}}
@@ -64,6 +69,13 @@ Content-Type: application/json
 
 ### 标记已读
 PUT {{baseUrl}}/api/v1/notifications/{{notificationId}}/read
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+Idempotency-Key: {{$guid}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+### 撤回公告（管理员）
+PUT {{baseUrl}}/api/v1/notifications/manage/{{notificationId}}/revoke
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 Idempotency-Key: {{$guid}}

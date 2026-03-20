@@ -110,8 +110,7 @@ const handleTabChange = () => {
 const handleMarkRead = async (item: UserNotificationDto) => {
   try {
     await markRead(item.notificationId);
-    item.isRead = true;
-    unreadCount.value = Math.max(0, unreadCount.value - 1);
+    await loadData();
   } catch {
     message.error("操作失败");
   }
@@ -120,8 +119,7 @@ const handleMarkRead = async (item: UserNotificationDto) => {
 const handleMarkAll = async () => {
   try {
     await markAllRead();
-    items.value.forEach(i => (i.isRead = true));
-    unreadCount.value = 0;
+    await loadData();
     message.success("已全部标为已读");
   } catch {
     message.error("操作失败");
@@ -147,6 +145,9 @@ const handleOpenDeepLink = (item: UserNotificationDto) => {
   const link = resolveDeepLink(item);
   if (!link) {
     return;
+  }
+  if (!item.isRead) {
+    void markRead(item.notificationId).catch(() => undefined);
   }
   void router.push(link);
 };

@@ -82,12 +82,21 @@ public sealed class NotificationService : INotificationQueryService, INotificati
         NotificationCreateRequest request,
         CancellationToken ct = default)
     {
+        ValidateRequest(request.Title, request.Content);
         var now = _timeProvider.GetUtcNow();
         var id = _idGeneratorAccessor.NextId();
 
         var notification = new Notification(
-            tenantId, request.Title, request.Content, request.NoticeType,
-            request.Priority, publisherId, publisherName, now, request.ExpiresAt, id);
+            tenantId,
+            request.Title.Trim(),
+            request.Content.Trim(),
+            NormalizeNoticeType(request.NoticeType),
+            NormalizePriority(request.Priority),
+            publisherId,
+            publisherName,
+            now,
+            request.ExpiresAt,
+            id);
 
         await _notificationRepository.AddAsync(notification, ct);
 
@@ -105,10 +114,16 @@ public sealed class NotificationService : INotificationQueryService, INotificati
     public async Task UpdateAsync(
         TenantId tenantId, long id, NotificationUpdateRequest request, CancellationToken ct = default)
     {
+        ValidateRequest(request.Title, request.Content);
         var entity = await _notificationRepository.FindByIdAsync(tenantId, id, ct)
             ?? throw new BusinessException("公告不存在。", ErrorCodes.NotFound);
 
-        entity.Update(request.Title, request.Content, request.NoticeType, request.Priority, request.ExpiresAt);
+        entity.Update(
+            request.Title.Trim(),
+            request.Content.Trim(),
+            NormalizeNoticeType(request.NoticeType),
+            NormalizePriority(request.Priority),
+            request.ExpiresAt);
         await _notificationRepository.UpdateAsync(entity, ct);
     }
 
@@ -119,6 +134,15 @@ public sealed class NotificationService : INotificationQueryService, INotificati
 
         await _userNotificationRepository.DeleteByNotificationIdAsync(tenantId, id, ct);
         await _notificationRepository.DeleteAsync(tenantId, id, ct);
+    }
+
+    public async Task RevokeAsync(TenantId tenantId, long id, CancellationToken ct = default)
+    {
+        var entity = await _notificationRepository.FindByIdAsync(tenantId, id, ct)
+            ?? throw new BusinessException("公告不存在。", ErrorCodes.NotFound);
+
+        entity.Deactivate();
+        await _notificationRepository.UpdateAsync(entity, ct);
     }
 
     public async Task MarkReadAsync(TenantId tenantId, long userId, long notificationId, CancellationToken ct = default)
@@ -147,4 +171,44 @@ public sealed class NotificationService : INotificationQueryService, INotificati
         e.Id, e.Title, e.Content, e.NoticeType, e.Priority,
         e.PublisherId, e.PublisherName, e.PublishedAt, e.ExpiresAt,
         e.IsActive, e.CreatedAt);
+
+    private static void ValidateRequest(string title, string content)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new BusinessException("公告标题不能为空。", ErrorCodes.ValidationError);
+        }
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            throw new BusinessException("公告内容不能为空。", ErrorCodes.ValidationError);
+        }
+    }
+
+    private static string NormalizeNoticeType(string noticeType)
+    {
+        if (string.IsNullOrWhiteSpace(noticeType))
+        {
+            return "Announcement";
+        }
+
+        var normalized = noticeType.Trim();
+        return normalized.ToLowerInvariant() switch
+        {
+            "announcement" or "公告" or "2" => "Announcement",
+            "system" or "通知" or "1" => "System",
+            "reminder" or "提醒" or "3" => "Reminder",
+            _ => "Announcement"
+        };
+    }
+
+    private static int NormalizePriority(int priority)
+    {
+        if (priority < 0)
+        {
+            return 0;
+        }
+
+        return priority > 2 ? 2 : priority;
+    }
 }

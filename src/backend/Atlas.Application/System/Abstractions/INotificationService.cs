@@ -30,6 +30,9 @@ public interface INotificationCommandService
     /// <summary>删除公告（同时删除关联 UserNotification）</summary>
     Task DeleteAsync(TenantId tenantId, long id, CancellationToken ct = default);
 
+    /// <summary>撤回公告（置为非激活）</summary>
+    Task RevokeAsync(TenantId tenantId, long id, CancellationToken ct = default);
+
     /// <summary>标记单条通知为已读</summary>
     Task MarkReadAsync(TenantId tenantId, long userId, long notificationId, CancellationToken ct = default);
 
