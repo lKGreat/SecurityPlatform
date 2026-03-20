@@ -58,6 +58,49 @@
           <template v-else-if="column.key === 'isActive'">
             <a-tag :color="record.isActive ? 'success' : 'default'">{{ record.isActive ? "是" : "否" }}</a-tag>
           </template>
+          <template v-else-if="column.key === 'anomaly'">
+            <a-space wrap>
+              <a-tag
+                v-for="tag in getAnomalyTags(record)"
+                :key="`${record.dataSourceId}-${tag}`"
+                color="warning"
+              >
+                {{ tag }}
+              </a-tag>
+            </a-space>
+          </template>
+          <template v-else-if="column.key === 'repair'">
+            <a-space wrap>
+              <a-button
+                v-if="record.isInvalid"
+                type="link"
+                size="small"
+                :loading="repairingDataSourceId === record.dataSourceId && repairAction === 'disable'"
+                @click="repairDisableInvalid(record)"
+              >
+                禁用无效绑定
+              </a-button>
+              <a-button
+                v-if="record.isDuplicate || record.isUnbound"
+                type="link"
+                size="small"
+                :loading="repairingDataSourceId === record.dataSourceId && repairAction === 'switch'"
+                @click="repairSwitchPrimary(record)"
+              >
+                切换主绑定
+              </a-button>
+              <a-button
+                v-if="record.isOrphan"
+                type="link"
+                size="small"
+                danger
+                :loading="repairingDataSourceId === record.dataSourceId && repairAction === 'unbind'"
+                @click="repairUnbindOrphan(record)"
+              >
+                解绑孤儿绑定
+              </a-button>
+            </a-space>
+          </template>
         </template>
       </a-table>
     </a-card>
@@ -96,6 +139,49 @@
           <template v-else-if="column.key === 'isActive'">
             <a-tag :color="record.isActive ? 'success' : 'default'">{{ record.isActive ? "是" : "否" }}</a-tag>
           </template>
+          <template v-else-if="column.key === 'anomaly'">
+            <a-space wrap>
+              <a-tag
+                v-for="tag in getAnomalyTags(record)"
+                :key="`${record.dataSourceId}-${tag}`"
+                color="warning"
+              >
+                {{ tag }}
+              </a-tag>
+            </a-space>
+          </template>
+          <template v-else-if="column.key === 'repair'">
+            <a-space wrap>
+              <a-button
+                v-if="record.isInvalid"
+                type="link"
+                size="small"
+                :loading="repairingDataSourceId === record.dataSourceId && repairAction === 'disable'"
+                @click="repairDisableInvalid(record)"
+              >
+                禁用无效绑定
+              </a-button>
+              <a-button
+                v-if="record.isDuplicate || record.isUnbound"
+                type="link"
+                size="small"
+                :loading="repairingDataSourceId === record.dataSourceId && repairAction === 'switch'"
+                @click="repairSwitchPrimary(record)"
+              >
+                切换主绑定
+              </a-button>
+              <a-button
+                v-if="record.isOrphan"
+                type="link"
+                size="small"
+                danger
+                :loading="repairingDataSourceId === record.dataSourceId && repairAction === 'unbind'"
+                @click="repairUnbindOrphan(record)"
+              >
+                解绑孤儿绑定
+              </a-button>
+            </a-space>
+          </template>
         </template>
       </a-table>
     </a-card>
@@ -116,7 +202,12 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import type { TableColumnsType } from "ant-design-vue";
 import { message } from "ant-design-vue";
-import { getResourceCenterDataSourceConsumption } from "@/services/api-tenant-app-instances";
+import {
+  disableInvalidBinding,
+  getResourceCenterDataSourceConsumption,
+  switchPrimaryBinding,
+  unbindOrphanBinding
+} from "@/services/api-tenant-app-instances";
 import type {
   ResourceCenterDataSourceConsumptionResponse,
   TenantAppConsumerItem,
@@ -127,13 +218,17 @@ import type {
 const router = useRouter();
 const loading = ref(false);
 const summary = ref<ResourceCenterDataSourceConsumptionResponse | null>(null);
+const repairingDataSourceId = ref<string>();
+const repairAction = ref<"disable" | "switch" | "unbind">();
 
 const dataSourceColumns: TableColumnsType<TenantDataSourceConsumptionItem> = [
   { title: "数据源名称", dataIndex: "name", key: "name", width: 220 },
   { title: "类型", dataIndex: "dbType", key: "dbType", width: 140 },
   { title: "绑定应用数", dataIndex: "boundTenantAppCount", key: "boundTenantAppCount", width: 120 },
   { title: "最近测试时间", dataIndex: "lastTestedAt", key: "lastTestedAt", width: 190 },
-  { title: "是否激活", dataIndex: "isActive", key: "isActive", width: 120 }
+  { title: "是否激活", dataIndex: "isActive", key: "isActive", width: 120 },
+  { title: "异常", key: "anomaly", width: 260 },
+  { title: "治理动作", key: "repair", width: 280 }
 ];
 
 const appScopedColumns: TableColumnsType<TenantDataSourceConsumptionItem> = [
@@ -142,7 +237,9 @@ const appScopedColumns: TableColumnsType<TenantDataSourceConsumptionItem> = [
   { title: "类型", dataIndex: "dbType", key: "dbType", width: 120 },
   { title: "绑定应用数", dataIndex: "boundTenantAppCount", key: "boundTenantAppCount", width: 120 },
   { title: "最近测试时间", dataIndex: "lastTestedAt", key: "lastTestedAt", width: 190 },
-  { title: "是否激活", dataIndex: "isActive", key: "isActive", width: 120 }
+  { title: "是否激活", dataIndex: "isActive", key: "isActive", width: 120 },
+  { title: "异常", key: "anomaly", width: 260 },
+  { title: "治理动作", key: "repair", width: 280 }
 ];
 
 const bindingRelationColumns: TableColumnsType<TenantDataSourceBindingRelationItem> = [
@@ -182,7 +279,99 @@ function formatDate(value?: string) {
 }
 
 function resolveDangerRowClass(record: TenantDataSourceConsumptionItem) {
-  return record.boundTenantAppCount === 0 ? "danger-row" : "";
+  return record.isOrphan || record.isDuplicate || record.isInvalid || record.isUnbound ? "danger-row" : "";
+}
+
+function getAnomalyTags(record: TenantDataSourceConsumptionItem) {
+  const tags: string[] = [];
+  if (record.isOrphan) {
+    tags.push("孤儿");
+  }
+  if (record.isDuplicate) {
+    tags.push("重复");
+  }
+  if (record.isInvalid) {
+    tags.push("失效");
+  }
+  if (record.isUnbound) {
+    tags.push("未绑定");
+  }
+
+  if (tags.length === 0) {
+    tags.push("正常");
+  }
+  return tags;
+}
+
+function resolveBindingId(record: TenantDataSourceConsumptionItem) {
+  return record.bindingRelations[0]?.bindingId;
+}
+
+function resolveAppId(record: TenantDataSourceConsumptionItem) {
+  return record.scopeAppId || record.boundTenantApps[0]?.tenantAppInstanceId;
+}
+
+async function repairDisableInvalid(record: TenantDataSourceConsumptionItem) {
+  const bindingId = resolveBindingId(record);
+  if (!bindingId) {
+    message.warning("未找到可处理的绑定关系");
+    return;
+  }
+
+  repairingDataSourceId.value = record.dataSourceId;
+  repairAction.value = "disable";
+  try {
+    const result = await disableInvalidBinding(bindingId);
+    message.success(result.message);
+    await loadSummary();
+  } catch (error) {
+    message.error((error as Error).message || "禁用无效绑定失败");
+  } finally {
+    repairingDataSourceId.value = undefined;
+    repairAction.value = undefined;
+  }
+}
+
+async function repairSwitchPrimary(record: TenantDataSourceConsumptionItem) {
+  const appId = resolveAppId(record);
+  if (!appId) {
+    message.warning("未找到可切换主绑定的应用实例");
+    return;
+  }
+
+  repairingDataSourceId.value = record.dataSourceId;
+  repairAction.value = "switch";
+  try {
+    const result = await switchPrimaryBinding(appId, record.dataSourceId, "resource-center-repair");
+    message.success(result.message);
+    await loadSummary();
+  } catch (error) {
+    message.error((error as Error).message || "切换主绑定失败");
+  } finally {
+    repairingDataSourceId.value = undefined;
+    repairAction.value = undefined;
+  }
+}
+
+async function repairUnbindOrphan(record: TenantDataSourceConsumptionItem) {
+  const bindingId = resolveBindingId(record);
+  if (!bindingId) {
+    message.warning("未找到孤儿绑定记录");
+    return;
+  }
+
+  repairingDataSourceId.value = record.dataSourceId;
+  repairAction.value = "unbind";
+  try {
+    const result = await unbindOrphanBinding(bindingId);
+    message.success(result.message);
+    await loadSummary();
+  } catch (error) {
+    message.error((error as Error).message || "解绑孤儿绑定失败");
+  } finally {
+    repairingDataSourceId.value = undefined;
+    repairAction.value = undefined;
+  }
 }
 
 function goToDatasourceDetail(dataSourceId: string) {

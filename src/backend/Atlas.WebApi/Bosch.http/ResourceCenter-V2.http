@@ -27,6 +27,45 @@ X-Tenant-Id: {{tenantId}}
 
 ### 查询数据源双层消费模型（平台级/应用级）
 # 响应包含每个数据源的 bindingRelations 明细（bindingId/bindingType/isActive/source）
+# 同时包含治理字段：isOrphan/isDuplicate/isInvalid/isUnbound/impactScope/repairSuggestion
 GET {{baseUrl}}/api/v2/resource-center/datasource-consumption
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
+
+### 禁用无效绑定
+POST {{baseUrl}}/api/v2/resource-center/datasource-consumption/repair/disable-invalid-binding
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+X-CSRF-TOKEN: {{login.response.headers.X-CSRF-TOKEN}}
+Idempotency-Key: {{$guid}}
+Content-Type: application/json
+
+{
+  "bindingId": "1"
+}
+
+### 切换主绑定
+POST {{baseUrl}}/api/v2/resource-center/datasource-consumption/repair/switch-primary-binding
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+X-CSRF-TOKEN: {{login.response.headers.X-CSRF-TOKEN}}
+Idempotency-Key: {{$guid}}
+Content-Type: application/json
+
+{
+  "tenantAppInstanceId": "1",
+  "targetDataSourceId": "1",
+  "note": "repair-switch"
+}
+
+### 解绑孤儿绑定
+POST {{baseUrl}}/api/v2/resource-center/datasource-consumption/repair/unbind-orphan-binding
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+X-CSRF-TOKEN: {{login.response.headers.X-CSRF-TOKEN}}
+Idempotency-Key: {{$guid}}
+Content-Type: application/json
+
+{
+  "bindingId": "1"
+}

@@ -229,7 +229,13 @@ public sealed record TenantDataSourceConsumptionItem(
     IReadOnlyList<TenantAppConsumerItem> BoundTenantApps,
     IReadOnlyList<TenantDataSourceBindingRelationItem> BindingRelations,
     string? LastTestedAt,
-    string? LastTestMessage);
+    string? LastTestMessage,
+    bool IsOrphan,
+    bool IsDuplicate,
+    bool IsInvalid,
+    bool IsUnbound,
+    string ImpactScope,
+    string RepairSuggestion);
 
 public sealed record ResourceCenterDataSourceConsumptionResponse(
     int PlatformDataSourceTotal,
@@ -238,6 +244,23 @@ public sealed record ResourceCenterDataSourceConsumptionResponse(
     IReadOnlyList<TenantDataSourceConsumptionItem> PlatformDataSources,
     IReadOnlyList<TenantDataSourceConsumptionItem> AppScopedDataSources,
     IReadOnlyList<TenantAppConsumerItem> UnboundTenantApps);
+
+public sealed record DisableInvalidBindingRequest(
+    string BindingId);
+
+public sealed record SwitchPrimaryBindingRequest(
+    string TenantAppInstanceId,
+    string TargetDataSourceId,
+    string? Note);
+
+public sealed record UnbindOrphanBindingRequest(
+    string BindingId);
+
+public sealed record ResourceCenterRepairResult(
+    string Action,
+    string ResourceId,
+    bool Success,
+    string Message);
 
 public sealed record ReleaseCenterListItem(
     string ReleaseId,

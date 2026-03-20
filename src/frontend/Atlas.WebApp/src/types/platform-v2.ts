@@ -167,6 +167,12 @@ export interface TenantDataSourceConsumptionItem {
   bindingRelations: TenantDataSourceBindingRelationItem[];
   lastTestedAt?: string;
   lastTestMessage?: string;
+  isOrphan: boolean;
+  isDuplicate: boolean;
+  isInvalid: boolean;
+  isUnbound: boolean;
+  impactScope: string;
+  repairSuggestion: string;
 }
 
 export interface TenantDataSourceBindingRelationItem {
@@ -187,6 +193,13 @@ export interface ResourceCenterDataSourceConsumptionResponse {
   platformDataSources: TenantDataSourceConsumptionItem[];
   appScopedDataSources: TenantDataSourceConsumptionItem[];
   unboundTenantApps: TenantAppConsumerItem[];
+}
+
+export interface ResourceCenterRepairResult {
+  action: string;
+  resourceId: string;
+  success: boolean;
+  message: string;
 }
 
 export interface ReleaseCenterListItem {

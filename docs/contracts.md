@@ -208,7 +208,14 @@
     - 应用级数据源（`AppScoped`）
     - 未绑定数据源的租户应用实例清单
   - 响应包含每个数据源的绑定应用数量、绑定应用列表与 `bindingRelations`（绑定关系明细：`bindingId/tenantAppInstanceId/dataSourceId/bindingType/isActive/boundAt/updatedAt/source`）。
+  - 响应补充治理字段：`isOrphan/isDuplicate/isInvalid/isUnbound/impactScope/repairSuggestion`。
   - 服务端实现必须通过批量查询 + 字典聚合完成，禁止循环内数据库访问。
+- `POST /api/v2/resource-center/datasource-consumption/repair/disable-invalid-binding`
+- `POST /api/v2/resource-center/datasource-consumption/repair/switch-primary-binding`
+- `POST /api/v2/resource-center/datasource-consumption/repair/unbind-orphan-binding`
+  - 三个修复接口统一要求 `Idempotency-Key` + `X-CSRF-TOKEN`。
+  - 返回 `ResourceCenterRepairResult`（`action/resourceId/success/message`）。
+  - 修复动作需写入审计日志：`resource.datasource-binding.disable-invalid`、`resource.datasource-binding.switch-primary`、`resource.datasource-binding.unbind-orphan`。
 
 #### v2 P1 扩展写接口（TenantAppInstance）
 

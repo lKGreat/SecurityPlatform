@@ -285,6 +285,27 @@ public interface IResourceCenterQueryService
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceCenterCommandService
+{
+    Task<ResourceCenterRepairResult> DisableInvalidBindingAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        DisableInvalidBindingRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceCenterRepairResult> SwitchPrimaryBindingAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        SwitchPrimaryBindingRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceCenterRepairResult> UnbindOrphanBindingAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        UnbindOrphanBindingRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IReleaseCenterQueryService
 {
     Task<PagedResult<ReleaseCenterListItem>> QueryAsync(
