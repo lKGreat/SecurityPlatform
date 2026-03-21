@@ -143,7 +143,7 @@ public sealed class TenantDataSourceService : ITenantDataSourceService
         var entity = await _repository.FindByTenantAndIdAsync(tenantId, id, cancellationToken);
         if (entity is null)
         {
-            return new TestConnectionResult(false, "数据源不存在");
+            return new TestConnectionResult(false, "TenantDataSourceNotFound");
         }
 
         var connectionString = _encryptionOptions.Enabled

@@ -70,7 +70,7 @@ public sealed class ApprovalAgentController : ControllerBase
     {
         if (request.EndTime <= request.StartTime)
         {
-            throw new BusinessException("VALIDATION_ERROR", "代理结束时间必须晚于开始时间");
+            throw new BusinessException("VALIDATION_ERROR", "AgentEndTimeInvalid");
         }
 
         var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
@@ -86,14 +86,14 @@ public sealed class ApprovalAgentController : ControllerBase
         var auditContext = new AuditContext(
             currentUser.TenantId,
             currentUser.UserId.ToString(),
-            "审批代理-创建",
-            "成功",
-            $"代理配置ID: {config.Id}",
+            ApiResponseLocalizer.T(HttpContext, "AuditActionApprovalAgentCreate"),
+            ApiResponseLocalizer.T(HttpContext, "AuditOutcomeSuccess"),
+            ApiResponseLocalizer.T(HttpContext, "AuditDetailApprovalAgentConfigIdFormat", config.Id),
             ControllerHelper.GetIpAddress(HttpContext),
             ControllerHelper.GetUserAgent(HttpContext),
             _clientContextAccessor.GetCurrent());
         await _auditRecorder.RecordAsync(auditContext, cancellationToken);
-        return ApiResponse<string>.Ok("已创建", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalAgentCreatedSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -109,12 +109,12 @@ public sealed class ApprovalAgentController : ControllerBase
         var config = await _agentConfigRepository.GetByIdAsync(currentUser.TenantId, id, cancellationToken);
         if (config is null)
         {
-            return ApiResponse<string>.Fail("NOT_FOUND", "代理设置不存在", HttpContext.TraceIdentifier);
+            return ApiResponse<string>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ApprovalAgentConfigNotFound"), HttpContext.TraceIdentifier);
         }
 
         if (config.PrincipalUserId != currentUser.UserId)
         {
-            throw new BusinessException("FORBIDDEN", "无权删除该代理设置");
+            throw new BusinessException("FORBIDDEN", "AgentForbiddenDelete");
         }
 
         await _agentConfigRepository.DeleteAsync(currentUser.TenantId, id, cancellationToken);
@@ -122,14 +122,14 @@ public sealed class ApprovalAgentController : ControllerBase
         var auditContext = new AuditContext(
             currentUser.TenantId,
             currentUser.UserId.ToString(),
-            "审批代理-删除",
-            "成功",
-            $"代理配置ID: {id}",
+            ApiResponseLocalizer.T(HttpContext, "AuditActionApprovalAgentDelete"),
+            ApiResponseLocalizer.T(HttpContext, "AuditOutcomeSuccess"),
+            ApiResponseLocalizer.T(HttpContext, "AuditDetailApprovalAgentConfigIdFormat", id),
             ControllerHelper.GetIpAddress(HttpContext),
             ControllerHelper.GetUserAgent(HttpContext),
             _clientContextAccessor.GetCurrent());
         await _auditRecorder.RecordAsync(auditContext, cancellationToken);
-        return ApiResponse<string>.Ok("已删除", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalFlowDeleteSuccess"), HttpContext.TraceIdentifier);
     }
 
     public sealed record CreateApprovalAgentRequest

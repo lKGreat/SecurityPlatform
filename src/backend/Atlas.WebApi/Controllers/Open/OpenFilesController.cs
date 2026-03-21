@@ -33,7 +33,7 @@ public sealed class OpenFilesController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<FileUploadResult>.Fail(
                 ErrorCodes.Forbidden,
-                "PAT 缺少 open:files:write 权限",
+                ApiResponseLocalizer.T(HttpContext, "PatMissingFilesWriteScope"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -41,7 +41,7 @@ public sealed class OpenFilesController : ControllerBase
         {
             return BadRequest(ApiResponse<FileUploadResult>.Fail(
                 ErrorCodes.ValidationError,
-                "未收到有效文件",
+                ApiResponseLocalizer.T(HttpContext, "OpenFilesNoValidUpload"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -70,7 +70,7 @@ public sealed class OpenFilesController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<FileRecordDto>.Fail(
                 ErrorCodes.Forbidden,
-                "PAT 缺少 open:files:read 权限",
+                ApiResponseLocalizer.T(HttpContext, "PatMissingFilesReadScope"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -78,7 +78,7 @@ public sealed class OpenFilesController : ControllerBase
         var info = await _fileStorageService.GetInfoAsync(tenantId, id, cancellationToken);
         if (info is null)
         {
-            return NotFound(ApiResponse<FileRecordDto>.Fail(ErrorCodes.NotFound, "文件不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<FileRecordDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "FileRecordNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<FileRecordDto>.Ok(info, HttpContext.TraceIdentifier));
@@ -91,7 +91,7 @@ public sealed class OpenFilesController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail(
                 ErrorCodes.Forbidden,
-                "PAT 缺少 open:files:read 权限",
+                ApiResponseLocalizer.T(HttpContext, "PatMissingFilesReadScope"),
                 HttpContext.TraceIdentifier));
         }
 

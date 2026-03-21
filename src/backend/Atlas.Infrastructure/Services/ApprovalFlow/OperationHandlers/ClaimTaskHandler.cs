@@ -37,10 +37,10 @@ public sealed class ClaimTaskHandler : IApprovalOperationHandler
         ApprovalOperationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!taskId.HasValue) throw new BusinessException("INVALID_REQUEST", "任务ID不能为空");
+        if (!taskId.HasValue) throw new BusinessException("INVALID_REQUEST", "ApprovalOpTaskIdEmpty");
 
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
-        if (task == null) throw new BusinessException("TASK_NOT_FOUND", "任务不存在");
+        if (task == null) throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
 
         if (task.Status != ApprovalTaskStatus.Pending && task.Status != ApprovalTaskStatus.Claimed)
         {
@@ -55,7 +55,7 @@ public sealed class ClaimTaskHandler : IApprovalOperationHandler
         // 检查是否已经被认领
         if (task.Status == ApprovalTaskStatus.Claimed)
         {
-            throw new BusinessException("TASK_ALREADY_CLAIMED", "任务已被认领");
+            throw new BusinessException("TASK_ALREADY_CLAIMED", "ApprovalTaskAlreadyClaimed");
         }
 
         // 执行认领：修改状态为 Claimed (或者保持 Pending 但修改 Assignee 为当前用户)

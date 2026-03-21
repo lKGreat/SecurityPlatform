@@ -465,3 +465,19 @@ export async function setAppRoleFieldPermissions(appId: string, roleId: string, 
   );
   if (!response.success) throw new Error(response.message || "设置角色字段权限失败");
 }
+
+// ===== 应用可用动态表（用于字段权限配置）=====
+
+export async function getAppAvailableDynamicTables(
+  appId: string,
+  keyword?: string
+): Promise<Array<{ tableKey: string; displayName: string }>> {
+  const params = new URLSearchParams();
+  if (keyword?.trim()) params.set("keyword", keyword.trim());
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const response = await requestApi<ApiResponse<Array<{ tableKey: string; displayName: string }>>>(
+    `/api/v2/tenant-app-instances/${appId}/roles/available-dynamic-tables${query}`
+  );
+  if (!response.data) throw new Error(response.message || "获取应用动态表失败");
+  return response.data;
+}

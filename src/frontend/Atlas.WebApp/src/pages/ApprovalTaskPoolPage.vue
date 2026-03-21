@@ -1,7 +1,7 @@
 <template>
-  <CrudPageLayout title="公共任务池">
+  <CrudPageLayout :title="t('approvalRuntime.taskPoolTitle')">
     <template #toolbar-actions>
-      <a-button type="primary" @click="refresh">刷新</a-button>
+      <a-button type="primary" @click="refresh">{{ t('approvalRuntime.refresh') }}</a-button>
     </template>
     <template #table>
       <a-table
@@ -14,10 +14,10 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
-            <a-button type="link" @click="handleClaim(record)">认领</a-button>
+            <a-button type="link" @click="handleClaim(record)">{{ t('approvalRuntime.claim') }}</a-button>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag color="blue">待认领</a-tag>
+            <a-tag color="blue">{{ t('approvalRuntime.tagPendingClaim') }}</a-tag>
           </template>
         </template>
       </a-table>
@@ -26,7 +26,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -38,6 +39,8 @@ import { getTaskPool, claimTask } from '@/services/api';
 import type { ApprovalTaskResponse } from '@/types/api';
 import CrudPageLayout from "@/components/crud/CrudPageLayout.vue";
 
+const { t } = useI18n();
+
 const loading = ref(false);
 const tasks = ref<ApprovalTaskResponse[]>([]);
 const pagination = ref({
@@ -48,14 +51,14 @@ const pagination = ref({
   showQuickJumper: true
 });
 
-const columns = [
-  { title: '任务标题', dataIndex: 'title', key: 'title' },
-  { title: '流程名称', dataIndex: 'flowName', key: 'flowName' }, // 假设 API 返回 flowName
-  { title: '当前节点', dataIndex: 'nodeName', key: 'nodeName' }, // 假设 API 返回 nodeName
-  { title: '送达时间', dataIndex: 'createdAt', key: 'createdAt' },
-  { title: '状态', dataIndex: 'status', key: 'status' },
-  { title: '操作', key: 'action', width: 100 }
-];
+const columns = computed(() => [
+  { title: t('approvalRuntime.colTaskTitle'), dataIndex: 'title', key: 'title' },
+  { title: t('approvalRuntime.colFlowNameShort'), dataIndex: 'flowName', key: 'flowName' },
+  { title: t('approvalRuntime.colNodeName'), dataIndex: 'nodeName', key: 'nodeName' },
+  { title: t('approvalRuntime.colDeliveredAt'), dataIndex: 'createdAt', key: 'createdAt' },
+  { title: t('approvalRuntime.colStatus'), dataIndex: 'status', key: 'status' },
+  { title: t('approvalRuntime.colActions'), key: 'action', width: 100 }
+]);
 
 const fetchTasks = async () => {
   loading.value = true;
@@ -68,8 +71,8 @@ const fetchTasks = async () => {
     if (!isMounted.value) return;
     tasks.value = res.items;
     pagination.value.total = res.total;
-  } catch (error) {
-    message.error('获取任务池失败');
+  } catch {
+    message.error(t('approvalRuntime.loadPoolFailed'));
   } finally {
     loading.value = false;
   }
@@ -86,10 +89,10 @@ const handleClaim = async (task: ApprovalTaskResponse) => {
     await claimTask(task.id);
 
     if (!isMounted.value) return;
-    message.success('认领成功');
+    message.success(t('approvalRuntime.claimSuccess'));
     fetchTasks();
-  } catch (error) {
-    message.error('认领失败');
+  } catch {
+    message.error(t('approvalRuntime.claimFailed'));
   }
 };
 

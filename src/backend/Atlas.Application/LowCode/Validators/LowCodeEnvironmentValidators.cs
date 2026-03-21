@@ -1,5 +1,7 @@
 using Atlas.Application.LowCode.Models;
+using Atlas.Application.Resources;
 using FluentValidation;
+using Microsoft.Extensions.Localization;
 using System.Text.Json;
 
 namespace Atlas.Application.LowCode.Validators;
@@ -27,39 +29,39 @@ file static class LowCodeEnvironmentValidationHelpers
 
 public sealed class LowCodeEnvironmentCreateRequestValidator : AbstractValidator<LowCodeEnvironmentCreateRequest>
 {
-    public LowCodeEnvironmentCreateRequestValidator()
+    public LowCodeEnvironmentCreateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("环境名称不能为空")
-            .MaximumLength(100).WithMessage("环境名称不能超过100个字符");
+            .NotEmpty().WithMessage(localizer["LowCodeEnvNameRequired"].Value)
+            .MaximumLength(100).WithMessage(localizer["LowCodeEnvNameMaxLength"].Value);
 
         RuleFor(x => x.Code)
-            .NotEmpty().WithMessage("环境编码不能为空")
-            .MaximumLength(50).WithMessage("环境编码不能超过50个字符")
-            .Matches("^[a-zA-Z][a-zA-Z0-9_-]*$").WithMessage("环境编码格式不正确");
+            .NotEmpty().WithMessage(localizer["LowCodeEnvCodeRequired"].Value)
+            .MaximumLength(50).WithMessage(localizer["LowCodeEnvCodeMaxLength"].Value)
+            .Matches("^[a-zA-Z][a-zA-Z0-9_-]*$").WithMessage(localizer["LowCodeEnvCodeFormat"].Value);
 
         RuleFor(x => x.Description)
-            .MaximumLength(500).WithMessage("描述不能超过500个字符");
+            .MaximumLength(500).WithMessage(localizer["LowCodeEnvDescriptionMaxLength"].Value);
 
         RuleFor(x => x.VariablesJson)
             .Must(LowCodeEnvironmentValidationHelpers.BeValidVariablesJson)
-            .WithMessage("VariablesJson 必须是 JSON 对象。");
+            .WithMessage(localizer["LowCodeEnvVariablesJsonInvalid"].Value);
     }
 }
 
 public sealed class LowCodeEnvironmentUpdateRequestValidator : AbstractValidator<LowCodeEnvironmentUpdateRequest>
 {
-    public LowCodeEnvironmentUpdateRequestValidator()
+    public LowCodeEnvironmentUpdateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("环境名称不能为空")
-            .MaximumLength(100).WithMessage("环境名称不能超过100个字符");
+            .NotEmpty().WithMessage(localizer["LowCodeEnvNameRequired"].Value)
+            .MaximumLength(100).WithMessage(localizer["LowCodeEnvNameMaxLength"].Value);
 
         RuleFor(x => x.Description)
-            .MaximumLength(500).WithMessage("描述不能超过500个字符");
+            .MaximumLength(500).WithMessage(localizer["LowCodeEnvDescriptionMaxLength"].Value);
 
         RuleFor(x => x.VariablesJson)
             .Must(LowCodeEnvironmentValidationHelpers.BeValidVariablesJson)
-            .WithMessage("VariablesJson 必须是 JSON 对象。");
+            .WithMessage(localizer["LowCodeEnvVariablesJsonInvalid"].Value);
     }
 }

@@ -1,6 +1,8 @@
 using FluentValidation;
 using Atlas.Application.Approval.Models;
+using Atlas.Application.Resources;
 using Atlas.Domain.Approval.Enums;
+using Microsoft.Extensions.Localization;
 
 namespace Atlas.Application.Approval.Validators;
 
@@ -9,31 +11,31 @@ namespace Atlas.Application.Approval.Validators;
 /// </summary>
 public sealed class ApprovalOperationRequestValidator : AbstractValidator<ApprovalOperationRequest>
 {
-    public ApprovalOperationRequestValidator()
+    public ApprovalOperationRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.OperationType)
             .IsInEnum()
-            .WithMessage("操作类型无效");
+            .WithMessage(localizer["ApprovalOperationTypeInvalid"].Value);
 
         RuleFor(x => x.Comment)
             .MaximumLength(500)
             .When(x => !string.IsNullOrEmpty(x.Comment))
-            .WithMessage("操作说明不能超过500个字符");
+            .WithMessage(localizer["ApprovalCommentMaxLength"].Value);
 
         RuleFor(x => x.TargetNodeId)
             .NotEmpty()
             .When(x => x.OperationType == ApprovalOperationType.BackToAnyNode)
-            .WithMessage("退回任意节点操作需要指定目标节点ID");
+            .WithMessage(localizer["ApprovalTargetNodeRequired"].Value);
 
         RuleFor(x => x.TargetAssigneeValue)
             .NotEmpty()
             .When(x => x.OperationType == ApprovalOperationType.Transfer
                 || x.OperationType == ApprovalOperationType.ChangeAssignee)
-            .WithMessage("转办/变更处理人操作需要指定目标处理人");
+            .WithMessage(localizer["ApprovalTransferTargetRequired"].Value);
 
         RuleFor(x => x.AdditionalAssigneeValues)
             .NotEmpty()
             .When(x => x.OperationType == ApprovalOperationType.AddAssignee)
-            .WithMessage("加签操作需要指定至少一个审批人");
+            .WithMessage(localizer["ApprovalAddAssigneeRequired"].Value);
     }
 }

@@ -4,6 +4,7 @@ using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Attributes;
+using Atlas.WebApi.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -64,7 +65,7 @@ public sealed class AppManifestsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -81,7 +82,7 @@ public sealed class AppManifestsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -95,7 +96,7 @@ public sealed class AppManifestsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -112,7 +113,7 @@ public sealed class AppManifestsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         request ??= new Dictionary<string, string?>();
@@ -131,7 +132,7 @@ public sealed class AppManifestsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -192,7 +193,7 @@ public sealed class AppManifestsController : ControllerBase
     {
         return StatusCode(501, ApiResponse<object>.Fail(
             "NOT_IMPLEMENTED",
-            "影响分析功能正在建设中，将在后续版本上线。",
+            ApiResponseLocalizer.T(HttpContext, "AppManifestImpactAnalysisPending"),
             HttpContext.TraceIdentifier));
     }
 
@@ -228,7 +229,7 @@ public sealed class AppManifestsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();

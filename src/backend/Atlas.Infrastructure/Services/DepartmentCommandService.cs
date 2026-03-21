@@ -43,7 +43,7 @@ public sealed class DepartmentCommandService : IDepartmentCommandService
         var existing = await _departmentRepository.QueryAllAsync(tenantId, cancellationToken);
         if (existing.Any(x => x.Name == request.Name || x.Code == request.Code))
         {
-            throw new BusinessException("Department name or code already exists.", ErrorCodes.Conflict);
+            throw new BusinessException("DeptNameOrCodeExists", ErrorCodes.Conflict);
         }
 
         var department = new Department(tenantId, request.Name, request.Code, id, request.ParentId, request.SortOrder);
@@ -76,13 +76,13 @@ public sealed class DepartmentCommandService : IDepartmentCommandService
         var existingNodes = await _departmentRepository.QueryAllAsync(tenantId, cancellationToken);
         if (existingNodes.Any(x => x.Id != departmentId && (x.Name == request.Name || x.Code == request.Code)))
         {
-            throw new BusinessException("Department name or code already exists.", ErrorCodes.Conflict);
+            throw new BusinessException("DeptNameOrCodeExists", ErrorCodes.Conflict);
         }
 
         var department = existingNodes.FirstOrDefault(x => x.Id == departmentId);
         if (department is null)
         {
-            throw new BusinessException("Department not found.", ErrorCodes.NotFound);
+            throw new BusinessException("DeptNotFound", ErrorCodes.NotFound);
         }
 
         department.Update(request.Name, request.Code, request.ParentId, request.SortOrder);
@@ -98,13 +98,13 @@ public sealed class DepartmentCommandService : IDepartmentCommandService
         var department = await _departmentRepository.FindByIdAsync(tenantId, departmentId, cancellationToken);
         if (department is null)
         {
-            throw new BusinessException("Department not found.", ErrorCodes.NotFound);
+            throw new BusinessException("DeptNotFound", ErrorCodes.NotFound);
         }
 
         var hasChildren = await _departmentRepository.ExistsByParentIdAsync(tenantId, departmentId, cancellationToken);
         if (hasChildren)
         {
-            throw new BusinessException("Department has child nodes.", ErrorCodes.ValidationError);
+            throw new BusinessException("DeptHasChildren", ErrorCodes.ValidationError);
         }
 
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
@@ -129,7 +129,7 @@ public sealed class DepartmentCommandService : IDepartmentCommandService
             cancellationToken);
         if (!relations.Any(x => x.DepartmentId == departmentId))
         {
-            throw new BusinessException("Department not in current project.", ErrorCodes.Forbidden);
+            throw new BusinessException("DeptNotInProject", ErrorCodes.Forbidden);
         }
     }
 }

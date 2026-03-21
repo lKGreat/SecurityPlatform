@@ -1,50 +1,52 @@
+using Atlas.Application.Resources;
 using Atlas.Application.TableViews.Models;
 using FluentValidation;
+using Microsoft.Extensions.Localization;
 
 namespace Atlas.Application.TableViews.Validators;
 
 public sealed class TableViewCreateRequestValidator : AbstractValidator<TableViewCreateRequest>
 {
-    public TableViewCreateRequestValidator()
+    public TableViewCreateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.TableKey)
-            .NotEmpty().WithMessage("TableKey不能为空")
-            .MaximumLength(100).WithMessage("TableKey长度超出限制");
+            .NotEmpty().WithMessage(localizer["TableViewKeyRequired"].Value)
+            .MaximumLength(100).WithMessage(localizer["TableViewKeyMaxLength"].Value);
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("视图名称不能为空")
-            .MaximumLength(50).WithMessage("视图名称长度超出限制");
+            .NotEmpty().WithMessage(localizer["TableViewNameRequired"].Value)
+            .MaximumLength(50).WithMessage(localizer["TableViewNameMaxLength"].Value);
         RuleFor(x => x.Config)
-            .NotNull().WithMessage("视图配置不能为空");
+            .NotNull().WithMessage(localizer["TableViewConfigRequired"].Value);
     }
 }
 
 public sealed class TableViewUpdateRequestValidator : AbstractValidator<TableViewUpdateRequest>
 {
-    public TableViewUpdateRequestValidator()
+    public TableViewUpdateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("视图名称不能为空")
-            .MaximumLength(50).WithMessage("视图名称长度超出限制");
+            .NotEmpty().WithMessage(localizer["TableViewNameRequired"].Value)
+            .MaximumLength(50).WithMessage(localizer["TableViewNameMaxLength"].Value);
         RuleFor(x => x.Config)
-            .NotNull().WithMessage("视图配置不能为空");
+            .NotNull().WithMessage(localizer["TableViewConfigRequired"].Value);
     }
 }
 
 public sealed class TableViewConfigUpdateRequestValidator : AbstractValidator<TableViewConfigUpdateRequest>
 {
-    public TableViewConfigUpdateRequestValidator()
+    public TableViewConfigUpdateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Config)
-            .NotNull().WithMessage("视图配置不能为空");
+            .NotNull().WithMessage(localizer["TableViewConfigRequired"].Value);
     }
 }
 
 public sealed class TableViewDuplicateRequestValidator : AbstractValidator<TableViewDuplicateRequest>
 {
-    public TableViewDuplicateRequestValidator()
+    public TableViewDuplicateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("视图名称不能为空")
-            .MaximumLength(50).WithMessage("视图名称长度超出限制");
+            .NotEmpty().WithMessage(localizer["TableViewNameRequired"].Value)
+            .MaximumLength(50).WithMessage(localizer["TableViewNameMaxLength"].Value);
     }
 }

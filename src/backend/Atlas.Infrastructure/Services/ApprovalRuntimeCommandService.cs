@@ -99,17 +99,17 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
             var flowDef = await _flowRepository.GetByIdAsync(tenantId, request.DefinitionId, cancellationToken);
             if (flowDef == null)
             {
-                throw new BusinessException("FLOW_NOT_FOUND", "审批流定义不存在");
+                throw new BusinessException("FLOW_NOT_FOUND", "FlowNotFound");
             }
 
             if (flowDef.Status != ApprovalFlowStatus.Published)
             {
-                throw new BusinessException("FLOW_NOT_PUBLISHED", "流程定义未发布");
+                throw new BusinessException("FLOW_NOT_PUBLISHED", "FlowNotPublished");
             }
 
             if (flowDef.IsDeprecated)
             {
-                throw new BusinessException("FLOW_DEPRECATED", "流程定义已弃用，不允许新发起实例");
+                throw new BusinessException("FLOW_DEPRECATED", "FlowDeprecated");
             }
 
             // 幂等性检查：同一 BusinessKey 已存在运行中实例，直接返回
@@ -203,24 +203,24 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId, cancellationToken);
         if (task == null)
         {
-            throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+            throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         }
 
         if (task.Status != ApprovalTaskStatus.Pending)
         {
-            throw new BusinessException("TASK_NOT_PENDING", "任务不是待审批状态");
+            throw new BusinessException("TASK_NOT_PENDING", "ApprovalTaskNotPending");
         }
 
         // 权限校验：检查审批人是否为任务分配人
         if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != approverUserId.ToString())
         {
-            throw new BusinessException("FORBIDDEN", "您无权审批此任务");
+            throw new BusinessException("FORBIDDEN", "ApprovalNoPermission");
         }
 
         var instance = await _instanceRepository.GetByIdAsync(tenantId, task.InstanceId, cancellationToken);
         if (instance == null || instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         // Wrap all persistence operations in a transaction for atomicity
@@ -273,24 +273,24 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId, cancellationToken);
         if (task == null)
         {
-            throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+            throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         }
 
         if (task.Status != ApprovalTaskStatus.Pending)
         {
-            throw new BusinessException("TASK_NOT_PENDING", "任务不是待审批状态");
+            throw new BusinessException("TASK_NOT_PENDING", "ApprovalTaskNotPending");
         }
 
         // 权限校验：检查审批人是否为任务分配人
         if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != approverUserId.ToString())
         {
-            throw new BusinessException("FORBIDDEN", "您无权审批此任务");
+            throw new BusinessException("FORBIDDEN", "ApprovalNoPermission");
         }
 
         var instance = await _instanceRepository.GetByIdAsync(tenantId, task.InstanceId, cancellationToken);
         if (instance == null || instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         // Wrap all persistence operations in a transaction for atomicity
@@ -375,18 +375,18 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null)
         {
-            throw new BusinessException("INSTANCE_NOT_FOUND", "流程实例不存在");
+            throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalInstanceNotFound");
         }
 
         if (instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         // Authorization: only the initiator can cancel their own process
         if (instance.InitiatorUserId != cancelledByUserId)
         {
-            throw new BusinessException("FORBIDDEN", "只有发起人可以取消流程");
+            throw new BusinessException("FORBIDDEN", "ApprovalOnlyInitiatorCanCancel");
         }
 
         // Wrap all persistence operations in a transaction for atomicity
@@ -425,12 +425,12 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         var copyRecord = await _copyRecordRepository.GetByIdAsync(tenantId, copyRecordId, cancellationToken);
         if (copyRecord == null)
         {
-            throw new BusinessException("COPY_RECORD_NOT_FOUND", "抄送记录不存在");
+            throw new BusinessException("COPY_RECORD_NOT_FOUND", "ApprovalCopyRecordNotFound");
         }
 
         if (copyRecord.RecipientUserId != userId)
         {
-            throw new BusinessException("COPY_RECORD_NOT_OWNER", "无权操作此抄送记录");
+            throw new BusinessException("COPY_RECORD_NOT_OWNER", "ApprovalCopyRecordNotOwner");
         }
 
         if (copyRecord.IsRead)
@@ -452,11 +452,11 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         CancellationToken cancellationToken)
     {
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId, cancellationToken);
-        if (task == null) throw new BusinessException("TASK_NOT_FOUND", "任务不存在");
-        if (task.Status != ApprovalTaskStatus.Pending) throw new BusinessException("TASK_NOT_PENDING", "任务状态不正确");
+        if (task == null) throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
+        if (task.Status != ApprovalTaskStatus.Pending) throw new BusinessException("TASK_NOT_PENDING", "ApprovalTaskStatusInvalid");
         if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != delegatorUserId.ToString())
         {
-            throw new BusinessException("FORBIDDEN", "您无权委派此任务");
+            throw new BusinessException("FORBIDDEN", "ApprovalNoPermissionDelegate");
         }
 
         // 标记原任务为已委派
@@ -500,14 +500,14 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         CancellationToken cancellationToken)
     {
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId, cancellationToken);
-        if (task == null) throw new BusinessException("TASK_NOT_FOUND", "任务不存在");
+        if (task == null) throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != resolverUserId.ToString())
         {
-            throw new BusinessException("FORBIDDEN", "您无权处理此委派任务");
+            throw new BusinessException("FORBIDDEN", "ApprovalNoPermissionDelegate2");
         }
         
         // 只有委派任务可以被"解决"（归还）
-        if (task.TaskType != 11) throw new BusinessException("INVALID_OPERATION", "非委派任务不能归还");
+        if (task.TaskType != 11) throw new BusinessException("INVALID_OPERATION", "ApprovalNonDelegateTaskReturn");
 
         // 标记委派任务完成
         task.Approve(resolverUserId, comment, DateTimeOffset.UtcNow);
@@ -535,11 +535,11 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
     {
         // 1. 获取子流程定义
         var flowDef = await _flowRepository.GetByIdAsync(tenantId, childProcessId, cancellationToken);
-        if (flowDef == null) throw new BusinessException("FLOW_NOT_FOUND", "子流程定义不存在");
+        if (flowDef == null) throw new BusinessException("FLOW_NOT_FOUND", "ApprovalSubFlowDefNotFound");
 
         // 2. 获取父流程实例信息作为子流程输入
         var parentInstance = await _instanceRepository.GetByIdAsync(tenantId, parentInstanceId, cancellationToken);
-        if (parentInstance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "父流程实例不存在");
+        if (parentInstance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalParentInstanceNotFound");
 
         // 3. 创建子流程实例
         var childInstance = new ApprovalProcessInstance(
@@ -603,7 +603,7 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         CancellationToken cancellationToken)
     {
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
-        if (instance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "实例不存在");
+        if (instance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalInstanceNotFound");
 
         await EnsureInstanceOperationPermissionAsync(tenantId, instance, operatorUserId, cancellationToken);
         instance.Suspend();
@@ -617,7 +617,7 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         CancellationToken cancellationToken)
     {
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
-        if (instance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "实例不存在");
+        if (instance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalInstanceNotFound");
 
         await EnsureInstanceOperationPermissionAsync(tenantId, instance, operatorUserId, cancellationToken);
         instance.Activate();
@@ -632,7 +632,7 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         CancellationToken cancellationToken)
     {
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
-        if (instance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "实例不存在");
+        if (instance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalInstanceNotFound");
 
         await EnsureInstanceOperationPermissionAsync(tenantId, instance, operatorUserId, cancellationToken);
         instance.Terminate(DateTimeOffset.UtcNow);
@@ -670,8 +670,8 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
         CancellationToken cancellationToken)
     {
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
-        if (instance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "草稿不存在");
-        if (instance.Status != ApprovalInstanceStatus.Draft) throw new BusinessException("INVALID_STATUS", "非草稿状态");
+        if (instance == null) throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalDraftNotFound");
+        if (instance.Status != ApprovalInstanceStatus.Draft) throw new BusinessException("INVALID_STATUS", "ApprovalInvalidDraftStatus");
         await EnsureDraftSubmitPermissionAsync(tenantId, instance, initiatorUserId, cancellationToken);
 
         instance.Activate(); // 变更为 Running
@@ -796,7 +796,7 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
             return;
         }
 
-        throw new BusinessException("FORBIDDEN", "您无权操作该流程实例");
+        throw new BusinessException("FORBIDDEN", "ApprovalNoPermissionInstance");
     }
 
     private async Task EnsureDraftSubmitPermissionAsync(
@@ -818,7 +818,7 @@ public sealed class ApprovalRuntimeCommandService : IApprovalRuntimeCommandServi
             return;
         }
 
-        throw new BusinessException("FORBIDDEN", "只有发起人或管理员可以提交草稿");
+        throw new BusinessException("FORBIDDEN", "ApprovalOnlyInitiatorOrAdminSubmit");
     }
 
     #endregion

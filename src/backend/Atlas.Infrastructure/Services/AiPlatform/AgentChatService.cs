@@ -116,16 +116,16 @@ public sealed class AgentChatService : IAgentChatService
         CancellationToken cancellationToken)
     {
         var conversation = await _conversationRepository.FindByIdAsync(tenantId, conversationId, cancellationToken)
-            ?? throw new BusinessException("会话不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("ConversationNotFound", ErrorCodes.NotFound);
 
         if (conversation.UserId != userId)
         {
-            throw new BusinessException("无权操作此会话。", ErrorCodes.Forbidden);
+            throw new BusinessException("ConversationForbidden", ErrorCodes.Forbidden);
         }
 
         if (conversation.AgentId != agentId)
         {
-            throw new BusinessException("会话与当前 Agent 不匹配。", ErrorCodes.ValidationError);
+            throw new BusinessException("ConversationAgentMismatch", ErrorCodes.ValidationError);
         }
 
         if (ConversationCancellationMap.TryRemove(conversationId, out var cts))
@@ -144,7 +144,7 @@ public sealed class AgentChatService : IAgentChatService
         CancellationToken cancellationToken)
     {
         var agent = await _agentRepository.FindByIdAsync(tenantId, agentId, cancellationToken)
-            ?? throw new BusinessException("Agent 不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("AgentNotFound", ErrorCodes.NotFound);
         var conversation = await EnsureConversationAsync(tenantId, userId, agent, request, cancellationToken);
 
         var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -224,7 +224,7 @@ public sealed class AgentChatService : IAgentChatService
             var assistantContent = assistantBuilder.ToString();
             if (string.IsNullOrWhiteSpace(assistantContent))
             {
-                throw new BusinessException("模型未返回可用响应。", ErrorCodes.ServerError);
+                throw new BusinessException("ModelEmptyResponse", ErrorCodes.ServerError);
             }
 
             var assistantMessageId = _idGeneratorAccessor.NextId();
@@ -292,15 +292,15 @@ public sealed class AgentChatService : IAgentChatService
         if (request.ConversationId.HasValue)
         {
             var existing = await _conversationRepository.FindByIdAsync(tenantId, request.ConversationId.Value, cancellationToken)
-                ?? throw new BusinessException("会话不存在。", ErrorCodes.NotFound);
+                ?? throw new BusinessException("ConversationNotFound", ErrorCodes.NotFound);
             if (existing.AgentId != agent.Id)
             {
-                throw new BusinessException("会话与当前 Agent 不匹配。", ErrorCodes.ValidationError);
+                throw new BusinessException("ConversationAgentMismatch", ErrorCodes.ValidationError);
             }
 
             if (existing.UserId != userId)
             {
-                throw new BusinessException("无权访问此会话。", ErrorCodes.Forbidden);
+                throw new BusinessException("ConversationAccessDenied", ErrorCodes.Forbidden);
             }
 
             return existing;

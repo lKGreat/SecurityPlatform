@@ -1,14 +1,14 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">通知中心</h2>
-      <a-button v-if="unreadCount > 0" @click="handleMarkAll">全部标记已读</a-button>
+      <h2 class="page-title">{{ t("notificationInbox.pageTitle") }}</h2>
+      <a-button v-if="unreadCount > 0" @click="handleMarkAll">{{ t("notificationInbox.markAllRead") }}</a-button>
     </div>
 
     <a-tabs v-model:active-key="activeTab" @change="handleTabChange">
-      <a-tab-pane key="all" tab="全部" />
-      <a-tab-pane key="unread" :tab="`未读 (${unreadCount})`" />
-      <a-tab-pane key="read" tab="已读" />
+      <a-tab-pane key="all" :tab="t('notificationInbox.tabAll')" />
+      <a-tab-pane key="unread" :tab="t('notificationInbox.tabUnread', { count: unreadCount })" />
+      <a-tab-pane key="read" :tab="t('notificationInbox.tabRead')" />
     </a-tabs>
 
     <a-spin :spinning="loading">
@@ -21,8 +21,8 @@
         >
           <div class="notif-card-left">
             <a-tag :color="tagColor(item.noticeType)">{{ typeLabel(item.noticeType) }}</a-tag>
-            <a-tag v-if="item.priority === 2" color="red">紧急</a-tag>
-            <a-tag v-else-if="item.priority === 1" color="orange">重要</a-tag>
+            <a-tag v-if="item.priority === 2" color="red">{{ t("notificationInbox.urgent") }}</a-tag>
+            <a-tag v-else-if="item.priority === 1" color="orange">{{ t("notificationInbox.important") }}</a-tag>
           </div>
           <div class="notif-card-body">
             <div class="notif-card-title">
@@ -38,17 +38,17 @@
               size="small"
               type="link"
               @click="handleOpenDeepLink(item)"
-            >去处理</a-button>
+            >{{ t("notificationInbox.goHandle") }}</a-button>
             <a-button
               v-if="!item.isRead"
               size="small"
               type="link"
               @click="handleMarkRead(item)"
-            >标为已读</a-button>
+            >{{ t("notificationInbox.markRead") }}</a-button>
           </div>
         </div>
       </div>
-      <a-empty v-else description="暂无通知" />
+      <a-empty v-else :description="t('notificationInbox.empty')" />
     </a-spin>
 
     <div v-if="total > pageSize" class="pagination-bar">
@@ -65,6 +65,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -74,6 +75,8 @@ import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import { getMyNotifications, getUnreadCount, markRead, markAllRead } from "@/services/notification";
 import type { UserNotificationDto } from "@/services/notification";
+
+const { t, locale } = useI18n();
 
 const loading = ref(false);
 const router = useRouter();
@@ -103,7 +106,7 @@ const loadData = async () => {
     total.value = result.total;
     unreadCount.value = count;
   } catch (e: unknown) {
-    message.error(e instanceof Error ? e.message : "加载失败");
+    message.error(e instanceof Error ? e.message : t("notificationInbox.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -123,7 +126,7 @@ const handleMarkRead = async (item: UserNotificationDto) => {
 
     if (!isMounted.value) return;
   } catch {
-    message.error("操作失败");
+    message.error(t("notificationInbox.opFailed"));
   }
 };
 
@@ -135,9 +138,9 @@ const handleMarkAll = async () => {
     await loadData();
 
     if (!isMounted.value) return;
-    message.success("已全部标为已读");
+    message.success(t("notificationInbox.allMarked"));
   } catch {
-    message.error("操作失败");
+    message.error(t("notificationInbox.opFailed"));
   }
 };
 
@@ -168,7 +171,11 @@ const handleOpenDeepLink = (item: UserNotificationDto) => {
 };
 
 const typeLabel = (type: string) => {
-  const map: Record<string, string> = { Announcement: "公告", System: "系统", Reminder: "提醒" };
+  const map: Record<string, string> = {
+    Announcement: t("notificationInbox.typeAnnouncement"),
+    System: t("notificationInbox.typeSystem"),
+    Reminder: t("notificationInbox.typeReminder")
+  };
   return map[type] ?? type;
 };
 
@@ -179,7 +186,8 @@ const tagColor = (type: string) => {
 
 const formatTime = (iso: string) => {
   try {
-    return new Date(iso).toLocaleString("zh-CN");
+    const loc = locale.value === "en-US" ? "en-US" : "zh-CN";
+    return new Date(iso).toLocaleString(loc);
   } catch {
     return iso;
   }

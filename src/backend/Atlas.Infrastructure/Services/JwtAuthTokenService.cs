@@ -89,14 +89,14 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         {
             await WriteAuditAsync(tenantId, request.Username, "LOGIN", "FAILED", null, context, cancellationToken);
             await WriteLoginLogAsync(tenantId, request.Username, context, false, "用户名或密码错误", now, cancellationToken);
-            throw new BusinessException("用户名或密码错误", ErrorCodes.Unauthorized);
+            throw new BusinessException("InvalidCredentials", ErrorCodes.Unauthorized);
         }
 
         if (!account.IsActive)
         {
             await WriteAuditAsync(tenantId, request.Username, "LOGIN", "FAILED", null, context, cancellationToken);
             await WriteLoginLogAsync(tenantId, request.Username, context, false, "账号已停用", now, cancellationToken);
-            throw new BusinessException("用户名或密码错误", ErrorCodes.Forbidden);
+            throw new BusinessException("InvalidCredentials", ErrorCodes.Forbidden);
         }
 
         var locked = IsLocked(account, now, out var lockStateChanged);
@@ -109,7 +109,7 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         {
             await WriteAuditAsync(tenantId, request.Username, "LOGIN", "LOCKED", null, context, cancellationToken);
             await WriteLoginLogAsync(tenantId, request.Username, context, false, "账号已锁定", now, cancellationToken);
-            throw new BusinessException("用户名或密码错误", ErrorCodes.AccountLocked);
+            throw new BusinessException("InvalidCredentials", ErrorCodes.AccountLocked);
         }
 
         var passwordExpiredAt = account.LastPasswordChangeAt.AddDays(_passwordPolicy.ExpirationDays);
@@ -117,7 +117,7 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         {
             await WriteAuditAsync(tenantId, request.Username, "LOGIN", "PASSWORD_EXPIRED", null, context, cancellationToken);
             await WriteLoginLogAsync(tenantId, request.Username, context, false, "密码已过期", now, cancellationToken);
-            throw new BusinessException("用户名或密码错误", ErrorCodes.PasswordExpired);
+            throw new BusinessException("InvalidCredentials", ErrorCodes.PasswordExpired);
         }
 
         var passwordValid = _passwordHasher.VerifyHashedPassword(account.PasswordHash, request.Password);
@@ -127,7 +127,7 @@ public sealed class JwtAuthTokenService : IAuthTokenService
             await _userAccountRepository.UpdateAsync(account, cancellationToken);
             await WriteAuditAsync(tenantId, request.Username, "LOGIN", "FAILED", null, context, cancellationToken);
             await WriteLoginLogAsync(tenantId, request.Username, context, false, "密码错误", now, cancellationToken);
-            throw new BusinessException("用户名或密码错误", ErrorCodes.Unauthorized);
+            throw new BusinessException("InvalidCredentials", ErrorCodes.Unauthorized);
         }
 
         // MFA verification: if MFA is enabled for the user, require a valid TOTP code
@@ -137,7 +137,7 @@ public sealed class JwtAuthTokenService : IAuthTokenService
             {
                 await WriteAuditAsync(tenantId, request.Username, "LOGIN", "MFA_REQUIRED", null, context, cancellationToken);
                 await WriteLoginLogAsync(tenantId, request.Username, context, false, "需要多因素认证验证码", now, cancellationToken);
-                throw new BusinessException("需要多因素认证验证码", ErrorCodes.MfaRequired);
+                throw new BusinessException("MfaCodeRequired", ErrorCodes.MfaRequired);
             }
 
             if (!_totpService.ValidateCode(account.MfaSecretKey, request.TotpCode, now))
@@ -146,7 +146,7 @@ public sealed class JwtAuthTokenService : IAuthTokenService
                 await _userAccountRepository.UpdateAsync(account, cancellationToken);
                 await WriteAuditAsync(tenantId, request.Username, "LOGIN", "MFA_FAILED", null, context, cancellationToken);
                 await WriteLoginLogAsync(tenantId, request.Username, context, false, "多因素认证验证码错误", now, cancellationToken);
-                throw new BusinessException("用户名或密码错误", ErrorCodes.Unauthorized);
+                throw new BusinessException("InvalidCredentials", ErrorCodes.Unauthorized);
             }
         }
 
@@ -210,19 +210,19 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         if (storedToken is null)
         {
             await WriteAuditAsync(tenantId, "UNKNOWN", "TOKEN_REFRESH", "FAILED", null, context, cancellationToken);
-            throw new BusinessException("刷新令牌无效或已过期", ErrorCodes.Unauthorized);
+            throw new BusinessException("RefreshTokenInvalid", ErrorCodes.Unauthorized);
         }
 
         if (storedToken.RevokedAt.HasValue)
         {
             await HandleTokenReuseAsync(tenantId, storedToken, context, cancellationToken);
-            throw new BusinessException("刷新令牌已失效", ErrorCodes.Unauthorized);
+            throw new BusinessException("RefreshTokenRevoked", ErrorCodes.Unauthorized);
         }
 
         if (storedToken.ExpiresAt <= now)
         {
             await WriteAuditAsync(tenantId, storedToken.UserId.ToString(), "TOKEN_REFRESH", "EXPIRED", null, context, cancellationToken);
-            throw new BusinessException("刷新令牌已过期", ErrorCodes.TokenExpired);
+            throw new BusinessException("RefreshTokenExpired", ErrorCodes.TokenExpired);
         }
 
         var session = await _authSessionRepository.FindByIdAsync(tenantId, storedToken.SessionId, cancellationToken);
@@ -230,20 +230,20 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         {
             await _refreshTokenRepository.RevokeBySessionAsync(tenantId, storedToken.SessionId, now, cancellationToken);
             await WriteAuditAsync(tenantId, storedToken.UserId.ToString(), "TOKEN_REFRESH", "SESSION_INVALID", null, context, cancellationToken);
-            throw new BusinessException("会话已失效", ErrorCodes.Unauthorized);
+            throw new BusinessException("SessionRevoked", ErrorCodes.Unauthorized);
         }
 
         var account = await _userAccountRepository.FindByIdAsync(tenantId, storedToken.UserId, cancellationToken);
         if (account is null)
         {
             await WriteAuditAsync(tenantId, storedToken.UserId.ToString(), "TOKEN_REFRESH", "FAILED", null, context, cancellationToken);
-            throw new BusinessException("账号不存在或已失效", ErrorCodes.Unauthorized);
+            throw new BusinessException("AccountDisabled", ErrorCodes.Unauthorized);
         }
 
         if (!account.IsActive)
         {
             await WriteAuditAsync(tenantId, account.Username, "TOKEN_REFRESH", "FAILED", null, context, cancellationToken);
-            throw new BusinessException("账号已停用", ErrorCodes.Forbidden);
+            throw new BusinessException("AccountSuspended", ErrorCodes.Forbidden);
         }
 
         var locked = IsLocked(account, now, out var lockStateChanged);
@@ -255,14 +255,14 @@ public sealed class JwtAuthTokenService : IAuthTokenService
         if (locked)
         {
             await WriteAuditAsync(tenantId, account.Username, "TOKEN_REFRESH", "LOCKED", null, context, cancellationToken);
-            throw new BusinessException("账号已锁定", ErrorCodes.AccountLocked);
+            throw new BusinessException("InvalidCredentials", ErrorCodes.AccountLocked);
         }
 
         var passwordExpiredAt = account.LastPasswordChangeAt.AddDays(_passwordPolicy.ExpirationDays);
         if (passwordExpiredAt <= now)
         {
             await WriteAuditAsync(tenantId, account.Username, "TOKEN_REFRESH", "PASSWORD_EXPIRED", null, context, cancellationToken);
-            throw new BusinessException("密码已过期", ErrorCodes.PasswordExpired);
+            throw new BusinessException("InvalidCredentials", ErrorCodes.PasswordExpired);
         }
 
         if (storedToken.IssuedAt < account.LastPasswordChangeAt)
@@ -270,7 +270,7 @@ public sealed class JwtAuthTokenService : IAuthTokenService
             await _authSessionRepository.RevokeByUserIdAsync(tenantId, account.Id, now, cancellationToken);
             await _refreshTokenRepository.RevokeByUserIdAsync(tenantId, account.Id, now, cancellationToken);
             await WriteAuditAsync(tenantId, account.Username, "TOKEN_REFRESH", "PASSWORD_CHANGED", null, context, cancellationToken);
-            throw new BusinessException("密码已变更，请重新登录", ErrorCodes.Unauthorized);
+            throw new BusinessException("PasswordChanged", ErrorCodes.Unauthorized);
         }
 
         session.MarkSeen(now);

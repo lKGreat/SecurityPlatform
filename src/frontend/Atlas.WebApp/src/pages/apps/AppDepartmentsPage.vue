@@ -1,30 +1,35 @@
 <template>
   <div class="app-org-page">
-    <a-page-header title="应用部门" sub-title="管理此应用内的部门组织架构（独立于平台级部门）" />
+    <a-page-header :title="t('appsDepartments.pageTitle')" :sub-title="t('appsDepartments.pageSubtitle')" />
     <a-card class="mt12">
       <template #extra>
         <a-space>
           <a-input-search
             v-model:value="keyword"
             style="width: 220px"
-            placeholder="搜索部门名称/编码"
+            :placeholder="t('appsDepartments.searchPlaceholder')"
             allow-clear
             @search="handleSearch"
           />
-          <a-button @click="loadData">刷新</a-button>
-          <a-button type="primary" @click="openCreateModal">新建部门</a-button>
+          <a-button @click="loadData">{{ t("commonUi.refresh") }}</a-button>
+          <a-button type="primary" @click="openCreateModal">{{ t("appsDepartments.newDept") }}</a-button>
         </a-space>
       </template>
       <a-table row-key="id" :columns="columns" :data-source="rows" :loading="loading" :pagination="pagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'parentId'">
-            <span>{{ record.parentId ? deptMap[record.parentId]?.name ?? record.parentId : '-' }}</span>
+            <span>{{ record.parentId ? deptMap[record.parentId]?.name ?? record.parentId : "-" }}</span>
           </template>
           <template v-else-if="column.key === 'actions'">
             <a-space>
-              <a-button type="link" size="small" @click="openEditModal(record)">编辑</a-button>
-              <a-popconfirm title="确认删除该部门？" ok-text="删除" cancel-text="取消" @confirm="removeItem(record.id)">
-                <a-button type="link" size="small" danger>删除</a-button>
+              <a-button type="link" size="small" @click="openEditModal(record)">{{ t("common.edit") }}</a-button>
+              <a-popconfirm
+                :title="t('appsDepartments.deleteConfirm')"
+                :ok-text="t('common.delete')"
+                :cancel-text="t('common.cancel')"
+                @confirm="removeItem(record.id)"
+              >
+                <a-button type="link" size="small" danger>{{ t("common.delete") }}</a-button>
               </a-popconfirm>
             </a-space>
           </template>
@@ -32,14 +37,28 @@
       </a-table>
     </a-card>
 
-    <a-modal v-model:open="modalOpen" :title="modalTitle" :confirm-loading="submitting" ok-text="保存" cancel-text="取消" @ok="submitForm">
+    <a-modal
+      v-model:open="modalOpen"
+      :title="modalTitle"
+      :confirm-loading="submitting"
+      :ok-text="t('common.save')"
+      :cancel-text="t('common.cancel')"
+      @ok="submitForm"
+    >
       <a-form layout="vertical">
-        <a-form-item label="部门名称" required><a-input v-model:value="form.name" maxlength="64" /></a-form-item>
-        <a-form-item label="部门编码" required><a-input v-model:value="form.code" maxlength="64" /></a-form-item>
-        <a-form-item label="上级部门">
-          <a-select v-model:value="form.parentId" allow-clear placeholder="选择上级部门（可为空）" show-search :filter-option="(input: string, option: { label?: string | number }) => option?.label?.toString().toLowerCase().includes(input.toLowerCase()) ?? false" :options="parentOptions" />
+        <a-form-item :label="t('appsDepartments.labelName')" required><a-input v-model:value="form.name" maxlength="64" /></a-form-item>
+        <a-form-item :label="t('appsDepartments.labelCode')" required><a-input v-model:value="form.code" maxlength="64" /></a-form-item>
+        <a-form-item :label="t('appsDepartments.labelParent')">
+          <a-select
+            v-model:value="form.parentId"
+            allow-clear
+            :placeholder="t('appsDepartments.parentPlaceholder')"
+            show-search
+            :filter-option="(input: string, option: { label?: string | number }) => option?.label?.toString().toLowerCase().includes(input.toLowerCase()) ?? false"
+            :options="parentOptions"
+          />
         </a-form-item>
-        <a-form-item label="排序">
+        <a-form-item :label="t('appsDepartments.labelSort')">
           <a-input-number v-model:value="form.sortOrder" :min="0" :max="9999" style="width: 100%" />
         </a-form-item>
       </a-form>
@@ -49,12 +68,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import type { TableColumnsType, TablePaginationConfig } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import { useRoute } from "vue-router";
 import { getAppDepartmentAll, createAppDepartment, updateAppDepartment, deleteAppDepartment, getAppDepartmentsPaged } from "@/services/api-app-members";
 import type { AppDepartmentListItem } from "@/types/platform-v2";
 
+const { t } = useI18n();
 const route = useRoute();
 const appId = computed(() => String(route.params.appId ?? ""));
 const loading = ref(false);
@@ -67,19 +88,19 @@ const modalOpen = ref(false);
 const editingId = ref<string | null>(null);
 const form = reactive({ name: "", code: "", parentId: undefined as number | undefined, sortOrder: 0 });
 
-const modalTitle = computed(() => editingId.value ? "编辑部门" : "新建部门");
+const modalTitle = computed(() => (editingId.value ? t("appsDepartments.modalEdit") : t("appsDepartments.modalCreate")));
 const deptMap = computed(() => Object.fromEntries(allDepts.value.map(d => [d.id, d])));
 const parentOptions = computed(() => allDepts.value
   .filter(d => d.id !== editingId.value)
   .map(d => ({ value: Number(d.id), label: d.name })));
 
-const columns: TableColumnsType<AppDepartmentListItem> = [
-  { title: "部门名称", dataIndex: "name", key: "name" },
-  { title: "编码", dataIndex: "code", key: "code", width: 140 },
-  { title: "上级部门", key: "parentId", width: 140 },
-  { title: "排序", dataIndex: "sortOrder", key: "sortOrder", width: 80 },
-  { title: "操作", key: "actions", width: 140, fixed: "right" }
-];
+const columns = computed<TableColumnsType<AppDepartmentListItem>>(() => [
+  { title: t("appsDepartments.colName"), dataIndex: "name", key: "name" },
+  { title: t("appsDepartments.colCode"), dataIndex: "code", key: "code", width: 140 },
+  { title: t("appsDepartments.colParent"), key: "parentId", width: 140 },
+  { title: t("appsDepartments.colSort"), dataIndex: "sortOrder", key: "sortOrder", width: 80 },
+  { title: t("appsDepartments.colActions"), key: "actions", width: 140, fixed: "right" }
+]);
 
 async function loadData() {
   if (!appId.value) return;
@@ -93,7 +114,7 @@ async function loadData() {
     pagination.total = result.total;
     allDepts.value = all;
   } catch (error) {
-    message.error((error as Error).message || "加载失败");
+    message.error((error as Error).message || t("appsDepartments.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -117,7 +138,7 @@ function openEditModal(record: AppDepartmentListItem) {
 }
 
 async function submitForm() {
-  if (!appId.value || !form.name.trim() || !form.code.trim()) { message.warning("请填写部门名称和编码"); return; }
+  if (!appId.value || !form.name.trim() || !form.code.trim()) { message.warning(t("appsDepartments.fillNameCode")); return; }
   submitting.value = true;
   try {
     if (editingId.value) {
@@ -125,11 +146,11 @@ async function submitForm() {
     } else {
       await createAppDepartment(appId.value, { name: form.name.trim(), code: form.code.trim(), parentId: form.parentId, sortOrder: form.sortOrder });
     }
-    message.success("保存成功");
+    message.success(t("appsDepartments.saveSuccess"));
     modalOpen.value = false;
     await loadData();
   } catch (error) {
-    message.error((error as Error).message || "保存失败");
+    message.error((error as Error).message || t("appsDepartments.saveFailed"));
   } finally {
     submitting.value = false;
   }
@@ -139,10 +160,10 @@ async function removeItem(id: string) {
   if (!appId.value) return;
   try {
     await deleteAppDepartment(appId.value, id);
-    message.success("删除成功");
+    message.success(t("appsDepartments.deleteSuccess"));
     await loadData();
   } catch (error) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("appsDepartments.deleteFailed"));
   }
 }
 

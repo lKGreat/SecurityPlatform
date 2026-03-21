@@ -49,38 +49,38 @@ public sealed class AddFutureAssigneeOperationHandler : IApprovalOperationHandle
     {
         if (string.IsNullOrEmpty(request.TargetNodeId))
         {
-            throw new BusinessException("TARGET_NODE_REQUIRED", "未来节点加签操作需要指定目标节点ID");
+            throw new BusinessException("TARGET_NODE_REQUIRED", "ApprovalOpTargetNodeRequired");
         }
 
         if (request.AdditionalAssigneeValues == null || request.AdditionalAssigneeValues.Count == 0)
         {
-            throw new BusinessException("ASSIGNEE_REQUIRED", "未来节点加签操作需要指定至少一个审批人");
+            throw new BusinessException("ASSIGNEE_REQUIRED", "ApprovalOpAssigneeRequired");
         }
 
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null || instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         var flowDef = await _flowRepository.GetByIdAsync(tenantId, instance.DefinitionId, cancellationToken);
         if (flowDef == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "流程定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "ApprovalFlowDefNotFoundShort");
         }
 
         var flowDefinition = FlowDefinitionParser.Parse(flowDef.DefinitionJson);
         var targetNode = flowDefinition.GetNodeById(request.TargetNodeId);
         if (targetNode == null)
         {
-            throw new BusinessException("NODE_NOT_FOUND", "目标节点不存在");
+            throw new BusinessException("NODE_NOT_FOUND", "ApprovalOpTargetNodeNotFound");
         }
 
         // 检查目标节点是否已经执行过
         var existingTasks = await _taskRepository.GetByInstanceAndNodeAsync(tenantId, instanceId, request.TargetNodeId, cancellationToken);
         if (existingTasks.Count > 0)
         {
-            throw new BusinessException("NODE_ALREADY_EXECUTED", "目标节点已经执行，无法进行未来节点加签");
+            throw new BusinessException("NODE_ALREADY_EXECUTED", "ApprovalOpNodeAlreadyExecuted");
         }
 
         // 为每个新审批人记录未来节点加签

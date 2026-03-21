@@ -34,7 +34,7 @@ public sealed class DictCommandService : IDictCommandService
         var exists = await _dictTypeRepository.ExistsByCodeAsync(tenantId, request.Code, cancellationToken);
         if (exists)
         {
-            throw new BusinessException($"字典类型编码 '{request.Code}' 已存在。", ErrorCodes.ValidationError);
+            throw new BusinessException("DictTypeCodeExists", ErrorCodes.ValidationError);
         }
 
         var entity = new DictType(tenantId, request.Code, request.Name, _idGeneratorAccessor.NextId());
@@ -47,7 +47,7 @@ public sealed class DictCommandService : IDictCommandService
         TenantId tenantId, long id, DictTypeUpdateRequest request, CancellationToken cancellationToken)
     {
         var entity = await _dictTypeRepository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("字典类型不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("DictTypeNotFound", ErrorCodes.NotFound);
 
         entity.Update(request.Name, request.Status, request.Remark);
         await _dictTypeRepository.UpdateAsync(entity, cancellationToken);
@@ -57,7 +57,7 @@ public sealed class DictCommandService : IDictCommandService
         TenantId tenantId, long id, CancellationToken cancellationToken)
     {
         var entity = await _dictTypeRepository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("字典类型不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("DictTypeNotFound", ErrorCodes.NotFound);
 
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
@@ -72,7 +72,7 @@ public sealed class DictCommandService : IDictCommandService
         var typeExists = await _dictTypeRepository.ExistsByCodeAsync(tenantId, typeCode, cancellationToken);
         if (!typeExists)
         {
-            throw new BusinessException($"字典类型 '{typeCode}' 不存在。", ErrorCodes.NotFound);
+            throw new BusinessException("DictTypeNotFound", ErrorCodes.NotFound);
         }
 
         var entity = new DictData(tenantId, typeCode, request.Label, request.Value, _idGeneratorAccessor.NextId());
@@ -85,7 +85,7 @@ public sealed class DictCommandService : IDictCommandService
         TenantId tenantId, long id, DictDataUpdateRequest request, CancellationToken cancellationToken)
     {
         var entity = await _dictDataRepository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("字典数据不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("DictDataNotFound", ErrorCodes.NotFound);
 
         entity.Update(request.Label, request.Value, request.SortOrder, request.Status, request.CssClass, request.ListClass);
         await _dictDataRepository.UpdateAsync(entity, cancellationToken);
@@ -95,7 +95,7 @@ public sealed class DictCommandService : IDictCommandService
         TenantId tenantId, long id, CancellationToken cancellationToken)
     {
         var entity = await _dictDataRepository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("字典数据不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("DictDataNotFound", ErrorCodes.NotFound);
 
         await _dictDataRepository.DeleteAsync(tenantId, id, cancellationToken);
     }

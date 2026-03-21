@@ -54,7 +54,7 @@ public sealed class TemplatesController : ControllerBase
         var template = await _queryService.GetByIdAsync(id, cancellationToken);
         if (template is null)
         {
-            return NotFound(ApiResponse<ComponentTemplate>.Fail("NOT_FOUND", "模板不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<ComponentTemplate>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ComponentTemplateNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<ComponentTemplate>.Ok(template, HttpContext.TraceIdentifier));

@@ -245,7 +245,9 @@ const openAssign = (record: RoleListItem) => {
   selectItem(record);
 };
 
-const handleAssignSuccess = () => {};
+const handleAssignSuccess = () => {
+  crud.fetchData();
+};
 
 // --- Search/Reset ---
 const handleSearch = () => {

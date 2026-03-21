@@ -33,7 +33,7 @@ public sealed class EventSubscriptionsController : ControllerBase
         var sub = await _service.GetByIdAsync(id, cancellationToken);
         if (sub is null)
         {
-            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", "订阅不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "WebhookSubscriptionNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<object>.Ok(sub, HttpContext.TraceIdentifier));

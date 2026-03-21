@@ -1,14 +1,14 @@
 <template>
   <div class="app-users-page">
-    <a-page-header title="应用成员" sub-title="管理应用级成员与角色绑定" />
+    <a-page-header :title="t('appsUsers.pageTitle')" :sub-title="t('appsUsers.pageSubtitle')" />
 
     <a-alert
       v-if="useSharedUsers === true"
       class="mt12"
       type="info"
       show-icon
-      message="该应用已启用共享用户模式"
-      description="当前应用的用户来自平台公共用户池，无需单独维护应用成员列表。如需管理人员权限，请在角色管理中进行配置。"
+      :message="t('appsUsers.sharedModeTitle')"
+      :description="t('appsUsers.sharedModeDesc')"
     />
 
     <a-card v-if="useSharedUsers === false" class="mt12">
@@ -17,7 +17,7 @@
           <a-input-search
             v-model:value="keyword"
             style="width: 260px"
-            placeholder="按用户名/显示名搜索成员"
+            :placeholder="t('appsUsers.searchPlaceholder')"
             allow-clear
             @search="handleSearch"
           />
@@ -27,7 +27,7 @@
             :loading="loading"
             @click="openAddMemberModal"
           >
-            添加成员
+            {{ t("appsUsers.addMember") }}
           </a-button>
         </a-space>
       </template>
@@ -43,7 +43,7 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="record.isActive ? 'green' : 'default'">
-              {{ record.isActive ? "启用" : "禁用" }}
+              {{ record.isActive ? t("appsUsers.statusEnabled") : t("appsUsers.statusDisabled") }}
             </a-tag>
           </template>
           <template v-else-if="column.key === 'roles'">
@@ -51,7 +51,7 @@
               <a-tag v-for="roleName in record.roleNames" :key="roleName" color="blue">
                 {{ roleName }}
               </a-tag>
-              <span v-if="record.roleNames.length === 0" class="placeholder">未绑定角色</span>
+              <span v-if="record.roleNames.length === 0" class="placeholder">{{ t("appsUsers.noRoles") }}</span>
             </a-space>
           </template>
           <template v-else-if="column.key === 'joinedAt'">
@@ -60,16 +60,16 @@
           <template v-else-if="column.key === 'actions'">
             <a-space v-if="canManageMembers">
               <a-button v-if="canViewAppRoles" type="link" @click="openEditRolesModal(record)">
-                分配角色
+                {{ t("appsUsers.assignRoles") }}
               </a-button>
               <a-popconfirm
-                title="确认移除该成员吗？"
-                ok-text="移除"
-                cancel-text="取消"
+                :title="t('appsUsers.removeConfirm')"
+                :ok-text="t('appsUsers.removeOk')"
+                :cancel-text="t('common.cancel')"
                 @confirm="removeMember(record.userId)"
               >
                 <a-button type="link" danger>
-                  移除
+                  {{ t("appsUsers.removeOk") }}
                 </a-button>
               </a-popconfirm>
             </a-space>
@@ -81,20 +81,20 @@
 
     <a-modal
       v-model:open="addMemberModalOpen"
-      title="添加应用成员"
+      :title="t('appsUsers.modalAddTitle')"
       :confirm-loading="submitting"
-      ok-text="确认添加"
-      cancel-text="取消"
+      :ok-text="t('appsUsers.modalAddOk')"
+      :cancel-text="t('common.cancel')"
       @ok="submitAddMembers"
     >
       <a-alert
-        message="用户下拉默认展示 20 条，并支持远程搜索"
+        :message="t('appsUsers.selectHint')"
         type="info"
         show-icon
         style="margin-bottom: 12px"
       />
       <a-form layout="vertical">
-        <a-form-item label="成员用户" required>
+        <a-form-item :label="t('appsUsers.labelMembers')" required>
           <a-select
             v-model:value="addForm.userIds"
             mode="multiple"
@@ -102,12 +102,12 @@
             :filter-option="false"
             :options="userOptions"
             :loading="userOptionsLoading"
-            placeholder="请选择成员用户（可搜索）"
+            :placeholder="t('appsUsers.memberPlaceholder')"
             @focus="() => loadUserOptions()"
             @search="handleUserSearch"
           />
         </a-form-item>
-        <a-form-item v-if="canViewAppRoles" label="应用角色（可选）">
+        <a-form-item v-if="canViewAppRoles" :label="t('appsUsers.labelAppRoles')">
           <a-select
             v-model:value="addForm.roleIds"
             mode="multiple"
@@ -115,7 +115,7 @@
             :filter-option="false"
             :options="roleOptions"
             :loading="roleOptionsLoading"
-            placeholder="请选择应用角色（可搜索）"
+            :placeholder="t('appsUsers.rolePlaceholder')"
             @focus="() => loadRoleOptions()"
             @search="handleRoleSearch"
           />
@@ -125,17 +125,17 @@
 
     <a-modal
       v-model:open="editRolesModalOpen"
-      title="分配应用角色"
+      :title="t('appsUsers.modalRolesTitle')"
       :confirm-loading="submitting"
-      ok-text="保存"
-      cancel-text="取消"
+      :ok-text="t('common.save')"
+      :cancel-text="t('common.cancel')"
       @ok="submitUpdateMemberRoles"
     >
       <a-form layout="vertical">
-        <a-form-item label="成员用户">
+        <a-form-item :label="t('appsUsers.labelMemberUser')">
           <a-input :value="editingMemberDisplayName" disabled />
         </a-form-item>
-        <a-form-item v-if="canViewAppRoles" label="应用角色">
+        <a-form-item v-if="canViewAppRoles" :label="t('appsUsers.labelRoles')">
           <a-select
             v-model:value="editRolesForm.roleIds"
             mode="multiple"
@@ -143,7 +143,7 @@
             :filter-option="false"
             :options="roleOptions"
             :loading="roleOptionsLoading"
-            placeholder="请选择应用角色（可搜索）"
+            :placeholder="t('appsUsers.rolePlaceholder')"
             @focus="() => loadRoleOptions()"
             @search="handleRoleSearch"
           />
@@ -155,6 +155,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -180,6 +181,7 @@ import type { TenantAppMemberListItem } from "@/types/platform-v2";
 
 type SelectOption = { label: string; value: string };
 
+const { t } = useI18n();
 const route = useRoute();
 const userStore = useUserStore();
 const appId = computed(() => String(route.params.appId ?? ""));
@@ -195,7 +197,7 @@ const pagination = reactive<TablePaginationConfig>({
   pageSize: 10,
   total: 0,
   showSizeChanger: true,
-  showTotal: (total) => `共 ${total} 条`
+  showTotal: (total) => t("crud.totalItems", { total })
 });
 
 const addMemberModalOpen = ref(false);
@@ -230,39 +232,12 @@ const canViewAppRoles = computed(() => {
 });
 
 const columns = computed<TableColumnsType<TenantAppMemberListItem>>(() => [
-  {
-    title: "用户名",
-    dataIndex: "username",
-    key: "username",
-    width: 180
-  },
-  {
-    title: "显示名",
-    dataIndex: "displayName",
-    key: "displayName",
-    width: 220
-  },
-  {
-    title: "状态",
-    key: "status",
-    width: 100
-  },
-  {
-    title: "角色",
-    key: "roles",
-    width: 280
-  },
-  {
-    title: "加入时间",
-    key: "joinedAt",
-    width: 180
-  },
-  {
-    title: "操作",
-    key: "actions",
-    width: 180,
-    fixed: "right"
-  }
+  { title: t("appsUsers.colUsername"), dataIndex: "username", key: "username", width: 180 },
+  { title: t("appsUsers.colDisplayName"), dataIndex: "displayName", key: "displayName", width: 220 },
+  { title: t("appsUsers.colStatus"), key: "status", width: 100 },
+  { title: t("appsUsers.colRoles"), key: "roles", width: 280 },
+  { title: t("appsUsers.colJoinedAt"), key: "joinedAt", width: 180 },
+  { title: t("appsUsers.colActions"), key: "actions", width: 180, fixed: "right" }
 ]);
 
 async function loadMembers() {
@@ -287,7 +262,7 @@ async function loadMembers() {
   } catch (error) {
     members.value = [];
     pagination.total = 0;
-    message.error((error as Error).message || "加载应用成员失败");
+    message.error((error as Error).message || t("appsUsers.loadMembersFailed"));
   } finally {
     loading.value = false;
   }
@@ -308,7 +283,7 @@ async function loadUserOptions(keywordText?: string) {
       value: item.id
     }));
   } catch (error) {
-    message.error((error as Error).message || "加载用户选项失败");
+    message.error((error as Error).message || t("appsUsers.loadUsersFailed"));
   } finally {
     userOptionsLoading.value = false;
   }
@@ -337,7 +312,7 @@ async function loadRoleOptions(keywordText?: string) {
       value: item.id
     }));
   } catch (error) {
-    message.error((error as Error).message || "加载应用角色失败");
+    message.error((error as Error).message || t("appsUsers.loadRolesFailed"));
   } finally {
     roleOptionsLoading.value = false;
   }
@@ -382,7 +357,7 @@ async function submitAddMembers() {
   }
 
   if (addForm.userIds.length === 0) {
-    message.warning("请至少选择一名成员用户");
+    message.warning(t("appsUsers.pickOneUser"));
     return;
   }
 
@@ -394,13 +369,13 @@ async function submitAddMembers() {
     });
 
     if (!isMounted.value) return;
-    message.success("添加成员成功");
+    message.success(t("appsUsers.addSuccess"));
     addMemberModalOpen.value = false;
     await loadMembers();
 
     if (!isMounted.value) return;
   } catch (error) {
-    message.error((error as Error).message || "添加成员失败");
+    message.error((error as Error).message || t("appsUsers.addFailed"));
   } finally {
     submitting.value = false;
   }
@@ -430,13 +405,13 @@ async function submitUpdateMemberRoles() {
     });
 
     if (!isMounted.value) return;
-    message.success("成员角色已更新");
+    message.success(t("appsUsers.rolesUpdated"));
     editRolesModalOpen.value = false;
     await loadMembers();
 
     if (!isMounted.value) return;
   } catch (error) {
-    message.error((error as Error).message || "更新成员角色失败");
+    message.error((error as Error).message || t("appsUsers.rolesUpdateFailed"));
   } finally {
     submitting.value = false;
   }
@@ -451,12 +426,12 @@ async function removeMember(userId: string) {
     await removeTenantAppMember(appId.value, userId);
 
     if (!isMounted.value) return;
-    message.success("成员已移除");
+    message.success(t("appsUsers.removed"));
     await loadMembers();
 
     if (!isMounted.value) return;
   } catch (error) {
-    message.error((error as Error).message || "移除成员失败");
+    message.error((error as Error).message || t("appsUsers.removeFailed"));
   }
 }
 

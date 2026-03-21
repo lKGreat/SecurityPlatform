@@ -114,7 +114,7 @@ public sealed class PluginsController : ControllerBase
     {
         if (package is null || package.Length == 0)
         {
-            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", "请上传插件包文件", HttpContext.TraceIdentifier));
+            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", ApiResponseLocalizer.T(HttpContext, "PluginPackageUploadRequired"), HttpContext.TraceIdentifier));
         }
 
         await using var stream = package.OpenReadStream();
@@ -144,7 +144,9 @@ public sealed class PluginsController : ControllerBase
     {
         var snapshot = _metricsStore.GetSnapshot(code);
         if (snapshot is null)
-            return NotFound(ApiResponse<PluginMetricsSnapshot>.Fail("NOT_FOUND", $"插件 {code} 无指标记录", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<PluginMetricsSnapshot>.Fail("NOT_FOUND",
+                string.Format(ApiResponseLocalizer.T(HttpContext, "PluginMetricsNotFoundFormat"), code),
+                HttpContext.TraceIdentifier));
         return Ok(ApiResponse<PluginMetricsSnapshot>.Ok(snapshot, HttpContext.TraceIdentifier));
     }
 }

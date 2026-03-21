@@ -1,5 +1,7 @@
 using Atlas.Application.AiPlatform.Models;
+using Atlas.Application.Resources;
 using FluentValidation;
+using Microsoft.Extensions.Localization;
 
 namespace Atlas.Application.AiPlatform.Validators;
 
@@ -7,15 +9,15 @@ public sealed class ModelConfigCreateRequestValidator : AbstractValidator<ModelC
 {
     private static readonly string[] AllowedProviderTypes = ["openai", "deepseek", "ollama", "custom"];
 
-    public ModelConfigCreateRequestValidator()
+    public ModelConfigCreateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(128);
         RuleFor(x => x.ProviderType)
             .NotEmpty()
             .Must(x => AllowedProviderTypes.Contains(x, StringComparer.OrdinalIgnoreCase))
-            .WithMessage("ProviderType 仅支持 openai/deepseek/ollama/custom。");
+            .WithMessage(localizer["ModelConfigProviderTypeInvalid"].Value);
         RuleFor(x => x.ApiKey).NotEmpty().MaximumLength(4096);
-        RuleFor(x => x.BaseUrl).NotEmpty().MaximumLength(512).Must(IsValidAbsoluteUrl).WithMessage("BaseUrl 必须是合法绝对地址。");
+        RuleFor(x => x.BaseUrl).NotEmpty().MaximumLength(512).Must(IsValidAbsoluteUrl).WithMessage(localizer["ModelConfigBaseUrlInvalid"].Value);
         RuleFor(x => x.DefaultModel).NotEmpty().MaximumLength(256);
     }
 
@@ -25,11 +27,11 @@ public sealed class ModelConfigCreateRequestValidator : AbstractValidator<ModelC
 
 public sealed class ModelConfigUpdateRequestValidator : AbstractValidator<ModelConfigUpdateRequest>
 {
-    public ModelConfigUpdateRequestValidator()
+    public ModelConfigUpdateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(128);
         RuleFor(x => x.ApiKey).NotEmpty().MaximumLength(4096);
-        RuleFor(x => x.BaseUrl).NotEmpty().MaximumLength(512).Must(IsValidAbsoluteUrl).WithMessage("BaseUrl 必须是合法绝对地址。");
+        RuleFor(x => x.BaseUrl).NotEmpty().MaximumLength(512).Must(IsValidAbsoluteUrl).WithMessage(localizer["ModelConfigBaseUrlInvalid"].Value);
         RuleFor(x => x.DefaultModel).NotEmpty().MaximumLength(256);
     }
 
@@ -39,11 +41,11 @@ public sealed class ModelConfigUpdateRequestValidator : AbstractValidator<ModelC
 
 public sealed class ModelConfigTestRequestValidator : AbstractValidator<ModelConfigTestRequest>
 {
-    public ModelConfigTestRequestValidator()
+    public ModelConfigTestRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.ProviderType).NotEmpty().MaximumLength(64);
         RuleFor(x => x.ApiKey).NotEmpty().MaximumLength(4096);
-        RuleFor(x => x.BaseUrl).NotEmpty().MaximumLength(512).Must(IsValidAbsoluteUrl).WithMessage("BaseUrl 必须是合法绝对地址。");
+        RuleFor(x => x.BaseUrl).NotEmpty().MaximumLength(512).Must(IsValidAbsoluteUrl).WithMessage(localizer["ModelConfigBaseUrlInvalid"].Value);
         RuleFor(x => x.Model).NotEmpty().MaximumLength(256);
     }
 

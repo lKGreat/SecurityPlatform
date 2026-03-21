@@ -8,7 +8,7 @@
         :accept="accept"
       >
         <a-button :disabled="disabled || reachedMaxCount" :loading="uploading">
-          {{ reachedMaxCount ? t("fileUpload.maxCount", { count: maxCount }) : buttonText }}
+          {{ reachedMaxCount ? t("fileUpload.maxCount", { count: maxCount }) : resolvedButtonText }}
         </a-button>
       </a-upload>
 
@@ -29,7 +29,7 @@
                 :disabled="disabled"
                 @click="removeFile(item.id)"
               >
-                删除
+                {{ t("common.delete") }}
               </a-button>
             </template>
             <a-list-item-meta
@@ -75,6 +75,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const resolvedButtonText = computed(() => props.buttonText ?? t("fileUpload.uploadAttachment"));
 const uploadedFiles = ref<FileUploadResult[]>([]);
 const uploading = ref(false);
 

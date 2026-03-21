@@ -52,13 +52,13 @@ public sealed class JumpTaskHandler : IApprovalOperationHandler
     {
         if (string.IsNullOrEmpty(request.TargetNodeId))
         {
-            throw new BusinessException("INVALID_REQUEST", "跳转目标节点不能为空");
+            throw new BusinessException("INVALID_REQUEST", "ApprovalOpJumpTargetRequired");
         }
 
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null || instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         // 取消当前所有活跃任务
@@ -85,7 +85,7 @@ public sealed class JumpTaskHandler : IApprovalOperationHandler
 
         // 加载流程定义
         var flowDef = await _flowRepository.GetByIdAsync(tenantId, instance.DefinitionId, cancellationToken);
-        if (flowDef == null) throw new BusinessException("FLOW_NOT_FOUND", "流程定义不存在");
+        if (flowDef == null) throw new BusinessException("FLOW_NOT_FOUND", "ApprovalFlowDefNotFoundShort");
         var flowDefinition = FlowDefinitionParser.Parse(flowDef.DefinitionJson);
 
         // 推进到目标节点

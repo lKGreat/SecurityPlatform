@@ -76,7 +76,7 @@ public sealed class ModelConfigsController : ControllerBase
         var result = await _queryService.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<ModelConfigDto>.Fail(ErrorCodes.NotFound, "模型配置不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<ModelConfigDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "ModelConfigDtoNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<ModelConfigDto>.Ok(result, HttpContext.TraceIdentifier));

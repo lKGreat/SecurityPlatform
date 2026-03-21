@@ -39,24 +39,24 @@ public sealed class UndertakeOperationHandler : IApprovalOperationHandler
     {
         if (!taskId.HasValue)
         {
-            throw new BusinessException("TASK_ID_REQUIRED", "承办操作需要指定任务ID");
+            throw new BusinessException("TASK_ID_REQUIRED", "ApprovalOpTaskIdRequired");
         }
 
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
         if (task == null)
         {
-            throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+            throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         }
 
         if (task.Status != ApprovalTaskStatus.Pending)
         {
-            throw new BusinessException("TASK_NOT_PENDING", "只能承办待审批的任务");
+            throw new BusinessException("TASK_NOT_PENDING", "ApprovalOpUndertakePendingOnly");
         }
 
         // 验证操作人是否有权限承办（必须是当前处理人）
         if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != operatorUserId.ToString())
         {
-            throw new BusinessException("UNAUTHORIZED", "只能承办自己的任务");
+            throw new BusinessException("UNAUTHORIZED", "ApprovalOpUndertakeOwnTask");
         }
 
         // 承办操作：在当前实现中，承办可以理解为"开始处理"，任务状态保持Pending

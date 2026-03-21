@@ -1,14 +1,14 @@
 <template>
-  <CrudPageLayout title="流程定义">
+  <CrudPageLayout :title="t('approvalFlowList.pageTitle')">
     <template #toolbar-actions>
-      <a-button @click="importModalOpen = true">导入 JSON</a-button>
-      <a-button type="primary" @click="handleCreate">新建流程</a-button>
+      <a-button @click="importModalOpen = true">{{ t('approvalFlowList.importJson') }}</a-button>
+      <a-button type="primary" @click="handleCreate">{{ t('approvalFlowList.createFlow') }}</a-button>
     </template>
     <template #table>
     <a-table
-      :columns="columns"
+      :columns="tableColumns"
       :data-source="dataSource"
-      :pagination="pagination"
+      :pagination="{ ...pagination, showTotal: (total: number) => t('crud.totalItems', { total }) }"
       :loading="loading"
       row-key="id"
       @change="onTableChange"
@@ -21,17 +21,17 @@
         </template>
         <template v-else-if="column.key === 'action'">
           <a-space>
-            <a-button type="link" size="small" @click="handleDesign(record.id)">设计</a-button>
-            <a-button type="link" size="small" @click="handleCopy(record.id)">复制</a-button>
-            <a-button type="link" size="small" @click="handleExport(record.id)">导出</a-button>
-            <a-button type="link" size="small" @click="openCompareModal(record)">对比</a-button>
+            <a-button type="link" size="small" @click="handleDesign(record.id)">{{ t('approvalFlowList.design') }}</a-button>
+            <a-button type="link" size="small" @click="handleCopy(record.id)">{{ t('approvalFlowList.copy') }}</a-button>
+            <a-button type="link" size="small" @click="handleExport(record.id)">{{ t('approvalFlowList.export') }}</a-button>
+            <a-button type="link" size="small" @click="openCompareModal(record)">{{ t('approvalFlowList.compare') }}</a-button>
             <a-button
               v-if="record.status === 0"
               type="link"
               size="small"
               @click="handlePublish(record.id)"
             >
-              发布
+              {{ t('approvalFlowList.publish') }}
             </a-button>
             <a-button
               v-if="record.status === 1"
@@ -40,10 +40,10 @@
               danger
               @click="handleDisable(record.id)"
             >
-              停用
+              {{ t('approvalFlowList.disable') }}
             </a-button>
-            <a-popconfirm title="确定删除吗？" @confirm="handleDelete(record.id)">
-              <a-button type="link" size="small" danger>删除</a-button>
+            <a-popconfirm :title="t('approvalFlowList.deleteConfirm')" @confirm="handleDelete(record.id)">
+              <a-button type="link" size="small" danger>{{ t('approvalFlowList.delete') }}</a-button>
             </a-popconfirm>
           </a-space>
         </template>
@@ -52,21 +52,21 @@
 
     <a-modal
       v-model:open="importModalOpen"
-      title="导入流程 JSON"
-      ok-text="导入"
-      cancel-text="取消"
+      :title="t('approvalFlowList.importModalTitle')"
+      :ok-text="t('approvalFlowList.importOk')"
+      :cancel-text="t('common.cancel')"
       :confirm-loading="importLoading"
       @ok="handleImportConfirm"
     >
       <a-form layout="vertical">
-        <a-form-item label="流程名称" required>
-          <a-input v-model:value="importName" placeholder="请输入流程名称" />
+        <a-form-item :label="t('approvalFlowList.flowName')" required>
+          <a-input v-model:value="importName" :placeholder="t('approvalFlowList.flowNamePlaceholder')" />
         </a-form-item>
-        <a-form-item label="定义 JSON" required>
+        <a-form-item :label="t('approvalFlowList.definitionJson')" required>
           <a-textarea
             v-model:value="importDefinitionJson"
             :rows="10"
-            placeholder='{"nodes":{"rootNode":...}}'
+            :placeholder="t('approvalFlowList.definitionJsonPlaceholder')"
           />
         </a-form-item>
       </a-form>
@@ -74,19 +74,19 @@
 
     <a-modal
       v-model:open="compareModalOpen"
-      title="版本对比"
-      ok-text="开始对比"
-      cancel-text="关闭"
+      :title="t('approvalFlowList.compareModalTitle')"
+      :ok-text="t('approvalFlowList.compareOk')"
+      :cancel-text="t('approvalFlowList.compareClose')"
       :confirm-loading="compareLoading"
       @ok="handleCompareConfirm"
     >
       <a-form layout="vertical">
-        <a-form-item label="目标版本号" required>
+        <a-form-item :label="t('approvalFlowList.targetVersion')" required>
           <a-input-number
             v-model:value="compareTargetVersion"
             :min="1"
             style="width: 100%"
-            placeholder="请输入版本号"
+            :placeholder="t('approvalFlowList.targetVersionPlaceholder')"
           />
         </a-form-item>
       </a-form>
@@ -108,8 +108,8 @@
           <a-list-item>
             <div>
               <div><strong>{{ item.path }}</strong></div>
-              <div>当前：{{ item.sourceValue }}</div>
-              <div>目标：{{ item.targetValue }}</div>
+              <div>{{ t('approvalFlowList.diffCurrentLabel') }}{{ item.sourceValue }}</div>
+              <div>{{ t('approvalFlowList.diffTargetLabel') }}{{ item.targetValue }}</div>
             </div>
           </a-list-item>
         </template>
@@ -120,7 +120,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -146,15 +147,16 @@ import {
 import { message } from "ant-design-vue";
 import CrudPageLayout from "@/components/crud/CrudPageLayout.vue";
 
+const { t } = useI18n();
 const router = useRouter();
 
-const columns = [
-  { title: "流程名称", dataIndex: "name", key: "name" },
-  { title: "版本", dataIndex: "version", key: "version" },
-  { title: "状态", key: "status" },
-  { title: "发布时间", dataIndex: "publishedAt", key: "publishedAt" },
-  { title: "操作", key: "action", width: 200 }
-];
+const tableColumns = computed(() => [
+  { title: t("approvalFlowList.colName"), dataIndex: "name", key: "name" },
+  { title: t("approvalFlowList.colVersion"), dataIndex: "version", key: "version" },
+  { title: t("approvalFlowList.colStatus"), key: "status" },
+  { title: t("approvalFlowList.colPublishedAt"), dataIndex: "publishedAt", key: "publishedAt" },
+  { title: t("approvalFlowList.colActions"), key: "action", width: 200 }
+]);
 
 const dataSource = ref<ApprovalFlowDefinitionListItem[]>([]);
 const loading = ref(false);
@@ -171,7 +173,6 @@ const pagination = reactive<TablePaginationConfig>({
   current: 1,
   pageSize: 10,
   total: 0,
-  showTotal: (total) => `共 ${total} 条`
 });
 
 const fetchData = async () => {
@@ -186,7 +187,7 @@ const fetchData = async () => {
     dataSource.value = result.items;
     pagination.total = result.total;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "查询失败");
+    message.error(err instanceof Error ? err.message : t("crud.queryFailed"));
   } finally {
     loading.value = false;
   }
@@ -214,13 +215,13 @@ const getStatusColor = (status: ApprovalFlowStatus) => {
 const getStatusText = (status: ApprovalFlowStatus) => {
   switch (status) {
     case ApprovalFlowStatus.Draft:
-      return "草稿";
+      return t("approvalFlowList.statusDraft");
     case ApprovalFlowStatus.Published:
-      return "已发布";
+      return t("approvalFlowList.statusPublished");
     case ApprovalFlowStatus.Disabled:
-      return "已停用";
+      return t("approvalFlowList.statusDisabled");
     default:
-      return "未知";
+      return t("approvalWorkspace.statusUnknown");
   }
 };
 
@@ -237,10 +238,10 @@ const handleCopy = async (id: string) => {
     const result  = await copyApprovalFlow(id);
 
     if (!isMounted.value) return;
-    message.success("复制成功，已生成草稿");
+    message.success(t("approvalFlowList.copySuccessDraft"));
     router.push(`/approval/designer/${result.id}`);
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "复制失败");
+    message.error(err instanceof Error ? err.message : t("approvalFlowList.copyFailed"));
   }
 };
 
@@ -257,9 +258,9 @@ const handleExport = async (id: string) => {
     anchor.download = `${result.name}-v${result.version}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
-    message.success("导出成功");
+    message.success(t("approvalFlowList.exportSuccess"));
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "导出失败");
+    message.error(err instanceof Error ? err.message : t("approvalFlowList.exportFailed"));
   }
 };
 
@@ -272,11 +273,11 @@ const openCompareModal = (record: ApprovalFlowDefinitionListItem) => {
 
 const handleImportConfirm = async () => {
   if (!importName.value.trim()) {
-    message.warning("请输入流程名称");
+    message.warning(t("approvalFlowList.warnFlowName"));
     return;
   }
   if (!importDefinitionJson.value.trim()) {
-    message.warning("请输入定义 JSON");
+    message.warning(t("approvalFlowList.warnDefinitionJson"));
     return;
   }
 
@@ -288,7 +289,7 @@ const handleImportConfirm = async () => {
     });
 
     if (!isMounted.value) return;
-    message.success("导入成功");
+    message.success(t("approvalFlowList.importSuccess"));
     importModalOpen.value = false;
     importName.value = "";
     importDefinitionJson.value = "";
@@ -296,7 +297,7 @@ const handleImportConfirm = async () => {
 
     if (!isMounted.value) return;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "导入失败");
+    message.error(err instanceof Error ? err.message : t("approvalFlowList.importFailed"));
   } finally {
     importLoading.value = false;
   }
@@ -304,11 +305,11 @@ const handleImportConfirm = async () => {
 
 const handleCompareConfirm = async () => {
   if (!compareFlowId.value) {
-    message.warning("未选择流程");
+    message.warning(t("approvalFlowList.warnNoFlowSelected"));
     return;
   }
   if (!compareTargetVersion.value || compareTargetVersion.value <= 0) {
-    message.warning("请输入有效目标版本号");
+    message.warning(t("approvalFlowList.warnInvalidTargetVersion"));
     return;
   }
 
@@ -317,10 +318,10 @@ const handleCompareConfirm = async () => {
     compareResult.value = await compareApprovalFlowVersion(compareFlowId.value, compareTargetVersion.value);
 
     if (!isMounted.value) return;
-    message.success("对比完成");
+    message.success(t("approvalFlowList.compareComplete"));
   } catch (err) {
     compareResult.value = null;
-    message.error(err instanceof Error ? err.message : "对比失败");
+    message.error(err instanceof Error ? err.message : t("approvalFlowList.compareFailed"));
   } finally {
     compareLoading.value = false;
   }
@@ -331,10 +332,10 @@ const handlePublish = async (id: string) => {
     await publishApprovalFlow(id);
 
     if (!isMounted.value) return;
-    message.success("发布成功");
+    message.success(t("approvalFlowList.publishSuccess"));
     fetchData();
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "发布失败");
+    message.error(err instanceof Error ? err.message : t("approvalFlowList.publishFailed"));
   }
 };
 
@@ -343,10 +344,10 @@ const handleDisable = async (id: string) => {
     await disableApprovalFlow(id);
 
     if (!isMounted.value) return;
-    message.success("停用成功");
+    message.success(t("approvalFlowList.disableSuccess"));
     fetchData();
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "停用失败");
+    message.error(err instanceof Error ? err.message : t("approvalFlowList.disableFailed"));
   }
 };
 
@@ -355,10 +356,10 @@ const handleDelete = async (id: string) => {
     await deleteApprovalFlow(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("approvalFlowList.deleteSuccess"));
     fetchData();
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "删除失败");
+    message.error(err instanceof Error ? err.message : t("approvalFlowList.deleteFailed"));
   }
 };
 

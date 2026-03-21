@@ -1,9 +1,12 @@
 <template>
   <div class="app-pages-page">
-    <a-page-header :title="`页面管理 - ${appDetail?.name ?? ''}`" :sub-title="appDetail?.appKey ?? ''">
+    <a-page-header
+      :title="`${t('appsPages.titlePrefix')} - ${appDetail?.name ?? ''}`"
+      :sub-title="appDetail?.appKey ?? ''"
+    >
       <template #extra>
-        <a-button @click="go(`/apps/${appId}/dashboard`)">返回仪表盘</a-button>
-        <a-button type="primary" @click="go(`/apps/${appId}/builder`)">进入页面设计器</a-button>
+        <a-button @click="go(`/apps/${appId}/dashboard`)">{{ t("appsPages.backDashboard") }}</a-button>
+        <a-button type="primary" @click="go(`/apps/${appId}/builder`)">{{ t("appsPages.openDesigner") }}</a-button>
       </template>
     </a-page-header>
 
@@ -18,25 +21,25 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'isPublished'">
             <a-tag :color="record.isPublished ? 'green' : 'default'">
-              {{ record.isPublished ? "已发布" : "草稿" }}
+              {{ record.isPublished ? t("appsPages.published") : t("appsPages.draft") }}
             </a-tag>
           </template>
           <template v-else-if="column.key === 'actions'">
             <a-space>
-              <a-button type="link" @click="go(`/apps/${appId}/builder`)">设计</a-button>
+              <a-button type="link" @click="go(`/apps/${appId}/builder`)">{{ t("appsPages.design") }}</a-button>
               <a-button
                 v-if="record.pageKey"
                 type="link"
                 @click="go(`/apps/${appId}/run/${record.pageKey}`)"
               >
-                运行态预览
+                {{ t("appsPages.runtimePreview") }}
               </a-button>
               <a-button
                 v-if="record.pageKey && appDetail?.appKey"
                 type="link"
                 @click="go(`/r/${appDetail.appKey}/${record.pageKey}`)"
               >
-                去正式发布页
+                {{ t("appsPages.goProduction") }}
               </a-button>
             </a-space>
           </template>
@@ -48,6 +51,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -58,6 +62,7 @@ import { message } from "ant-design-vue";
 import { getLowCodeAppDetail } from "@/services/lowcode";
 import type { LowCodeAppDetail, LowCodePageListItem } from "@/types/lowcode";
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
@@ -66,14 +71,14 @@ const appDetail = ref<LowCodeAppDetail | null>(null);
 const pages = ref<LowCodePageListItem[]>([]);
 const loading = ref(false);
 
-const columns = [
-  { title: "页面名称", dataIndex: "name", key: "name", ellipsis: true },
-  { title: "页面Key", dataIndex: "pageKey", key: "pageKey", width: 220 },
-  { title: "路由", dataIndex: "routePath", key: "routePath", width: 240 },
-  { title: "版本", dataIndex: "version", key: "version", width: 100 },
-  { title: "发布状态", key: "isPublished", width: 120 },
-  { title: "操作", key: "actions", width: 180 }
-];
+const columns = computed(() => [
+  { title: t("appsPages.colName"), dataIndex: "name", key: "name", ellipsis: true },
+  { title: t("appsPages.colPageKey"), dataIndex: "pageKey", key: "pageKey", width: 220 },
+  { title: t("appsPages.colRoute"), dataIndex: "routePath", key: "routePath", width: 240 },
+  { title: t("appsPages.colVersion"), dataIndex: "version", key: "version", width: 100 },
+  { title: t("appsPages.colPublishStatus"), key: "isPublished", width: 120 },
+  { title: t("appsPages.colActions"), key: "actions", width: 180 }
+]);
 
 async function loadPages() {
   if (!appId.value) {
@@ -90,7 +95,7 @@ async function loadPages() {
     appDetail.value = detail;
     pages.value = [...detail.pages].sort((a, b) => a.sortOrder - b.sortOrder);
   } catch (error) {
-    message.error((error as Error).message || "加载页面列表失败");
+    message.error((error as Error).message || t("appsPages.loadFailed"));
   } finally {
     loading.value = false;
   }

@@ -1,10 +1,10 @@
 <template>
   <div class="lf-form-renderer">
     <div v-if="loading" class="renderer-loading">
-      <a-spin tip="加载表单..." />
+      <a-spin :tip="t('approvalDesigner.lfFormLoading')" />
     </div>
     <div v-else-if="!formJson || !formJson.widgetList?.length" class="renderer-empty">
-      <a-empty description="暂无表单数据" />
+      <a-empty :description="t('approvalDesigner.lfFormEmpty')" />
     </div>
     <div v-else>
       <v-form-render
@@ -16,7 +16,7 @@
         :disabled="disabled || readOnly"
       />
       <div v-else class="renderer-loading">
-        <a-spin tip="渲染器初始化中..." />
+        <a-spin :tip="t('approvalDesigner.lfRendererInit')" />
       </div>
     </div>
   </div>
@@ -24,6 +24,9 @@
 
 <script setup lang="ts">
 import { getCurrentInstance, onMounted, ref, watch, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });

@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using Atlas.Application.DynamicTables.Models;
+using Atlas.Application.Resources;
 using FluentValidation;
+using Microsoft.Extensions.Localization;
 
 namespace Atlas.Application.Validators;
 
@@ -12,32 +14,32 @@ public sealed class DynamicRecordUpsertRequestValidator : AbstractValidator<Dyna
         "String", "Int", "Long", "Decimal", "Bool", "DateTime", "Date"
     };
 
-    public DynamicRecordUpsertRequestValidator()
+    public DynamicRecordUpsertRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Values)
             .NotNull()
             .Must(values => values.Count > 0)
-            .WithMessage("记录值不能为空。");
+            .WithMessage(localizer["DynamicRecordValuesRequired"].Value);
 
         RuleForEach(x => x.Values)
             .Must(value => !string.IsNullOrWhiteSpace(value.Field))
-            .WithMessage("字段名不能为空。");
+            .WithMessage(localizer["DynamicRecordFieldNameRequired"].Value);
 
         RuleForEach(x => x.Values)
             .Must(value => FieldPattern.IsMatch(value.Field))
-            .WithMessage("字段名格式不正确。");
+            .WithMessage(localizer["DynamicRecordFieldNameFormat"].Value);
 
         RuleForEach(x => x.Values)
             .Must(value => AllowedValueTypes.Contains(value.ValueType))
-            .WithMessage("字段值类型不支持。");
+            .WithMessage(localizer["DynamicRecordFieldValueTypeInvalid"].Value);
 
         RuleForEach(x => x.Values)
             .Must(HasSingleValue)
-            .WithMessage("字段值必须且只能填写一个具体类型。");
+            .WithMessage(localizer["DynamicRecordFieldValueSingle"].Value);
 
         RuleFor(x => x.Values)
             .Must(HaveUniqueFields)
-            .WithMessage("字段名不能重复。");
+            .WithMessage(localizer["DynamicRecordFieldNameDuplicated"].Value);
     }
 
     private static bool HasSingleValue(DynamicFieldValueDto value)

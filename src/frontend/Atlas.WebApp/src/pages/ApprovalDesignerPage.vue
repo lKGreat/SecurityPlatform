@@ -28,9 +28,9 @@
           mode="vertical"
           style="height: 100%; border-right: 0"
         >
-          <a-menu-item key="basic">基础设置</a-menu-item>
-          <a-menu-item key="form">表单设计</a-menu-item>
-          <a-menu-item key="process">流程设计</a-menu-item>
+          <a-menu-item key="basic">{{ t('approvalDesigner.menuBasic') }}</a-menu-item>
+          <a-menu-item key="form">{{ t('approvalDesigner.menuForm') }}</a-menu-item>
+          <a-menu-item key="process">{{ t('approvalDesigner.menuProcess') }}</a-menu-item>
         </a-menu>
       </div>
 
@@ -85,34 +85,34 @@
     />
 
     <!-- ══ 弹窗：发布确认 ══ -->
-    <a-modal v-model:open="publishModalOpen" title="确认发布" ok-text="确认发布" cancel-text="取消" @ok="handlePublishConfirm" :confirm-loading="publishing">
+    <a-modal v-model:open="publishModalOpen" :title="t('approvalDesigner.publishConfirmTitle')" :ok-text="t('approvalDesigner.publishOk')" :cancel-text="t('common.cancel')" @ok="handlePublishConfirm" :confirm-loading="publishing">
       <a-descriptions :column="1" bordered size="small">
-        <a-descriptions-item label="流程名称">{{ flowName }}</a-descriptions-item>
-        <a-descriptions-item label="当前版本">
+        <a-descriptions-item :label="t('approvalDesigner.labelFlowName')">{{ flowName }}</a-descriptions-item>
+        <a-descriptions-item :label="t('approvalDesigner.labelCurrentVersion')">
           <a-tag color="blue">v{{ flowVersion || 0 }}</a-tag>
-          <span style="margin-left:4px;color:#8c8c8c">发布后版本号将自动递增</span>
+          <span style="margin-left:4px;color:#8c8c8c">{{ t('approvalDesigner.versionHint') }}</span>
         </a-descriptions-item>
-        <a-descriptions-item label="分类">{{ definitionMeta.category || '未设置' }}</a-descriptions-item>
+        <a-descriptions-item :label="t('approvalDesigner.labelCategory')">{{ definitionMeta.category || t('approvalDesigner.categoryUnset') }}</a-descriptions-item>
       </a-descriptions>
-      <a-alert style="margin-top:12px" type="info" message="发布后新版本将立即生效，运行中的流程实例不受影响。" show-icon />
+      <a-alert style="margin-top:12px" type="info" :message="t('approvalDesigner.publishAlert')" show-icon />
     </a-modal>
 
     <!-- ══ 弹窗：仿真预览 ══ -->
-    <a-modal v-model:open="previewModalOpen" title="流程预览" :footer="null" width="85vw" :body-style="{ height: '80vh', padding: 0 }" destroy-on-close>
+    <a-modal v-model:open="previewModalOpen" :title="t('approvalDesigner.previewTitle')" :footer="null" width="85vw" :body-style="{ height: '80vh', padding: 0 }" destroy-on-close>
       <X6PreviewCanvas v-if="previewModalOpen" :flow-tree="flowTree" />
     </a-modal>
 
     <!-- ══ 版本历史抽屉 ══ -->
     <a-drawer
       v-model:open="versionHistoryVisible"
-      title="版本历史"
+      :title="t('approvalDesigner.versionHistoryTitle')"
       :width="480"
       placement="right"
     >
       <div v-if="loadingVersions" class="version-loading">
-        <a-spin tip="加载版本历史..." />
+        <a-spin :tip="t('approvalDesigner.versionHistoryLoading')" />
       </div>
-      <a-empty v-else-if="flowVersionList.length === 0" description="暂无版本历史，发布后可在此查看" />
+      <a-empty v-else-if="flowVersionList.length === 0" :description="t('approvalDesigner.versionHistoryEmpty')" />
       <a-list
         v-else
         :data-source="flowVersionList"
@@ -127,22 +127,22 @@
               <template #description>
                 <a-space direction="vertical" :size="2">
                   <span style="color: #666; font-size: 12px">
-                    {{ new Date(item.createdAt).toLocaleString('zh-CN') }}
+                    {{ new Date(item.createdAt).toLocaleString() }}
                   </span>
                   <span v-if="item.category" style="color: #999; font-size: 12px">
-                    分类：{{ item.category }}
+                    {{ t('approvalDesigner.categoryLabel') }}{{ item.category }}
                   </span>
                 </a-space>
               </template>
             </a-list-item-meta>
             <template #actions>
               <a-popconfirm
-                :title="`确定回滚到 v${item.snapshotVersion}？当前未保存内容将丢失。`"
-                ok-text="回滚"
-                cancel-text="取消"
+                :title="t('approvalDesigner.rollbackConfirm', { version: item.snapshotVersion })"
+                :ok-text="t('approvalDesigner.rollbackOk')"
+                :cancel-text="t('common.cancel')"
                 @confirm="handleFlowRollback(item.id)"
               >
-                <a-button type="link" size="small" :loading="rollingBackFlow === item.id">回滚</a-button>
+                <a-button type="link" size="small" :loading="rollingBackFlow === item.id">{{ t('approvalDesigner.rollbackBtn') }}</a-button>
               </a-popconfirm>
             </template>
           </a-list-item>
@@ -154,6 +154,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -186,6 +187,7 @@ import {
   rollbackApprovalFlowVersion,
 } from '@/services/api-approval';
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
@@ -287,7 +289,7 @@ const handleValidationIssueClick = (issue: ValidationIssueView) => {
   }
   selectNode(target);
   activeMenu.value = 'process';
-  message.info(`已定位到节点：${target.nodeName}`);
+  message.info(t('approvalDesigner.locateNodeOk', { name: target.nodeName }));
 };
 // ── 子组件代理/处理 ──
 const zoomInDesigner = () => processRef.value?.zoomIn();
@@ -309,9 +311,9 @@ const applyAmisSchema = () => {
     const parsed = JSON.parse(amisSchemaText.value);
     amisSchemaModel.value = parsed;
     amisFormFields.value = extractAmisFields(parsed);
-    message.success(`已提取 ${amisFormFields.value.length} 个 AMIS 字段`);
+    message.success(t('approvalDesigner.amisExtractOk', { count: amisFormFields.value.length }));
   } catch {
-    message.error('AMIS Schema JSON 解析失败');
+    message.error(t('approvalDesigner.amisExtractFail'));
   }
 };
 
@@ -344,7 +346,7 @@ const loadFlow = async () => {
   if (!id || id === 'undefined') {
     // 设置默认名称
     if (!flowName.value) {
-      flowName.value = '未命名流程';
+      flowName.value = t('approvalDesigner.defaultFlowName');
     }
     pushState(flowTree.value);
     return;
@@ -393,7 +395,7 @@ const loadFlow = async () => {
       else if (scope.scopeType === 'User') visibilityScopeIds.value = scope.userIds ?? [];
     }
     pushState(flowTree.value);
-  } catch (err) { message.error(err instanceof Error ? err.message : '加载失败'); }
+  } catch (err) { message.error(err instanceof Error ? err.message : t('approvalDesigner.loadFailed')); }
 };
 
 // ── 校验 ──
@@ -415,7 +417,7 @@ const handleValidate = async () => {
     validateModalOpen.value = true;
     return;
   }
-  if (!flowName.value.trim()) { message.warning('请输入流程名称'); return; }
+  if (!flowName.value.trim()) { message.warning(t('approvalDesigner.warnFlowName')); return; }
   const request = buildRequest();
   if (!request) return;
   validating.value = true;
@@ -425,14 +427,14 @@ const handleValidate = async () => {
     if (!isMounted.value) return;
     validateResult.value = result;
     validateModalOpen.value = true;
-    if (result.isValid) message.success('校验通过');
-  } catch (err) { message.error(err instanceof Error ? err.message : '校验失败'); }
+    if (result.isValid) message.success(t('approvalDesigner.validateOk'));
+  } catch (err) { message.error(err instanceof Error ? err.message : t('approvalDesigner.validateFailed')); }
   finally { validating.value = false; }
 };
 
 // ── 保存 ──
 const handleSave = async () => {
-  if (!flowName.value.trim()) { message.warning('请输入流程名称'); return; }
+  if (!flowName.value.trim()) { message.warning(t('approvalDesigner.warnFlowName')); return; }
   const localResult = validateFlow();
   if (!localResult.valid) {
     focusNodeByErrors(localResult.errors);
@@ -458,7 +460,7 @@ const handleSave = async () => {
 
       if (!isMounted.value) return;
       flowVersion.value = result.version;
-      message.success('保存成功');
+      message.success(t('approvalDesigner.saveOk'));
     } else {
       const result  = await createApprovalFlow(payload);
 
@@ -466,14 +468,14 @@ const handleSave = async () => {
       flowId.value = result.id;
       flowVersion.value = result.version;
       router.replace(`/approval/designer/${result.id}`);
-      message.success('创建成功');
+      message.success(t('approvalDesigner.createOk'));
     }
-  } catch (err) { message.error(err instanceof Error ? err.message : '保存失败'); }
+  } catch (err) { message.error(err instanceof Error ? err.message : t('approvalDesigner.saveFailed')); }
 };
 
 // ── 发布 ──
 const handlePublishClick = async () => {
-  if (!flowId.value) { message.warning('请先保存流程'); return; }
+  if (!flowId.value) { message.warning(t('approvalDesigner.warnSaveFirst')); return; }
 
   // 1. 本地校验
   const localResult = validateFlow();
@@ -493,7 +495,7 @@ const handlePublishClick = async () => {
     validateModalOpen.value = true;
     return;
   }
-  if (!flowName.value.trim()) { message.warning('请输入流程名称'); return; }
+  if (!flowName.value.trim()) { message.warning(t('approvalDesigner.warnFlowName')); return; }
 
   // 2. 服务端校验（防止绕过前端直接发布）
   const payload = buildRequest();
@@ -509,7 +511,7 @@ const handlePublishClick = async () => {
       return;
     }
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '校验失败');
+    message.error(err instanceof Error ? err.message : t('approvalDesigner.validateFailed'));
     return;
   } finally {
     validating.value = false;
@@ -521,8 +523,8 @@ const handlePublishClick = async () => {
 const handlePublishConfirm = async () => {
   if (!flowId.value) return;
   publishing.value = true;
-  try { await publishApprovalFlow(flowId.value); message.success('发布成功'); publishModalOpen.value = false; router.push('/approval/flows'); }
-  catch (err) { message.error(err instanceof Error ? err.message : '发布失败'); }
+  try { await publishApprovalFlow(flowId.value); message.success(t('approvalDesigner.publishOkMsg')); publishModalOpen.value = false; router.push('/approval/flows'); }
+  catch (err) { message.error(err instanceof Error ? err.message : t('approvalDesigner.publishFailed')); }
   finally { publishing.value = false; }
 };
 
@@ -539,7 +541,7 @@ const openFlowVersionHistory = async () => {
 
     if (!isMounted.value) return;
   } catch (error) {
-    message.error((error as Error).message || "加载版本历史失败");
+    message.error((error as Error).message || t('approvalDesigner.versionHistoryLoadFailed'));
   } finally {
     loadingVersions.value = false;
   }
@@ -570,9 +572,9 @@ const handleFlowRollback = async (versionId: string) => {
     flowVersionList.value = await getApprovalFlowVersions(flowId.value);
 
     if (!isMounted.value) return;
-    message.success(`已回滚到 v${versionDetail.snapshotVersion}`);
+    message.success(t('approvalDesigner.rollbackOkMsg', { version: versionDetail.snapshotVersion }));
   } catch (error) {
-    message.error((error as Error).message || "回滚失败");
+    message.error((error as Error).message || t('approvalDesigner.rollbackFailed'));
   } finally {
     rollingBackFlow.value = null;
   }
@@ -587,7 +589,7 @@ const focusNodeByErrors = (errors: string[]) => {
   if (target) {
     selectNode(target);
     activeMenu.value = 'process';
-    message.warning(`已定位到异常节点：${target.nodeName}`);
+    message.warning(t('approvalDesigner.locateNodeWarn', { name: target.nodeName }));
   }
 };
 

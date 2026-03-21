@@ -49,38 +49,38 @@ public sealed class ChangeFutureAssigneeOperationHandler : IApprovalOperationHan
     {
         if (string.IsNullOrEmpty(request.TargetNodeId))
         {
-            throw new BusinessException("TARGET_NODE_REQUIRED", "变更未来节点处理人操作需要指定目标节点ID");
+            throw new BusinessException("TARGET_NODE_REQUIRED", "ApprovalOpTargetNodeRequired");
         }
 
         if (string.IsNullOrEmpty(request.TargetAssigneeValue))
         {
-            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "变更未来节点处理人操作需要指定目标处理人");
+            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "ApprovalOpTargetAssigneeRequired");
         }
 
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null || instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         var flowDef = await _flowRepository.GetByIdAsync(tenantId, instance.DefinitionId, cancellationToken);
         if (flowDef == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "流程定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "ApprovalFlowDefNotFoundShort");
         }
 
         var flowDefinition = FlowDefinitionParser.Parse(flowDef.DefinitionJson);
         var targetNode = flowDefinition.GetNodeById(request.TargetNodeId);
         if (targetNode == null)
         {
-            throw new BusinessException("NODE_NOT_FOUND", "目标节点不存在");
+            throw new BusinessException("NODE_NOT_FOUND", "ApprovalOpTargetNodeNotFound");
         }
 
         // 检查目标节点是否已经执行过（如果已执行，则不是"未来节点"）
         var existingTasks = await _taskRepository.GetByInstanceAndNodeAsync(tenantId, instanceId, request.TargetNodeId, cancellationToken);
         if (existingTasks.Count > 0)
         {
-            throw new BusinessException("NODE_ALREADY_EXECUTED", "目标节点已经执行，无法变更未来节点处理人");
+            throw new BusinessException("NODE_ALREADY_EXECUTED", "ApprovalOpNodeAlreadyExecuted");
         }
 
         // 记录未来节点变更（当流程到达该节点时，会使用新的处理人）

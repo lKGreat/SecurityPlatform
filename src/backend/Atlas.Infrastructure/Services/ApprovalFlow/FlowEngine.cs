@@ -117,7 +117,7 @@ public sealed class FlowEngine
         var targetNode = definition.GetNodeById(targetNodeId);
         if (targetNode == null)
         {
-            throw new Core.Exceptions.BusinessException("NODE_NOT_FOUND", $"目标节点 {targetNodeId} 不存在");
+            throw new Core.Exceptions.BusinessException("NODE_NOT_FOUND", $"Target node {targetNodeId} does not exist.");
         }
 
         // 记录跳转前的当前节点（用于可能的恢复）

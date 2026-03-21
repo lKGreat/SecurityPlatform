@@ -112,7 +112,7 @@ public sealed class AuthController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         if (tenantId.IsEmpty)
         {
-            throw new BusinessException("缺少租户标识", ErrorCodes.ValidationError);
+            throw new BusinessException("TenantIdRequired", ErrorCodes.ValidationError);
         }
 
         var dto = _mapper.Map<AuthTokenRequest>(request);
@@ -128,12 +128,12 @@ public sealed class AuthController : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(dto.CaptchaKey) || string.IsNullOrWhiteSpace(dto.CaptchaCode))
             {
-                throw new BusinessException("连续登录失败次数过多，请输入验证码", ErrorCodes.ValidationError);
+                throw new BusinessException("LoginFailedTooManyTimes", ErrorCodes.ValidationError);
             }
 
             if (!_captchaService.Validate(dto.CaptchaKey, dto.CaptchaCode))
             {
-                throw new BusinessException("验证码错误或已过期", ErrorCodes.ValidationError);
+                throw new BusinessException("CaptchaExpired", ErrorCodes.ValidationError);
             }
         }
         else if (!string.IsNullOrWhiteSpace(dto.CaptchaKey))
@@ -142,7 +142,7 @@ public sealed class AuthController : ControllerBase
             if (string.IsNullOrWhiteSpace(dto.CaptchaCode)
                 || !_captchaService.Validate(dto.CaptchaKey, dto.CaptchaCode))
             {
-                throw new BusinessException("验证码错误或已过期", ErrorCodes.ValidationError);
+                throw new BusinessException("CaptchaExpired", ErrorCodes.ValidationError);
             }
         }
 
@@ -169,7 +169,7 @@ public sealed class AuthController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         if (tenantId.IsEmpty)
         {
-            throw new BusinessException("缺少租户标识", ErrorCodes.ValidationError);
+            throw new BusinessException("TenantIdRequired", ErrorCodes.ValidationError);
         }
 
         var dto = _mapper.Map<AuthRefreshRequest>(request);
@@ -198,7 +198,7 @@ public sealed class AuthController : ControllerBase
             cancellationToken);
         if (profile is null)
         {
-            return NotFound(ApiResponse<AuthProfileResult>.Fail(ErrorCodes.NotFound, "用户不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AuthProfileResult>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "UserNotFound"), HttpContext.TraceIdentifier));
         }
 
         var clientContext = _clientContextAccessor.GetCurrent();
@@ -222,7 +222,7 @@ public sealed class AuthController : ControllerBase
         var user = await _userAccountRepository.FindByIdAsync(currentUser.TenantId, currentUser.UserId, cancellationToken);
         if (user is null)
         {
-            return NotFound(ApiResponse<UserProfileDetailViewModel>.Fail(ErrorCodes.NotFound, "用户不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<UserProfileDetailViewModel>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "UserNotFound"), HttpContext.TraceIdentifier));
         }
 
         var profile = new UserProfileDetailViewModel(
@@ -293,7 +293,7 @@ public sealed class AuthController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         if (tenantId.IsEmpty)
         {
-            throw new BusinessException("缺少租户标识", ErrorCodes.ValidationError);
+            throw new BusinessException("TenantIdRequired", ErrorCodes.ValidationError);
         }
 
         var registerSwitch = await _systemConfigQueryService.GetByKeyAsync(
@@ -302,7 +302,7 @@ public sealed class AuthController : ControllerBase
             cancellationToken);
         if (!string.Equals(registerSwitch?.ConfigValue, "true", StringComparison.OrdinalIgnoreCase))
         {
-            throw new BusinessException("当前系统未开启注册功能", ErrorCodes.Forbidden);
+            throw new BusinessException("RegistrationDisabled", ErrorCodes.Forbidden);
         }
 
         if (!string.IsNullOrWhiteSpace(request.CaptchaKey))
@@ -310,14 +310,14 @@ public sealed class AuthController : ControllerBase
             if (string.IsNullOrWhiteSpace(request.CaptchaCode)
                 || !_captchaService.Validate(request.CaptchaKey, request.CaptchaCode))
             {
-                throw new BusinessException("验证码错误或已过期", ErrorCodes.ValidationError);
+                throw new BusinessException("CaptchaExpired", ErrorCodes.ValidationError);
             }
         }
 
         var exists = await _userAccountRepository.ExistsByUsernameAsync(tenantId, request.Username, cancellationToken);
         if (exists)
         {
-            throw new BusinessException("用户名已存在", ErrorCodes.ValidationError);
+            throw new BusinessException("UsernameAlreadyExists", ErrorCodes.ValidationError);
         }
 
         var user = new UserAccount(

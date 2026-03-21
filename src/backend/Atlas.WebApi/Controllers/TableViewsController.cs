@@ -3,6 +3,7 @@ using Atlas.Application.TableViews.Models;
 using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.WebApi.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -57,7 +58,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<PagedResult<TableViewListItem>>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -65,7 +66,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return BadRequest(ApiResponse<PagedResult<TableViewListItem>>.Fail(
                 ErrorCodes.ValidationError,
-                "TableKey不能为空",
+                ApiResponseLocalizer.T(HttpContext, "TableViewKeyRequired"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -85,7 +86,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<TableViewDetail?>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -93,7 +94,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return BadRequest(ApiResponse<TableViewDetail?>.Fail(
                 ErrorCodes.ValidationError,
-                "TableKey不能为空",
+                ApiResponseLocalizer.T(HttpContext, "TableViewKeyRequired"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -113,7 +114,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<TableViewConfig>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -121,7 +122,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return BadRequest(ApiResponse<TableViewConfig>.Fail(
                 ErrorCodes.ValidationError,
-                "TableKey不能为空",
+                ApiResponseLocalizer.T(HttpContext, "TableViewKeyRequired"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -141,7 +142,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<TableViewDetail>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -151,7 +152,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return NotFound(ApiResponse<TableViewDetail>.Fail(
                 ErrorCodes.NotFound,
-                "视图不存在",
+                ApiResponseLocalizer.T(HttpContext, "TableViewNotFound"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -170,7 +171,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -193,7 +194,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -215,7 +216,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -235,7 +236,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -257,7 +258,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -278,7 +279,7 @@ public sealed class TableViewsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 

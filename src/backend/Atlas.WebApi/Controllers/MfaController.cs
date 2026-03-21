@@ -43,7 +43,7 @@ public sealed class MfaController : ControllerBase
         var user = await _userRepository.FindByIdAsync(tenantId, currentUser.UserId, cancellationToken);
         if (user is null)
         {
-            throw new BusinessException("用户不存在", ErrorCodes.NotFound);
+            throw new BusinessException("UserNotFound", ErrorCodes.NotFound);
         }
 
         if (user.MfaEnabled)
@@ -75,22 +75,22 @@ public sealed class MfaController : ControllerBase
         var user = await _userRepository.FindByIdAsync(tenantId, currentUser.UserId, cancellationToken);
         if (user is null)
         {
-            throw new BusinessException("用户不存在", ErrorCodes.NotFound);
+            throw new BusinessException("UserNotFound", ErrorCodes.NotFound);
         }
 
         if (user.MfaEnabled)
         {
-            throw new BusinessException("MFA已启用", ErrorCodes.ValidationError);
+            throw new BusinessException("MfaAlreadyEnabledSimple", ErrorCodes.ValidationError);
         }
 
         if (string.IsNullOrWhiteSpace(user.MfaSecretKey))
         {
-            throw new BusinessException("请先调用 setup 接口生成密钥", ErrorCodes.ValidationError);
+            throw new BusinessException("MfaNotSetup", ErrorCodes.ValidationError);
         }
 
         if (!_totpService.ValidateCode(user.MfaSecretKey, request.Code))
         {
-            throw new BusinessException("验证码错误，请重试", ErrorCodes.ValidationError);
+            throw new BusinessException("MfaCodeInvalid", ErrorCodes.ValidationError);
         }
 
         user.EnableMfa();
@@ -113,17 +113,17 @@ public sealed class MfaController : ControllerBase
         var user = await _userRepository.FindByIdAsync(tenantId, currentUser.UserId, cancellationToken);
         if (user is null)
         {
-            throw new BusinessException("用户不存在", ErrorCodes.NotFound);
+            throw new BusinessException("UserNotFound", ErrorCodes.NotFound);
         }
 
         if (!user.MfaEnabled || string.IsNullOrWhiteSpace(user.MfaSecretKey))
         {
-            throw new BusinessException("MFA未启用", ErrorCodes.ValidationError);
+            throw new BusinessException("MfaNotEnabled", ErrorCodes.ValidationError);
         }
 
         if (!_totpService.ValidateCode(user.MfaSecretKey, request.Code))
         {
-            throw new BusinessException("验证码错误", ErrorCodes.ValidationError);
+            throw new BusinessException("MfaCodeInvalid", ErrorCodes.ValidationError);
         }
 
         user.DisableMfa();
@@ -144,7 +144,7 @@ public sealed class MfaController : ControllerBase
         var user = await _userRepository.FindByIdAsync(tenantId, currentUser.UserId, cancellationToken);
         if (user is null)
         {
-            throw new BusinessException("用户不存在", ErrorCodes.NotFound);
+            throw new BusinessException("UserNotFound", ErrorCodes.NotFound);
         }
 
         var result = new MfaStatusResult(user.MfaEnabled);

@@ -1,39 +1,39 @@
 <template>
   <div class="app-roles-page">
-    <a-page-header title="应用角色" sub-title="角色治理与权限覆盖分析">
+    <a-page-header :title="t('appsRoles.pageTitle')" :sub-title="t('appsRoles.pageSubtitle')">
       <template #extra>
         <a-space>
           <a-input-search
             v-model:value="keyword"
             style="width: 240px"
-            placeholder="按角色编码/名称搜索"
+            :placeholder="t('appsRoles.searchPlaceholder')"
             allow-clear
             @search="handleSearch"
           />
-          <a-button @click="handleRefresh">刷新</a-button>
-          <a-button v-if="canManageRoles" type="primary" @click="openCreateModal">新建角色</a-button>
+          <a-button @click="handleRefresh">{{ t("commonUi.refresh") }}</a-button>
+          <a-button v-if="canManageRoles" type="primary" @click="openCreateModal">{{ t("appsRoles.newRole") }}</a-button>
         </a-space>
       </template>
     </a-page-header>
 
     <a-row :gutter="[12, 12]" class="summary-row">
       <a-col :xs="24" :md="8" :xl="4">
-        <a-card><a-statistic title="角色总数" :value="overview?.totalRoles ?? 0" /></a-card>
+        <a-card><a-statistic :title="t('appsRoles.statTotal')" :value="overview?.totalRoles ?? 0" /></a-card>
       </a-col>
       <a-col :xs="24" :md="8" :xl="4">
-        <a-card><a-statistic title="系统角色" :value="overview?.systemRoleCount ?? 0" /></a-card>
+        <a-card><a-statistic :title="t('appsRoles.statSystem')" :value="overview?.systemRoleCount ?? 0" /></a-card>
       </a-col>
       <a-col :xs="24" :md="8" :xl="4">
-        <a-card><a-statistic title="自定义角色" :value="overview?.customRoleCount ?? 0" /></a-card>
+        <a-card><a-statistic :title="t('appsRoles.statCustom')" :value="overview?.customRoleCount ?? 0" /></a-card>
       </a-col>
       <a-col :xs="24" :md="8" :xl="4">
-        <a-card><a-statistic title="成员总数" :value="overview?.totalMembers ?? 0" /></a-card>
+        <a-card><a-statistic :title="t('appsRoles.statMembers')" :value="overview?.totalMembers ?? 0" /></a-card>
       </a-col>
       <a-col :xs="24" :md="8" :xl="4">
-        <a-card><a-statistic title="已覆盖成员" :value="overview?.coveredMembers ?? 0" /></a-card>
+        <a-card><a-statistic :title="t('appsRoles.statCovered')" :value="overview?.coveredMembers ?? 0" /></a-card>
       </a-col>
       <a-col :xs="24" :md="8" :xl="4">
-        <a-card><a-statistic title="覆盖率" :value="coverageRateText" /></a-card>
+        <a-card><a-statistic :title="t('appsRoles.statCoverage')" :value="coverageRateText" /></a-card>
       </a-col>
     </a-row>
 
@@ -53,25 +53,25 @@
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'isSystem'">
                 <a-tag :color="record.isSystem ? 'purple' : 'blue'">
-                  {{ record.isSystem ? "系统" : "自定义" }}
+                  {{ record.isSystem ? t("appsRoles.typeSystem") : t("appsRoles.typeCustom") }}
                 </a-tag>
               </template>
               <template v-else-if="column.key === 'permissionCoverage'">
                 <a-tag :color="record.permissionCodes.length > 0 ? 'green' : 'warning'">
-                  {{ record.permissionCodes.length > 0 ? "已覆盖" : "缺失" }}
+                  {{ record.permissionCodes.length > 0 ? t("appsRoles.permCovered") : t("appsRoles.permMissing") }}
                 </a-tag>
               </template>
               <template v-else-if="column.key === 'actions'">
                 <a-space v-if="canManageRoles" @click.stop>
-                  <a-button type="link" size="small" @click="openEditModal(record)">编辑</a-button>
+                  <a-button type="link" size="small" @click="openEditModal(record)">{{ t("common.edit") }}</a-button>
                   <a-popconfirm
                     v-if="!record.isSystem"
-                    title="确认删除该角色？"
-                    ok-text="删除"
-                    cancel-text="取消"
+                    :title="t('appsRoles.deleteConfirm')"
+                    :ok-text="t('common.delete')"
+                    :cancel-text="t('common.cancel')"
                     @confirm="removeRole(record.id)"
                   >
-                    <a-button type="link" size="small" danger>删除</a-button>
+                    <a-button type="link" size="small" danger>{{ t("common.delete") }}</a-button>
                   </a-popconfirm>
                 </a-space>
                 <span v-else class="placeholder">-</span>
@@ -93,51 +93,49 @@
             @success="handleAssignSuccess"
           />
           <div v-else class="detail-placeholder">
-            <a-empty description="请选择左侧角色以配置权限" />
+            <a-empty :description="t('appsRoles.emptySelectRole')" />
           </div>
         </template>
       </MasterDetailLayout>
     </div>
 
-    <!-- 新建角色 Modal -->
     <a-modal
       v-model:open="createModalOpen"
-      title="新建应用角色"
+      :title="t('appsRoles.modalCreateTitle')"
       :confirm-loading="submitting"
-      ok-text="创建"
-      cancel-text="取消"
+      :ok-text="t('appsRoles.okCreate')"
+      :cancel-text="t('common.cancel')"
       @ok="submitCreate"
     >
       <a-form layout="vertical">
-        <a-form-item label="角色编码" required>
-          <a-input v-model:value="createForm.code" maxlength="64" placeholder="如 APP_EDITOR" />
+        <a-form-item :label="t('appsRoles.labelCode')" required>
+          <a-input v-model:value="createForm.code" maxlength="64" :placeholder="t('appsRoles.codePlaceholder')" />
         </a-form-item>
-        <a-form-item label="角色名称" required>
-          <a-input v-model:value="createForm.name" maxlength="64" placeholder="请输入角色名称" />
+        <a-form-item :label="t('appsRoles.labelName')" required>
+          <a-input v-model:value="createForm.name" maxlength="64" :placeholder="t('appsRoles.namePlaceholder')" />
         </a-form-item>
-        <a-form-item label="角色描述">
-          <a-input v-model:value="createForm.description" maxlength="200" placeholder="请输入角色描述" />
+        <a-form-item :label="t('appsRoles.labelDesc')">
+          <a-input v-model:value="createForm.description" maxlength="200" :placeholder="t('appsRoles.descPlaceholder')" />
         </a-form-item>
       </a-form>
     </a-modal>
 
-    <!-- 编辑角色 Modal -->
     <a-modal
       v-model:open="editModalOpen"
-      title="编辑应用角色"
+      :title="t('appsRoles.modalEditTitle')"
       :confirm-loading="submitting"
-      ok-text="保存"
-      cancel-text="取消"
+      :ok-text="t('common.save')"
+      :cancel-text="t('common.cancel')"
       @ok="submitEdit"
     >
       <a-form layout="vertical">
-        <a-form-item label="角色编码">
+        <a-form-item :label="t('appsRoles.labelCode')">
           <a-input :value="editingRoleCode" disabled />
         </a-form-item>
-        <a-form-item label="角色名称" required>
+        <a-form-item :label="t('appsRoles.labelName')" required>
           <a-input v-model:value="editForm.name" maxlength="64" />
         </a-form-item>
-        <a-form-item label="角色描述">
+        <a-form-item :label="t('appsRoles.labelDesc')">
           <a-input v-model:value="editForm.description" maxlength="200" />
         </a-form-item>
       </a-form>
@@ -147,6 +145,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 import type { TableColumnsType, TablePaginationConfig } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import { useRoute } from "vue-router";
@@ -171,6 +170,7 @@ const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
 onUnmounted(() => { isMounted.value = false; });
 
+const { t } = useI18n();
 const route = useRoute();
 const userStore = useUserStore();
 const appId = computed(() => String(route.params.appId ?? ""));
@@ -186,7 +186,7 @@ const pagination = reactive<TablePaginationConfig>({
   pageSize: 10,
   total: 0,
   showSizeChanger: true,
-  showTotal: (total) => `共 ${total} 条`
+  showTotal: (total) => t("crud.totalItems", { total })
 });
 
 const createModalOpen = ref(false);
@@ -212,13 +212,13 @@ const canManageRoles = computed(() => {
 const coverageRateText = computed(() => `${((overview.value?.permissionCoverageRate ?? 0) * 100).toFixed(2)}%`);
 
 const columns = computed<TableColumnsType<TenantAppRoleListItem>>(() => [
-  { title: "角色编码", dataIndex: "code", key: "code", width: 160 },
-  { title: "角色名称", dataIndex: "name", key: "name", width: 160 },
-  { title: "类型", key: "isSystem", width: 90 },
-  { title: "成员数", dataIndex: "memberCount", key: "memberCount", width: 90 },
-  { title: "权限覆盖", key: "permissionCoverage", width: 110 },
-  { title: "描述", dataIndex: "description", key: "description", ellipsis: true },
-  { title: "操作", key: "actions", width: 120, fixed: "right" }
+  { title: t("appsRoles.colCode"), dataIndex: "code", key: "code", width: 160 },
+  { title: t("appsRoles.colName"), dataIndex: "name", key: "name", width: 160 },
+  { title: t("appsRoles.colType"), key: "isSystem", width: 90 },
+  { title: t("appsRoles.colMembers"), dataIndex: "memberCount", key: "memberCount", width: 90 },
+  { title: t("appsRoles.colPermCov"), key: "permissionCoverage", width: 110 },
+  { title: t("appsRoles.colDescription"), dataIndex: "description", key: "description", ellipsis: true },
+  { title: t("appsRoles.colActions"), key: "actions", width: 120, fixed: "right" }
 ]);
 
 function selectRole(record: TenantAppRoleListItem) {
@@ -253,7 +253,7 @@ async function loadRoles() {
     rows.value = [];
     pagination.total = 0;
     overview.value = null;
-    message.error((error as Error).message || "加载应用角色失败");
+    message.error((error as Error).message || t("appsRoles.loadRolesFailed"));
   } finally {
     loading.value = false;
   }
@@ -284,7 +284,7 @@ function openCreateModal() {
 async function submitCreate() {
   if (!appId.value) return;
   if (!createForm.code.trim() || !createForm.name.trim()) {
-    message.warning("请填写角色编码与角色名称");
+    message.warning(t("appsRoles.fillRequired"));
     return;
   }
 
@@ -298,11 +298,11 @@ async function submitCreate() {
     });
 
     if (!isMounted.value) return;
-    message.success("创建应用角色成功");
+    message.success(t("appsRoles.createRoleSuccess"));
     createModalOpen.value = false;
     await loadRoles();
   } catch (error) {
-    message.error((error as Error).message || "创建应用角色失败");
+    message.error((error as Error).message || t("appsRoles.createRoleFailed"));
   } finally {
     submitting.value = false;
   }
@@ -319,14 +319,14 @@ async function openEditModal(record: TenantAppRoleListItem) {
     editForm.description = detail.description || "";
   } catch (error) {
     editModalOpen.value = false;
-    message.error((error as Error).message || "加载角色详情失败");
+    message.error((error as Error).message || t("appsRoles.loadDetailFailed"));
   }
 }
 
 async function submitEdit() {
   if (!appId.value || !editingRoleId.value) return;
   if (!editForm.name.trim()) {
-    message.warning("角色名称不能为空");
+    message.warning(t("appsRoles.nameRequired"));
     return;
   }
 
@@ -338,11 +338,11 @@ async function submitEdit() {
     });
 
     if (!isMounted.value) return;
-    message.success("角色信息已更新");
+    message.success(t("appsRoles.updateRoleSuccess"));
     editModalOpen.value = false;
     await loadRoles();
   } catch (error) {
-    message.error((error as Error).message || "更新角色失败");
+    message.error((error as Error).message || t("appsRoles.updateRoleFailed"));
   } finally {
     submitting.value = false;
   }
@@ -357,10 +357,10 @@ async function removeRole(roleId: string) {
     if (selectedRole.value?.id === roleId) {
       selectedRole.value = null;
     }
-    message.success("角色已删除");
+    message.success(t("appsRoles.deleteRoleSuccess"));
     await loadRoles();
   } catch (error) {
-    message.error((error as Error).message || "删除角色失败");
+    message.error((error as Error).message || t("appsRoles.deleteRoleFailed"));
   }
 }
 

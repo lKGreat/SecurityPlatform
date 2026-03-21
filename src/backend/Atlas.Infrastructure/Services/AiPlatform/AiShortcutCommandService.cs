@@ -49,7 +49,7 @@ public sealed class AiShortcutCommandService : IAiShortcutCommandService
         var normalizedKey = request.CommandKey.Trim();
         if (await _shortcutRepository.ExistsByCommandKeyAsync(tenantId, normalizedKey, null, cancellationToken))
         {
-            throw new BusinessException("快捷命令编码已存在。", ErrorCodes.ValidationError);
+            throw new BusinessException("ShortcutCodeExists", ErrorCodes.ValidationError);
         }
 
         var entity = new AiShortcutCommand(
@@ -71,7 +71,7 @@ public sealed class AiShortcutCommandService : IAiShortcutCommandService
         CancellationToken cancellationToken)
     {
         var command = await _shortcutRepository.FindByIdAsync(tenantId, commandId, cancellationToken)
-            ?? throw new BusinessException("快捷命令不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("ShortcutNotFound", ErrorCodes.NotFound);
         command.Update(
             request.DisplayName.Trim(),
             request.TargetPath.Trim(),

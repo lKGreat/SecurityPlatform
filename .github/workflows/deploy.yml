@@ -1,56 +1,29 @@
-name: Deploy
+name: .NET Core Local Deploy on ECS
 
 on:
   push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
-
-concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [ "master" ]
 
 jobs:
-  deploy-compose:
-    name: Deploy Full Stack With Docker Compose
+  deploy:
+    # 关键点：指定在您自己的 ECS Runner 上运行
     runs-on: self-hosted
-    environment: production
-    permissions:
-      contents: read
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Preflight checks (docker + compose + scripts)
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build and Publish
         run: |
-          set -euo pipefail
-          for cmd in docker curl bash; do
-            command -v "$cmd" >/dev/null 2>&1 || { echo "Missing required command: $cmd" >&2; exit 1; }
-          done
-          docker compose version
-          test -f docker-compose.yml
-          test -f .env.example
-          test -f deploy/scripts/deploy.sh
-          test -f deploy/scripts/rollback.sh
-          test -f deploy/nginx/default.conf
+          dotnet restore src/backend/Atlas.WebApi/Atlas.WebApi.csproj
+          # 直接发布到服务器的本地部署目录
+          dotnet publish src/backend/Atlas.WebApi/Atlas.WebApi.csproj -c Release -o /home/www/security-platform
 
-      - name: Grant execute permissions for scripts
-        run: chmod +x deploy/scripts/deploy.sh deploy/scripts/rollback.sh
-
-      - name: Deploy with docker compose
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-          JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
-          BOOTSTRAP_ADMIN_PASSWORD: ${{ secrets.BOOTSTRAP_ADMIN_PASSWORD }}
-          CORS_ALLOWED_ORIGIN: ${{ vars.CORS_ALLOWED_ORIGIN || 'http://localhost' }}
-        run: bash deploy/scripts/deploy.sh
-
-      - name: Rollback on deployment failure
-        if: failure()
-        env:
-          JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
-          BOOTSTRAP_ADMIN_PASSWORD: ${{ secrets.BOOTSTRAP_ADMIN_PASSWORD }}
-          CORS_ALLOWED_ORIGIN: ${{ vars.CORS_ALLOWED_ORIGIN || 'http://localhost' }}
-        run: bash deploy/scripts/rollback.sh
+      - name: Restart Application Service
+        run: |
+          # 因为 Runner 就在本地，直接执行重启命令即可
+          sudo systemctl restart security-platform.service

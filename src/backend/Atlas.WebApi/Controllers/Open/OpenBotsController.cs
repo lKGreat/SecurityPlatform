@@ -2,6 +2,7 @@ using Atlas.Application.AiPlatform.Abstractions;
 using Atlas.Application.AiPlatform.Models;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.WebApi.Helpers;
 using Atlas.WebApi.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -32,7 +33,7 @@ public sealed class OpenBotsController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<PagedResult<AgentListItem>>.Fail(
                 ErrorCodes.Forbidden,
-                "PAT 缺少 open:bots:read 权限",
+                ApiResponseLocalizer.T(HttpContext, "PatMissingBotsReadScope"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -54,7 +55,7 @@ public sealed class OpenBotsController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<AgentDetail>.Fail(
                 ErrorCodes.Forbidden,
-                "PAT 缺少 open:bots:read 权限",
+                ApiResponseLocalizer.T(HttpContext, "PatMissingBotsReadScope"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -62,7 +63,7 @@ public sealed class OpenBotsController : ControllerBase
         var result = await _queryService.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<AgentDetail>.Fail(ErrorCodes.NotFound, "Bot 不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AgentDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "OpenBotNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AgentDetail>.Ok(result, HttpContext.TraceIdentifier));

@@ -37,7 +37,7 @@ public sealed class OpenKnowledgeController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<PagedResult<KnowledgeBaseDto>>.Fail(
                 ErrorCodes.Forbidden,
-                "PAT 缺少 open:knowledge:read 权限",
+                ApiResponseLocalizer.T(HttpContext, "PatMissingKnowledgeReadScope"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -58,7 +58,7 @@ public sealed class OpenKnowledgeController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<KnowledgeBaseDto>.Fail(
                 ErrorCodes.Forbidden,
-                "PAT 缺少 open:knowledge:read 权限",
+                ApiResponseLocalizer.T(HttpContext, "PatMissingKnowledgeReadScope"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -66,7 +66,7 @@ public sealed class OpenKnowledgeController : ControllerBase
         var result = await _knowledgeBaseService.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<KnowledgeBaseDto>.Fail(ErrorCodes.NotFound, "知识库不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<KnowledgeBaseDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "KnowledgeBaseNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<KnowledgeBaseDto>.Ok(result, HttpContext.TraceIdentifier));
@@ -82,7 +82,7 @@ public sealed class OpenKnowledgeController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<PagedResult<KnowledgeDocumentDto>>.Fail(
                 ErrorCodes.Forbidden,
-                "PAT 缺少 open:knowledge:read 权限",
+                ApiResponseLocalizer.T(HttpContext, "PatMissingKnowledgeReadScope"),
                 HttpContext.TraceIdentifier));
         }
 

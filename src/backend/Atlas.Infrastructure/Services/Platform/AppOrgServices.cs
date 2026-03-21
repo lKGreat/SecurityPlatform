@@ -121,7 +121,7 @@ public sealed class AppOrgCommandService : IAppOrgCommandService
     public async Task UpdateDepartmentAsync(TenantId tenantId, long appId, long id, AppDepartmentUpdateRequest request, CancellationToken cancellationToken = default)
     {
         var entity = await _deptRepo.FindByIdAsync(tenantId, appId, id, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "应用部门不存在。");
+            ?? throw new BusinessException(ErrorCodes.NotFound, "AppOrgDepartmentNotFound");
         entity.Update(request.Name.Trim(), request.Code.Trim(), request.ParentId, request.SortOrder);
         await _deptRepo.UpdateAsync(entity, cancellationToken);
     }
@@ -140,7 +140,7 @@ public sealed class AppOrgCommandService : IAppOrgCommandService
     public async Task UpdatePositionAsync(TenantId tenantId, long appId, long id, AppPositionUpdateRequest request, CancellationToken cancellationToken = default)
     {
         var entity = await _posRepo.FindByIdAsync(tenantId, appId, id, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "应用职位不存在。");
+            ?? throw new BusinessException(ErrorCodes.NotFound, "AppOrgPositionNotFound");
         entity.Update(request.Name.Trim(), request.Description, request.IsActive, request.SortOrder);
         await _posRepo.UpdateAsync(entity, cancellationToken);
     }
@@ -159,7 +159,7 @@ public sealed class AppOrgCommandService : IAppOrgCommandService
     public async Task UpdateProjectAsync(TenantId tenantId, long appId, long id, AppProjectUpdateRequest request, CancellationToken cancellationToken = default)
     {
         var entity = await _projRepo.FindByIdAsync(tenantId, appId, id, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "应用项目不存在。");
+            ?? throw new BusinessException(ErrorCodes.NotFound, "AppOrgProjectNotFound");
         entity.Update(request.Name.Trim(), request.Description, request.IsActive);
         await _projRepo.UpdateAsync(entity, cancellationToken);
     }
@@ -187,7 +187,7 @@ public sealed class AppRoleAssignmentQueryService : IAppRoleAssignmentQueryServi
     public async Task<AppRoleAssignmentDetail> GetRoleAssignmentAsync(TenantId tenantId, long appId, long roleId, CancellationToken cancellationToken = default)
     {
         var role = await _roleRepo.FindByIdAsync(tenantId, appId, roleId, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "应用角色不存在。");
+            ?? throw new BusinessException(ErrorCodes.NotFound, "AppOrgRoleNotFound");
         var deptIds = string.IsNullOrWhiteSpace(role.DeptIds)
             ? Array.Empty<string>()
             : role.DeptIds.Split(',', StringSplitOptions.RemoveEmptyEntries);
@@ -202,7 +202,7 @@ public sealed class AppRoleAssignmentQueryService : IAppRoleAssignmentQueryServi
     public async Task<IReadOnlyList<AppRoleFieldPermissionGroup>> GetRoleFieldPermissionsAsync(TenantId tenantId, long appId, long roleId, CancellationToken cancellationToken = default)
     {
         var role = await _roleRepo.FindByIdAsync(tenantId, appId, roleId, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "应用角色不存在。");
+            ?? throw new BusinessException(ErrorCodes.NotFound, "AppOrgRoleNotFound");
         var records = await _fieldPermRepo.ListByRoleCodeAndAppIdAsync(tenantId, appId, role.Code, cancellationToken);
         var prefix = $"app:{appId}:";
         var groups = records
@@ -237,7 +237,7 @@ public sealed class AppRoleAssignmentCommandService : IAppRoleAssignmentCommandS
     public async Task SetDataScopeAsync(TenantId tenantId, long appId, long roleId, AppRoleDataScopeRequest request, CancellationToken cancellationToken = default)
     {
         var role = await _roleRepo.FindByIdAsync(tenantId, appId, roleId, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "应用角色不存在。");
+            ?? throw new BusinessException(ErrorCodes.NotFound, "AppOrgRoleNotFound");
         var scope = (DataScopeType)request.DataScope;
         string? deptIds = null;
         if (scope == DataScopeType.CustomDept && request.DeptIds is { Count: > 0 })
@@ -258,7 +258,7 @@ public sealed class AppRoleAssignmentCommandService : IAppRoleAssignmentCommandS
     public async Task SetRoleFieldPermissionsAsync(TenantId tenantId, long appId, long roleId, AppRoleFieldPermissionsRequest request, CancellationToken cancellationToken = default)
     {
         var role = await _roleRepo.FindByIdAsync(tenantId, appId, roleId, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "应用角色不存在。");
+            ?? throw new BusinessException(ErrorCodes.NotFound, "AppOrgRoleNotFound");
         var now = DateTimeOffset.UtcNow;
         var prefix = $"app:{appId}:";
         var permissions = request.Groups

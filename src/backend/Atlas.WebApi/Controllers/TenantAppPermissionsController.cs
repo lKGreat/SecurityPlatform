@@ -62,10 +62,7 @@ public sealed class TenantAppPermissionsController : ControllerBase
         var detail = await _queryService.GetByIdAsync(tenantId, appId, id, cancellationToken);
         if (detail is null)
         {
-            return NotFound(ApiResponse<PermissionDetail>.Fail(
-                ErrorCodes.NotFound,
-                "应用级权限不存在。",
-                HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<PermissionDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "AppScopedPermissionNotFound"), HttpContext.TraceIdentifier));
         }
         return Ok(ApiResponse<PermissionDetail>.Ok(detail, HttpContext.TraceIdentifier));
     }

@@ -50,7 +50,7 @@ public sealed class AiPromptService : IAiPromptService
         var normalizedName = request.Name.Trim();
         if (await _repository.ExistsByNameAsync(tenantId, normalizedName, excludeId: null, cancellationToken))
         {
-            throw new BusinessException("Prompt 名称已存在。", ErrorCodes.ValidationError);
+            throw new BusinessException("PromptNameExists", ErrorCodes.ValidationError);
         }
 
         var entity = new AiPromptTemplate(
@@ -73,16 +73,16 @@ public sealed class AiPromptService : IAiPromptService
         CancellationToken cancellationToken)
     {
         var entity = await _repository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("Prompt 模板不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("PromptTemplateNotFound", ErrorCodes.NotFound);
         if (entity.IsSystem)
         {
-            throw new BusinessException("系统 Prompt 模板不允许修改。", ErrorCodes.Forbidden);
+            throw new BusinessException("SystemPromptCannotModify", ErrorCodes.Forbidden);
         }
 
         var normalizedName = request.Name.Trim();
         if (await _repository.ExistsByNameAsync(tenantId, normalizedName, id, cancellationToken))
         {
-            throw new BusinessException("Prompt 名称已存在。", ErrorCodes.ValidationError);
+            throw new BusinessException("PromptNameExists", ErrorCodes.ValidationError);
         }
 
         entity.Update(
@@ -97,10 +97,10 @@ public sealed class AiPromptService : IAiPromptService
     public async Task DeleteAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
     {
         var entity = await _repository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("Prompt 模板不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("PromptTemplateNotFound", ErrorCodes.NotFound);
         if (entity.IsSystem)
         {
-            throw new BusinessException("系统 Prompt 模板不允许删除。", ErrorCodes.Forbidden);
+            throw new BusinessException("SystemPromptCannotDelete", ErrorCodes.Forbidden);
         }
 
         await _repository.DeleteAsync(tenantId, id, cancellationToken);

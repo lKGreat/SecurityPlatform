@@ -72,7 +72,7 @@ public sealed class DictTypesController : ControllerBase
         var result = await _queryService.GetDictTypeByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<DictTypeDto>.Fail(ErrorCodes.NotFound, "字典类型不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<DictTypeDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "DictTypeNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<DictTypeDto>.Ok(result, HttpContext.TraceIdentifier));

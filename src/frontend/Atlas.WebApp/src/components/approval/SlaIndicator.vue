@@ -6,6 +6,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   remainingMinutes?: number | null;
@@ -20,9 +23,13 @@ const formattedText = computed(() => {
   if (abs >= 60) {
     const hours = Math.floor(abs / 60);
     const minutes = abs % 60;
-    return value >= 0 ? `剩 ${hours}h${minutes}m` : `超 ${hours}h${minutes}m`;
+    return value >= 0
+      ? t('approvalWorkspace.slaTagRemainHm', { h: hours, m: minutes })
+      : t('approvalWorkspace.slaTagOverHm', { h: hours, m: minutes });
   }
-  return value >= 0 ? `剩 ${abs}m` : `超 ${abs}m`;
+  return value >= 0
+    ? t('approvalWorkspace.slaTagRemainM', { m: abs })
+    : t('approvalWorkspace.slaTagOverM', { m: abs });
 });
 </script>
 

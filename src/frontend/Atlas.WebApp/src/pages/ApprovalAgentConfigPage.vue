@@ -1,7 +1,7 @@
 <template>
-  <CrudPageLayout title="我的代理设置">
+  <CrudPageLayout :title="t('approvalAgent.pageTitle')">
     <template #toolbar-actions>
-      <a-button type="primary" @click="handleCreate">添加代理</a-button>
+      <a-button type="primary" @click="handleCreate">{{ t('approvalAgent.addAgent') }}</a-button>
     </template>
     <template #table>
     <a-table
@@ -17,12 +17,12 @@
         </template>
         <template v-else-if="column.key === 'isEnabled'">
           <a-tag :color="record.isEnabled ? 'green' : 'default'">
-            {{ record.isEnabled ? '生效中' : '已失效' }}
+            {{ record.isEnabled ? t('approvalAgent.statusActive') : t('approvalAgent.statusInactive') }}
           </a-tag>
         </template>
         <template v-else-if="column.key === 'action'">
-          <a-popconfirm title="确认删除此代理设置？" @confirm="handleDelete(record.id)">
-            <a-button type="link" danger size="small">删除</a-button>
+          <a-popconfirm :title="t('approvalAgent.deleteConfirm')" @confirm="handleDelete(record.id)">
+            <a-button type="link" danger size="small">{{ t('approvalAgent.delete') }}</a-button>
           </a-popconfirm>
         </template>
       </template>
@@ -30,19 +30,19 @@
 
     <a-modal
       v-model:open="modalVisible"
-      title="添加代理设置"
+      :title="t('approvalAgent.modalTitle')"
       :confirm-loading="submitting"
       @ok="handleSubmit"
       @cancel="resetForm"
     >
       <a-form :model="form" layout="vertical">
-        <a-form-item label="代理人用户ID" required>
+        <a-form-item :label="t('approvalAgent.labelAgentUserId')" required>
           <a-input
             v-model:value="form.agentUserId"
-            placeholder="请输入代理人的用户ID"
+            :placeholder="t('approvalAgent.placeholderAgentUserId')"
           />
         </a-form-item>
-        <a-form-item label="代理有效期" required>
+        <a-form-item :label="t('approvalAgent.labelValidity')" required>
           <a-range-picker
             v-model:value="form.dateRange"
             show-time
@@ -57,7 +57,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from 'vue';
+import { computed, onMounted, reactive, ref, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -74,13 +75,15 @@ import {
 } from '@/services/api';
 import CrudPageLayout from "@/components/crud/CrudPageLayout.vue";
 
-const columns = [
-  { title: '代理人用户ID', dataIndex: 'agentUserId', key: 'agentUserId' },
-  { title: '委托人用户ID', dataIndex: 'principalUserId', key: 'principalUserId' },
-  { title: '有效期', key: 'timeRange' },
-  { title: '状态', key: 'isEnabled', width: 100 },
-  { title: '操作', key: 'action', width: 100 },
-];
+const { t } = useI18n();
+
+const columns = computed(() => [
+  { title: t('approvalAgent.colAgentUserId'), dataIndex: 'agentUserId', key: 'agentUserId' },
+  { title: t('approvalAgent.colPrincipalUserId'), dataIndex: 'principalUserId', key: 'principalUserId' },
+  { title: t('approvalAgent.colValidity'), key: 'timeRange' },
+  { title: t('approvalAgent.colStatus'), key: 'isEnabled', width: 100 },
+  { title: t('approvalAgent.colActions'), key: 'action', width: 100 },
+]);
 
 const dataSource = ref<ApprovalAgentConfigResponse[]>([]);
 const loading = ref(false);
@@ -102,7 +105,7 @@ const fetchData = async () => {
 
     if (!isMounted.value) return;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '加载失败');
+    message.error(err instanceof Error ? err.message : t('approvalAgent.loadFailed'));
   } finally {
     loading.value = false;
   }
@@ -120,11 +123,11 @@ const resetForm = () => {
 
 const handleSubmit = async () => {
   if (!form.agentUserId.trim()) {
-    message.warning('请填写代理人用户ID');
+    message.warning(t('approvalAgent.warnAgentUserId'));
     return;
   }
   if (!form.dateRange) {
-    message.warning('请选择代理有效期');
+    message.warning(t('approvalAgent.warnValidity'));
     return;
   }
 
@@ -137,13 +140,13 @@ const handleSubmit = async () => {
     });
 
     if (!isMounted.value) return;
-    message.success('已添加代理设置');
+    message.success(t('approvalAgent.addSuccess'));
     resetForm();
     await fetchData();
 
     if (!isMounted.value) return;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '添加失败');
+    message.error(err instanceof Error ? err.message : t('approvalAgent.addFailed'));
   } finally {
     submitting.value = false;
   }
@@ -154,12 +157,12 @@ const handleDelete = async (id: string) => {
     await deleteAgentConfig(id);
 
     if (!isMounted.value) return;
-    message.success('已删除');
+    message.success(t('approvalAgent.deleteSuccess'));
     await fetchData();
 
     if (!isMounted.value) return;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '删除失败');
+    message.error(err instanceof Error ? err.message : t('approvalAgent.deleteFailed'));
   }
 };
 

@@ -3,6 +3,7 @@ using Atlas.Application.AiPlatform.Models;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Authorization;
+using Atlas.WebApi.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -63,7 +64,7 @@ public sealed class AiDatabasesController : ControllerBase
         var result = await _service.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<AiDatabaseDetail>.Fail(ErrorCodes.NotFound, "数据库不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AiDatabaseDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "AiDatabaseNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AiDatabaseDetail>.Ok(result, HttpContext.TraceIdentifier));
@@ -112,7 +113,7 @@ public sealed class AiDatabasesController : ControllerBase
     {
         if (request.BotId <= 0)
         {
-            return BadRequest(ApiResponse<object>.Fail(ErrorCodes.ValidationError, "BotId 必须大于 0", HttpContext.TraceIdentifier));
+            return BadRequest(ApiResponse<object>.Fail(ErrorCodes.ValidationError, ApiResponseLocalizer.T(HttpContext, "AiDatabaseBotIdInvalid"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -228,7 +229,7 @@ public sealed class AiDatabasesController : ControllerBase
         {
             return NotFound(ApiResponse<AiDatabaseImportProgress>.Fail(
                 ErrorCodes.NotFound,
-                "导入任务不存在",
+                ApiResponseLocalizer.T(HttpContext, "AiDatabaseImportTaskNotFound"),
                 HttpContext.TraceIdentifier));
         }
 

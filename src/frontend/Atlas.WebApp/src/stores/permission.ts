@@ -24,13 +24,13 @@ function buildMinimalFallbackRouters(): RouterVo[] {
       name: "首页",
       path: "/",
       component: "Layout",
-      meta: { title: "首页", icon: "home" },
+      meta: { title: "首页", titleKey: "route.home", icon: "home" },
       children: [
         {
           name: "工作台",
           path: "index",
           component: "IndexPage",
-          meta: { title: "工作台", icon: "home" }
+          meta: { title: "工作台", titleKey: "route.workspace", icon: "home" }
         }
       ]
     }

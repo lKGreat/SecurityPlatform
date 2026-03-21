@@ -77,7 +77,7 @@ public sealed class ApprovalTasksController : ControllerBase
         var task = await _taskRepository.GetByIdAsync(tenantId, id, cancellationToken);
         if (task is null)
         {
-            return ApiResponse<ApprovalTaskResponse>.Fail("NOT_FOUND", "任务不存在", HttpContext.TraceIdentifier);
+            return ApiResponse<ApprovalTaskResponse>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ApprovalTaskNotFound"), HttpContext.TraceIdentifier);
         }
 
         var response = _mapper.Map<ApprovalTaskResponse>(task);
@@ -140,7 +140,7 @@ public sealed class ApprovalTasksController : ControllerBase
             comment,
             cancellationToken);
 
-        return ApiResponse<string>.Ok("已委派", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalTaskDelegatedSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -162,7 +162,7 @@ public sealed class ApprovalTasksController : ControllerBase
             comment,
             cancellationToken);
 
-        return ApiResponse<string>.Ok("已归还", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalTaskReturnedSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -179,7 +179,7 @@ public sealed class ApprovalTasksController : ControllerBase
         var task = await _taskRepository.GetByIdAsync(currentUser.TenantId, id, cancellationToken);
         if (task is null)
         {
-            return ApiResponse<string>.Fail("NOT_FOUND", "任务不存在", HttpContext.TraceIdentifier);
+            return ApiResponse<string>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ApprovalTaskNotFound"), HttpContext.TraceIdentifier);
         }
 
         var request = new Atlas.Application.Approval.Models.ApprovalOperationRequest
@@ -195,7 +195,7 @@ public sealed class ApprovalTasksController : ControllerBase
             request,
             cancellationToken);
 
-        return ApiResponse<string>.Ok("已认领", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalTaskClaimedSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -213,7 +213,7 @@ public sealed class ApprovalTasksController : ControllerBase
         var task = await _taskRepository.GetByIdAsync(currentUser.TenantId, id, cancellationToken);
         if (task is null)
         {
-            return ApiResponse<string>.Fail("NOT_FOUND", "任务不存在", HttpContext.TraceIdentifier);
+            return ApiResponse<string>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ApprovalTaskNotFound"), HttpContext.TraceIdentifier);
         }
 
         var request = new Atlas.Application.Approval.Models.ApprovalOperationRequest
@@ -230,7 +230,7 @@ public sealed class ApprovalTasksController : ControllerBase
             request,
             cancellationToken);
 
-        return ApiResponse<string>.Ok("已催办", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalTaskUrgedSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -249,7 +249,7 @@ public sealed class ApprovalTasksController : ControllerBase
         var task = await _taskRepository.GetByIdAsync(currentUser.TenantId, id, cancellationToken);
         if (task is null)
         {
-            return ApiResponse<string>.Fail("NOT_FOUND", "任务不存在", HttpContext.TraceIdentifier);
+            return ApiResponse<string>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ApprovalTaskNotFound"), HttpContext.TraceIdentifier);
         }
 
         var request = new Atlas.Application.Approval.Models.ApprovalOperationRequest
@@ -267,7 +267,7 @@ public sealed class ApprovalTasksController : ControllerBase
             request,
             cancellationToken);
 
-        return ApiResponse<string>.Ok("已发送沟通", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalTaskCommunicationSentSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -316,7 +316,7 @@ public sealed class ApprovalTasksController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();
         if (fromUserId <= 0 || toUserId <= 0 || fromUserId == toUserId)
         {
-            throw new BusinessException("VALIDATION_ERROR", "转办用户参数不合法");
+            throw new BusinessException("VALIDATION_ERROR", "TransferUserInvalid");
         }
 
         var transferred = await _commandService.BatchTransferTasksAsync(
@@ -326,7 +326,7 @@ public sealed class ApprovalTasksController : ControllerBase
             currentUser.UserId,
             cancellationToken);
 
-        return ApiResponse<string>.Ok($"已转办 {transferred} 个任务", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalBatchTransferSuccess", transferred), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -342,18 +342,18 @@ public sealed class ApprovalTasksController : ControllerBase
         var task = await _taskRepository.GetByIdAsync(currentUser.TenantId, id, cancellationToken);
         if (task is null)
         {
-            return ApiResponse<string>.Fail("NOT_FOUND", "任务不存在", HttpContext.TraceIdentifier);
+            return ApiResponse<string>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ApprovalTaskNotFound"), HttpContext.TraceIdentifier);
         }
 
         var isOwnedTask = task.AssigneeType == AssigneeType.User && task.AssigneeValue == currentUser.UserId.ToString();
         if (!isOwnedTask)
         {
-            throw new BusinessException("FORBIDDEN", "无权标记该任务为已阅");
+            throw new BusinessException("FORBIDDEN", "NoPermissionMarkRead");
         }
 
         task.MarkViewed(DateTimeOffset.UtcNow);
         await _taskRepository.UpdateAsync(task, cancellationToken);
-        return ApiResponse<string>.Ok("已标记已阅", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalTaskMarkedViewedSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -390,15 +390,19 @@ public sealed class ApprovalTasksController : ControllerBase
                 cancellationToken);
         }
 
-        var actionName = request.Approved ? "审批任务-同意" : "审批任务-驳回";
-        var resultMessage = request.Approved ? "已同意" : "已驳回";
+        var actionName = request.Approved
+            ? ApiResponseLocalizer.T(HttpContext, "AuditActionApprovalTaskApprove")
+            : ApiResponseLocalizer.T(HttpContext, "AuditActionApprovalTaskReject");
+        var resultMessage = request.Approved
+            ? ApiResponseLocalizer.T(HttpContext, "ApprovalTaskApprovedSuccess")
+            : ApiResponseLocalizer.T(HttpContext, "ApprovalTaskRejectedSuccess");
 
         var auditContext = new AuditContext(
             currentUser.TenantId,
             currentUser.UserId.ToString(),
             actionName,
-            "成功",
-            $"任务ID: {taskId}",
+            ApiResponseLocalizer.T(HttpContext, "AuditOutcomeSuccess"),
+            ApiResponseLocalizer.T(HttpContext, "AuditDetailTaskIdFormat", taskId),
             ControllerHelper.GetIpAddress(HttpContext),
             ControllerHelper.GetUserAgent(HttpContext),
             _clientContextAccessor.GetCurrent());

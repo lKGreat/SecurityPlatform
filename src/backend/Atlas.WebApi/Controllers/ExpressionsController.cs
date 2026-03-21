@@ -24,7 +24,7 @@ public sealed class ExpressionsController : ControllerBase
     public ActionResult<ApiResponse<ExpressionValidateResponse>> Validate([FromBody] ExpressionValidateRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Expression))
-            return Ok(ApiResponse<ExpressionValidateResponse>.Fail("VALIDATION_ERROR", "表达式不能为空", HttpContext.TraceIdentifier));
+            return Ok(ApiResponse<ExpressionValidateResponse>.Fail("VALIDATION_ERROR", ApiResponseLocalizer.T(HttpContext, "ExpressionRequired"), HttpContext.TraceIdentifier));
 
         var result = _engine.Validate(request.Expression);
         var variables = _engine.GetVariables(request.Expression);
@@ -43,7 +43,7 @@ public sealed class ExpressionsController : ControllerBase
     public ActionResult<ApiResponse<ExpressionEvaluateResponse>> Evaluate([FromBody] ExpressionEvaluateRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Expression))
-            return Ok(ApiResponse<ExpressionEvaluateResponse>.Fail("VALIDATION_ERROR", "表达式不能为空", HttpContext.TraceIdentifier));
+            return Ok(ApiResponse<ExpressionEvaluateResponse>.Fail("VALIDATION_ERROR", ApiResponseLocalizer.T(HttpContext, "ExpressionRequired"), HttpContext.TraceIdentifier));
 
         var validation = _engine.Validate(request.Expression);
         if (!validation.IsValid)

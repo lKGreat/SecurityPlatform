@@ -47,7 +47,7 @@ public sealed class TenantsController : ControllerBase
         var result = await _tenantService.GetByIdAsync(id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<TenantDto>.Fail("NOT_FOUND", "租户不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<TenantDto>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "TenantNotFound"), HttpContext.TraceIdentifier));
         }
         return Ok(ApiResponse<TenantDto>.Ok(result, HttpContext.TraceIdentifier));
     }

@@ -95,4 +95,412 @@
   <data name="COPY_RECORD_NOT_OWNER" xml:space="preserve"><value>You do not have permission to access this copy record.</value></data>
   <data name="INVALID_OPERATION" xml:space="preserve"><value>The current operation is invalid.</value></data>
   <data name="INVALID_STATUS" xml:space="preserve"><value>The current status does not allow this operation.</value></data>
+  <!-- JWT / Token -->
+  <data name="Conflict" xml:space="preserve"><value>A data conflict occurred. Please refresh and try again.</value></data>
+  <data name="InvalidToken" xml:space="preserve"><value>Invalid token.</value></data>
+  <data name="TokenMissingTenant" xml:space="preserve"><value>Token is missing a valid tenant claim.</value></data>
+  <data name="TokenMissingUser" xml:space="preserve"><value>Token is missing a valid user identifier.</value></data>
+  <data name="TokenMissingSession" xml:space="preserve"><value>Token is missing a valid session identifier.</value></data>
+  <data name="UserDisabledOrNotExist" xml:space="preserve"><value>User is disabled or does not exist.</value></data>
+  <data name="SessionRevoked" xml:space="preserve"><value>Session has expired or been revoked.</value></data>
+  <data name="RefreshTokenInvalid" xml:space="preserve"><value>Refresh token is invalid or expired.</value></data>
+  <data name="RefreshTokenRevoked" xml:space="preserve"><value>Refresh token has been revoked.</value></data>
+  <data name="RefreshTokenExpired" xml:space="preserve"><value>Refresh token has expired.</value></data>
+  <data name="AccountDisabled" xml:space="preserve"><value>Account does not exist or has been disabled.</value></data>
+  <data name="AccountSuspended" xml:space="preserve"><value>Account has been suspended.</value></data>
+  <data name="PasswordChanged" xml:space="preserve"><value>Password has changed. Please sign in again.</value></data>
+  <!-- MFA -->
+  <data name="MfaCodeRequired" xml:space="preserve"><value>Multi-factor authentication code is required.</value></data>
+  <data name="MfaNotSetup" xml:space="preserve"><value>Please call the setup endpoint first to generate a secret key.</value></data>
+  <data name="MfaAlreadyEnabled" xml:space="preserve"><value>MFA is already enabled. Please disable it before resetting.</value></data>
+  <data name="MfaAlreadyEnabledSimple" xml:space="preserve"><value>MFA is already enabled.</value></data>
+  <data name="MfaNotEnabled" xml:space="preserve"><value>MFA is not enabled.</value></data>
+  <data name="MfaCodeInvalid" xml:space="preserve"><value>Verification code is incorrect. Please try again.</value></data>
+  <data name="UserNotFound" xml:space="preserve"><value>User not found.</value></data>
+  <!-- Auth Controller -->
+  <data name="TenantIdRequired" xml:space="preserve"><value>Tenant identifier is required.</value></data>
+  <data name="LoginFailedTooManyTimes" xml:space="preserve"><value>Too many failed login attempts. Please enter the captcha.</value></data>
+  <data name="CaptchaExpired" xml:space="preserve"><value>Captcha is incorrect or has expired.</value></data>
+  <data name="RegistrationDisabled" xml:space="preserve"><value>Registration is not enabled for this system.</value></data>
+  <data name="UsernameAlreadyExists" xml:space="preserve"><value>Username already exists.</value></data>
+  <!-- Approval -->
+  <data name="AgentEndTimeInvalid" xml:space="preserve"><value>Agent end time must be later than the start time.</value></data>
+  <data name="AgentForbiddenDelete" xml:space="preserve"><value>You do not have permission to delete this agent configuration.</value></data>
+  <data name="TransferUserInvalid" xml:space="preserve"><value>Transfer user parameter is invalid.</value></data>
+  <data name="NoPermissionMarkRead" xml:space="preserve"><value>You do not have permission to mark this task as read.</value></data>
+  <data name="CannotApproveTask" xml:space="preserve"><value>You are not authorized to approve this task.</value></data>
+  <data name="OnlyInitiatorCanCancel" xml:space="preserve"><value>Only the initiator can cancel the process.</value></data>
+  <data name="OnlyInitiatorOrAdminCanSubmit" xml:space="preserve"><value>Only the initiator or an administrator can submit the draft.</value></data>
+  <data name="TargetNodeRequired" xml:space="preserve"><value>The target node ID must be specified for this operation.</value></data>
+  <data name="TargetAssigneeRequired" xml:space="preserve"><value>The target assignee must be specified for this operation.</value></data>
+  <data name="NodeNotFound" xml:space="preserve"><value>Target node not found.</value></data>
+  <data name="NodeAlreadyExecuted" xml:space="preserve"><value>The target node has already been executed and the assignee cannot be changed.</value></data>
+  <data name="TaskIdRequired" xml:space="preserve"><value>A task ID must be specified for this operation.</value></data>
+  <data name="AssigneeRequired" xml:space="preserve"><value>At least one assignee must be specified for this operation.</value></data>
+  <data name="TaskInstanceMismatch" xml:space="preserve"><value>The task does not belong to the specified process instance.</value></data>
+  <data name="OnlyCurrentAssigneeCanAddSign" xml:space="preserve"><value>Only the current assignee can add a co-signer.</value></data>
+  <data name="CannotDrawBack" xml:space="preserve"><value>The process has been approved and cannot be withdrawn.</value></data>
+  <data name="OnlyInitiatorCanDrawBack" xml:space="preserve"><value>Only the initiator can withdraw the process.</value></data>
+  <data name="InvalidRequest" xml:space="preserve"><value>Invalid request parameters.</value></data>
+  <data name="TargetTaskNotFound" xml:space="preserve"><value>The target task to be removed was not found.</value></data>
+  <data name="DelegateTaskSelf" xml:space="preserve"><value>You can only undertake tasks assigned to yourself.</value></data>
+  <data name="CannotReturnDelegateTask" xml:space="preserve"><value>Only delegated tasks can be returned.</value></data>
+  <data name="NoPermissionDelegate" xml:space="preserve"><value>You do not have permission to delegate this task.</value></data>
+  <data name="FlowInstanceForbidden" xml:space="preserve"><value>You do not have permission to operate this process instance.</value></data>
+  <!-- Dict -->
+  <data name="DictTypeCodeExists" xml:space="preserve"><value>Dictionary type code already exists.</value></data>
+  <data name="DictTypeNotFound" xml:space="preserve"><value>Dictionary type not found.</value></data>
+  <data name="DictDataNotFound" xml:space="preserve"><value>Dictionary entry not found.</value></data>
+  <!-- Menu -->
+  <data name="MenuPathExists" xml:space="preserve"><value>Menu path already exists. Please use a different path.</value></data>
+  <data name="MenuNotFound" xml:space="preserve"><value>Menu not found.</value></data>
+  <data name="MenuHasChildren" xml:space="preserve"><value>This menu has child items. Please delete child items first.</value></data>
+  <!-- Role -->
+  <data name="RoleNotFound" xml:space="preserve"><value>Role not found.</value></data>
+  <data name="RoleHasUsers" xml:space="preserve"><value>This role has assigned users. Please unbind them before deleting.</value></data>
+  <data name="DataScopeDeptRequired" xml:space="preserve"><value>Custom data scope requires at least one department.</value></data>
+  <data name="PermissionNotFoundPlatform" xml:space="preserve"><value>Permission not found or is not a platform-level permission.</value></data>
+  <!-- Department -->
+  <data name="DeptNameOrCodeExists" xml:space="preserve"><value>Department name or code already exists.</value></data>
+  <data name="DeptHasChildren" xml:space="preserve"><value>This department has child departments and cannot be deleted directly.</value></data>
+  <data name="DeptNotInProject" xml:space="preserve"><value>Department does not belong to the current project.</value></data>
+  <!-- Tenant -->
+  <data name="TenantCodeExists" xml:space="preserve"><value>Tenant code already exists.</value></data>
+  <data name="TenantNotFound" xml:space="preserve"><value>Tenant not found.</value></data>
+  <data name="CoreTenantCannotDelete" xml:space="preserve"><value>The built-in core tenant cannot be deleted.</value></data>
+  <!-- AI -->
+  <data name="AgentNotFound" xml:space="preserve"><value>Agent not found.</value></data>
+  <data name="ConversationNotFound" xml:space="preserve"><value>Conversation not found.</value></data>
+  <data name="NoPermissionAccessConversation" xml:space="preserve"><value>You do not have permission to access this conversation.</value></data>
+  <data name="MessageNotFound" xml:space="preserve"><value>Message not found.</value></data>
+  <data name="PatNotFound" xml:space="preserve"><value>PAT not found.</value></data>
+  <data name="PatRevokedCannotModify" xml:space="preserve"><value>Revoked PAT cannot be modified.</value></data>
+  <data name="ShortcutCodeExists" xml:space="preserve"><value>Shortcut command code already exists.</value></data>
+  <data name="ShortcutNotFound" xml:space="preserve"><value>Shortcut command not found.</value></data>
+  <!-- Workflow -->
+  <data name="WorkflowDefNotFound" xml:space="preserve"><value>Workflow definition not found.</value></data>
+  <data name="WorkflowNotPublished" xml:space="preserve"><value>Only published workflows can be executed.</value></data>
+  <data name="WorkflowInstanceNotFound" xml:space="preserve"><value>Workflow execution instance not found.</value></data>
+  <!-- Migration -->
+  <data name="DynamicTableMigrationVersionExists" xml:space="preserve"><value>A migration version for this table already exists.</value></data>
+  <data name="DynamicTableNotFoundForMigration" xml:space="preserve"><value>Dynamic table not found.</value></data>
+  <data name="MigrationRecordNotFound" xml:space="preserve"><value>Migration record not found.</value></data>
+  <data name="MigrationDestructiveNotConfirmed" xml:space="preserve"><value>This migration contains destructive changes. Please complete the pre-check and confirm execution first.</value></data>
+  <data name="MigrationAlreadySucceeded" xml:space="preserve"><value>Migration has already been executed successfully and cannot be re-run.</value></data>
+  <data name="MigrationInProgress" xml:space="preserve"><value>Migration is currently in progress. Please try again later.</value></data>
+  <data name="MigrationTableKeyMismatch" xml:space="preserve"><value>The migration script table key does not match the target dynamic table.</value></data>
+  <!-- Idempotency / Security -->
+  <data name="IdempotencyRequired" xml:space="preserve"><value>Idempotency key is required.</value></data>
+  <data name="IdempotencyConflict" xml:space="preserve"><value>Idempotency key conflict. Please do not submit duplicate requests.</value></data>
+  <data name="IdempotencyInProgress" xml:space="preserve"><value>Request is being processed. Please try again later.</value></data>
+  <data name="AntiforgeryTokenInvalid" xml:space="preserve"><value>CSRF token is invalid. Please refresh the page and try again.</value></data>
+  <!-- License -->
+  <data name="LicenseExpired" xml:space="preserve"><value>License has expired.</value></data>
+  <data name="LicenseInvalid" xml:space="preserve"><value>License is invalid.</value></data>
+  <data name="LicenseLimitExceeded" xml:space="preserve"><value>License usage limit has been exceeded.</value></data>
+  <!-- Project -->
+  <data name="ProjectNotFound" xml:space="preserve"><value>Project not found.</value></data>
+  <data name="ProjectDisabled" xml:space="preserve"><value>Project has been disabled.</value></data>
+  <data name="ProjectForbidden" xml:space="preserve"><value>You do not have permission to access this project.</value></data>
+  <data name="CrossTenantForbidden" xml:space="preserve"><value>Cross-tenant operations are not allowed.</value></data>
+  <data name="AppContextRequired" xml:space="preserve"><value>Application context is required.</value></data>
+  <!-- Validator: Approval Operation -->
+  <data name="ApprovalOperationTypeInvalid" xml:space="preserve"><value>Operation type is invalid.</value></data>
+  <data name="ApprovalCommentMaxLength" xml:space="preserve"><value>Comment cannot exceed 500 characters.</value></data>
+  <data name="ApprovalTargetNodeRequired" xml:space="preserve"><value>A target node ID must be specified for the back-to-node operation.</value></data>
+  <data name="ApprovalTransferTargetRequired" xml:space="preserve"><value>A target assignee must be specified for transfer or change-assignee operations.</value></data>
+  <data name="ApprovalAddAssigneeRequired" xml:space="preserve"><value>At least one assignee must be specified for the add-signer operation.</value></data>
+  <!-- Validator: ApprovalFlowDefinition -->
+  <data name="ApprovalFlowNameRequired" xml:space="preserve"><value>Flow name is required.</value></data>
+  <data name="ApprovalFlowNameMaxLength" xml:space="preserve"><value>Flow name cannot exceed 100 characters.</value></data>
+  <data name="ApprovalFlowDefinitionJsonRequired" xml:space="preserve"><value>Flow definition JSON is required.</value></data>
+  <data name="ApprovalFlowIdRequired" xml:space="preserve"><value>Flow ID must be greater than 0.</value></data>
+  <!-- Validator: ApprovalStart -->
+  <data name="ApprovalDefinitionIdRequired" xml:space="preserve"><value>Flow definition ID must be greater than 0.</value></data>
+  <data name="ApprovalBusinessKeyRequired" xml:space="preserve"><value>Business key is required.</value></data>
+  <data name="ApprovalBusinessKeyMaxLength" xml:space="preserve"><value>Business key cannot exceed 200 characters.</value></data>
+  <data name="ApprovalDataJsonMaxLength" xml:space="preserve"><value>Business data JSON cannot exceed 10000 characters.</value></data>
+  <!-- Validator: ApprovalDepartmentLeader -->
+  <data name="ApprovalDeptIdRequired" xml:space="preserve"><value>Department ID must be greater than 0.</value></data>
+  <data name="ApprovalLeaderUserIdRequired" xml:space="preserve"><value>User ID must be greater than 0.</value></data>
+  <!-- Validator: SystemConfig -->
+  <data name="SystemConfigKeyFormat" xml:space="preserve"><value>Config key may only contain letters, digits, dots, and underscores. It must start with a letter and be at most 128 characters long.</value></data>
+  <!-- Validator: Permission -->
+  <data name="PermissionTypeInvalid" xml:space="preserve"><value>Permission type must be one of: Api, Menu, Application, Page, or Action.</value></data>
+  <!-- Validator: Dict -->
+  <data name="DictCodeFormat" xml:space="preserve"><value>Dictionary code may only contain lowercase letters, digits, and underscores. It must start with a letter and be at most 64 characters long.</value></data>
+  <!-- Validator: TableView -->
+  <data name="TableViewKeyRequired" xml:space="preserve"><value>TableKey is required.</value></data>
+  <data name="TableViewKeyMaxLength" xml:space="preserve"><value>TableKey exceeds the maximum length.</value></data>
+  <data name="TableViewNameRequired" xml:space="preserve"><value>View name is required.</value></data>
+  <data name="TableViewNameMaxLength" xml:space="preserve"><value>View name exceeds the maximum length.</value></data>
+  <data name="TableViewConfigRequired" xml:space="preserve"><value>View configuration is required.</value></data>
+  <!-- Validator: TenantAppMembership -->
+  <data name="AppMemberRequired" xml:space="preserve"><value>At least one application member must be selected.</value></data>
+  <data name="AppRoleCodeFormat" xml:space="preserve"><value>Role code must start with a letter and may only contain letters, digits, colons, underscores, or hyphens.</value></data>
+  <!-- Validator: DynamicRecord -->
+  <data name="DynamicRecordFilterFieldRequired" xml:space="preserve"><value>Filter field name is required.</value></data>
+  <data name="DynamicRecordValuesRequired" xml:space="preserve"><value>Record values cannot be empty.</value></data>
+  <data name="DynamicRecordFieldNameRequired" xml:space="preserve"><value>Field name is required.</value></data>
+  <data name="DynamicRecordFieldNameFormat" xml:space="preserve"><value>Field name format is invalid.</value></data>
+  <data name="DynamicRecordFieldValueTypeInvalid" xml:space="preserve"><value>Field value type is not supported.</value></data>
+  <data name="DynamicRecordFieldValueSingle" xml:space="preserve"><value>Exactly one typed value must be provided for each field.</value></data>
+  <data name="DynamicRecordFieldNameDuplicated" xml:space="preserve"><value>Field names must be unique.</value></data>
+  <!-- Validator: Workflow PublishEvent -->
+  <data name="WorkflowEventNameRequired" xml:space="preserve"><value>Event name is required.</value></data>
+  <data name="WorkflowEventKeyRequired" xml:space="preserve"><value>Event key is required.</value></data>
+  <!-- Validator: ModelConfig -->
+  <data name="ModelConfigProviderTypeInvalid" xml:space="preserve"><value>ProviderType must be one of: openai, deepseek, ollama, or custom.</value></data>
+  <data name="ModelConfigBaseUrlInvalid" xml:space="preserve"><value>BaseUrl must be a valid absolute URL.</value></data>
+  <!-- Validator: LowCode Environment -->
+  <data name="LowCodeEnvNameRequired" xml:space="preserve"><value>Environment name is required.</value></data>
+  <data name="LowCodeEnvNameMaxLength" xml:space="preserve"><value>Environment name cannot exceed 100 characters.</value></data>
+  <data name="LowCodeEnvCodeRequired" xml:space="preserve"><value>Environment code is required.</value></data>
+  <data name="LowCodeEnvCodeMaxLength" xml:space="preserve"><value>Environment code cannot exceed 50 characters.</value></data>
+  <data name="LowCodeEnvCodeFormat" xml:space="preserve"><value>Environment code format is invalid.</value></data>
+  <data name="LowCodeEnvDescriptionMaxLength" xml:space="preserve"><value>Description cannot exceed 500 characters.</value></data>
+  <data name="LowCodeEnvVariablesJsonInvalid" xml:space="preserve"><value>VariablesJson must be a valid JSON object.</value></data>
+  <!-- Validator: LowCode Page -->
+  <data name="LowCodePageKeyRequired" xml:space="preserve"><value>Page key is required.</value></data>
+  <data name="LowCodePageKeyMaxLength" xml:space="preserve"><value>Page key cannot exceed 100 characters.</value></data>
+  <data name="LowCodePageKeyFormat" xml:space="preserve"><value>Page key may only contain letters, digits, underscores, and hyphens.</value></data>
+  <data name="LowCodePageNameRequired" xml:space="preserve"><value>Page name is required.</value></data>
+  <data name="LowCodePageNameMaxLength" xml:space="preserve"><value>Page name cannot exceed 200 characters.</value></data>
+  <data name="LowCodePageTypeRequired" xml:space="preserve"><value>Page type is required.</value></data>
+  <data name="LowCodePageSchemaRequired" xml:space="preserve"><value>Page Schema is required.</value></data>
+  <data name="LowCodePageDescriptionMaxLength" xml:space="preserve"><value>Description cannot exceed 1000 characters.</value></data>
+  <!-- Validator: Form -->
+  <data name="FormNameRequired" xml:space="preserve"><value>Form name is required.</value></data>
+  <data name="FormNameMaxLength" xml:space="preserve"><value>Form name cannot exceed 200 characters.</value></data>
+  <data name="FormSchemaRequired" xml:space="preserve"><value>Form Schema is required.</value></data>
+  <data name="FormCategoryMaxLength" xml:space="preserve"><value>Category cannot exceed 100 characters.</value></data>
+  <data name="FormDescriptionMaxLength" xml:space="preserve"><value>Description cannot exceed 1000 characters.</value></data>
+  <data name="AppConfigNotFound" xml:space="preserve"><value>Application configuration not found.</value></data>
+  <!-- Service: DynamicTable -->
+  <data name="DynamicTableKeyExists" xml:space="preserve"><value>Table key already exists.</value></data>
+  <data name="DynamicTableOnlySqlite" xml:space="preserve"><value>Only SQLite is supported for dynamic table creation.</value></data>
+  <data name="DynamicTableNotFound" xml:space="preserve"><value>Dynamic table not found.</value></data>
+  <data name="DynamicTableOnlySqliteAlter" xml:space="preserve"><value>Only SQLite is supported for dynamic table schema changes.</value></data>
+  <data name="DynamicTableOnlySqlitePreview" xml:space="preserve"><value>Only SQLite is supported for dynamic table schema change preview.</value></data>
+  <data name="DynamicTableApprovalServiceNotAvailable" xml:space="preserve"><value>Approval service is unavailable.</value></data>
+  <data name="DynamicTableNotBoundApprovalFlow" xml:space="preserve"><value>This dynamic table is not bound to an approval flow.</value></data>
+  <data name="DynamicTableFieldExists" xml:space="preserve"><value>Field already exists.</value></data>
+  <data name="DynamicTablePrimaryKeyNotSupported" xml:space="preserve"><value>Adding primary key or auto-increment fields in schema changes is not supported in this version.</value></data>
+  <data name="DynamicTableFieldTypeRequired" xml:space="preserve"><value>Field type is required.</value></data>
+  <data name="DynamicTableFieldPrecisionInvalid" xml:space="preserve"><value>Field precision/scale configuration is invalid.</value></data>
+  <data name="DynamicTableNonNullFieldRequiresDefault" xml:space="preserve"><value>A default value is required when adding a non-nullable field.</value></data>
+  <data name="DynamicTableFieldUpdateLimitedFields" xml:space="preserve"><value>Only display name and sort order can be updated in this version.</value></data>
+  <!-- Service: DynamicRecord -->
+  <data name="DynamicRecordNotFound" xml:space="preserve"><value>Record not found.</value></data>
+  <data name="DynamicTableFieldsEmpty" xml:space="preserve"><value>Dynamic table has no fields defined.</value></data>
+  <!-- Service: TableView -->
+  <data name="TableViewNameExists" xml:space="preserve"><value>View name already exists.</value></data>
+  <data name="TableViewNotFound" xml:space="preserve"><value>View not found.</value></data>
+  <!-- Service: FieldPermission -->
+  <data name="FieldNoEditPermission" xml:space="preserve"><value>The current role has no field edit permission.</value></data>
+  <data name="FieldEditPermissionBlocked" xml:space="preserve"><value>No edit permission for fields.</value></data>
+  <!-- Service: ApprovalFlow -->
+  <data name="FlowNotFound" xml:space="preserve"><value>Approval flow definition not found.</value></data>
+  <data name="FlowNotPublished" xml:space="preserve"><value>Flow definition is not published.</value></data>
+  <data name="FlowDeprecated" xml:space="preserve"><value>Flow definition is deprecated and cannot be used to start new instances.</value></data>
+  <data name="FlowNotDraft" xml:space="preserve"><value>Only draft flow definitions can be edited.</value></data>
+  <data name="FlowNotDraftDelete" xml:space="preserve"><value>Only draft flow definitions can be deleted.</value></data>
+  <data name="FlowAlreadyPublished" xml:space="preserve"><value>This flow definition is already published.</value></data>
+  <data name="FlowVersionNotFound" xml:space="preserve"><value>Version snapshot not found.</value></data>
+  <data name="FlowVersionMismatch" xml:space="preserve"><value>Version does not belong to this approval flow definition.</value></data>
+  <!-- Service: ApprovalRuntime -->
+  <data name="ApprovalTaskNotFound" xml:space="preserve"><value>Approval task not found.</value></data>
+  <data name="ApprovalTaskNotPending" xml:space="preserve"><value>Task is not in pending status.</value></data>
+  <data name="ApprovalNoPermission" xml:space="preserve"><value>You do not have permission to approve this task.</value></data>
+  <data name="ApprovalInstanceNotRunning" xml:space="preserve"><value>Process instance is not running.</value></data>
+  <data name="ApprovalInstanceNotFound" xml:space="preserve"><value>Process instance not found.</value></data>
+  <data name="ApprovalCopyRecordNotFound" xml:space="preserve"><value>CC record not found.</value></data>
+  <data name="ApprovalCopyRecordNotOwner" xml:space="preserve"><value>You do not have permission to operate this CC record.</value></data>
+  <data name="ApprovalOnlyInitiatorCanCancel" xml:space="preserve"><value>Only the initiator can cancel the process.</value></data>
+  <data name="ApprovalNoPermissionDelegate" xml:space="preserve"><value>You do not have permission to delegate this task.</value></data>
+  <data name="ApprovalNonDelegateTaskReturn" xml:space="preserve"><value>Non-delegated tasks cannot be returned.</value></data>
+  <data name="ApprovalNoPermissionDelegate2" xml:space="preserve"><value>You do not have permission to handle this delegated task.</value></data>
+  <data name="ApprovalSubFlowDefNotFound" xml:space="preserve"><value>Sub-process definition not found.</value></data>
+  <data name="ApprovalParentInstanceNotFound" xml:space="preserve"><value>Parent process instance not found.</value></data>
+  <data name="ApprovalDraftNotFound" xml:space="preserve"><value>Draft not found.</value></data>
+  <data name="ApprovalInvalidDraftStatus" xml:space="preserve"><value>Not in draft status.</value></data>
+  <data name="ApprovalNoPermissionInstance" xml:space="preserve"><value>You do not have permission to operate this process instance.</value></data>
+  <data name="ApprovalOnlyInitiatorOrAdminSubmit" xml:space="preserve"><value>Only the initiator or an administrator can submit a draft.</value></data>
+  <data name="ApprovalTaskStatusInvalid" xml:space="preserve"><value>Task status is invalid.</value></data>
+  <!-- Service: SystemConfig -->
+  <data name="SystemConfigKeyExists" xml:space="preserve"><value>Config key already exists.</value></data>
+  <data name="SystemConfigNotFound" xml:space="preserve"><value>Config not found.</value></data>
+  <data name="SystemConfigBuiltinCannotDelete" xml:space="preserve"><value>Built-in config cannot be deleted.</value></data>
+  <!-- Service: LowCodeApp -->
+  <data name="LowCodeAppKeyExists" xml:space="preserve"><value>Application key already exists.</value></data>
+  <data name="LowCodeDataSourceNotFound" xml:space="preserve"><value>Data source not found.</value></data>
+  <data name="LowCodeAppNotFound" xml:space="preserve"><value>Application not found.</value></data>
+  <data name="LowCodeAppVersionNotFound" xml:space="preserve"><value>Application version not found.</value></data>
+  <data name="LowCodeAppVersionMismatch" xml:space="preserve"><value>Version snapshot does not match the current application.</value></data>
+  <data name="LowCodeImportPackageEmpty" xml:space="preserve"><value>Import package cannot be empty.</value></data>
+  <data name="LowCodeImportPackageMissingInfo" xml:space="preserve"><value>Import package is missing application key or name.</value></data>
+  <data name="LowCodeAppVersionSnapshotInvalid" xml:space="preserve"><value>Application version snapshot is invalid.</value></data>
+  <!-- Service: DynamicTable errors -->
+  <data name="DynamicTableCreateFailed" xml:space="preserve"><value>Failed to create dynamic table.</value></data>
+  <data name="DynamicTableAlterFailed" xml:space="preserve"><value>Failed to alter dynamic table schema.</value></data>
+  <data name="DynamicTableDeleteFailed" xml:space="preserve"><value>Failed to delete dynamic table.</value></data>
+  <data name="DynamicTableRelationsUpdateFailed" xml:space="preserve"><value>Failed to update dynamic table relations.</value></data>
+  <!-- Approval operations (shared) -->
+  <data name="ApprovalOpTaskIdRequired" xml:space="preserve"><value>This operation requires a task ID.</value></data>
+  <data name="ApprovalOpAssigneeRequired" xml:space="preserve"><value>This operation requires at least one approver.</value></data>
+  <data name="ApprovalOpTaskInstanceMismatch" xml:space="preserve"><value>The task does not belong to the specified process instance.</value></data>
+  <data name="ApprovalOpOnlyPendingTask" xml:space="preserve"><value>Only tasks in pending status can be processed.</value></data>
+  <data name="ApprovalOpOnlyCurrentHandler" xml:space="preserve"><value>Only the current handler can perform this operation.</value></data>
+  <data name="ApprovalOpTargetAssigneeRequired" xml:space="preserve"><value>This operation requires a target assignee.</value></data>
+  <data name="ApprovalOpOnlyOwnTask" xml:space="preserve"><value>You can only operate on your own tasks.</value></data>
+  <data name="ApprovalOpTargetNodeRequired" xml:space="preserve"><value>This operation requires a target node ID.</value></data>
+  <data name="ApprovalOpTargetNodeNotFound" xml:space="preserve"><value>Target node not found.</value></data>
+  <data name="ApprovalOpNodeAlreadyExecuted" xml:space="preserve"><value>The target node has already been executed.</value></data>
+  <data name="ApprovalOpNoCurrentNode" xml:space="preserve"><value>The process instance has no current node.</value></data>
+  <data name="ApprovalOpTaskNotApproved" xml:space="preserve"><value>Only approved tasks can be reverted.</value></data>
+  <data name="ApprovalOpJumpTargetRequired" xml:space="preserve"><value>Jump target node is required.</value></data>
+  <data name="ApprovalOpCommunicateTaskIdRequired" xml:space="preserve"><value>Task ID is required.</value></data>
+  <data name="ApprovalOpCommunicateTargetRequired" xml:space="preserve"><value>Communication target is required.</value></data>
+  <data name="ApprovalOpCommunicateInvalidTarget" xml:space="preserve"><value>Invalid communication target ID.</value></data>
+  <data name="ApprovalFlowDefNotFoundShort" xml:space="preserve"><value>Flow definition not found.</value></data>
+  <data name="FlowTargetNodeNotFound" xml:space="preserve"><value>Target node not found.</value></data>
+  <data name="ApprovalOpReclaimTaskIdRequired" xml:space="preserve"><value>You must specify the task ID to reclaim.</value></data>
+  <data name="ApprovalOpReclaimOnlyOwnApproved" xml:space="preserve"><value>You can only reclaim tasks you have approved.</value></data>
+  <data name="ApprovalOpRecoverOnlyEndedInstance" xml:space="preserve"><value>Only ended process instances can be recovered.</value></data>
+  <data name="ApprovalOpFutureRemoveNodeRequired" xml:space="preserve"><value>Future-node removal requires a target node ID.</value></data>
+  <data name="ApprovalOpFutureRemoveAssigneeRequired" xml:space="preserve"><value>Future-node removal requires assignees to remove.</value></data>
+  <data name="ApprovalOpFutureRemoveNodeExecuted" xml:space="preserve"><value>The target node has already been executed; future-node removal is not allowed.</value></data>
+  <data name="ApprovalOpTaskIdEmpty" xml:space="preserve"><value>Task ID cannot be empty.</value></data>
+  <data name="ApprovalTaskAlreadyClaimed" xml:space="preserve"><value>The task has already been claimed.</value></data>
+  <data name="ApprovalAppendAssigneeRequired" xml:space="preserve"><value>Additional assignees cannot be empty.</value></data>
+  <data name="SnowflakeTenantIdRequired" xml:space="preserve"><value>Tenant ID is required to generate IDs.</value></data>
+  <data name="SnowflakeAppIdRequired" xml:space="preserve"><value>Application ID is required to generate IDs.</value></data>
+  <data name="AnnouncementNotFound" xml:space="preserve"><value>Announcement not found.</value></data>
+  <data name="AnnouncementTitleRequired" xml:space="preserve"><value>Announcement title is required.</value></data>
+  <data name="AnnouncementContentRequired" xml:space="preserve"><value>Announcement content is required.</value></data>
+  <data name="AppOrgDepartmentNotFound" xml:space="preserve"><value>Application department not found.</value></data>
+  <data name="AppOrgPositionNotFound" xml:space="preserve"><value>Application position not found.</value></data>
+  <data name="AppOrgProjectNotFound" xml:space="preserve"><value>Application project not found.</value></data>
+  <data name="AppOrgRoleNotFound" xml:space="preserve"><value>Application role not found.</value></data>
+  <data name="AppPermissionCodeExists" xml:space="preserve"><value>Permission code already exists under this application.</value></data>
+  <data name="AppScopedPermissionNotFound" xml:space="preserve"><value>Application-scoped permission not found.</value></data>
+  <data name="LowCodeAppCreateFailed" xml:space="preserve"><value>Failed to create low-code application.</value></data>
+  <data name="LowCodeAppUpdateFailed" xml:space="preserve"><value>Failed to update low-code application.</value></data>
+  <data name="LowCodeAppPublishFailed" xml:space="preserve"><value>Failed to publish application.</value></data>
+  <data name="LowCodeAppRollbackFailed" xml:space="preserve"><value>Failed to roll back application.</value></data>
+  <data name="LowCodeAppDisableFailed" xml:space="preserve"><value>Failed to disable low-code application.</value></data>
+  <data name="LowCodeAppEnableFailed" xml:space="preserve"><value>Failed to enable low-code application.</value></data>
+  <data name="LowCodeAppEntityAliasUpdateFailed" xml:space="preserve"><value>Failed to update entity alias.</value></data>
+  <data name="ConversationForbidden" xml:space="preserve"><value>You are not allowed to operate this conversation.</value></data>
+  <data name="ConversationAgentMismatch" xml:space="preserve"><value>Conversation does not match the current agent.</value></data>
+  <data name="ConversationAccessDenied" xml:space="preserve"><value>Access to this conversation is denied.</value></data>
+  <data name="ModelEmptyResponse" xml:space="preserve"><value>The model did not return a usable response.</value></data>
+  <data name="AgentNameExists" xml:space="preserve"><value>Agent name already exists.</value></data>
+  <data name="ModelConfigNotFound" xml:space="preserve"><value>The specified model configuration was not found.</value></data>
+  <data name="PromptNameExists" xml:space="preserve"><value>Prompt name already exists.</value></data>
+  <data name="PromptTemplateNotFound" xml:space="preserve"><value>Prompt template not found.</value></data>
+  <data name="SystemPromptCannotModify" xml:space="preserve"><value>System prompt templates cannot be modified.</value></data>
+  <data name="SystemPromptCannotDelete" xml:space="preserve"><value>System prompt templates cannot be deleted.</value></data>
+  <data name="ApprovalOpRemoveAssigneeTaskIdRequired" xml:space="preserve"><value>Remove-assignee requires a task ID.</value></data>
+  <data name="ApprovalOpRemoveAssigneeTargetRequired" xml:space="preserve"><value>Remove-assignee requires assignees to remove.</value></data>
+  <data name="ApprovalOpRemoveAssigneeTargetTaskNotFound" xml:space="preserve"><value>Target approval task to remove was not found.</value></data>
+  <data name="ApprovalOpUndertakePendingOnly" xml:space="preserve"><value>Only pending tasks can be undertaken.</value></data>
+  <data name="ApprovalOpUndertakeOwnTask" xml:space="preserve"><value>You can only undertake your own tasks.</value></data>
+  <data name="ApprovalOnlyInitiatorDrawBack" xml:space="preserve"><value>Only the initiator can withdraw the process.</value></data>
+  <data name="ApprovalDrawBackOnlyRunning" xml:space="preserve"><value>Only running processes can be withdrawn.</value></data>
+  <data name="ApprovalDrawBackAlreadyProgressed" xml:space="preserve"><value>The process has already been approved and cannot be withdrawn.</value></data>
+  <data name="ApprovalOpChangeAssigneeTaskIdRequired" xml:space="preserve"><value>Change-assignee requires a task ID.</value></data>
+  <data name="ApprovalOpChangeAssigneeTargetRequired" xml:space="preserve"><value>Change-assignee requires a target assignee.</value></data>
+  <data name="ApprovalOpChangeAssigneePendingOnly" xml:space="preserve"><value>Only pending tasks can change assignee.</value></data>
+  <data name="ApprovalOpBackAnyNodeTargetRequired" xml:space="preserve"><value>Jump-back requires a target node ID.</value></data>
+  <data name="ApprovalOpBackAnyNodePendingOnly" xml:space="preserve"><value>Jump-back can only be based on a pending task.</value></data>
+  <data name="ApprovalOpBackAnyNodeForbidden" xml:space="preserve"><value>Only the initiator or current handler can perform jump-back.</value></data>
+  <data name="ApprovalOpTransferTargetEmpty" xml:space="preserve"><value>Transfer target cannot be empty.</value></data>
+  <data name="ApprovalOperationInProgress" xml:space="preserve"><value>The operation is in progress; please do not resubmit.</value></data>
+  <data name="ApprovalOperationRetryRequired" xml:space="preserve"><value>The last operation failed; retry with a new idempotency key.</value></data>
+  <data name="ApprovalInstanceAlreadyRunning" xml:space="preserve"><value>The process is already running; resume is not needed.</value></data>
+  <!-- Controller API messages -->
+  <data name="KnowledgeBaseNotFound" xml:space="preserve"><value>Knowledge base not found.</value></data>
+  <data name="KnowledgeBaseImportRequiresFileOrId" xml:space="preserve"><value>Please provide fileId or upload a file.</value></data>
+  <data name="AiVariableNotFound" xml:space="preserve"><value>Variable not found.</value></data>
+  <data name="FileRecordNotFound" xml:space="preserve"><value>File not found.</value></data>
+  <data name="ComponentTemplateNotFound" xml:space="preserve"><value>Template not found.</value></data>
+  <data name="PluginMarketItemNotFound" xml:space="preserve"><value>Plugin not found.</value></data>
+  <data name="WebhookSubscriptionNotFound" xml:space="preserve"><value>Subscription not found.</value></data>
+  <data name="ApiConnectorNotFound" xml:space="preserve"><value>Connector not found.</value></data>
+  <data name="LicenseCertificateRequired" xml:space="preserve"><value>Certificate content is required.</value></data>
+  <data name="AiDatabaseNotFound" xml:space="preserve"><value>Database not found.</value></data>
+  <data name="AiDatabaseBotIdInvalid" xml:space="preserve"><value>BotId must be greater than 0.</value></data>
+  <data name="WorkflowVersionNotInWorkflow" xml:space="preserve"><value>Version not found or does not belong to this workflow.</value></data>
+  <data name="WorkflowNodeExecutionNotFound" xml:space="preserve"><value>Node execution record not found.</value></data>
+  <data name="ApprovalAgentConfigNotFound" xml:space="preserve"><value>Approval agent configuration not found.</value></data>
+  <data name="SsoFeatureDisabled" xml:space="preserve"><value>SSO is not enabled.</value></data>
+  <data name="IntegrationApiKeyRequired" xml:space="preserve"><value>X-Api-Key header is required.</value></data>
+  <data name="IntegrationTenantIdInvalid" xml:space="preserve"><value>X-Tenant-Id format is invalid.</value></data>
+  <data name="IntegrationApiKeyInvalid" xml:space="preserve"><value>API key is invalid or not permitted.</value></data>
+  <data name="ApprovalInstanceNotFoundShort" xml:space="preserve"><value>Approval instance not found.</value></data>
+  <data name="LowCodeAppNotBoundDataSource" xml:space="preserve"><value>The application has no data source bound.</value></data>
+  <data name="TaskIdInvalid" xml:space="preserve"><value>taskId is invalid.</value></data>
+  <data name="SsoProviderNotFoundOrDisabled" xml:space="preserve"><value>Provider is not found or not enabled.</value></data>
+  <data name="SsoProviderNotFoundFormat" xml:space="preserve"><value>Provider '{0}' is not found or not enabled.</value></data>
+  <data name="FlowDefinitionNotFoundShort" xml:space="preserve"><value>Flow definition not found.</value></data>
+  <data name="FlowVersionNotFoundShort" xml:space="preserve"><value>Version not found.</value></data>
+  <data name="OpenBotNotFound" xml:space="preserve"><value>Bot not found.</value></data>
+  <data name="ExpressionRequired" xml:space="preserve"><value>Expression cannot be empty.</value></data>
+  <data name="SubscriptionPlanNotFound" xml:space="preserve"><value>Plan not found.</value></data>
+  <data name="AiAppDetailNotFound" xml:space="preserve"><value>AI application not found.</value></data>
+  <data name="AiPluginDetailNotFound" xml:space="preserve"><value>Plugin not found.</value></data>
+  <data name="TenantDataSourceNotFound" xml:space="preserve"><value>Data source not found.</value></data>
+  <data name="TenantContextMismatch" xml:space="preserve"><value>Tenant context mismatch.</value></data>
+  <data name="ApprovalWritebackFailureNotFound" xml:space="preserve"><value>Writeback failure record not found.</value></data>
+  <data name="PluginPackageUploadRequired" xml:space="preserve"><value>Please upload a plugin package file.</value></data>
+  <data name="ModelConfigDtoNotFound" xml:space="preserve"><value>Model configuration not found.</value></data>
+  <data name="WorkflowV2ResumeInvalidState" xml:space="preserve"><value>Resume is only allowed for failed, cancelled, or interrupted executions.</value></data>
+  <data name="PatMissingKnowledgeReadScope" xml:space="preserve"><value>PAT is missing open:knowledge:read scope.</value></data>
+  <data name="PatMissingFilesWriteScope" xml:space="preserve"><value>PAT is missing open:files:write scope.</value></data>
+  <data name="PatMissingFilesReadScope" xml:space="preserve"><value>PAT is missing open:files:read scope.</value></data>
+  <data name="OpenFilesNoValidUpload" xml:space="preserve"><value>No valid file was received.</value></data>
+  <data name="VisualizationProcessNotFoundFormat" xml:space="preserve"><value>Process not found: {0}</value></data>
+  <data name="VisualizationInstanceNotFoundFormat" xml:space="preserve"><value>Instance not found: {0}</value></data>
+  <data name="PluginMetricsNotFoundFormat" xml:space="preserve"><value>No metrics for plugin {0}</value></data>
+  <data name="FlowPublishValidationFailed" xml:space="preserve"><value>Pre-publish validation failed: {0}</value></data>
+  <data name="FlowCompareTargetVersionNotFound" xml:space="preserve"><value>Target version not found; cannot compare.</value></data>
+  <data name="ApprovalFlowPublishSuccess" xml:space="preserve"><value>Published.</value></data>
+  <data name="ApprovalFlowDeleteSuccess" xml:space="preserve"><value>Deleted.</value></data>
+  <data name="ApprovalFlowDisableSuccess" xml:space="preserve"><value>Disabled.</value></data>
+  <data name="ApprovalTaskDelegatedSuccess" xml:space="preserve"><value>Delegated.</value></data>
+  <data name="ApprovalTaskReturnedSuccess" xml:space="preserve"><value>Returned.</value></data>
+  <data name="ApprovalTaskClaimedSuccess" xml:space="preserve"><value>Claimed.</value></data>
+  <data name="ApprovalTaskUrgedSuccess" xml:space="preserve"><value>Reminder sent.</value></data>
+  <data name="ApprovalTaskCommunicationSentSuccess" xml:space="preserve"><value>Message sent.</value></data>
+  <data name="ApprovalTaskMarkedViewedSuccess" xml:space="preserve"><value>Marked as read.</value></data>
+  <data name="ApprovalTaskApprovedSuccess" xml:space="preserve"><value>Approved.</value></data>
+  <data name="ApprovalTaskRejectedSuccess" xml:space="preserve"><value>Rejected.</value></data>
+  <data name="ApprovalBatchTransferSuccess" xml:space="preserve"><value>Transferred {0} task(s).</value></data>
+  <data name="PatMissingBotsReadScope" xml:space="preserve"><value>PAT is missing open:bots:read scope.</value></data>
+  <data name="AiResourceCopyTaskNotFound" xml:space="preserve"><value>Resource copy task not found.</value></data>
+  <data name="AiDatabaseImportTaskNotFound" xml:space="preserve"><value>Import task not found.</value></data>
+  <data name="WorkflowVersionPairNotFound" xml:space="preserve"><value>Version {0} or {1} does not exist.</value></data>
+  <data name="AiWorkflowNodeTypeDescLlm" xml:space="preserve"><value>Invoke a large language model</value></data>
+  <data name="AiWorkflowNodeTypeDescPlugin" xml:space="preserve"><value>Call an external plugin or API</value></data>
+  <data name="AiWorkflowNodeTypeDescCodeRunner" xml:space="preserve"><value>Run code or expressions</value></data>
+  <data name="AiWorkflowNodeTypeDescKnowledgeRetriever" xml:space="preserve"><value>Retrieve knowledge base content</value></data>
+  <data name="AiWorkflowNodeTypeDescTextProcessor" xml:space="preserve"><value>Text templates and processing</value></data>
+  <data name="AiWorkflowNodeTypeDescHttpRequester" xml:space="preserve"><value>Send HTTP requests</value></data>
+  <data name="AiWorkflowNodeTypeDescOutputEmitter" xml:space="preserve"><value>Emit workflow outputs</value></data>
+  <data name="AuditActionApprovalTaskApprove" xml:space="preserve"><value>Approval task — approve</value></data>
+  <data name="AuditActionApprovalTaskReject" xml:space="preserve"><value>Approval task — reject</value></data>
+  <data name="AuditOutcomeSuccess" xml:space="preserve"><value>Success</value></data>
+  <data name="AuditDetailTaskIdFormat" xml:space="preserve"><value>Task ID: {0}</value></data>
+  <data name="AuditActionApprovalAgentCreate" xml:space="preserve"><value>Approval agent — create</value></data>
+  <data name="AuditActionApprovalAgentDelete" xml:space="preserve"><value>Approval agent — delete</value></data>
+  <data name="AuditDetailApprovalAgentConfigIdFormat" xml:space="preserve"><value>Agent config ID: {0}</value></data>
+  <data name="ApprovalAgentCreatedSuccess" xml:space="preserve"><value>Created.</value></data>
+  <data name="ToolAuditQueryPlaceholder" xml:space="preserve"><value>Audit query placeholder; aggregation will be wired in a later release.</value></data>
+  <data name="AppManifestImpactAnalysisPending" xml:space="preserve"><value>Impact analysis is under construction and will ship in a future version.</value></data>
+  <data name="AuditActionVisualizationSave" xml:space="preserve"><value>Visualization process — save</value></data>
+  <data name="AuditActionVisualizationUpdate" xml:space="preserve"><value>Visualization process — update</value></data>
+  <data name="AuditActionVisualizationPublish" xml:space="preserve"><value>Visualization process — publish</value></data>
+  <data name="AuditDetailVisualizationProcessIdFormat" xml:space="preserve"><value>Process ID: {0}</value></data>
+  <data name="UserNotSignedIn" xml:space="preserve"><value>Not signed in.</value></data>
 </root>

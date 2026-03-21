@@ -4,7 +4,7 @@
     <FilterToolbar
       v-model:keyword="keyword"
       :show-search="true"
-      search-placeholder="按标题或节点关键词检索"
+      :search-placeholder="t('approvalWorkspace.searchPendingPlaceholder')"
       :search-width="240"
       :show-refresh="true"
       @search="handleFilterUpdate"
@@ -18,7 +18,7 @@
         :options="flowOptions"
         allow-clear
         show-search
-        placeholder="按流程类型过滤"
+        :placeholder="t('approvalWorkspace.filterByFlow')"
         @change="handleFlowFilterChange"
       />
       <a-select
@@ -28,7 +28,7 @@
         :options="appOptions"
         allow-clear
         show-search
-        placeholder="按应用过滤"
+        :placeholder="t('approvalWorkspace.filterByApp')"
         @change="handleAppScopeChange"
       />
     </FilterToolbar>
@@ -52,13 +52,13 @@
                 </div>
                 <div class="task-card-title">{{ item.title }}</div>
                 <div class="task-card-meta">
-                  <span>当前节点: {{ item.currentNodeName }}</span>
+                  <span>{{ t('approvalWorkspace.currentNode') }}: {{ item.currentNodeName }}</span>
                   <SlaIndicator :remaining-minutes="item.slaRemainingMinutes" />
                 </div>
                 <div class="task-card-time">{{ formatTime(item.createdAt) }}</div>
               </div>
             </template>
-            <a-empty v-else description="暂无审批待办" style="margin-top: 60px;" />
+            <a-empty v-else :description="t('approvalWorkspace.emptyPending')" style="margin-top: 60px;" />
           </div>
           
           <div class="pagination-wrapper" v-if="pagination.total && pagination.total > 0">
@@ -87,7 +87,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, watch, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -107,6 +108,8 @@ import FilterToolbar from "@/components/common/FilterToolbar.vue";
 import ApprovalTaskDetailPanel from "@/components/approval/ApprovalTaskDetailPanel.vue";
 import ApprovalStatusTag from "@/components/approval/ApprovalStatusTag.vue";
 import SlaIndicator from "@/components/approval/SlaIndicator.vue";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   urlKeyword?: string;
@@ -128,13 +131,13 @@ const appOptions = ref<Array<{ label: string; value: string }>>([]);
 const selectedFlowId = ref<string | undefined>(undefined);
 const flowLoading = ref(false);
 const flowOptions = ref<Array<{ label: string; value: string }>>([]);
-const statusOptions = [
-  { label: "全部", value: "all" },
-  { label: "待审批", value: ApprovalTaskStatus.Pending },
-  { label: "已同意", value: ApprovalTaskStatus.Approved },
-  { label: "已驳回", value: ApprovalTaskStatus.Rejected },
-  { label: "已取消", value: ApprovalTaskStatus.Canceled }
-];
+const statusOptions = computed(() => [
+  { label: t("approvalWorkspace.statusAll"), value: "all" },
+  { label: t("approvalWorkspace.statusPending"), value: ApprovalTaskStatus.Pending },
+  { label: t("approvalWorkspace.statusApproved"), value: ApprovalTaskStatus.Approved },
+  { label: t("approvalWorkspace.statusRejected"), value: ApprovalTaskStatus.Rejected },
+  { label: t("approvalWorkspace.statusCanceled"), value: ApprovalTaskStatus.Canceled }
+]);
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
   pageSize: 10,
@@ -157,7 +160,7 @@ const fetchData = async () => {
     dataSource.value = result.items;
     pagination.total = result.total;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "查询失败");
+    message.error(err instanceof Error ? err.message : t("approvalWorkspace.queryFailed"));
   } finally {
     loading.value = false;
   }
@@ -191,7 +194,7 @@ const fetchDataAndRetainSelection = async () => {
 
   if (!isMounted.value) return;
   if (selectedItem.value) {
-    const stillExists = dataSource.value.find(t => t.id === selectedItem.value!.id);
+    const stillExists = dataSource.value.find((row) => row.id === selectedItem.value!.id);
     if (!stillExists) clearSelection();
   }
 };
@@ -207,7 +210,7 @@ const loadAppOptions = async () => {
       value: item.id
     }));
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "加载应用列表失败");
+    message.error(err instanceof Error ? err.message : t("approvalWorkspace.loadAppsFailed"));
   } finally {
     appLoading.value = false;
   }

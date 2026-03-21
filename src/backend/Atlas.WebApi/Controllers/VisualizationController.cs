@@ -77,7 +77,9 @@ public sealed class VisualizationController : ControllerBase
         var detail = await _queryService.GetProcessAsync(id, cancellationToken);
         if (detail == null)
         {
-            return NotFound(ApiResponse<VisualizationProcessDetail>.Fail("NOT_FOUND", $"流程不存在: {id}", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<VisualizationProcessDetail>.Fail("NOT_FOUND",
+                string.Format(ApiResponseLocalizer.T(HttpContext, "VisualizationProcessNotFoundFormat"), id),
+                HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<VisualizationProcessDetail>.Ok(detail, HttpContext.TraceIdentifier));
@@ -104,7 +106,9 @@ public sealed class VisualizationController : ControllerBase
         var detail = await _queryService.GetInstanceAsync(id, cancellationToken);
         if (detail == null)
         {
-            return NotFound(ApiResponse<VisualizationInstanceDetail>.Fail("NOT_FOUND", $"实例不存在: {id}", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<VisualizationInstanceDetail>.Fail("NOT_FOUND",
+                string.Format(ApiResponseLocalizer.T(HttpContext, "VisualizationInstanceNotFoundFormat"), id),
+                HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<VisualizationInstanceDetail>.Ok(detail, HttpContext.TraceIdentifier));
@@ -131,9 +135,9 @@ public sealed class VisualizationController : ControllerBase
         var auditContext = new AuditContext(
             currentUser.TenantId,
             currentUser.UserId.ToString(),
-            "可视化流程-保存",
-            "成功",
-            $"流程ID: {result.ProcessId}",
+            ApiResponseLocalizer.T(HttpContext, "AuditActionVisualizationSave"),
+            ApiResponseLocalizer.T(HttpContext, "AuditOutcomeSuccess"),
+            ApiResponseLocalizer.T(HttpContext, "AuditDetailVisualizationProcessIdFormat", result.ProcessId),
             ControllerHelper.GetIpAddress(HttpContext),
             ControllerHelper.GetUserAgent(HttpContext),
             _clientContextAccessor.GetCurrent());
@@ -155,9 +159,9 @@ public sealed class VisualizationController : ControllerBase
         var auditContext = new AuditContext(
             currentUser.TenantId,
             currentUser.UserId.ToString(),
-            "可视化流程-更新",
-            "成功",
-            $"流程ID: {result.ProcessId}",
+            ApiResponseLocalizer.T(HttpContext, "AuditActionVisualizationUpdate"),
+            ApiResponseLocalizer.T(HttpContext, "AuditOutcomeSuccess"),
+            ApiResponseLocalizer.T(HttpContext, "AuditDetailVisualizationProcessIdFormat", result.ProcessId),
             ControllerHelper.GetIpAddress(HttpContext),
             ControllerHelper.GetUserAgent(HttpContext),
             _clientContextAccessor.GetCurrent());
@@ -180,9 +184,9 @@ public sealed class VisualizationController : ControllerBase
         var auditContext = new AuditContext(
             currentUser.TenantId,
             currentUser.UserId.ToString(),
-            "可视化流程-发布",
-            "成功",
-            $"流程ID: {payload.ProcessId}",
+            ApiResponseLocalizer.T(HttpContext, "AuditActionVisualizationPublish"),
+            ApiResponseLocalizer.T(HttpContext, "AuditOutcomeSuccess"),
+            ApiResponseLocalizer.T(HttpContext, "AuditDetailVisualizationProcessIdFormat", payload.ProcessId),
             ControllerHelper.GetIpAddress(HttpContext),
             ControllerHelper.GetUserAgent(HttpContext),
             _clientContextAccessor.GetCurrent());

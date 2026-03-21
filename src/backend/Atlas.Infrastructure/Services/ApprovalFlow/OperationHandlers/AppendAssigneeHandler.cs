@@ -37,14 +37,14 @@ public sealed class AppendAssigneeHandler : IApprovalOperationHandler
         ApprovalOperationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!taskId.HasValue) throw new BusinessException("INVALID_REQUEST", "任务ID不能为空");
+        if (!taskId.HasValue) throw new BusinessException("INVALID_REQUEST", "ApprovalOpTaskIdEmpty");
         if (request.AdditionalAssigneeValues == null || request.AdditionalAssigneeValues.Count == 0)
         {
-            throw new BusinessException("INVALID_REQUEST", "追加人员不能为空");
+            throw new BusinessException("INVALID_REQUEST", "ApprovalAppendAssigneeRequired");
         }
 
         var currentTask = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
-        if (currentTask == null) throw new BusinessException("TASK_NOT_FOUND", "任务不存在");
+        if (currentTask == null) throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
 
         // 构建所有新任务列表，批量插入
         var newTasks = new List<ApprovalTask>(request.AdditionalAssigneeValues.Count);

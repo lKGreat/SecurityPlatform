@@ -45,19 +45,19 @@ public sealed class IntegrationApprovalController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "需要 X-Api-Key", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", ApiResponseLocalizer.T(HttpContext, "IntegrationApiKeyRequired"), HttpContext.TraceIdentifier));
         }
 
         if (!Guid.TryParse(tenantIdHeader, out var tenantGuid))
         {
-            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", "X-Tenant-Id 格式无效", HttpContext.TraceIdentifier));
+            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", ApiResponseLocalizer.T(HttpContext, "IntegrationTenantIdInvalid"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = new TenantId(tenantGuid);
 
         if (!await _apiKeyValidation.ValidateAsync(tenantId, apiKey, "approval:write", cancellationToken))
         {
-            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "API Key 无效或无权限", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", ApiResponseLocalizer.T(HttpContext, "IntegrationApiKeyInvalid"), HttpContext.TraceIdentifier));
         }
 
         // 将 FormData 与 ExtraData 合并为一个 DataJson 对象，避免字段丢失
@@ -122,25 +122,25 @@ public sealed class IntegrationApprovalController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "需要 X-Api-Key", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", ApiResponseLocalizer.T(HttpContext, "IntegrationApiKeyRequired"), HttpContext.TraceIdentifier));
         }
 
         if (!Guid.TryParse(tenantIdHeader, out var tenantGuid))
         {
-            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", "X-Tenant-Id 格式无效", HttpContext.TraceIdentifier));
+            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", ApiResponseLocalizer.T(HttpContext, "IntegrationTenantIdInvalid"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = new TenantId(tenantGuid);
 
         if (!await _apiKeyValidation.ValidateAsync(tenantId, apiKey, "approval:read", cancellationToken))
         {
-            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "API Key 无效或无权限", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", ApiResponseLocalizer.T(HttpContext, "IntegrationApiKeyInvalid"), HttpContext.TraceIdentifier));
         }
 
         var instance = await _queryService.GetInstanceByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance is null)
         {
-            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", "审批实例不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ApprovalInstanceNotFoundShort"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<object>.Ok(new
@@ -165,19 +165,19 @@ public sealed class IntegrationApprovalController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "需要 X-Api-Key", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", ApiResponseLocalizer.T(HttpContext, "IntegrationApiKeyRequired"), HttpContext.TraceIdentifier));
         }
 
         if (!Guid.TryParse(tenantIdHeader, out var tenantGuid))
         {
-            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", "X-Tenant-Id 格式无效", HttpContext.TraceIdentifier));
+            return BadRequest(ApiResponse<object>.Fail("VALIDATION_ERROR", ApiResponseLocalizer.T(HttpContext, "IntegrationTenantIdInvalid"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = new TenantId(tenantGuid);
 
         if (!await _apiKeyValidation.ValidateAsync(tenantId, apiKey, "approval:write", cancellationToken))
         {
-            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", "API Key 无效或无权限", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", ApiResponseLocalizer.T(HttpContext, "IntegrationApiKeyInvalid"), HttpContext.TraceIdentifier));
         }
 
         await _commandService.CancelInstanceAsync(tenantId, instanceId, request?.CancelledByUserId ?? 0, cancellationToken);

@@ -126,12 +126,12 @@ internal static class DynamicSqlBuilder
         var value = field.DefaultValue.Trim();
         return field.FieldType switch
         {
-            DynamicFieldType.Int => TryParseInt(value, out var i) ? i.ToString(CultureInfo.InvariantCulture) : throw new BusinessException($"字段 {field.Name} 的默认值 '{value}' 不是有效的整数。", ErrorCodes.ValidationError),
-            DynamicFieldType.Long => TryParseLong(value, out var l) ? l.ToString(CultureInfo.InvariantCulture) : throw new BusinessException($"字段 {field.Name} 的默认值 '{value}' 不是有效的长整数。", ErrorCodes.ValidationError),
-            DynamicFieldType.Decimal => TryParseDecimal(value, out var d) ? d.ToString(CultureInfo.InvariantCulture) : throw new BusinessException($"字段 {field.Name} 的默认值 '{value}' 不是有效的小数。", ErrorCodes.ValidationError),
+            DynamicFieldType.Int => TryParseInt(value, out var i) ? i.ToString(CultureInfo.InvariantCulture) : throw new BusinessException($"Default value '{value}' for field '{field.Name}' is not a valid integer.", ErrorCodes.ValidationError),
+            DynamicFieldType.Long => TryParseLong(value, out var l) ? l.ToString(CultureInfo.InvariantCulture) : throw new BusinessException($"Default value '{value}' for field '{field.Name}' is not a valid long integer.", ErrorCodes.ValidationError),
+            DynamicFieldType.Decimal => TryParseDecimal(value, out var d) ? d.ToString(CultureInfo.InvariantCulture) : throw new BusinessException($"Default value '{value}' for field '{field.Name}' is not a valid decimal.", ErrorCodes.ValidationError),
             DynamicFieldType.Bool => value.Equals("true", StringComparison.OrdinalIgnoreCase) ? "1" :
                 value.Equals("false", StringComparison.OrdinalIgnoreCase) ? "0" :
-                throw new BusinessException($"字段 {field.Name} 的默认值 '{value}' 不是有效的布尔值（应为 true 或 false）。", ErrorCodes.ValidationError),
+                throw new BusinessException($"Default value '{value}' for field '{field.Name}' is not a valid boolean (expected true or false).", ErrorCodes.ValidationError),
             _ => value
         };
     }

@@ -75,7 +75,7 @@ public sealed class SessionsController : ControllerBase
         var session = await _authSessionRepository.FindByIdAsync(tenantId, sessionId, cancellationToken);
         if (session is null)
         {
-            return NotFound(ApiResponse<object>.Fail(ErrorCodes.NotFound, "会话不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "ConversationNotFound"), HttpContext.TraceIdentifier));
         }
 
         await _authSessionRepository.RevokeAsync(tenantId, sessionId, now, cancellationToken);

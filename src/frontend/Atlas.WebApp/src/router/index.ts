@@ -207,7 +207,12 @@ const router = createRouter({
     // 请在弃用窗口结束前将所有调用方迁移至新路径
     // 弃用窗口内：仍可访问，但会执行重定向；不再新增功能
     // ==========================================
-    { path: "/:pathMatch(.*)*", name: "not-found", component: NotFoundPage }
+    {
+      path: "/:pathMatch(.*)*",
+      name: "not-found",
+      component: NotFoundPage,
+      meta: { title: "页面未找到", titleKey: "route.notFound" }
+    }
   ]
 });
 

@@ -53,7 +53,7 @@ public sealed class DashboardsController : ControllerBase
         [FromBody] DashboardDefinitionCreateRequest request, CancellationToken cancellationToken)
     {
         var currentUser = _currentUserAccessor.GetCurrentUser();
-        if (currentUser is null) return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        if (currentUser is null) return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         var tenantId = _tenantProvider.GetTenantId();
         var id = await _dashboardService.CreateAsync(tenantId, currentUser.UserId, request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
@@ -65,7 +65,7 @@ public sealed class DashboardsController : ControllerBase
         long id, [FromBody] DashboardDefinitionUpdateRequest request, CancellationToken cancellationToken)
     {
         var currentUser = _currentUserAccessor.GetCurrentUser();
-        if (currentUser is null) return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        if (currentUser is null) return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         var tenantId = _tenantProvider.GetTenantId();
         await _dashboardService.UpdateAsync(tenantId, currentUser.UserId, id, request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));
@@ -76,7 +76,7 @@ public sealed class DashboardsController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> Delete(long id, CancellationToken cancellationToken)
     {
         var currentUser = _currentUserAccessor.GetCurrentUser();
-        if (currentUser is null) return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        if (currentUser is null) return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         var tenantId = _tenantProvider.GetTenantId();
         await _dashboardService.DeleteAsync(tenantId, id, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));

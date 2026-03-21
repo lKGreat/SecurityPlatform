@@ -62,7 +62,7 @@ public sealed class ApprovalWritebackFailuresController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         var failure = await _repository.GetByIdAsync(tenantId, id, cancellationToken);
         if (failure is null)
-            return NotFound(ApiResponse<object?>.Fail("NOT_FOUND", "回写失败记录不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object?>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ApprovalWritebackFailureNotFound"), HttpContext.TraceIdentifier));
 
         try
         {

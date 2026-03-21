@@ -48,7 +48,7 @@ public sealed class RuntimeTasksController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<PagedResult<RuntimeTaskListItem>>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<PagedResult<RuntimeTaskListItem>>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -69,7 +69,7 @@ public sealed class RuntimeTasksController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<PagedResult<RuntimeTaskListItem>>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<PagedResult<RuntimeTaskListItem>>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -96,7 +96,7 @@ public sealed class RuntimeTasksController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -116,7 +116,7 @@ public sealed class RuntimeTasksController : ControllerBase
 
         if (!long.TryParse(request.TaskId, out var taskId))
         {
-            return BadRequest(ApiResponse<object>.Fail(ErrorCodes.ValidationError, "taskId 无效", HttpContext.TraceIdentifier));
+            return BadRequest(ApiResponse<object>.Fail(ErrorCodes.ValidationError, ApiResponseLocalizer.T(HttpContext, "TaskIdInvalid"), HttpContext.TraceIdentifier));
         }
 
         return await ExecuteTaskAction(

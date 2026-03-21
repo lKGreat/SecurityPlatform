@@ -9,11 +9,29 @@ public sealed class PermissionRepository : RepositoryBase<Permission>, IPermissi
 {
     public PermissionRepository(ISqlSugarClient db) : base(db) { }
 
-    public async Task<Permission?> FindByCodeAsync(TenantId tenantId, string code, CancellationToken cancellationToken)
+    public async Task<Permission?> FindByIdPlatformOnlyAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
     {
         return await Db.Queryable<Permission>()
-            .Where(x => x.TenantIdValue == tenantId.Value && x.Code == code)
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Id == id && x.AppId == null)
             .FirstAsync(cancellationToken);
+    }
+
+    public async Task<Permission?> FindByCodeAsync(TenantId tenantId, string code, long? appId, CancellationToken cancellationToken)
+    {
+        var query = Db.Queryable<Permission>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Code == code);
+        query = appId.HasValue
+            ? query.Where(x => x.AppId == appId.Value)
+            : query.Where(x => x.AppId == null);
+        return await query.FirstAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Permission>> QueryByIdsPlatformOnlyAsync(TenantId tenantId, IReadOnlyList<long> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0) return [];
+        return await Db.Queryable<Permission>()
+            .Where(x => x.TenantIdValue == tenantId.Value && ids.Contains(x.Id) && x.AppId == null)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<(IReadOnlyList<Permission> Items, int TotalCount)> QueryPageAsync(

@@ -27,6 +27,8 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       requestFailed: "请求失败"
     },
     route: {
+      notFound: "页面未找到",
+      workspace: "工作台",
       home: "首页",
       login: "登录",
       register: "注册",
@@ -41,6 +43,7 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       consoleDatasourceConsumption: "数据源消费分析",
       consoleReleases: "发布中心",
       consoleDebugLayer: "调试层",
+      consoleMigrationGovernance: "迁移治理",
       consoleTools: "工具授权中心",
       consoleDatasources: "数据源管理",
       consoleSystemConfigs: "系统设置",
@@ -129,7 +132,23 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       assets: "资产管理",
       audit: "审计日志",
       alert: "告警管理",
-      appUsers: "应用成员"
+      appUsers: "应用成员",
+      appRoles: "应用角色",
+      appDepartments: "应用部门",
+      appPositions: "应用职位",
+      appProjects: "应用项目",
+      approvalStart: "发起审批",
+      approvalInbox: "审批待办",
+      approvalDone: "已办任务",
+      approvalMyRequests: "我的申请",
+      approvalCc: "抄送我的",
+      workflowDesigner: "工作流设计器（V1）",
+      personalAccessTokens: "个人访问令牌",
+      knowledgeBaseList: "知识库",
+      knowledgeBaseDetail: "知识库详情",
+      aiWorkflowListGlobal: "AI 工作流",
+      aiWorkflowEditor: "AI 工作流设计器",
+      agentChat: "Agent 对话"
     },
     authPage: {
       brandTitle: "Atlas 安全平台",
@@ -230,6 +249,8 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       requestFailed: "Request failed"
     },
     route: {
+      notFound: "Page not found",
+      workspace: "Workspace",
       home: "Home",
       login: "Login",
       register: "Register",
@@ -244,6 +265,7 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       consoleDatasourceConsumption: "Datasource Consumption Analysis",
       consoleReleases: "Release Center",
       consoleDebugLayer: "Debug Layer",
+      consoleMigrationGovernance: "Migration Governance",
       consoleTools: "Tool Authorization Center",
       consoleDatasources: "Datasource Management",
       consoleSystemConfigs: "System Settings",
@@ -332,7 +354,23 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       assets: "Asset Management",
       audit: "Audit Logs",
       alert: "Alert Management",
-      appUsers: "App Users"
+      appUsers: "App Users",
+      appRoles: "App Roles",
+      appDepartments: "App Departments",
+      appPositions: "App Positions",
+      appProjects: "App Projects",
+      approvalStart: "Start Approval",
+      approvalInbox: "Approval Inbox",
+      approvalDone: "Completed Tasks",
+      approvalMyRequests: "My Requests",
+      approvalCc: "CC to Me",
+      workflowDesigner: "Workflow Designer (V1)",
+      personalAccessTokens: "Personal Access Tokens",
+      knowledgeBaseList: "Knowledge Bases",
+      knowledgeBaseDetail: "Knowledge Base Detail",
+      aiWorkflowListGlobal: "AI Workflows",
+      aiWorkflowEditor: "AI Workflow Designer",
+      agentChat: "Agent Chat"
     },
     authPage: {
       brandTitle: "Atlas Security Platform",

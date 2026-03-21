@@ -23,7 +23,7 @@
         />
 
         <!-- 刷新按钮 -->
-        <a-button v-if="showRefresh" @click="handleRefresh">刷新</a-button>
+        <a-button v-if="showRefresh" @click="handleRefresh">{{ t("commonUi.refresh") }}</a-button>
 
         <!-- 自定义操作插槽 (如新增按钮、导出等) -->
         <slot name="actions"></slot>
@@ -33,6 +33,10 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
+
 defineProps<{
   title?: string;
   keyword?: string;

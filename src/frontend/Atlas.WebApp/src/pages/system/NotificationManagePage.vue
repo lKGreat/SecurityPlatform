@@ -1,10 +1,10 @@
 <template>
   <CrudPageLayout
     v-model:keyword="keyword"
-    title="公告管理"
-    search-placeholder="搜索公告标题"
+    :title="t('notificationManage.pageTitle')"
+    :search-placeholder="t('notificationManage.searchPlaceholder')"
     :drawer-open="formVisible"
-    :drawer-title="formMode === 'create' ? '新增公告' : '编辑公告'"
+    :drawer-title="formMode === 'create' ? t('notificationManage.drawerCreate') : t('notificationManage.drawerEdit')"
     :drawer-width="600"
     :submit-loading="submitting"
     :submit-disabled="submitting"
@@ -15,7 +15,7 @@
     @submit="submitForm"
   >
     <template #toolbar-actions>
-      <a-button type="primary" :disabled="!canCreate" @click="openCreate">发布公告</a-button>
+      <a-button type="primary" :disabled="!canCreate" @click="openCreate">{{ t("notificationManage.publish") }}</a-button>
     </template>
 
     <template #table>
@@ -30,7 +30,7 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'isActive'">
             <a-tag :color="record.isActive ? 'success' : 'default'">
-              {{ record.isActive ? '已发布' : '已撤回' }}
+              {{ record.isActive ? t("notificationManage.statusPublished") : t("notificationManage.statusRevoked") }}
             </a-tag>
           </template>
           <template v-else-if="column.key === 'noticeType'">
@@ -43,20 +43,20 @@
           </template>
           <template v-else-if="column.key === 'actions'">
             <a-space>
-              <a-button type="link" :disabled="!canUpdate" @click="openEdit(record)">编辑</a-button>
+              <a-button type="link" :disabled="!canUpdate" @click="openEdit(record)">{{ t("notificationManage.edit") }}</a-button>
               <a-popconfirm
                 v-if="record.isActive && canUpdate"
-                title="确认撤回此公告？撤回后用户将无法看到。"
+                :title="t('notificationManage.revokeConfirm')"
                 @confirm="handleRevoke(record.id)"
               >
-                <a-button type="link" danger>撤回</a-button>
+                <a-button type="link" danger>{{ t("notificationManage.revoke") }}</a-button>
               </a-popconfirm>
               <a-popconfirm
                 v-if="canDelete"
-                title="确认彻底删除此公告？"
+                :title="t('notificationManage.deleteConfirm')"
                 @confirm="handleDelete(record.id)"
               >
-                <a-button type="link" danger :disabled="!canDelete">删除</a-button>
+                <a-button type="link" danger :disabled="!canDelete">{{ t("common.delete") }}</a-button>
               </a-popconfirm>
             </a-space>
           </template>
@@ -66,28 +66,24 @@
 
     <template #form>
       <a-form :model="formData" :rules="formRules" ref="formRef" layout="vertical">
-        <a-form-item label="类型" name="noticeType">
+        <a-form-item :label="t('notificationManage.labelType')" name="noticeType">
           <a-radio-group v-model:value="formData.noticeType">
-            <a-radio value="System">通知</a-radio>
-            <a-radio value="Announcement">公告</a-radio>
-            <a-radio value="Reminder">提醒</a-radio>
+            <a-radio value="System">{{ t("notificationManage.typeSystem") }}</a-radio>
+            <a-radio value="Announcement">{{ t("notificationManage.typeAnnouncement") }}</a-radio>
+            <a-radio value="Reminder">{{ t("notificationManage.typeReminder") }}</a-radio>
           </a-radio-group>
         </a-form-item>
-        <a-form-item label="优先级" name="priority">
+        <a-form-item :label="t('notificationManage.labelPriority')" name="priority">
           <a-select
             v-model:value="formData.priority"
-            :options="[
-              { label: '普通', value: 0 },
-              { label: '重要', value: 1 },
-              { label: '紧急', value: 2 }
-            ]"
+            :options="priorityOptions"
           />
         </a-form-item>
-        <a-form-item label="标题" name="title">
-          <a-input v-model:value="formData.title" placeholder="请输入标题" :maxlength="100" />
+        <a-form-item :label="t('notificationManage.labelTitle')" name="title">
+          <a-input v-model:value="formData.title" :placeholder="t('notificationManage.titlePlaceholder')" :maxlength="100" />
         </a-form-item>
-        <a-form-item label="内容" name="content">
-          <a-textarea v-model:value="formData.content" placeholder="请输入内容" :rows="8" />
+        <a-form-item :label="t('notificationManage.labelContent')" name="content">
+          <a-textarea v-model:value="formData.content" :placeholder="t('notificationManage.contentPlaceholder')" :rows="8" />
         </a-form-item>
       </a-form>
     </template>
@@ -95,7 +91,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { ref, reactive, onMounted, onUnmounted, computed } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -114,6 +111,8 @@ import {
   type NotificationDto
 } from "@/services/notification";
 import { getAuthProfile, hasPermission } from "@/utils/auth";
+
+const { t } = useI18n();
 
 const keyword = ref("");
 const dataSource = ref<NotificationDto[]>([]);
@@ -141,21 +140,27 @@ const formData = reactive({
   content: "",
 });
 
-const formRules = {
-  title: [{ required: true, message: "请输入标题" }],
-  noticeType: [{ required: true, message: "请选择类型" }],
-  priority: [{ required: true, message: "请选择优先级" }],
-  content: [{ required: true, message: "请输入内容" }]
-};
+const priorityOptions = computed(() => [
+  { label: t("notificationManage.priorityNormal"), value: 0 },
+  { label: t("notificationManage.priorityImportant"), value: 1 },
+  { label: t("notificationManage.priorityUrgent"), value: 2 },
+]);
 
-const tableColumns = [
-  { title: "标题", dataIndex: "title", key: "title", width: 300, ellipsis: true },
-  { title: "类型", key: "noticeType", width: 100 },
-  { title: "优先级", key: "priority", width: 100 },
-  { title: "状态", key: "isActive", width: 100 },
-  { title: "发布时间", dataIndex: "createdAt", key: "createdAt", width: 180 },
-  { title: "操作", key: "actions", width: 200 }
-];
+const formRules = computed(() => ({
+  title: [{ required: true, message: t("notificationManage.titleRequired") }],
+  noticeType: [{ required: true, message: t("notificationManage.typeRequired") }],
+  priority: [{ required: true, message: t("notificationManage.priorityRequired") }],
+  content: [{ required: true, message: t("notificationManage.contentRequired") }]
+}));
+
+const tableColumns = computed(() => [
+  { title: t("notificationManage.colTitle"), dataIndex: "title", key: "title", width: 300, ellipsis: true },
+  { title: t("notificationManage.colType"), key: "noticeType", width: 100 },
+  { title: t("notificationManage.colPriority"), key: "priority", width: 100 },
+  { title: t("notificationManage.colStatus"), key: "isActive", width: 100 },
+  { title: t("notificationManage.colPublishedAt"), dataIndex: "createdAt", key: "createdAt", width: 180 },
+  { title: t("notificationManage.colActions"), key: "actions", width: 200 }
+]);
 
 async function loadData() {
   loading.value = true;
@@ -170,7 +175,7 @@ async function loadData() {
     dataSource.value = result.items;
     pagination.total = result.total;
   } catch (err: unknown) {
-    message.error((err instanceof Error ? err.message : "加载失败"));
+    message.error((err instanceof Error ? err.message : t("notificationManage.loadFailed")));
   } finally {
     loading.value = false;
   }
@@ -238,12 +243,12 @@ async function submitForm() {
   } catch {
     return;
   }
-  
+
   submitting.value = true;
   try {
     if (formMode.value === "create") {
       if (!canCreate) {
-        message.error("暂无发布权限");
+        message.error(t("notificationManage.noCreatePerm"));
         return;
       }
       await createNotification({
@@ -256,7 +261,7 @@ async function submitForm() {
       if (!isMounted.value) return;
     } else {
       if (!canUpdate) {
-        message.error("暂无编辑权限");
+        message.error(t("notificationManage.noEditPerm"));
         return;
       }
       await updateNotification(currentId.value, {
@@ -268,11 +273,11 @@ async function submitForm() {
 
       if (!isMounted.value) return;
     }
-    message.success("保存成功");
+    message.success(t("notificationManage.saveSuccess"));
     closeForm();
     loadData();
   } catch (err: unknown) {
-    message.error((err instanceof Error ? err.message : "保存失败"));
+    message.error((err instanceof Error ? err.message : t("notificationManage.saveFailed")));
   } finally {
     submitting.value = false;
   }
@@ -286,10 +291,10 @@ async function handleRevoke(id: string) {
     await revokeNotification(id);
 
     if (!isMounted.value) return;
-    message.success("撤回成功");
+    message.success(t("notificationManage.revokeSuccess"));
     loadData();
   } catch (err: unknown) {
-    message.error((err instanceof Error ? err.message : "撤回失败"));
+    message.error((err instanceof Error ? err.message : t("notificationManage.revokeFailed")));
   }
 }
 
@@ -301,26 +306,26 @@ async function handleDelete(id: string) {
     await deleteNotification(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("notificationManage.deleteSuccess"));
     loadData();
   } catch (err: unknown) {
-    message.error((err instanceof Error ? err.message : "删除失败"));
+    message.error((err instanceof Error ? err.message : t("notificationManage.deleteFailed")));
   }
 }
 
 function typeLabel(type: string): string {
   const map: Record<string, string> = {
-    Announcement: "公告",
-    System: "通知",
-    Reminder: "提醒"
+    Announcement: t("notificationManage.typeLabelAnnouncement"),
+    System: t("notificationManage.typeLabelSystem"),
+    Reminder: t("notificationManage.typeLabelReminder")
   };
   return map[type] ?? type;
 }
 
 function priorityLabel(priority: number): string {
-  if (priority >= 2) return "紧急";
-  if (priority === 1) return "重要";
-  return "普通";
+  if (priority >= 2) return t("notificationManage.priorityUrgent");
+  if (priority === 1) return t("notificationManage.priorityImportant");
+  return t("notificationManage.priorityNormal");
 }
 
 function priorityColor(priority: number): string {

@@ -3,14 +3,17 @@
     :checked="modelValue" 
     :loading="loading"
     @change="handleChange"
-    :checked-children="activeText"
-    :un-checked-children="inactiveText"
+    :checked-children="activeLabel"
+    :un-checked-children="inactiveLabel"
   />
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { message } from 'ant-design-vue';
+import { computed, ref } from "vue";
+import { message } from "ant-design-vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<{
   modelValue: boolean;
@@ -18,9 +21,12 @@ const props = withDefaults(defineProps<{
   inactiveText?: string;
   api: (value: boolean) => Promise<void>;
 }>(), {
-  activeText: '启用',
-  inactiveText: '停用'
+  activeText: undefined,
+  inactiveText: undefined
 });
+
+const activeLabel = computed(() => props.activeText ?? t("common.statusEnabled"));
+const inactiveLabel = computed(() => props.inactiveText ?? t("common.statusDisabled"));
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -37,11 +43,11 @@ const handleChange = async (checked: boolean | string | number) => {
     emit('update:modelValue', newValue);
     // 调用 API
     await props.api(newValue);
-    message.success('状态更新成功');
+    message.success(t("commonUi.statusUpdateSuccess"));
   } catch (err) {
     // 失败回滚
     emit('update:modelValue', !newValue);
-    message.error(err instanceof Error ? err.message : '状态更新失败');
+    message.error(err instanceof Error ? err.message : t("commonUi.statusUpdateFailed"));
   } finally {
     loading.value = false;
   }

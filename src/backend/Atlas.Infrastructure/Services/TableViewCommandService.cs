@@ -48,7 +48,7 @@ public sealed class TableViewCommandService : ITableViewCommandService
             cancellationToken);
         if (existing is not null)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "视图名称已存在");
+            throw new BusinessException(ErrorCodes.ValidationError, "TableViewNameExists");
         }
 
         var configVersion = request.ConfigVersion ?? 1;
@@ -78,7 +78,7 @@ public sealed class TableViewCommandService : ITableViewCommandService
         var view = await _tableViewRepository.FindByIdAsync(tenantId, userId, id, cancellationToken);
         if (view is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "视图不存在");
+            throw new BusinessException(ErrorCodes.NotFound, "TableViewNotFound");
         }
 
         var conflict = await _tableViewRepository.FindByNameAsync(
@@ -89,7 +89,7 @@ public sealed class TableViewCommandService : ITableViewCommandService
             cancellationToken);
         if (conflict is not null && conflict.Id != view.Id)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "视图名称已存在");
+            throw new BusinessException(ErrorCodes.ValidationError, "TableViewNameExists");
         }
 
         var configVersion = request.ConfigVersion ?? view.ConfigVersion;
@@ -108,7 +108,7 @@ public sealed class TableViewCommandService : ITableViewCommandService
         var view = await _tableViewRepository.FindByIdAsync(tenantId, userId, id, cancellationToken);
         if (view is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "视图不存在");
+            throw new BusinessException(ErrorCodes.NotFound, "TableViewNotFound");
         }
 
         var configVersion = request.ConfigVersion ?? view.ConfigVersion;
@@ -128,7 +128,7 @@ public sealed class TableViewCommandService : ITableViewCommandService
         var view = await _tableViewRepository.FindByIdAsync(tenantId, userId, id, cancellationToken);
         if (view is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "视图不存在");
+            throw new BusinessException(ErrorCodes.NotFound, "TableViewNotFound");
         }
 
         var existing = await _tableViewRepository.FindByNameAsync(
@@ -139,7 +139,7 @@ public sealed class TableViewCommandService : ITableViewCommandService
             cancellationToken);
         if (existing is not null)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "视图名称已存在");
+            throw new BusinessException(ErrorCodes.ValidationError, "TableViewNameExists");
         }
 
         var now = _timeProvider.GetUtcNow();
@@ -166,7 +166,7 @@ public sealed class TableViewCommandService : ITableViewCommandService
         var view = await _tableViewRepository.FindByIdAsync(tenantId, userId, id, cancellationToken);
         if (view is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "视图不存在");
+            throw new BusinessException(ErrorCodes.NotFound, "TableViewNotFound");
         }
 
         var existing = await _defaultRepository.FindByTableKeyAsync(

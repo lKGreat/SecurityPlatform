@@ -2,23 +2,23 @@
   <a-card class="page-card">
     <template #title>
       <a-space>
-        <span>工作流设计器</span>
+        <span>{{ t('workflow.designerTitle') }}</span>
         <a-input
           v-model:value="workflowId"
-          placeholder="工作流ID（如 my-workflow）"
+          :placeholder="t('workflow.workflowIdPlaceholder')"
           style="width: 300px"
         />
       </a-space>
     </template>
     <template #extra>
       <a-space>
-        <a-button @click="handleSave">保存工作流</a-button>
-        <a-button type="primary" @click="handleTest">测试执行</a-button>
+        <a-button @click="handleSave">{{ t('workflow.saveWorkflow') }}</a-button>
+        <a-button type="primary" @click="handleTest">{{ t('workflow.testRun') }}</a-button>
       </a-space>
     </template>
     <div class="designer-container">
       <div class="designer-toolbar">
-        <div class="toolbar-title">步骤类型</div>
+        <div class="toolbar-title">{{ t('workflow.stepTypesTitle') }}</div>
         <div class="node-types">
           <div
             v-for="stepType in stepTypes"
@@ -33,7 +33,7 @@
             </div>
             <div class="node-label">
               {{ stepType.label }}
-              <a-tag v-if="stepType.supported === false" color="default" size="small">规划中</a-tag>
+              <a-tag v-if="stepType.supported === false" color="default" size="small">{{ t('workflow.plannedTag') }}</a-tag>
             </div>
           </div>
         </div>
@@ -41,19 +41,19 @@
       <div ref="containerRef" class="designer-canvas"></div>
       <a-drawer
         v-model:open="drawerVisible"
-        title="节点属性配置"
+        :title="t('workflow.drawerNodeProps')"
         placement="right"
         width="400"
         @close="handleDrawerClose"
       >
         <a-form :model="selectedNodeData" layout="vertical" v-if="selectedNodeData">
-          <a-form-item label="节点名称">
+          <a-form-item :label="t('workflow.labelNodeName')">
             <a-input v-model:value="selectedNodeData.name" />
           </a-form-item>
-          <a-form-item label="节点ID">
+          <a-form-item :label="t('workflow.labelNodeId')">
             <a-input v-model:value="selectedNodeData.id" disabled />
           </a-form-item>
-          <a-form-item label="步骤类型">
+          <a-form-item :label="t('workflow.labelStepType')">
             <a-input v-model:value="selectedNodeData.stepType" disabled />
           </a-form-item>
           
@@ -63,7 +63,7 @@
               <a-input
                 v-if="param.type === 'string' || param.type === 'timespan'"
                 v-model:value="selectedNodeData.inputs[param.name]"
-                :placeholder="param.defaultValue || `请输入${param.description}`"
+                :placeholder="param.defaultValue || t('workflow.phParam', { desc: param.description })"
               />
               <a-switch
                 v-else-if="param.type === 'bool'"
@@ -77,14 +77,14 @@
               <a-textarea
                 v-else
                 v-model:value="selectedNodeData.inputs[param.name]"
-                :placeholder="`请输入${param.description}`"
+                :placeholder="t('workflow.phParam', { desc: param.description })"
                 :rows="3"
               />
             </a-form-item>
           </div>
 
           <a-form-item>
-            <a-button type="primary" @click="handleUpdateNode">确定</a-button>
+            <a-button type="primary" @click="handleUpdateNode">{{ t('workflow.ok') }}</a-button>
           </a-form-item>
         </a-form>
       </a-drawer>
@@ -94,24 +94,24 @@
   <!-- 测试执行抽屉 -->
   <a-drawer
     v-model:open="testModalVisible"
-    title="测试工作流执行"
+    :title="t('workflow.testDrawerTitle')"
     placement="right"
     width="560"
     destroy-on-close
     @close="testModalVisible = false"
   >
     <a-form layout="vertical">
-      <a-form-item label="工作流数据（JSON格式）">
+      <a-form-item :label="t('workflow.labelWorkflowDataJson')">
         <a-textarea v-model:value="testData" :rows="10" placeholder='{"key": "value"}' />
       </a-form-item>
-      <a-form-item label="引用标识（可选）">
+      <a-form-item :label="t('workflow.labelReferenceOptional')">
         <a-input v-model:value="testReference" placeholder="test-ref-001" />
       </a-form-item>
     </a-form>
     <template #footer>
       <a-space>
-        <a-button @click="testModalVisible = false">取消</a-button>
-        <a-button type="primary" @click="handleExecuteTest">执行测试</a-button>
+        <a-button @click="testModalVisible = false">{{ t('common.cancel') }}</a-button>
+        <a-button type="primary" @click="handleExecuteTest">{{ t('workflow.executeTest') }}</a-button>
       </a-space>
     </template>
   </a-drawer>
@@ -119,6 +119,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed, onBeforeUnmount, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -134,6 +135,7 @@ import { normalizeJsonValue } from "@/composables/useTimeNormalize";
 import { useWorkflowSerializer } from "@/composables/useWorkflowSerializer";
 import { useWorkflowGraph } from "@/composables/useWorkflowGraph";
 
+const { t } = useI18n();
 const router = useRouter();
 const containerRef = ref<HTMLElement>();
 const graphRef = ref<Graph>();
@@ -183,7 +185,7 @@ const handleUpdateNode = () => {
   const nodeId = currentNode.cellId;
   const node = graphRef.value.getCellById(nodeId);
   if (!node || !node.isNode()) {
-    message.warning("节点不存在");
+    message.warning(t("workflow.warnNodeMissing"));
     return;
   }
 
@@ -193,7 +195,7 @@ const handleUpdateNode = () => {
   node.setAttrByPath("title/text", data.name);
 
   drawerVisible.value = false;
-  message.success("节点属性已更新");
+  message.success(t("workflow.nodeUpdated"));
 };
 
 const handleDrawerClose = () => {
@@ -204,7 +206,7 @@ const handleDrawerClose = () => {
 
 const handleSave = async () => {
   if (!workflowId.value.trim()) {
-    message.warning("请输入工作流ID");
+    message.warning(t("workflow.warnWorkflowId"));
     return;
   }
 
@@ -212,13 +214,13 @@ const handleSave = async () => {
   try {
     definitionJson = getDefinitionJson();
   } catch (e) {
-    message.warning(e instanceof Error ? e.message : "流程结构不支持：当前后端仅支持顺序流程（NextStepId）");
+    message.warning(e instanceof Error ? e.message : t("workflow.warnSequentialOnly"));
     return;
   }
   const stepCount =
     graphRef.value?.getNodes().filter((node) => node.id !== START_NODE_ID && node.id !== END_NODE_ID).length ?? 0;
   if (!graphRef.value || stepCount === 0) {
-    message.warning("请至少添加一个步骤节点");
+    message.warning(t("workflow.warnAddStep"));
     return;
   }
 
@@ -230,15 +232,15 @@ const handleSave = async () => {
     });
 
     if (!isMounted.value) return;
-    message.success("工作流注册成功");
+    message.success(t("workflow.registerOk"));
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "注册失败");
+    message.error(err instanceof Error ? err.message : t("workflow.registerFailed"));
   }
 };
 
 const handleTest = () => {
   if (!workflowId.value.trim()) {
-    message.warning("请先保存工作流");
+    message.warning(t("workflow.warnSaveFirst"));
     return;
   }
 
@@ -275,13 +277,13 @@ const handleExecuteTest = async () => {
 
     if (!isMounted.value) return;
 
-    message.success(`工作流已启动，实例ID: ${instanceId}`);
+    message.success(t("workflow.startedWithId", { id: instanceId }));
     testModalVisible.value = false;
     
     // 跳转到监控页面
     router.push(`/workflow/instances?instanceId=${instanceId}`);
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "启动失败");
+    message.error(err instanceof Error ? err.message : t("workflow.startFailed"));
   }
 };
 
@@ -297,7 +299,7 @@ onMounted(async () => {
       containerRef.value.addEventListener("dragover", (e) => e.preventDefault());
     }
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "加载失败");
+    message.error(err instanceof Error ? err.message : t("workflow.loadFailed"));
   }
 });
 

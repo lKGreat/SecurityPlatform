@@ -56,11 +56,11 @@ public sealed class ApprovalOperationDispatcher
                 if (existingRecord.Status == ApprovalOperationStatus.Pending)
                 {
                     // 操作正在处理中，抛出异常
-                    throw new BusinessException("OPERATION_IN_PROGRESS", "操作正在处理中，请勿重复提交");
+                    throw new BusinessException("OPERATION_IN_PROGRESS", "ApprovalOperationInProgress");
                 }
 
                 // 操作失败，允许重试（但需要新的幂等键）
-                throw new BusinessException("OPERATION_FAILED", "上次操作失败，请使用新的幂等键重试");
+                throw new BusinessException("OPERATION_FAILED", "ApprovalOperationRetryRequired");
             }
 
             // 创建操作记录（Pending 状态）

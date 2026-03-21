@@ -61,12 +61,12 @@ public sealed class ApprovalFlowCommandService : IApprovalFlowCommandService
         var entity = await _flowRepository.GetByIdAsync(tenantId, request.Id, cancellationToken);
         if (entity == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "审批流定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "FlowNotFound");
         }
 
         if (entity.Status != ApprovalFlowStatus.Draft)
         {
-            throw new BusinessException("FLOW_NOT_DRAFT", "仅可编辑草稿状态的流程定义");
+            throw new BusinessException("FLOW_NOT_DRAFT", "FlowNotDraft");
         }
 
         entity.Update(request.Name, request.DefinitionJson, request.Description, request.Category, request.VisibilityScopeJson);
@@ -85,12 +85,12 @@ public sealed class ApprovalFlowCommandService : IApprovalFlowCommandService
         var entity = await _flowRepository.GetByIdAsync(tenantId, flowId, cancellationToken);
         if (entity == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "审批流定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "FlowNotFound");
         }
 
         if (entity.Status == ApprovalFlowStatus.Published)
         {
-            throw new BusinessException("FLOW_ALREADY_PUBLISHED", "该流程定义已发布");
+            throw new BusinessException("FLOW_ALREADY_PUBLISHED", "FlowAlreadyPublished");
         }
 
         entity.Publish(publishedByUserId, DateTimeOffset.UtcNow);
@@ -132,12 +132,12 @@ public sealed class ApprovalFlowCommandService : IApprovalFlowCommandService
         var entity = await _flowRepository.GetByIdAsync(tenantId, id, cancellationToken);
         if (entity == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "审批流定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "FlowNotFound");
         }
 
         if (entity.Status != ApprovalFlowStatus.Draft)
         {
-            throw new BusinessException("FLOW_NOT_DRAFT", "仅可删除草稿状态的流程定义");
+            throw new BusinessException("FLOW_NOT_DRAFT", "FlowNotDraftDelete");
         }
 
         await _flowRepository.DeleteAsync(tenantId, id, cancellationToken);
@@ -151,7 +151,7 @@ public sealed class ApprovalFlowCommandService : IApprovalFlowCommandService
         var entity = await _flowRepository.GetByIdAsync(tenantId, id, cancellationToken);
         if (entity == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "审批流定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "FlowNotFound");
         }
 
         entity.Disable();
@@ -167,7 +167,7 @@ public sealed class ApprovalFlowCommandService : IApprovalFlowCommandService
         var source = await _flowRepository.GetByIdAsync(tenantId, id, cancellationToken);
         if (source == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "审批流定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "FlowNotFound");
         }
 
         var name = string.IsNullOrWhiteSpace(request.Name)
@@ -207,14 +207,14 @@ public sealed class ApprovalFlowCommandService : IApprovalFlowCommandService
         CancellationToken cancellationToken)
     {
         var entity = await _flowRepository.GetByIdAsync(tenantId, flowId, cancellationToken)
-            ?? throw new BusinessException("FLOW_NOT_FOUND", "审批流定义不存在");
+            ?? throw new BusinessException("FLOW_NOT_FOUND", "FlowNotFound");
 
         var versionSnapshot = await _versionRepository.GetByIdAsync(tenantId, versionId, cancellationToken)
-            ?? throw new BusinessException("FLOW_VERSION_NOT_FOUND", "版本快照不存在");
+            ?? throw new BusinessException("FLOW_VERSION_NOT_FOUND", "FlowVersionNotFound");
 
         if (versionSnapshot.DefinitionId != flowId)
         {
-            throw new BusinessException("FLOW_VERSION_MISMATCH", "版本不属于该审批流定义");
+            throw new BusinessException("FLOW_VERSION_MISMATCH", "FlowVersionMismatch");
         }
 
         // 用快照恢复定义 JSON 并重新发布

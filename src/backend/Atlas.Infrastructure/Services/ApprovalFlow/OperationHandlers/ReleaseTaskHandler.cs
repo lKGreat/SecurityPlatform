@@ -37,10 +37,10 @@ public sealed class ReleaseTaskHandler : IApprovalOperationHandler
         ApprovalOperationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!taskId.HasValue) throw new BusinessException("INVALID_REQUEST", "任务ID不能为空");
+        if (!taskId.HasValue) throw new BusinessException("INVALID_REQUEST", "ApprovalOpTaskIdEmpty");
 
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
-        if (task == null) throw new BusinessException("TASK_NOT_FOUND", "任务不存在");
+        if (task == null) throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
 
         // 必须是已认领的任务才能释放
         // 假设我们用某种方式标记了已认领（比如 Status=Claimed 或者 TaskType）

@@ -70,7 +70,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return BadRequest(ApiResponse<DynamicTableDetail?>.Fail(
                 ErrorCodes.ValidationError,
-                "TableKey不能为空",
+                ApiResponseLocalizer.T(HttpContext, "TableViewKeyRequired"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -89,7 +89,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return BadRequest(ApiResponse<IReadOnlyList<DynamicFieldDefinition>>.Fail(
                 ErrorCodes.ValidationError,
-                "TableKey不能为空",
+                ApiResponseLocalizer.T(HttpContext, "TableViewKeyRequired"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -108,7 +108,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return BadRequest(ApiResponse<IReadOnlyList<DynamicRelationDefinition>>.Fail(
                 ErrorCodes.ValidationError,
-                "TableKey不能为空",
+                ApiResponseLocalizer.T(HttpContext, "TableViewKeyRequired"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -127,7 +127,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return BadRequest(ApiResponse<IReadOnlyList<DynamicFieldPermissionRule>>.Fail(
                 ErrorCodes.ValidationError,
-                "TableKey不能为空",
+                ApiResponseLocalizer.T(HttpContext, "TableViewKeyRequired"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -148,7 +148,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -171,7 +171,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -193,7 +193,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -226,7 +226,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -248,7 +248,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -269,7 +269,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -293,7 +293,7 @@ public sealed class DynamicTablesController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 

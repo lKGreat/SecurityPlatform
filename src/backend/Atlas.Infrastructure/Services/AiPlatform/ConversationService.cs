@@ -41,7 +41,7 @@ public sealed class ConversationService : IConversationService
         var agent = await _agentRepository.FindByIdAsync(tenantId, request.AgentId, cancellationToken);
         if (agent is null)
         {
-            throw new BusinessException("Agent 不存在。", ErrorCodes.NotFound);
+            throw new BusinessException("AgentNotFound", ErrorCodes.NotFound);
         }
 
         var title = string.IsNullOrWhiteSpace(request.Title)
@@ -101,7 +101,7 @@ public sealed class ConversationService : IConversationService
         var entity = await _conversationRepository.FindByIdAsync(tenantId, conversationId, cancellationToken);
         if (entity is not null && entity.UserId != userId)
         {
-            throw new BusinessException("无权访问此会话。", ErrorCodes.Forbidden);
+            throw new BusinessException("NoPermissionAccessConversation", ErrorCodes.Forbidden);
         }
 
         return entity is null ? null : MapConversation(entity);
@@ -192,7 +192,7 @@ public sealed class ConversationService : IConversationService
         var message = await _chatMessageRepository.FindByConversationAndIdAsync(tenantId, conversationId, messageId, cancellationToken);
         if (message is null)
         {
-            throw new BusinessException("消息不存在。", ErrorCodes.NotFound);
+            throw new BusinessException("MessageNotFound", ErrorCodes.NotFound);
         }
 
         var latest = await _chatMessageRepository.GetAllByConversationAsync(tenantId, conversationId, cancellationToken);
@@ -220,10 +220,10 @@ public sealed class ConversationService : IConversationService
         CancellationToken cancellationToken)
     {
         var conversation = await _conversationRepository.FindByIdAsync(tenantId, conversationId, cancellationToken)
-            ?? throw new BusinessException("会话不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("ConversationNotFound", ErrorCodes.NotFound);
         if (conversation.UserId != userId)
         {
-            throw new BusinessException("无权访问此会话。", ErrorCodes.Forbidden);
+            throw new BusinessException("NoPermissionAccessConversation", ErrorCodes.Forbidden);
         }
 
         return conversation;

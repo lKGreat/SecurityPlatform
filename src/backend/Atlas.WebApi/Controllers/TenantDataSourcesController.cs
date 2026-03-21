@@ -48,7 +48,7 @@ public sealed class TenantDataSourcesController : ControllerBase
         {
             return BadRequest(ApiResponse<IReadOnlyList<TenantDataSourceDto>>.Fail(
                 ErrorCodes.ValidationError,
-                "缺少租户标识",
+                ApiResponseLocalizer.T(HttpContext, "TenantIdRequired"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -66,7 +66,7 @@ public sealed class TenantDataSourcesController : ControllerBase
         {
             return BadRequest(ApiResponse<object>.Fail(
                 ErrorCodes.ValidationError,
-                "缺少租户标识",
+                ApiResponseLocalizer.T(HttpContext, "TenantIdRequired"),
                 HttpContext.TraceIdentifier));
         }
         if (!string.IsNullOrWhiteSpace(request.TenantIdValue)
@@ -74,7 +74,7 @@ public sealed class TenantDataSourcesController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail(
                 ErrorCodes.CrossTenantForbidden,
-                "租户上下文不一致",
+                ApiResponseLocalizer.T(HttpContext, "TenantContextMismatch"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -96,14 +96,14 @@ public sealed class TenantDataSourcesController : ControllerBase
         {
             return BadRequest(ApiResponse<object>.Fail(
                 ErrorCodes.ValidationError,
-                "缺少租户标识",
+                ApiResponseLocalizer.T(HttpContext, "TenantIdRequired"),
                 HttpContext.TraceIdentifier));
         }
 
         var updated = await _tenantDataSourceService.UpdateAsync(tenantIdValue, id, request, ct);
         if (!updated)
         {
-            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", "数据源不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "TenantDataSourceNotFound"), HttpContext.TraceIdentifier));
         }
 
         await RecordAuditAsync("DATASOURCE_UPDATE", id.ToString(), ct);
@@ -118,14 +118,14 @@ public sealed class TenantDataSourcesController : ControllerBase
         {
             return BadRequest(ApiResponse<object>.Fail(
                 ErrorCodes.ValidationError,
-                "缺少租户标识",
+                ApiResponseLocalizer.T(HttpContext, "TenantIdRequired"),
                 HttpContext.TraceIdentifier));
         }
 
         var deleted = await _tenantDataSourceService.DeleteAsync(tenantIdValue, id, ct);
         if (!deleted)
         {
-            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", "数据源不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "TenantDataSourceNotFound"), HttpContext.TraceIdentifier));
         }
 
         await RecordAuditAsync("DATASOURCE_DELETE", id.ToString(), ct);
@@ -152,16 +152,16 @@ public sealed class TenantDataSourcesController : ControllerBase
         {
             return BadRequest(ApiResponse<TestConnectionResult>.Fail(
                 ErrorCodes.ValidationError,
-                "缺少租户标识",
+                ApiResponseLocalizer.T(HttpContext, "TenantIdRequired"),
                 HttpContext.TraceIdentifier));
         }
 
         var result = await _tenantDataSourceService.TestConnectionByDataSourceIdAsync(tenantIdValue, id, ct);
-        if (!result.Success && string.Equals(result.ErrorMessage, "数据源不存在", StringComparison.Ordinal))
+        if (!result.Success && string.Equals(result.ErrorMessage, "TenantDataSourceNotFound", StringComparison.Ordinal))
         {
             return NotFound(ApiResponse<TestConnectionResult>.Fail(
                 ErrorCodes.NotFound,
-                "数据源不存在",
+                ApiResponseLocalizer.T(HttpContext, "TenantDataSourceNotFound"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -178,7 +178,7 @@ public sealed class TenantDataSourcesController : ControllerBase
         if (string.IsNullOrWhiteSpace(tenantIdValue))
         {
             return BadRequest(ApiResponse<IReadOnlyList<DataSourceConsumerItem>>.Fail(
-                ErrorCodes.ValidationError, "缺少租户标识", HttpContext.TraceIdentifier));
+                ErrorCodes.ValidationError, ApiResponseLocalizer.T(HttpContext, "TenantIdRequired"), HttpContext.TraceIdentifier));
         }
 
         var result = await _tenantDataSourceService.GetConsumersAsync(tenantIdValue, id, ct);
@@ -193,7 +193,7 @@ public sealed class TenantDataSourcesController : ControllerBase
         if (string.IsNullOrWhiteSpace(tenantIdValue))
         {
             return BadRequest(ApiResponse<IReadOnlyList<DataSourceOrphanItem>>.Fail(
-                ErrorCodes.ValidationError, "缺少租户标识", HttpContext.TraceIdentifier));
+                ErrorCodes.ValidationError, ApiResponseLocalizer.T(HttpContext, "TenantIdRequired"), HttpContext.TraceIdentifier));
         }
 
         var result = await _tenantDataSourceService.GetOrphansAsync(tenantIdValue, ct);

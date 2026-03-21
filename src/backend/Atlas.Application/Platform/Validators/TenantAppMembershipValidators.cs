@@ -1,16 +1,18 @@
 using Atlas.Application.Platform.Models;
+using Atlas.Application.Resources;
 using FluentValidation;
+using Microsoft.Extensions.Localization;
 
 namespace Atlas.Application.Platform.Validators;
 
 public sealed class TenantAppMemberAssignRequestValidator : AbstractValidator<TenantAppMemberAssignRequest>
 {
-    public TenantAppMemberAssignRequestValidator()
+    public TenantAppMemberAssignRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.UserIds)
             .NotNull()
             .Must(x => x.Count > 0)
-            .WithMessage("至少选择一名应用成员。");
+            .WithMessage(localizer["AppMemberRequired"].Value);
 
         RuleForEach(x => x.UserIds)
             .GreaterThan(0);
@@ -37,13 +39,13 @@ public sealed class TenantAppMemberUpdateRolesRequestValidator : AbstractValidat
 
 public sealed class TenantAppRoleCreateRequestValidator : AbstractValidator<TenantAppRoleCreateRequest>
 {
-    public TenantAppRoleCreateRequestValidator()
+    public TenantAppRoleCreateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Code)
             .NotEmpty()
             .MaximumLength(64)
             .Matches(@"^[A-Za-z][A-Za-z0-9:_-]*$")
-            .WithMessage("角色编码仅支持字母开头，后续使用字母数字冒号下划线或中划线。");
+            .WithMessage(localizer["AppRoleCodeFormat"].Value);
 
         RuleFor(x => x.Name)
             .NotEmpty()

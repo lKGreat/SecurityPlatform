@@ -68,6 +68,11 @@ public sealed class AppPermissionCommandService : IAppPermissionCommandService
         long id,
         CancellationToken cancellationToken = default)
     {
+        var existing = await _repo.FindByCodeAsync(tenantId, request.Code.Trim(), appId, cancellationToken);
+        if (existing is not null)
+        {
+            throw new BusinessException(ErrorCodes.ValidationError, "AppPermissionCodeExists");
+        }
         var entity = new Permission(tenantId, request.Name.Trim(), request.Code.Trim(), request.Type.Trim(), id, appId);
         if (!string.IsNullOrWhiteSpace(request.Description))
         {
@@ -85,7 +90,7 @@ public sealed class AppPermissionCommandService : IAppPermissionCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _repo.FindByIdAndAppIdAsync(tenantId, appId, id, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "应用级权限不存在。");
+            ?? throw new BusinessException(ErrorCodes.NotFound, "AppScopedPermissionNotFound");
         entity.Update(request.Name.Trim(), request.Type.Trim(), request.Description?.Trim());
         await _repo.UpdateAsync(entity, cancellationToken);
     }
@@ -97,7 +102,7 @@ public sealed class AppPermissionCommandService : IAppPermissionCommandService
         CancellationToken cancellationToken = default)
     {
         var entity = await _repo.FindByIdAndAppIdAsync(tenantId, appId, id, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "应用级权限不存在。");
+            ?? throw new BusinessException(ErrorCodes.NotFound, "AppScopedPermissionNotFound");
         await _repo.DeleteAsync(tenantId, entity.Id, cancellationToken);
     }
 }

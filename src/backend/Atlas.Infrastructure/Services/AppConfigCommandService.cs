@@ -25,7 +25,7 @@ public sealed class AppConfigCommandService : IAppConfigCommandService
         var appConfig = await _repository.FindByIdAsync(tenantId, id, cancellationToken);
         if (appConfig is null)
         {
-            throw new BusinessException("App config not found.", ErrorCodes.NotFound);
+            throw new BusinessException("AppConfigNotFound", ErrorCodes.NotFound);
         }
 
         appConfig.Update(

@@ -10,7 +10,7 @@ internal static class DynamicEnumMapper
     {
         if (string.IsNullOrWhiteSpace(dbType))
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "数据库类型不能为空。");
+            throw new BusinessException(ErrorCodes.ValidationError, "Database type is required.");
         }
 
         return dbType.Trim().ToLowerInvariant() switch
@@ -19,7 +19,7 @@ internal static class DynamicEnumMapper
             "sqlserver" => DynamicDbType.SqlServer,
             "mysql" => DynamicDbType.MySql,
             "postgresql" => DynamicDbType.PostgreSql,
-            _ => throw new BusinessException(ErrorCodes.ValidationError, "数据库类型不支持。")
+            _ => throw new BusinessException(ErrorCodes.ValidationError, "Database type is not supported.")
         };
     }
 
@@ -27,7 +27,7 @@ internal static class DynamicEnumMapper
     {
         if (string.IsNullOrWhiteSpace(fieldType))
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "字段类型不能为空。");
+            throw new BusinessException(ErrorCodes.ValidationError, "Field type is required.");
         }
 
         return fieldType.Trim().ToLowerInvariant() switch
@@ -40,7 +40,7 @@ internal static class DynamicEnumMapper
             "bool" => DynamicFieldType.Bool,
             "datetime" => DynamicFieldType.DateTime,
             "date" => DynamicFieldType.Date,
-            _ => throw new BusinessException(ErrorCodes.ValidationError, "字段类型不支持。")
+            _ => throw new BusinessException(ErrorCodes.ValidationError, "Field type is not supported.")
         };
     }
 

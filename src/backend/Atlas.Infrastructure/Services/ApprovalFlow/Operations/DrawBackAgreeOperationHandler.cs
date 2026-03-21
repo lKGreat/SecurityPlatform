@@ -39,24 +39,24 @@ public sealed class DrawBackAgreeOperationHandler : IApprovalOperationHandler
     {
         if (!taskId.HasValue)
         {
-            throw new BusinessException("TASK_ID_REQUIRED", "撤销同意操作需要指定任务ID");
+            throw new BusinessException("TASK_ID_REQUIRED", "ApprovalOpTaskIdRequired");
         }
 
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
         if (task == null)
         {
-            throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+            throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         }
 
         if (task.Status != ApprovalTaskStatus.Approved)
         {
-            throw new BusinessException("TASK_NOT_APPROVED", "只能撤销已同意的任务");
+            throw new BusinessException("TASK_NOT_APPROVED", "ApprovalOpTaskNotApproved");
         }
 
         // 验证操作人是否有权限撤销（必须是原审批人）
         if (task.DecisionByUserId != operatorUserId)
         {
-            throw new BusinessException("UNAUTHORIZED", "只能撤销自己的审批");
+            throw new BusinessException("UNAUTHORIZED", "ApprovalOpOnlyOwnTask");
         }
 
         // 将任务状态改回待审批

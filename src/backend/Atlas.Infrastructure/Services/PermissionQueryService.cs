@@ -42,7 +42,7 @@ public sealed class PermissionQueryService : IPermissionQueryService
 
     public async Task<PermissionDetail?> GetDetailAsync(long id, TenantId tenantId, CancellationToken cancellationToken)
     {
-        var permission = await _permissionRepository.FindByIdAsync(tenantId, id, cancellationToken);
+        var permission = await _permissionRepository.FindByIdPlatformOnlyAsync(tenantId, id, cancellationToken);
         if (permission is null)
         {
             return null;

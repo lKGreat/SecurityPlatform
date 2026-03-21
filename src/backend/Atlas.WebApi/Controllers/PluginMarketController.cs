@@ -53,7 +53,7 @@ public sealed class PluginMarketController : ControllerBase
         var entry = await _queryService.GetByCodeAsync(code, cancellationToken);
         if (entry is null)
         {
-            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", "插件不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "PluginMarketItemNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<object>.Ok(entry, HttpContext.TraceIdentifier));
@@ -68,7 +68,7 @@ public sealed class PluginMarketController : ControllerBase
         var entry = await _queryService.GetByCodeAsync(code, cancellationToken);
         if (entry is null)
         {
-            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", "插件不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "PluginMarketItemNotFound"), HttpContext.TraceIdentifier));
         }
 
         var versions = await _queryService.GetVersionsAsync(entry.Id, cancellationToken);

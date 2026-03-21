@@ -4,7 +4,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { ApprovalTaskStatus } from '@/types/api';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   status?: ApprovalTaskStatus | string | number;
@@ -22,11 +25,11 @@ const color = computed(() => {
 
 const text = computed(() => {
   switch (props.status) {
-    case ApprovalTaskStatus.Pending: return "待审批";
-    case ApprovalTaskStatus.Approved: return "已同意";
-    case ApprovalTaskStatus.Rejected: return "已驳回";
-    case ApprovalTaskStatus.Canceled: return "已取消";
-    default: return "未知";
+    case ApprovalTaskStatus.Pending: return t("approvalWorkspace.statusPending");
+    case ApprovalTaskStatus.Approved: return t("approvalWorkspace.statusApproved");
+    case ApprovalTaskStatus.Rejected: return t("approvalWorkspace.statusRejected");
+    case ApprovalTaskStatus.Canceled: return t("approvalWorkspace.statusCanceled");
+    default: return t("approvalWorkspace.statusUnknown");
   }
 });
 </script>

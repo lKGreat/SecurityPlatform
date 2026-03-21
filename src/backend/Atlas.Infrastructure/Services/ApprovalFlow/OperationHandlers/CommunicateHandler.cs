@@ -38,12 +38,12 @@ public sealed class CommunicateHandler : IApprovalOperationHandler
         ApprovalOperationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!taskId.HasValue) throw new BusinessException("INVALID_REQUEST", "任务ID不能为空");
-        if (string.IsNullOrEmpty(request.TargetAssigneeValue)) throw new BusinessException("INVALID_REQUEST", "沟通对象不能为空");
+        if (!taskId.HasValue) throw new BusinessException("INVALID_REQUEST", "ApprovalOpTaskIdEmpty");
+        if (string.IsNullOrEmpty(request.TargetAssigneeValue)) throw new BusinessException("INVALID_REQUEST", "ApprovalOpCommunicateTargetRequired");
 
         if (!long.TryParse(request.TargetAssigneeValue, out var recipientId))
         {
-             throw new BusinessException("INVALID_REQUEST", "无效的沟通对象ID");
+             throw new BusinessException("INVALID_REQUEST", "ApprovalOpCommunicateInvalidTarget");
         }
 
         // 创建沟通记录

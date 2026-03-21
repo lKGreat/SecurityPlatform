@@ -59,7 +59,7 @@ public sealed class TenantAppDepartmentsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         var item = await _queryService.GetDepartmentByIdAsync(tenantId, appId, id, cancellationToken);
         if (item is null)
-            return NotFound(ApiResponse<AppDepartmentDetail>.Fail(ErrorCodes.NotFound, "应用部门不存在。", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AppDepartmentDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "AppOrgDepartmentNotFound"), HttpContext.TraceIdentifier));
         return Ok(ApiResponse<AppDepartmentDetail>.Ok(item, HttpContext.TraceIdentifier));
     }
 
@@ -142,7 +142,7 @@ public sealed class TenantAppPositionsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         var item = await _queryService.GetPositionByIdAsync(tenantId, appId, id, cancellationToken);
         if (item is null)
-            return NotFound(ApiResponse<AppPositionDetail>.Fail(ErrorCodes.NotFound, "应用职位不存在。", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AppPositionDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "AppOrgPositionNotFound"), HttpContext.TraceIdentifier));
         return Ok(ApiResponse<AppPositionDetail>.Ok(item, HttpContext.TraceIdentifier));
     }
 
@@ -225,7 +225,7 @@ public sealed class TenantAppProjectsController : ControllerBase
         var tenantId = _tenantProvider.GetTenantId();
         var item = await _queryService.GetProjectByIdAsync(tenantId, appId, id, cancellationToken);
         if (item is null)
-            return NotFound(ApiResponse<AppProjectDetail>.Fail(ErrorCodes.NotFound, "应用项目不存在。", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AppProjectDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "AppOrgProjectNotFound"), HttpContext.TraceIdentifier));
         return Ok(ApiResponse<AppProjectDetail>.Ok(item, HttpContext.TraceIdentifier));
     }
 

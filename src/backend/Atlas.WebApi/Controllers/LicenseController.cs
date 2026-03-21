@@ -68,7 +68,7 @@ public sealed class LicenseController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.LicenseContent))
         {
-            return BadRequest(ApiResponse<object>.Fail(ErrorCodes.ValidationError, "证书内容不能为空", HttpContext.TraceIdentifier));
+            return BadRequest(ApiResponse<object>.Fail(ErrorCodes.ValidationError, ApiResponseLocalizer.T(HttpContext, "LicenseCertificateRequired"), HttpContext.TraceIdentifier));
         }
 
         var result = await _activationService.ActivateAsync(request.LicenseContent, cancellationToken);

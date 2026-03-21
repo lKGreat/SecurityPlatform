@@ -7,6 +7,7 @@ using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Attributes;
 using Atlas.WebApi.Authorization;
+using Atlas.WebApi.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -130,7 +131,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -166,7 +167,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -201,13 +202,13 @@ public sealed class LowCodeAppsController : ControllerBase
         var dataSource = await _queryService.GetDataSourceInfoAsync(tenantId, id, cancellationToken);
         if (dataSource is null)
         {
-            return NotFound(ApiResponse<TestConnectionResult>.Fail(ErrorCodes.NotFound, "应用不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<TestConnectionResult>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "LowCodeAppNotFound"), HttpContext.TraceIdentifier));
         }
 
         if (!long.TryParse(dataSource.DataSourceId, out var dataSourceId))
         {
             return Ok(ApiResponse<TestConnectionResult>.Ok(
-                new TestConnectionResult(false, "应用未绑定数据源"),
+                new TestConnectionResult(false, ApiResponseLocalizer.T(HttpContext, "LowCodeAppNotBoundDataSource")),
                 HttpContext.TraceIdentifier));
         }
 
@@ -242,7 +243,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -264,7 +265,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -282,7 +283,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -318,7 +319,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -342,7 +343,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -360,7 +361,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -381,7 +382,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var exportPackage = await _queryService.ExportAsync(tenantId, id, cancellationToken);
         if (exportPackage is null)
         {
-            return NotFound(ApiResponse<object>.Fail(ErrorCodes.NotFound, "应用不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "LowCodeAppNotFound"), HttpContext.TraceIdentifier));
         }
 
         var bytes = JsonSerializer.SerializeToUtf8Bytes(exportPackage, new JsonSerializerOptions
@@ -405,7 +406,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<LowCodeAppImportResult>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<LowCodeAppImportResult>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -452,7 +453,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -474,7 +475,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -494,7 +495,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -562,7 +563,7 @@ public sealed class LowCodeAppsController : ControllerBase
         if (detail is null)
         {
             return NotFound(ApiResponse<IReadOnlyList<LowCodePageListItem>>.Fail(
-                ErrorCodes.NotFound, "应用不存在", HttpContext.TraceIdentifier));
+                ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "LowCodeAppNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<IReadOnlyList<LowCodePageListItem>>.Ok(detail.Pages, HttpContext.TraceIdentifier));
@@ -596,7 +597,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -618,7 +619,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -639,7 +640,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -657,7 +658,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -675,7 +676,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -696,7 +697,7 @@ public sealed class LowCodeAppsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();

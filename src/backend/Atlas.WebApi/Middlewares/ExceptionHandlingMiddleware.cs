@@ -43,7 +43,7 @@ public sealed class ExceptionHandlingMiddleware
                 context,
                 HttpStatusCode.InternalServerError,
                 ErrorCodes.ServerError,
-                ResolveLocalizedMessage(context, ErrorCodes.ServerError, "服务器内部错误"));
+                ResolveLocalizedMessage(context, ErrorCodes.ServerError, null));
         }
     }
 
@@ -78,20 +78,32 @@ public sealed class ExceptionHandlingMiddleware
         await context.Response.WriteAsync(json);
     }
 
-    private static string ResolveLocalizedMessage(HttpContext context, string code, string fallbackMessage)
+    private static string ResolveLocalizedMessage(HttpContext context, string code, string? fallbackMessage)
     {
         var localizer = context.RequestServices.GetService<IStringLocalizer<Messages>>();
         if (localizer is null)
         {
-            return fallbackMessage;
+            return fallbackMessage ?? code;
         }
 
+        // 1. 直接以 code 作为资源键查找（覆盖 TASK_NOT_FOUND 等直接匹配的场景）
         var directLocalized = localizer[code];
         if (!directLocalized.ResourceNotFound)
         {
             return directLocalized.Value;
         }
 
+        // 2. 尝试将 fallbackMessage 作为资源键查找（服务层传入资源键名时的场景）
+        if (!string.IsNullOrEmpty(fallbackMessage))
+        {
+            var msgLocalized = localizer[fallbackMessage];
+            if (!msgLocalized.ResourceNotFound)
+            {
+                return msgLocalized.Value;
+            }
+        }
+
+        // 3. 通过 ErrorCode 到资源键的静态映射
         var resourceKey = code switch
         {
             ErrorCodes.ValidationError => "ValidationError",
@@ -101,15 +113,31 @@ public sealed class ExceptionHandlingMiddleware
             ErrorCodes.ServerError => "InternalError",
             ErrorCodes.AccountLocked => "AccountLocked",
             ErrorCodes.PasswordExpired => "PasswordExpired",
+            ErrorCodes.TokenExpired => "TokenExpired",
+            ErrorCodes.Conflict => "Conflict",
+            ErrorCodes.IdempotencyRequired => "IdempotencyRequired",
+            ErrorCodes.IdempotencyConflict => "IdempotencyConflict",
+            ErrorCodes.IdempotencyInProgress => "IdempotencyInProgress",
+            ErrorCodes.AntiforgeryTokenInvalid => "AntiforgeryTokenInvalid",
+            ErrorCodes.MfaRequired => "MfaCodeRequired",
+            ErrorCodes.LicenseExpired => "LicenseExpired",
+            ErrorCodes.LicenseInvalid => "LicenseInvalid",
+            ErrorCodes.LicenseLimitExceeded => "LicenseLimitExceeded",
+            ErrorCodes.ProjectRequired => "AppContextRequired",
+            ErrorCodes.ProjectNotFound => "ProjectNotFound",
+            ErrorCodes.ProjectDisabled => "ProjectDisabled",
+            ErrorCodes.ProjectForbidden => "ProjectForbidden",
+            ErrorCodes.CrossTenantForbidden => "CrossTenantForbidden",
+            ErrorCodes.AppContextRequired => "AppContextRequired",
             _ => null
         };
 
         if (resourceKey is null)
         {
-            return fallbackMessage;
+            return fallbackMessage ?? code;
         }
 
         var localized = localizer[resourceKey];
-        return localized.ResourceNotFound ? fallbackMessage : localized.Value;
+        return localized.ResourceNotFound ? (fallbackMessage ?? code) : localized.Value;
     }
 }

@@ -7,14 +7,14 @@
       <a-select
         v-model:value="statusFilter"
         style="width: 140px"
-        :options="statusOptions"
+        :options="instanceStatusFilterOptions"
         @change="handleFilterUpdate"
       />
     </FilterToolbar>
     <a-table
-      :columns="columns"
+      :columns="tableColumns"
       :data-source="dataSource"
-      :pagination="pagination"
+      :pagination="{ ...pagination, showTotal: (total: number) => t('crud.totalItems', { total }) }"
       :loading="loading"
       row-key="id"
       @change="onTableChange"
@@ -33,7 +33,7 @@
         </template>
         <template v-else-if="column.key === 'action'">
           <a-space>
-            <a-button type="link" size="small" @click="handleViewDetail(record.id)">查看详情</a-button>
+            <a-button type="link" size="small" @click="handleViewDetail(record.id)">{{ t('approvalWorkspace.myRequests.viewDetail') }}</a-button>
             <a-button
               v-if="record.status === 0"
               type="link"
@@ -41,7 +41,7 @@
               danger
               @click="handleCancel(record.id)"
             >
-              取消
+              {{ t('common.cancel') }}
             </a-button>
           </a-space>
         </template>
@@ -50,36 +50,36 @@
 
     <a-drawer
       v-model:open="drawerVisible"
-      title="流程详情"
+      :title="t('approvalWorkspace.myRequests.drawerTitle')"
       placement="right"
       width="600"
       @close="handleDrawerClose"
     >
       <div v-if="instanceDetail">
         <a-descriptions :column="1" bordered>
-          <a-descriptions-item label="流程名称">{{ instanceDetail.flowName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="业务Key">{{ instanceDetail.businessKey }}</a-descriptions-item>
-          <a-descriptions-item label="当前节点">{{ instanceDetail.currentNodeName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="SLA">
+          <a-descriptions-item :label="t('approvalWorkspace.myRequests.descFlowName')">{{ instanceDetail.flowName || '-' }}</a-descriptions-item>
+          <a-descriptions-item :label="t('approvalWorkspace.myRequests.descBusinessKey')">{{ instanceDetail.businessKey }}</a-descriptions-item>
+          <a-descriptions-item :label="t('approvalWorkspace.myRequests.descCurrentNode')">{{ instanceDetail.currentNodeName || '-' }}</a-descriptions-item>
+          <a-descriptions-item :label="t('approvalWorkspace.myRequests.descSla')">
             <a-tag v-if="instanceDetail.slaRemainingMinutes != null" :color="instanceDetail.slaRemainingMinutes >= 0 ? 'processing' : 'error'">
               {{ formatSla(instanceDetail.slaRemainingMinutes) }}
             </a-tag>
             <span v-else>-</span>
           </a-descriptions-item>
-          <a-descriptions-item label="状态">
+          <a-descriptions-item :label="t('approvalWorkspace.myRequests.descStatus')">
             <a-tag :color="getStatusColor(instanceDetail.status)">
               {{ getStatusText(instanceDetail.status) }}
             </a-tag>
           </a-descriptions-item>
-          <a-descriptions-item label="发起时间">{{ instanceDetail.startedAt }}</a-descriptions-item>
-          <a-descriptions-item v-if="instanceDetail.endedAt" label="结束时间">
+          <a-descriptions-item :label="t('approvalWorkspace.myRequests.descStartedAt')">{{ instanceDetail.startedAt }}</a-descriptions-item>
+          <a-descriptions-item v-if="instanceDetail.endedAt" :label="t('approvalWorkspace.myRequests.descEndedAt')">
             {{ instanceDetail.endedAt }}
           </a-descriptions-item>
         </a-descriptions>
 
         <!-- 动态表业务数据展示 -->
         <template v-if="businessData && businessData.length > 0">
-          <a-divider>业务数据</a-divider>
+          <a-divider>{{ t('approvalWorkspace.myRequests.dividerBusinessData') }}</a-divider>
           <a-descriptions :column="1" bordered size="small">
             <a-descriptions-item
               v-for="item in businessData"
@@ -91,9 +91,9 @@
           </a-descriptions>
         </template>
 
-        <a-divider>任务列表</a-divider>
+        <a-divider>{{ t('approvalWorkspace.myRequests.dividerTaskList') }}</a-divider>
         <a-table
-          :columns="taskColumns"
+          :columns="taskTableColumns"
           :data-source="taskList"
           :loading="taskLoading"
           row-key="id"
@@ -109,7 +109,7 @@
           </template>
         </a-table>
 
-        <a-divider>操作历史</a-divider>
+        <a-divider>{{ t('approvalWorkspace.myRequests.dividerHistory') }}</a-divider>
         <a-timeline>
           <a-timeline-item v-for="event in historyList" :key="event.id">
             <p>{{ event.eventType }}</p>
@@ -125,7 +125,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, watch, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -150,6 +151,8 @@ import {
 import { message } from "ant-design-vue";
 import FilterToolbar from "@/components/common/FilterToolbar.vue";
 
+const { t } = useI18n();
+
 const props = defineProps<{
   urlKeyword?: string;
   urlStatus?: string;
@@ -159,42 +162,41 @@ const emit = defineEmits<{
   'update-filter': [{keyword: string, status: string}];
 }>();
 
-const columns = [
-  { title: "流程名称", dataIndex: "flowName", key: "flowName" },
-  { title: "业务Key", dataIndex: "businessKey", key: "businessKey" },
-  { title: "当前节点", dataIndex: "currentNodeName", key: "currentNodeName" },
-  { title: "SLA", key: "sla" },
-  { title: "状态", key: "status" },
-  { title: "发起时间", dataIndex: "startedAt", key: "startedAt" },
-  { title: "操作", key: "action", width: 150 }
-];
+const tableColumns = computed(() => [
+  { title: t("approvalWorkspace.myRequests.colFlowName"), dataIndex: "flowName", key: "flowName" },
+  { title: t("approvalWorkspace.myRequests.colBusinessKey"), dataIndex: "businessKey", key: "businessKey" },
+  { title: t("approvalWorkspace.myRequests.colCurrentNode"), dataIndex: "currentNodeName", key: "currentNodeName" },
+  { title: t("approvalWorkspace.myRequests.colSla"), key: "sla" },
+  { title: t("approvalWorkspace.myRequests.colStatus"), key: "status" },
+  { title: t("approvalWorkspace.myRequests.colStartedAt"), dataIndex: "startedAt", key: "startedAt" },
+  { title: t("approvalWorkspace.myRequests.colActions"), key: "action", width: 150 }
+]);
 
-const taskColumns = [
-  { title: "任务标题", dataIndex: "title", key: "title" },
-  { title: "节点ID", dataIndex: "nodeId", key: "nodeId" },
-  { title: "状态", key: "status" },
-  { title: "创建时间", dataIndex: "createdAt", key: "createdAt" }
-];
+const taskTableColumns = computed(() => [
+  { title: t("approvalWorkspace.myRequests.taskColTitle"), dataIndex: "title", key: "title" },
+  { title: t("approvalWorkspace.myRequests.taskColNodeId"), dataIndex: "nodeId", key: "nodeId" },
+  { title: t("approvalWorkspace.myRequests.colStatus"), key: "status" },
+  { title: t("approvalWorkspace.myRequests.taskColCreatedAt"), dataIndex: "createdAt", key: "createdAt" }
+]);
 
 const dataSource = ref<ApprovalInstanceListItem[]>([]);
 const loading = ref(false);
 const statusFilter = ref<ApprovalInstanceStatus | "all">((props.urlStatus as unknown as ApprovalInstanceStatus) || "all");
-const statusOptions = [
-  { label: "全部", value: "all" },
-  { label: "运行中", value: ApprovalInstanceStatus.Running },
-  { label: "已完成", value: ApprovalInstanceStatus.Completed },
-  { label: "已驳回", value: ApprovalInstanceStatus.Rejected },
-  { label: "已取消", value: ApprovalInstanceStatus.Canceled },
-  { label: "已挂起", value: ApprovalInstanceStatus.Suspended },
-  { label: "草稿", value: ApprovalInstanceStatus.Draft },
-  { label: "已超时", value: ApprovalInstanceStatus.TimedOut },
-  { label: "已终止", value: ApprovalInstanceStatus.Terminated },
-];
+const instanceStatusFilterOptions = computed(() => [
+  { label: t("approvalWorkspace.statusAll"), value: "all" },
+  { label: t("approvalWorkspace.myRequests.filterRunning"), value: ApprovalInstanceStatus.Running },
+  { label: t("approvalWorkspace.myRequests.filterCompleted"), value: ApprovalInstanceStatus.Completed },
+  { label: t("approvalWorkspace.myRequests.filterRejected"), value: ApprovalInstanceStatus.Rejected },
+  { label: t("approvalWorkspace.myRequests.filterCanceled"), value: ApprovalInstanceStatus.Canceled },
+  { label: t("approvalWorkspace.myRequests.filterSuspended"), value: ApprovalInstanceStatus.Suspended },
+  { label: t("approvalWorkspace.myRequests.filterDraft"), value: ApprovalInstanceStatus.Draft },
+  { label: t("approvalWorkspace.myRequests.filterTimedOut"), value: ApprovalInstanceStatus.TimedOut },
+  { label: t("approvalWorkspace.myRequests.filterTerminated"), value: ApprovalInstanceStatus.Terminated },
+]);
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
   pageSize: 10,
   total: 0,
-  showTotal: (total) => `共 ${total} 条`
 });
 
 const drawerVisible = ref(false);
@@ -217,7 +219,7 @@ const fetchData = async () => {
     dataSource.value = result.items;
     pagination.total = result.total;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "查询失败");
+    message.error(err instanceof Error ? err.message : t("approvalWorkspace.queryFailed"));
   } finally {
     loading.value = false;
   }
@@ -265,33 +267,33 @@ const getStatusColor = (status: ApprovalInstanceStatus) => {
 const getStatusText = (status: ApprovalInstanceStatus) => {
   switch (status) {
     case ApprovalInstanceStatus.Running:
-      return "运行中";
+      return t("approvalWorkspace.myRequests.instRunning");
     case ApprovalInstanceStatus.Completed:
-      return "已完成";
+      return t("approvalWorkspace.myRequests.instCompleted");
     case ApprovalInstanceStatus.Rejected:
-      return "已驳回";
+      return t("approvalWorkspace.myRequests.instRejected");
     case ApprovalInstanceStatus.Canceled:
-      return "已取消";
+      return t("approvalWorkspace.myRequests.instCanceled");
     case ApprovalInstanceStatus.Suspended:
-      return "已挂起";
+      return t("approvalWorkspace.myRequests.instSuspended");
     case ApprovalInstanceStatus.Draft:
-      return "草稿";
+      return t("approvalWorkspace.myRequests.instDraft");
     case ApprovalInstanceStatus.TimedOut:
-      return "已超时";
+      return t("approvalWorkspace.myRequests.instTimedOut");
     case ApprovalInstanceStatus.Terminated:
-      return "已终止";
+      return t("approvalWorkspace.myRequests.instTerminated");
     case ApprovalInstanceStatus.AutoApproved:
-      return "自动通过";
+      return t("approvalWorkspace.myRequests.instAutoApproved");
     case ApprovalInstanceStatus.AutoRejected:
-      return "自动驳回";
+      return t("approvalWorkspace.myRequests.instAutoRejected");
     case ApprovalInstanceStatus.AiProcessing:
-      return "AI审批中";
+      return t("approvalWorkspace.myRequests.instAiProcessing");
     case ApprovalInstanceStatus.AiManualReview:
-      return "AI转人工";
+      return t("approvalWorkspace.myRequests.instAiManualReview");
     case ApprovalInstanceStatus.Destroy:
-      return "已销毁";
+      return t("approvalWorkspace.myRequests.instDestroy");
     default:
-      return "未知";
+      return t("approvalWorkspace.myRequests.instUnknown");
   }
 };
 
@@ -300,9 +302,13 @@ const formatSla = (value: number) => {
   if (abs >= 60) {
     const hours = Math.floor(abs / 60);
     const minutes = abs % 60;
-    return value >= 0 ? `剩余 ${hours}h${minutes}m` : `超时 ${hours}h${minutes}m`;
+    return value >= 0
+      ? t("approvalWorkspace.myRequests.slaRemainHm", { h: hours, m: minutes })
+      : t("approvalWorkspace.myRequests.slaOverHm", { h: hours, m: minutes });
   }
-  return value >= 0 ? `剩余 ${abs}m` : `超时 ${abs}m`;
+  return value >= 0
+    ? t("approvalWorkspace.myRequests.slaRemainM", { m: abs })
+    : t("approvalWorkspace.myRequests.slaOverM", { m: abs });
 };
 
 const getTaskStatusColor = (status: ApprovalTaskStatus) => {
@@ -323,15 +329,15 @@ const getTaskStatusColor = (status: ApprovalTaskStatus) => {
 const getTaskStatusText = (status: ApprovalTaskStatus) => {
   switch (status) {
     case ApprovalTaskStatus.Pending:
-      return "待审批";
+      return t("approvalWorkspace.statusPending");
     case ApprovalTaskStatus.Approved:
-      return "已同意";
+      return t("approvalWorkspace.statusApproved");
     case ApprovalTaskStatus.Rejected:
-      return "已驳回";
+      return t("approvalWorkspace.statusRejected");
     case ApprovalTaskStatus.Canceled:
-      return "已取消";
+      return t("approvalWorkspace.statusCanceled");
     default:
-      return "未知";
+      return t("approvalWorkspace.myRequests.instUnknown");
   }
 };
 
@@ -382,10 +388,10 @@ const handleCancel = async (id: string) => {
     await cancelApprovalInstance(id);
 
     if (!isMounted.value) return;
-    message.success("取消成功");
+    message.success(t("approvalWorkspace.myRequests.cancelSuccess"));
     fetchData();
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "取消失败");
+    message.error(err instanceof Error ? err.message : t("approvalWorkspace.myRequests.cancelFailed"));
   }
 };
 

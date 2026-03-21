@@ -40,14 +40,14 @@ public sealed class ResumeTaskHandler : IApprovalOperationHandler
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null)
         {
-            throw new BusinessException("INSTANCE_NOT_FOUND", "实例不存在");
+            throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalInstanceNotFound");
         }
 
         // 只有挂起、已完成、已驳回、已取消、已终止的流程可以唤醒
         // 这里主要针对 Suspended 状态，或者从历史中恢复
         if (instance.Status == ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INVALID_STATUS", "流程正在运行中，无需唤醒");
+            throw new BusinessException("INVALID_STATUS", "ApprovalInstanceAlreadyRunning");
         }
 
         // 恢复状态

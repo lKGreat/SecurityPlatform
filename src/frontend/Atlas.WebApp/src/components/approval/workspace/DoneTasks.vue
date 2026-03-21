@@ -3,7 +3,7 @@
     <FilterToolbar
       v-model:keyword="keyword"
       :show-search="true"
-      search-placeholder="按任务标题检索"
+      :search-placeholder="t('approvalWorkspace.searchDonePlaceholder')"
       :search-width="240"
       :show-refresh="true"
       @search="handleFilterUpdate"
@@ -31,12 +31,12 @@
                 </div>
                 <div class="task-card-title">{{ item.title }}</div>
                 <div class="task-card-meta">
-                  <span>当前节点: {{ item.currentNodeName }}</span>
+                  <span>{{ t('approvalWorkspace.currentNode') }}: {{ item.currentNodeName }}</span>
                 </div>
-                <div class="task-card-time">处理时间: {{ formatTime(item.decisionAt) }}</div>
+                <div class="task-card-time">{{ t('approvalWorkspace.processedAt') }}: {{ formatTime(item.decisionAt) }}</div>
               </div>
             </template>
-            <a-empty v-else description="暂无已办任务" style="margin-top: 60px;" />
+            <a-empty v-else :description="t('approvalWorkspace.emptyDone')" style="margin-top: 60px;" />
           </div>
           
           <div class="pagination-wrapper" v-if="pagination.total && pagination.total > 0">
@@ -65,7 +65,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch, onUnmounted } from 'vue';
+import { computed, onMounted, reactive, ref, watch, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -79,6 +80,8 @@ import { useMasterDetail } from '@/composables/useMasterDetail';
 import MasterDetailLayout from '@/components/layout/MasterDetailLayout.vue';
 import FilterToolbar from '@/components/common/FilterToolbar.vue';
 import ApprovalTaskDetailPanel from '@/components/approval/ApprovalTaskDetailPanel.vue';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   urlKeyword?: string;
@@ -99,12 +102,12 @@ const doneStatusSet = new Set<ApprovalTaskStatus>([
   ApprovalTaskStatus.Canceled,
   ApprovalTaskStatus.Delegated
 ]);
-const statusOptions = [
-  { label: '全部', value: 'all' },
-  { label: '已同意', value: ApprovalTaskStatus.Approved },
-  { label: '已驳回', value: ApprovalTaskStatus.Rejected },
-  { label: '已取消', value: ApprovalTaskStatus.Canceled },
-];
+const statusOptions = computed(() => [
+  { label: t('approvalWorkspace.statusAll'), value: 'all' },
+  { label: t('approvalWorkspace.statusApproved'), value: ApprovalTaskStatus.Approved },
+  { label: t('approvalWorkspace.statusRejected'), value: ApprovalTaskStatus.Rejected },
+  { label: t('approvalWorkspace.statusCanceled'), value: ApprovalTaskStatus.Canceled },
+]);
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
   pageSize: 10,
@@ -133,7 +136,7 @@ const fetchData = async () => {
     dataSource.value = items;
     pagination.total = statusValue === undefined ? items.length : result.total; // Approximated total for 'all'
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '查询失败');
+    message.error(err instanceof Error ? err.message : t('approvalWorkspace.queryFailed'));
   } finally {
     loading.value = false;
   }
@@ -144,7 +147,7 @@ const fetchDataAndRetainSelection = async () => {
 
   if (!isMounted.value) return;
   if (selectedItem.value) {
-    const stillExists = dataSource.value.find(t => t.id === selectedItem.value!.id);
+    const stillExists = dataSource.value.find((row) => row.id === selectedItem.value!.id);
     if (!stillExists) clearSelection();
   }
 };
@@ -172,11 +175,11 @@ const getStatusColor = (status: ApprovalTaskStatus) => {
 
 const getStatusText = (status: ApprovalTaskStatus) => {
   switch (status) {
-    case ApprovalTaskStatus.Approved: return '已同意';
-    case ApprovalTaskStatus.Rejected: return '已驳回';
-    case ApprovalTaskStatus.Canceled: return '已取消';
-    case ApprovalTaskStatus.Delegated: return '已委派';
-    default: return '处理中';
+    case ApprovalTaskStatus.Approved: return t('approvalWorkspace.statusApproved');
+    case ApprovalTaskStatus.Rejected: return t('approvalWorkspace.statusRejected');
+    case ApprovalTaskStatus.Canceled: return t('approvalWorkspace.statusCanceled');
+    case ApprovalTaskStatus.Delegated: return t('approvalWorkspace.statusDelegated');
+    default: return t('approvalWorkspace.statusProcessing');
   }
 };
 

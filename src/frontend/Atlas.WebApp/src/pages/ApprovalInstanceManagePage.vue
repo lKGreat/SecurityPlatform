@@ -1,8 +1,8 @@
 <template>
   <CrudPageLayout
     v-model:keyword="filters.businessKey"
-    title="实例管理"
-    search-placeholder="业务Key"
+    :title="t('approvalRuntime.instanceManageTitle')"
+    :search-placeholder="t('approvalRuntime.searchBusinessKey')"
     @search="fetchData"
   >
     <template #search-filters>
@@ -12,7 +12,7 @@
           style="width: 160px"
           :options="statusOptions"
           allow-clear
-          placeholder="实例状态"
+          :placeholder="t('approvalRuntime.instanceStatusPlaceholder')"
           @change="fetchData"
         />
       </a-form-item>
@@ -41,7 +41,7 @@
         </template>
         <template v-else-if="column.key === 'action'">
           <a-space>
-            <a-button type="link" size="small" @click="viewDetail(record.id)">详情</a-button>
+            <a-button type="link" size="small" @click="viewDetail(record.id)">{{ t('approvalRuntime.detail') }}</a-button>
             <a-button
               v-if="record.status === 0"
               type="link"
@@ -49,7 +49,7 @@
               danger
               @click="terminate(record.id)"
             >
-              终止
+              {{ t('approvalRuntime.terminate') }}
             </a-button>
           </a-space>
         </template>
@@ -60,7 +60,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from 'vue';
+import { computed, onMounted, reactive, ref, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -73,33 +74,35 @@ import { ApprovalInstanceStatus, type ApprovalInstanceListItem } from '@/types/a
 import { getAdminInstancesPaged, terminateInstance } from '@/services/api';
 import CrudPageLayout from "@/components/crud/CrudPageLayout.vue";
 
+const { t } = useI18n();
 const router = useRouter();
-const columns = [
-  { title: '流程名称', dataIndex: 'flowName', key: 'flowName' },
-  { title: '业务Key', dataIndex: 'businessKey', key: 'businessKey' },
-  { title: '当前节点', dataIndex: 'currentNodeName', key: 'currentNodeName' },
+
+const columns = computed(() => [
+  { title: t('approvalRuntime.colFlowName'), dataIndex: 'flowName', key: 'flowName' },
+  { title: t('approvalRuntime.colBusinessKey'), dataIndex: 'businessKey', key: 'businessKey' },
+  { title: t('approvalRuntime.colCurrentNode'), dataIndex: 'currentNodeName', key: 'currentNodeName' },
   { title: 'SLA', key: 'sla' },
-  { title: '发起人', dataIndex: 'initiatorUserId', key: 'initiatorUserId' },
-  { title: '状态', key: 'status' },
-  { title: '发起时间', dataIndex: 'startedAt', key: 'startedAt' },
-  { title: '操作', key: 'action', width: 180 },
-];
+  { title: t('approvalRuntime.colInitiator'), dataIndex: 'initiatorUserId', key: 'initiatorUserId' },
+  { title: t('approvalRuntime.colStatus'), key: 'status' },
+  { title: t('approvalRuntime.colStartedAt'), dataIndex: 'startedAt', key: 'startedAt' },
+  { title: t('approvalRuntime.colActions'), key: 'action', width: 180 },
+]);
 
 const dataSource = ref<ApprovalInstanceListItem[]>([]);
 const loading = ref(false);
 const filters = reactive<{ status?: number; businessKey?: string }>({});
-const statusOptions = [
-  { label: '运行中', value: ApprovalInstanceStatus.Running },
-  { label: '已完成', value: ApprovalInstanceStatus.Completed },
-  { label: '已驳回', value: ApprovalInstanceStatus.Rejected },
-  { label: '已取消', value: ApprovalInstanceStatus.Canceled },
-];
+const statusOptions = computed(() => [
+  { label: t('approvalRuntime.instStatusRunning'), value: ApprovalInstanceStatus.Running },
+  { label: t('approvalRuntime.instStatusCompleted'), value: ApprovalInstanceStatus.Completed },
+  { label: t('approvalRuntime.instStatusRejected'), value: ApprovalInstanceStatus.Rejected },
+  { label: t('approvalRuntime.instStatusCanceled'), value: ApprovalInstanceStatus.Canceled },
+]);
 
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
   pageSize: 10,
   total: 0,
-  showTotal: (total) => `共 ${total} 条`,
+  showTotal: (total) => t('crud.totalItems', { total }),
 });
 
 const fetchData = async () => {
@@ -120,7 +123,7 @@ const fetchData = async () => {
     dataSource.value = result.items;
     pagination.total = result.total;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '查询失败');
+    message.error(err instanceof Error ? err.message : t('approvalRuntime.queryFailed'));
   } finally {
     loading.value = false;
   }
@@ -138,48 +141,48 @@ const viewDetail = (instanceId: string | number) => {
 
 const terminate = async (instanceId: string | number) => {
   try {
-    await terminateInstance(String(instanceId), '管理端终止');
+    await terminateInstance(String(instanceId), t('approvalRuntime.terminateAdminReason'));
 
     if (!isMounted.value) return;
-    message.success('终止成功');
+    message.success(t('approvalRuntime.terminateSuccess'));
     await fetchData();
 
     if (!isMounted.value) return;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '终止失败');
+    message.error(err instanceof Error ? err.message : t('approvalRuntime.terminateFailed'));
   }
 };
 
 const statusText = (status: ApprovalInstanceStatus) => {
   switch (status) {
     case ApprovalInstanceStatus.Running:
-      return '运行中';
+      return t('approvalRuntime.instStatusRunning');
     case ApprovalInstanceStatus.Completed:
-      return '已完成';
+      return t('approvalRuntime.instStatusCompleted');
     case ApprovalInstanceStatus.Rejected:
-      return '已驳回';
+      return t('approvalRuntime.instStatusRejected');
     case ApprovalInstanceStatus.Canceled:
-      return '已取消';
+      return t('approvalRuntime.instStatusCanceled');
     case ApprovalInstanceStatus.Suspended:
-      return '已挂起';
+      return t('approvalRuntime.instStatusSuspended');
     case ApprovalInstanceStatus.Draft:
-      return '草稿';
+      return t('approvalRuntime.instStatusDraft');
     case ApprovalInstanceStatus.TimedOut:
-      return '已超时';
+      return t('approvalRuntime.instStatusTimedOut');
     case ApprovalInstanceStatus.Terminated:
-      return '已终止';
+      return t('approvalRuntime.instStatusTerminated');
     case ApprovalInstanceStatus.AutoApproved:
-      return '自动通过';
+      return t('approvalRuntime.instStatusAutoApproved');
     case ApprovalInstanceStatus.AutoRejected:
-      return '自动驳回';
+      return t('approvalRuntime.instStatusAutoRejected');
     case ApprovalInstanceStatus.AiProcessing:
-      return 'AI处理中';
+      return t('approvalRuntime.instStatusAiProcessing');
     case ApprovalInstanceStatus.AiManualReview:
-      return 'AI转人工';
+      return t('approvalRuntime.instStatusAiManual');
     case ApprovalInstanceStatus.Destroy:
-      return '已作废';
+      return t('approvalRuntime.instStatusDestroy');
     default:
-      return '未知';
+      return t('approvalRuntime.instStatusUnknown');
   }
 };
 
@@ -221,18 +224,14 @@ const formatSla = (value: number) => {
   if (abs >= 60) {
     const hours = Math.floor(abs / 60);
     const minutes = abs % 60;
-    return value >= 0 ? `剩余 ${hours}h${minutes}m` : `超时 ${hours}h${minutes}m`;
+    return value >= 0
+      ? t('approvalRuntime.slaRemain', { h: hours, m: minutes })
+      : t('approvalRuntime.slaOver', { h: hours, m: minutes });
   }
-  return value >= 0 ? `剩余 ${abs}m` : `超时 ${abs}m`;
+  return value >= 0 ? t('approvalRuntime.slaRemainM', { m: abs }) : t('approvalRuntime.slaOverM', { m: abs });
 };
 
 onMounted(() => {
   void fetchData();
 });
 </script>
-
-<style scoped>
-.toolbar {
-  margin-bottom: 16px;
-}
-</style>

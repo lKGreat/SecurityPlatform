@@ -44,7 +44,7 @@ public sealed class BatchTransferHandler : IApprovalOperationHandler
         // 这里仅作为单个任务转办的实现（如果需要）。
         
         // 假设这里处理的是“将当前实例中某人的任务转给另一个人”
-        if (string.IsNullOrEmpty(request.TargetAssigneeValue)) throw new BusinessException("INVALID_REQUEST", "转办目标不能为空");
+        if (string.IsNullOrEmpty(request.TargetAssigneeValue)) throw new BusinessException("INVALID_REQUEST", "ApprovalOpTransferTargetEmpty");
 
         // 查找该实例中所有待办任务，且处理人是 operatorUserId (或者 request 指定的 SourceUser)
         // 这里简单处理：转办 taskId 指定的任务

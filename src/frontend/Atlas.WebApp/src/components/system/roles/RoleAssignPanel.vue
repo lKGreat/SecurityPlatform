@@ -20,10 +20,19 @@
               show-icon
               style="margin-bottom: 12px"
             />
+            <a-input-search
+              v-model:value="permissionSearchKeyword"
+              :placeholder="t('systemRoles.permissionSearchPlaceholder', '搜索权限名称或编码')"
+              allow-clear
+              style="margin-bottom: 8px"
+              @search="handlePermissionSearch"
+              @change="handlePermissionSearchClear"
+            />
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <a-space>
                 <a-button size="small" @click="selectAllPermissions">{{ t('systemRoles.selectAll', '全选') }}</a-button>
                 <a-button size="small" @click="clearAllPermissions">{{ t('systemRoles.clearAll', '清空') }}</a-button>
+                <a-tag v-if="permissionSelectedCount > 0" color="blue">已选 {{ permissionSelectedCount }} 项</a-tag>
               </a-space>
               <a-switch v-model:checked="permissionsCheckStrictly" :checked-children="t('systemRoles.independentSelection')" :un-checked-children="t('systemRoles.parentChildLinkage')" />
             </div>
@@ -32,6 +41,7 @@
               checkable
               :check-strictly="permissionsCheckStrictly"
               :tree-data="permissionTreeData"
+              :title-render="renderPermissionTitle"
               :selectable="false"
               default-expand-all
               style="max-height: 400px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; background: #fafafa;"
@@ -45,10 +55,19 @@
               show-icon
               style="margin-bottom: 12px"
             />
+            <a-input-search
+              v-model:value="menuSearchKeyword"
+              :placeholder="scope === 'app' ? t('systemRoles.pageSearchPlaceholder', '搜索页面名称') : t('systemRoles.menuSearchPlaceholder', '搜索菜单名称')"
+              allow-clear
+              style="margin-bottom: 8px"
+              @search="handleMenuSearch"
+              @change="handleMenuSearchClear"
+            />
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <a-space>
                 <a-button size="small" @click="selectAllMenus">{{ t('systemRoles.selectAll', '全选') }}</a-button>
                 <a-button size="small" @click="clearAllMenus">{{ t('systemRoles.clearAll', '清空') }}</a-button>
+                <a-tag v-if="menuSelectedCount > 0" color="blue">已选 {{ menuSelectedCount }} 项</a-tag>
               </a-space>
               <a-switch v-model:checked="menusCheckStrictly" :checked-children="t('systemRoles.independentSelection')" :un-checked-children="t('systemRoles.parentChildLinkage')" />
             </div>
@@ -57,6 +76,7 @@
               checkable
               :check-strictly="menusCheckStrictly"
               :tree-data="menuTreeData"
+              :title-render="renderMenuTitle"
               :selectable="false"
               default-expand-all
               style="max-height: 400px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; background: #fafafa;"
@@ -82,7 +102,12 @@
               @change="handleFieldPermissionTableChange"
               @focus="() => loadDynamicTableOptions()"
             />
-            <div class="table-container">
+            <a-empty
+              v-if="!fieldPermissionTableKey"
+              :description="t('systemRoles.fieldPermNoTableSelected', '请先选择动态表以配置字段权限')"
+              style="margin: 32px 0"
+            />
+            <div class="table-container" v-if="fieldPermissionTableKey">
               <a-table
                 :data-source="fieldPermissionRows"
                 :loading="fieldPermissionLoading"
@@ -155,6 +180,8 @@
                 tree-default-expand-all
                 :tree-data="departmentTreeData"
                 allow-clear
+                show-search
+                tree-node-filter-prop="title"
                 style="width: 100%"
                 :placeholder="t('systemRoles.departmentSelectPlaceholder')"
                 :dropdown-style="{ maxHeight: '400px', overflow: 'auto' }"
@@ -168,6 +195,12 @@
               :message="dataScopePreviewTitle"
               :description="dataScopePreviewDescription"
             />
+            <div v-if="assignModel.dataScope === 2 && selectedDeptNames.length > 0" style="margin-top: 8px; padding: 8px 12px; background: var(--color-bg-layout); border-radius: 6px; font-size: 12px; color: var(--color-text-secondary); line-height: 1.8;">
+              <span v-for="(name, i) in selectedDeptNames.slice(0, 8)" :key="i">
+                <a-tag size="small">{{ name }}</a-tag>
+              </span>
+              <span v-if="selectedDeptNames.length > 8" style="margin-left: 4px;">等 {{ selectedDeptNames.length - 8 }} 个</span>
+            </div>
             <a-alert
               v-if="assignModel.dataScope === 6 && !projectScopeEnabled"
               style="margin-top: 8px"
@@ -183,7 +216,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch, onBeforeUnmount } from 'vue';
+import { computed, h, reactive, ref, watch, onBeforeUnmount, type VNode } from 'vue';
 import { message } from 'ant-design-vue';
 import { useI18n } from "vue-i18n";
 import {
@@ -212,7 +245,8 @@ import {
   getAppRolePages,
   setAppRolePages,
   getAppRoleFieldPermissions,
-  setAppRoleFieldPermissions
+  setAppRoleFieldPermissions,
+  getAppAvailableDynamicTables
 } from '@/services/api-app-members';
 import { debounce, handleTree, type SelectOption } from '@/utils/common';
 import type { DataNode } from 'ant-design-vue/es/tree';
@@ -282,6 +316,70 @@ const menuCheckedKeys = ref<(number | string)[] | { checked: (number | string)[]
 const menusCheckStrictly = ref(true);
 
 const departmentTreeData = ref<DataNode[]>([]);
+
+const permissionSearchKeyword = ref('');
+const menuSearchKeyword = ref('');
+
+interface ExtendedTreeNode extends DataNode {
+  nodeDescription?: string;
+  nodePath?: string;
+}
+
+const renderPermissionTitle = (node: DataNode): VNode => {
+  const ext = node as ExtendedTreeNode;
+  const titleText = ext.title as string;
+  if (ext.nodeDescription) {
+    return h('span', { title: ext.nodeDescription, style: 'cursor: default;' }, [
+      h('span', {}, titleText),
+      h('span', { style: 'display: block; font-size: 11px; color: var(--color-text-tertiary, #8c8c8c); line-height: 1.4; margin-top: 1px;' }, ext.nodeDescription),
+    ]);
+  }
+  return h('span', {}, titleText);
+};
+
+const renderMenuTitle = (node: DataNode): VNode => {
+  const ext = node as ExtendedTreeNode;
+  const titleText = ext.title as string;
+  if (ext.nodePath) {
+    return h('span', { style: 'display: flex; align-items: center; gap: 6px;' }, [
+      h('span', {}, titleText),
+      h('span', { style: 'font-size: 11px; color: var(--color-text-tertiary, #8c8c8c);' }, ext.nodePath),
+    ]);
+  }
+  return h('span', {}, titleText);
+};
+
+const permissionSelectedCount = computed(() => {
+  const keys = Array.isArray(permissionCheckedKeys.value)
+    ? permissionCheckedKeys.value
+    : (permissionCheckedKeys.value?.checked ?? []);
+  if (isAppScope.value) {
+    return keys.filter((k): k is string => typeof k === 'string' && k.startsWith(PERM_CODE_PREFIX)).length;
+  }
+  return keys.filter((k): k is number => typeof k === 'number').length;
+});
+
+const menuSelectedCount = computed(() => {
+  const keys = Array.isArray(menuCheckedKeys.value)
+    ? menuCheckedKeys.value
+    : (menuCheckedKeys.value?.checked ?? []);
+  return keys.filter((k): k is number => typeof k === 'number').length;
+});
+
+const selectedDeptNames = computed(() => {
+  if (assignModel.dataScope !== 2 || assignModel.deptIds.length === 0) return [];
+  const findNames = (nodes: DataNode[]): string[] => {
+    const names: string[] = [];
+    for (const node of nodes) {
+      if (assignModel.deptIds.includes(node.key as number)) {
+        names.push(node.title as string);
+      }
+      if (node.children) names.push(...findNames(node.children as DataNode[]));
+    }
+    return names;
+  };
+  return findNames(departmentTreeData.value);
+});
 
 const isAllViewChecked = computed(() => {
   if (fieldPermissionRows.value.length === 0) return false;
@@ -436,7 +534,7 @@ const loadPermissionOptions = async (keyword?: string) => {
     }
     if (!isMounted.value) return;
     const rootNodes: Record<string, DataNode> = {};
-    items.forEach((item: { id: string; code: string; name: string }) => {
+    items.forEach((item: { id: string; code: string; name: string; description?: string }) => {
       const parts = item.code.split(':');
       const moduleCode = parts[0] || '默认';
       if (!rootNodes[moduleCode]) {
@@ -448,14 +546,15 @@ const loadPermissionOptions = async (keyword?: string) => {
       }
       // 应用模式：key 用字符串编码，平台模式：key 用数字 ID
       const nodeKey = isAppScope.value ? `${PERM_CODE_PREFIX}${item.code}` : Number(item.id);
-      (rootNodes[moduleCode].children as DataNode[]).push({
+      (rootNodes[moduleCode].children as ExtendedTreeNode[]).push({
         key: nodeKey,
-        title: `${item.name} (${item.code})`
+        title: `${item.name} (${item.code})`,
+        nodeDescription: item.description || undefined,
       });
     });
     permissionTreeData.value = Object.values(rootNodes);
   } catch {
-    // silent
+    message.warning('加载权限数据失败，请重试');
   } finally {
     if (isMounted.value) {
       permissionLoading.value = false;
@@ -473,7 +572,8 @@ const loadMenuOptions = async (keyword?: string) => {
       ...item,
       key: Number(item.id),
       value: Number(item.id),
-      title: `${item.name}`,
+      title: item.name,
+      nodePath: item.path || undefined,
       id: Number(item.id),
       parentId: item.parentId ? Number(item.parentId) : 0
     }));
@@ -481,7 +581,7 @@ const loadMenuOptions = async (keyword?: string) => {
     const filtered = keywordTrimmed ? formatted.filter((f) => (f.title as string).toLowerCase().includes(keywordTrimmed)) : formatted;
     menuTreeData.value = handleTree(filtered, "id", "parentId", "children");
   } catch {
-    // silent
+    message.warning('加载菜单数据失败，请重试');
   } finally {
     if (isMounted.value) {
       menuLoading.value = false;
@@ -490,9 +590,19 @@ const loadMenuOptions = async (keyword?: string) => {
 };
 
 const handlePermissionSearch = debounce((value: string) => void loadPermissionOptions(value));
-const handleMenuSearch = debounce((value: string) => void loadMenuOptions(value));
+const handleMenuSearch = debounce((value: string) => void (isAppScope.value ? loadAppPageOptions(value) : loadMenuOptions(value)));
 
-const loadAppPageOptions = async () => {
+const handlePermissionSearchClear = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  if (!target.value) void loadPermissionOptions();
+};
+
+const handleMenuSearchClear = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  if (!target.value) void (isAppScope.value ? loadAppPageOptions() : loadMenuOptions());
+};
+
+const loadAppPageOptions = async (keyword?: string) => {
   if (!isMounted.value || !props.appId) return;
   menuLoading.value = true;
   try {
@@ -503,12 +613,17 @@ const loadAppPageOptions = async () => {
       key: Number(p.id),
       value: Number(p.id),
       title: p.name,
+      nodePath: p.routePath || undefined,
       id: Number(p.id),
       parentId: p.parentPageId ?? 0
     }));
-    menuTreeData.value = handleTree(formatted, "id", "parentId", "children");
+    const keywordTrimmed = keyword?.trim().toLowerCase();
+    const filtered = keywordTrimmed
+      ? formatted.filter((f) => (f.title as string).toLowerCase().includes(keywordTrimmed))
+      : formatted;
+    menuTreeData.value = handleTree(filtered, "id", "parentId", "children");
   } catch {
-    // silent
+    message.warning('加载页面数据失败，请重试');
   } finally {
     if (isMounted.value) menuLoading.value = false;
   }
@@ -517,15 +632,22 @@ const loadAppPageOptions = async () => {
 const loadAppFieldPermissions = async () => {
   if (!isMounted.value || !props.appId || !props.roleId) return;
   try {
-    const groups = await getAppRoleFieldPermissions(props.appId, props.roleId);
+    const [groups, allTables] = await Promise.all([
+      getAppRoleFieldPermissions(props.appId, props.roleId),
+      getAppAvailableDynamicTables(props.appId)
+    ]);
     if (!isMounted.value) return;
     appFieldPermissionGroups.value = groups;
-    dynamicTableOptions.value = groups.map((g) => ({
-      label: g.tableKey,
-      value: g.tableKey
-    }));
+    const existingKeys = new Set(groups.map((g) => g.tableKey));
+    const mergedOptions = [
+      ...groups.map((g) => ({ label: `${g.tableKey}（已配置）`, value: g.tableKey })),
+      ...allTables
+        .filter((t) => !existingKeys.has(t.tableKey))
+        .map((t) => ({ label: `${t.displayName || t.tableKey}`, value: t.tableKey }))
+    ];
+    dynamicTableOptions.value = mergedOptions;
   } catch {
-    // silent
+    message.warning('加载字段权限数据失败，请重试');
   }
 };
 const loadDepartmentOptions = async (keyword?: string) => {
@@ -554,7 +676,7 @@ const loadDepartmentOptions = async (keyword?: string) => {
     const filtered = keywordTrimmed ? formatted.filter((f) => (f.title as string).toLowerCase().includes(keywordTrimmed)) : formatted;
     departmentTreeData.value = handleTree(filtered, "id", "parentId", "children");
   } catch {
-    // silent
+    message.warning('加载部门数据失败，请重试');
   } finally {
     if (isMounted.value) {
       departmentLoading.value = false;
@@ -579,7 +701,7 @@ const loadDynamicTableOptions = async (search?: string) => {
       value: item.tableKey
     }));
   } catch {
-    // silent
+    message.warning('加载动态表数据失败，请重试');
   } finally {
     if (isMounted.value) {
       dynamicTableLoading.value = false;
@@ -630,9 +752,12 @@ const handleFieldPermissionTableChange = (value: string) => {
   }
   if (isAppScope.value) {
     const group = appFieldPermissionGroups.value.find((g) => g.tableKey === value);
-    fieldPermissionRows.value = group
-      ? group.fields.map((f) => ({ fieldName: f.fieldName, label: f.fieldName, canView: f.canView, canEdit: f.canEdit }))
-      : [];
+    if (group) {
+      fieldPermissionRows.value = group.fields.map((f) => ({ fieldName: f.fieldName, label: f.fieldName, canView: f.canView, canEdit: f.canEdit }));
+    } else {
+      // 新增字段权限：该表尚无配置，从动态表加载字段定义
+      void loadFieldPermissions(value);
+    }
     existingFieldPermissions.value = [];
   } else {
     void loadFieldPermissions(value);
@@ -752,25 +877,26 @@ const submitAssign = async () => {
       }
 
       // 应用级字段权限：将当前已编辑表的数据合并回 groups 后整体保存
-      if (props.canAssignPermissions && appFieldPermissionGroups.value.length > 0) {
+      if (props.canAssignPermissions && fieldPermissionTableKey.value) {
+        const curTableKey = fieldPermissionTableKey.value;
         let groups = [...appFieldPermissionGroups.value];
-        if (fieldPermissionTableKey.value) {
-          const curTableKey = fieldPermissionTableKey.value;
-          groups = groups.map((g) => {
-            if (g.tableKey === curTableKey) {
-              return {
-                tableKey: g.tableKey,
-                fields: fieldPermissionRows.value.map((r) => ({
-                  fieldName: r.fieldName,
-                  canView: r.canView,
-                  canEdit: r.canEdit
-                }))
-              };
-            }
-            return g;
-          });
+        const existingGroupIndex = groups.findIndex((g) => g.tableKey === curTableKey);
+        const updatedGroup = {
+          tableKey: curTableKey,
+          fields: fieldPermissionRows.value.map((r) => ({
+            fieldName: r.fieldName,
+            canView: r.canView,
+            canEdit: r.canEdit
+          }))
+        };
+        if (existingGroupIndex >= 0) {
+          groups = groups.map((g) => (g.tableKey === curTableKey ? updatedGroup : g));
+        } else {
+          groups = [...groups, updatedGroup];
         }
         tasks.push(setAppRoleFieldPermissions(props.appId, props.roleId, { groups }));
+      } else if (props.canAssignPermissions && appFieldPermissionGroups.value.length > 0) {
+        tasks.push(setAppRoleFieldPermissions(props.appId, props.roleId, { groups: appFieldPermissionGroups.value }));
       }
     } else {
       // 平台模式：使用平台 API

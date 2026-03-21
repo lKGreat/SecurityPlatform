@@ -43,13 +43,13 @@ public sealed class DynamicRecordCommandService : IDynamicRecordCommandService
         var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, _appContextAccessor.ResolveAppId(), cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFound");
         }
 
         var fields = await _fieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
         if (fields.Count == 0)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "动态表字段为空。");
+            throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableFieldsEmpty");
         }
 
         await EnsureEditableAsync(tenantId, tableKey, table.AppId, request, cancellationToken);
@@ -67,13 +67,13 @@ public sealed class DynamicRecordCommandService : IDynamicRecordCommandService
         var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, _appContextAccessor.ResolveAppId(), cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFound");
         }
 
         var fields = await _fieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
         if (fields.Count == 0)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "动态表字段为空。");
+            throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableFieldsEmpty");
         }
 
         await EnsureEditableAsync(tenantId, tableKey, table.AppId, request, cancellationToken);
@@ -139,7 +139,7 @@ public sealed class DynamicRecordCommandService : IDynamicRecordCommandService
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            throw new BusinessException(ErrorCodes.Unauthorized, "未登录。");
+            throw new BusinessException(ErrorCodes.Unauthorized, "Unauthorized");
         }
 
         var fieldsToEdit = request.Values

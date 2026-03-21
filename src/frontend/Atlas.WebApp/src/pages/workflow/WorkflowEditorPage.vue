@@ -15,12 +15,12 @@
       </div>
       <div class="header-right">
         <a-space>
-          <a-tag v-if="isDirty" color="orange">未保存</a-tag>
-          <a-button @click="handleSaveDraft" :loading="saving">保存草稿</a-button>
-          <a-button type="primary" @click="showPublishModal = true">发布</a-button>
+          <a-tag v-if="isDirty" color="orange">{{ t('workflow.editorUnsaved') }}</a-tag>
+          <a-button @click="handleSaveDraft" :loading="saving">{{ t('workflow.saveDraft') }}</a-button>
+          <a-button type="primary" @click="showPublishModal = true">{{ t('workflow.publish') }}</a-button>
           <a-button :type="showTestPanel ? 'primary' : 'default'" @click="showTestPanel = !showTestPanel">
             <PlayCircleOutlined />
-            测试运行
+            {{ t('workflow.testRunToolbar') }}
           </a-button>
         </a-space>
       </div>
@@ -77,15 +77,15 @@
     <!-- 发布弹窗 -->
     <a-modal
       v-model:open="showPublishModal"
-      title="发布工作流"
+      :title="t('workflow.publishModalTitle')"
       @ok="handlePublish"
       :confirm-loading="publishing"
-      ok-text="确认发布"
-      cancel-text="取消"
+      :ok-text="t('workflow.publishOk')"
+      :cancel-text="t('common.cancel')"
     >
       <a-form layout="vertical">
-        <a-form-item label="变更说明">
-          <a-textarea v-model:value="changeLog" :rows="3" placeholder="描述本次发布的更新内容" />
+        <a-form-item :label="t('workflow.labelChangelog')">
+          <a-textarea v-model:value="changeLog" :rows="3" :placeholder="t('workflow.phChangelog')" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -94,6 +94,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, markRaw, type Component, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -131,11 +132,12 @@ import { resolveCurrentAppId } from '@/utils/app-context'
 import { normalizeNodeTypeKey } from '@/types/workflow-v2'
 import type { CanvasSchema, ConnectionSchema, NodeSchema, NodeTypeMetadata, WorkflowVersionItem } from '@/types/workflow-v2'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const workflowId = computed(() => Number(route.params.id))
 
-const workflowName = ref('未命名工作流')
+const workflowName = ref('')
 const isDirty = ref(false)
 const saving = ref(false)
 const publishing = ref(false)
@@ -228,7 +230,8 @@ async function loadWorkflow() {
     if (vRes.success && vRes.data) {
       workflowVersions.value = vRes.data
     }
-  } catch (e) {
+  } catch {
+    workflowName.value = t('workflow.defaultName')
     initDefaultCanvas()
   }
 }
@@ -283,13 +286,13 @@ function initDefaultCanvas() {
       id: 'entry_1',
       type: 'Entry',
       position: { x: 100, y: 200 },
-      data: { title: '开始', configs: {}, inputMappings: {}, nodeType: 'Entry', __status: '' },
+      data: { title: t('workflow.nodeStart'), configs: {}, inputMappings: {}, nodeType: 'Entry', __status: '' },
     },
     {
       id: 'exit_1',
       type: 'Exit',
       position: { x: 600, y: 200 },
-      data: { title: '结束', configs: {}, inputMappings: {}, nodeType: 'Exit', __status: '' },
+      data: { title: t('workflow.nodeEnd'), configs: {}, inputMappings: {}, nodeType: 'Exit', __status: '' },
     },
   ]
   vfEdges.value = [
@@ -311,7 +314,7 @@ async function handleSaveDraft() {
     const res = await workflowV2Api.saveDraft(workflowId.value, { canvasJson })
     if (res.success) {
       isDirty.value = false
-      message.success('草稿已保存')
+      message.success(t('workflow.draftSaved'))
     }
   } finally {
     saving.value = false
@@ -327,7 +330,7 @@ async function handlePublish() {
     const res = await workflowV2Api.publish(workflowId.value, { changeLog: changeLog.value })
     if (res.success) {
       showPublishModal.value = false
-      message.success('发布成功')
+      message.success(t('workflow.publishSuccess'))
       changeLog.value = ''
       // 刷新版本列表
       const vRes = await workflowV2Api.getVersions(workflowId.value)

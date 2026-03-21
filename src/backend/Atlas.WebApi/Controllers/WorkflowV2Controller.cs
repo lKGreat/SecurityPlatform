@@ -154,7 +154,7 @@ public sealed class WorkflowV2Controller : ControllerBase
         var result = await _queryService.GetAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<WorkflowV2DetailDto>.Fail(ErrorCodes.NotFound, "工作流不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<WorkflowV2DetailDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "WorkflowDefNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<WorkflowV2DetailDto>.Ok(result, HttpContext.TraceIdentifier));
@@ -179,7 +179,7 @@ public sealed class WorkflowV2Controller : ControllerBase
         var result = await _queryService.GetVersionDiffAsync(tenantId, id, fromId, toId, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<WorkflowVersionDiff>.Fail(ErrorCodes.NotFound, "版本不存在或不属于此工作流", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<WorkflowVersionDiff>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "WorkflowVersionNotInWorkflow"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<WorkflowVersionDiff>.Ok(result, HttpContext.TraceIdentifier));
@@ -269,7 +269,7 @@ public sealed class WorkflowV2Controller : ControllerBase
         var result = await _queryService.GetExecutionProcessAsync(tenantId, execId, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<WorkflowV2ExecutionDto>.Fail(ErrorCodes.NotFound, "执行实例不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<WorkflowV2ExecutionDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "WorkflowInstanceNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<WorkflowV2ExecutionDto>.Ok(result, HttpContext.TraceIdentifier));
@@ -284,7 +284,7 @@ public sealed class WorkflowV2Controller : ControllerBase
         var result = await _queryService.GetExecutionCheckpointAsync(tenantId, execId, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<WorkflowV2ExecutionCheckpointDto>.Fail(ErrorCodes.NotFound, "执行实例不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<WorkflowV2ExecutionCheckpointDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "WorkflowInstanceNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<WorkflowV2ExecutionCheckpointDto>.Ok(result, HttpContext.TraceIdentifier));
@@ -299,14 +299,14 @@ public sealed class WorkflowV2Controller : ControllerBase
         var checkpoint = await _queryService.GetExecutionCheckpointAsync(tenantId, execId, cancellationToken);
         if (checkpoint is null)
         {
-            return NotFound(ApiResponse<WorkflowV2RunResult>.Fail(ErrorCodes.NotFound, "执行实例不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<WorkflowV2RunResult>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "WorkflowInstanceNotFound"), HttpContext.TraceIdentifier));
         }
 
         if (checkpoint.Status is not (ExecutionStatus.Failed or ExecutionStatus.Cancelled or ExecutionStatus.Interrupted))
         {
             return BadRequest(ApiResponse<WorkflowV2RunResult>.Fail(
                 ErrorCodes.ValidationError,
-                "仅失败、取消或中断状态允许恢复。",
+                ApiResponseLocalizer.T(HttpContext, "WorkflowV2ResumeInvalidState"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -329,7 +329,7 @@ public sealed class WorkflowV2Controller : ControllerBase
         var result = await _queryService.GetExecutionDebugViewAsync(tenantId, execId, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<WorkflowV2ExecutionDebugViewDto>.Fail(ErrorCodes.NotFound, "执行实例不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<WorkflowV2ExecutionDebugViewDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "WorkflowInstanceNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<WorkflowV2ExecutionDebugViewDto>.Ok(result, HttpContext.TraceIdentifier));
@@ -344,7 +344,7 @@ public sealed class WorkflowV2Controller : ControllerBase
         var result = await _queryService.GetNodeExecutionDetailAsync(tenantId, execId, nodeKey, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<WorkflowV2NodeExecutionDto>.Fail(ErrorCodes.NotFound, "节点执行记录不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<WorkflowV2NodeExecutionDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "WorkflowNodeExecutionNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<WorkflowV2NodeExecutionDto>.Ok(result, HttpContext.TraceIdentifier));

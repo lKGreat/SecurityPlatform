@@ -40,7 +40,7 @@ public sealed class RecoverToHistoryOperationHandler : IApprovalOperationHandler
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null)
         {
-            throw new BusinessException("INSTANCE_NOT_FOUND", "流程实例不存在");
+            throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalInstanceNotFound");
         }
 
         // 只能恢复已结束的流程（已完成、已拒绝、已取消）
@@ -48,7 +48,7 @@ public sealed class RecoverToHistoryOperationHandler : IApprovalOperationHandler
             instance.Status != ApprovalInstanceStatus.Rejected &&
             instance.Status != ApprovalInstanceStatus.Canceled)
         {
-            throw new BusinessException("INSTANCE_NOT_ENDED", "只能恢复已结束的流程");
+            throw new BusinessException("INSTANCE_NOT_ENDED", "ApprovalOpRecoverOnlyEndedInstance");
         }
 
         // 恢复流程：将状态改回运行状态

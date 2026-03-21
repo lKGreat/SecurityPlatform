@@ -41,10 +41,10 @@ public sealed class AiWorkflowExecutionService : IAiWorkflowExecutionService
         CancellationToken cancellationToken)
     {
         var definitionEntity = await _repository.FindByIdAsync(tenantId, workflowDefinitionId, cancellationToken)
-            ?? throw new BusinessException("工作流定义不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("WorkflowDefNotFound", ErrorCodes.NotFound);
         if (definitionEntity.Status != AiWorkflowStatus.Published)
         {
-            throw new BusinessException("仅允许执行已发布的工作流。", ErrorCodes.ValidationError);
+            throw new BusinessException("WorkflowNotPublished", ErrorCodes.ValidationError);
         }
 
         var definition = _definitionLoader.LoadDefinitionFromJson(definitionEntity.DefinitionJson);
@@ -136,7 +136,7 @@ public sealed class AiWorkflowExecutionService : IAiWorkflowExecutionService
         CancellationToken cancellationToken)
     {
         var workflow = await GetOwnedWorkflowOrNullAsync(tenantId, executionId, cancellationToken);
-        return workflow ?? throw new BusinessException("执行实例不存在。", ErrorCodes.NotFound);
+        return workflow ?? throw new BusinessException("WorkflowInstanceNotFound", ErrorCodes.NotFound);
     }
 
     private static bool IsWorkflowOwnedByTenant(Atlas.WorkflowCore.Models.WorkflowInstance workflow, TenantId tenantId)

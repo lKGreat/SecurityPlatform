@@ -52,12 +52,12 @@ public sealed class ReclaimTaskHandler : IApprovalOperationHandler
         {
             // 查找最近一条由我审批的历史记录
             // 简化逻辑：假设前端必须传 taskId
-            throw new BusinessException("INVALID_REQUEST", "必须指定要拿回的任务ID");
+            throw new BusinessException("INVALID_REQUEST", "ApprovalOpReclaimTaskIdRequired");
         }
 
         if (myTask == null || myTask.DecisionByUserId != operatorUserId)
         {
-            throw new BusinessException("FORBIDDEN", "只能拿回自己审批过的任务");
+            throw new BusinessException("FORBIDDEN", "ApprovalOpReclaimOnlyOwnApproved");
         }
 
         // 2. 检查当前流程状态：必须还在下一个节点，且下一个节点未处理

@@ -42,29 +42,29 @@ public sealed class TransferOperationHandler : IApprovalOperationHandler
     {
         if (!taskId.HasValue)
         {
-            throw new BusinessException("TASK_ID_REQUIRED", "转办操作需要指定任务ID");
+            throw new BusinessException("TASK_ID_REQUIRED", "ApprovalOpTaskIdRequired");
         }
 
         if (string.IsNullOrEmpty(request.TargetAssigneeValue))
         {
-            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "转办操作需要指定目标处理人");
+            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "ApprovalOpTargetAssigneeRequired");
         }
 
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
         if (task == null)
         {
-            throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+            throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         }
 
         if (task.Status != ApprovalTaskStatus.Pending)
         {
-            throw new BusinessException("TASK_NOT_PENDING", "只能转办待审批的任务");
+            throw new BusinessException("TASK_NOT_PENDING", "ApprovalOpOnlyPendingTask");
         }
 
         // 验证操作人是否有权限转办（必须是当前处理人）
         if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != operatorUserId.ToString())
         {
-            throw new BusinessException("UNAUTHORIZED", "只能转办自己的任务");
+            throw new BusinessException("UNAUTHORIZED", "ApprovalOpOnlyOwnTask");
         }
 
         // 记录转办

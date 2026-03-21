@@ -1,10 +1,10 @@
 <template>
-  <CrudPageLayout title="工作流实例监控">
+  <CrudPageLayout :title="t('workflow.instancesTitle')">
     <template #toolbar-actions>
       <a-space>
         <a-button @click="loadInstances">
           <template #icon><ReloadOutlined /></template>
-          刷新
+          {{ t('workflow.refresh') }}
         </a-button>
       </a-space>
     </template>
@@ -14,14 +14,7 @@
         :columns="columns"
         :data-source="instances"
         :loading="loading"
-        :pagination="{
-          current: pageIndex,
-          pageSize: pageSize,
-          total: total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total: number) => `共 ${total} 条`
-        }"
+        :pagination="tablePagination"
         @change="handleTableChange"
         :row-key="(record: WorkflowInstanceListItem) => record.id"
       >
@@ -40,7 +33,7 @@
           <template v-else-if="column.key === 'actions'">
             <a-space>
               <a-button type="link" size="small" @click="handleViewDetail(record)">
-                查看详情
+                {{ t('workflow.viewDetail') }}
               </a-button>
               <a-button
                 type="link"
@@ -49,7 +42,7 @@
                 v-if="record.status === 'Runnable' || record.status === 'Running'"
                 danger
               >
-                挂起
+                {{ t('workflow.suspend') }}
               </a-button>
               <a-button
                 type="link"
@@ -57,7 +50,7 @@
                 @click="handleResume(record.id)"
                 v-if="record.status === 'Suspended'"
               >
-                恢复
+                {{ t('workflow.resume') }}
               </a-button>
               <a-button
                 type="link"
@@ -66,7 +59,7 @@
                 v-if="record.status !== 'Complete' && record.status !== 'Terminated'"
                 danger
               >
-                终止
+                {{ t('workflow.terminate') }}
               </a-button>
             </a-space>
           </template>
@@ -75,32 +68,31 @@
     </template>
 
     <template #extra-drawers>
-      <!-- 详情抽屉 -->
       <a-drawer
         v-model:open="detailDrawerVisible"
-        title="工作流实例详情"
+        :title="t('workflow.drawerTitle')"
         placement="right"
         width="800"
         @close="handleCloseDetail"
       >
         <div v-if="selectedInstance">
           <a-descriptions bordered :column="1">
-            <a-descriptions-item label="实例ID">{{ selectedInstance.id }}</a-descriptions-item>
-            <a-descriptions-item label="工作流ID">{{ selectedInstance.workflowDefinitionId }}</a-descriptions-item>
-            <a-descriptions-item label="版本">{{ selectedInstance.version }}</a-descriptions-item>
-            <a-descriptions-item label="状态">
+            <a-descriptions-item :label="t('workflow.labelInstanceId')">{{ selectedInstance.id }}</a-descriptions-item>
+            <a-descriptions-item :label="t('workflow.labelWorkflowId')">{{ selectedInstance.workflowDefinitionId }}</a-descriptions-item>
+            <a-descriptions-item :label="t('workflow.labelVersion')">{{ selectedInstance.version }}</a-descriptions-item>
+            <a-descriptions-item :label="t('workflow.labelStatus')">
               <a-tag :color="getStatusColor(selectedInstance.status)">
                 {{ getStatusText(selectedInstance.status) }}
               </a-tag>
             </a-descriptions-item>
-            <a-descriptions-item label="创建时间">{{ formatDateTime(selectedInstance.createTime) }}</a-descriptions-item>
-            <a-descriptions-item label="完成时间">
+            <a-descriptions-item :label="t('workflow.labelCreatedAt')">{{ formatDateTime(selectedInstance.createTime) }}</a-descriptions-item>
+            <a-descriptions-item :label="t('workflow.labelCompletedAt')">
               {{ selectedInstance.completeTime ? formatDateTime(selectedInstance.completeTime) : "-" }}
             </a-descriptions-item>
-            <a-descriptions-item label="引用标识">{{ selectedInstance.reference || "-" }}</a-descriptions-item>
+            <a-descriptions-item :label="t('workflow.labelReference')">{{ selectedInstance.reference || "-" }}</a-descriptions-item>
           </a-descriptions>
 
-          <a-divider orientation="left">执行指针（步骤级监控）</a-divider>
+          <a-divider orientation="left">{{ t('workflow.dividerPointers') }}</a-divider>
           <a-timeline>
             <a-timeline-item
               v-for="pointer in executionPointers"
@@ -121,12 +113,12 @@
                 </a-tag>
               </div>
               <div style="font-size: 12px; color: #666; margin-top: 4px">
-                <div v-if="pointer.startTime">开始: {{ formatDateTime(pointer.startTime) }}</div>
-                <div v-if="pointer.endTime">结束: {{ formatDateTime(pointer.endTime) }}</div>
-                <div v-if="pointer.sleepUntil">睡眠到: {{ formatDateTime(pointer.sleepUntil) }}</div>
-                <div v-if="pointer.eventName">等待事件: {{ pointer.eventName }}</div>
-                <div v-if="pointer.retryCount > 0">重试次数: {{ pointer.retryCount }}</div>
-                <div v-if="pointer.errorMessage" style="color: red">错误: {{ pointer.errorMessage }}</div>
+                <div v-if="pointer.startTime">{{ t('workflow.pointerStart') }} {{ formatDateTime(pointer.startTime) }}</div>
+                <div v-if="pointer.endTime">{{ t('workflow.pointerEnd') }} {{ formatDateTime(pointer.endTime) }}</div>
+                <div v-if="pointer.sleepUntil">{{ t('workflow.pointerSleep') }} {{ formatDateTime(pointer.sleepUntil) }}</div>
+                <div v-if="pointer.eventName">{{ t('workflow.pointerEvent') }} {{ pointer.eventName }}</div>
+                <div v-if="pointer.retryCount > 0">{{ t('workflow.pointerRetry') }} {{ pointer.retryCount }}</div>
+                <div v-if="pointer.errorMessage" style="color: red">{{ t('workflow.pointerError') }} {{ pointer.errorMessage }}</div>
               </div>
             </a-timeline-item>
           </a-timeline>
@@ -134,9 +126,9 @@
           <a-space style="margin-top: 16px">
             <a-button @click="handleRefreshPointers" :loading="pointersLoading">
               <template #icon><ReloadOutlined /></template>
-              刷新执行状态
+              {{ t('workflow.refreshPointers') }}
             </a-button>
-            <a-switch v-model:checked="autoRefresh" /> 自动刷新（每3秒）
+            <a-switch v-model:checked="autoRefresh" /> {{ t('workflow.autoRefresh') }}
           </a-space>
         </div>
       </a-drawer>
@@ -145,7 +137,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, onUnmounted } from "vue";
+import { ref, onMounted, onBeforeUnmount, watch, onUnmounted, computed } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -173,6 +166,7 @@ import {
   CloseCircleOutlined
 } from "@ant-design/icons-vue";
 
+const { t } = useI18n();
 const route = useRoute();
 const loading = ref(false);
 const instances = ref<WorkflowInstanceListItem[]>([]);
@@ -186,15 +180,24 @@ const pointersLoading = ref(false);
 const autoRefresh = ref(false);
 let refreshTimer: number | null = null;
 
-const columns = [
-  { title: "实例ID", dataIndex: "id", key: "id", ellipsis: true, width: 200 },
-  { title: "工作流ID", dataIndex: "workflowDefinitionId", key: "workflowDefinitionId" },
-  { title: "版本", dataIndex: "version", key: "version", width: 80 },
-  { title: "状态", dataIndex: "status", key: "status", width: 120 },
-  { title: "创建时间", dataIndex: "createTime", key: "createTime", width: 180 },
-  { title: "完成时间", dataIndex: "completeTime", key: "completeTime", width: 180 },
-  { title: "操作", key: "actions", width: 280 }
-];
+const columns = computed(() => [
+  { title: t('workflow.colInstanceId'), dataIndex: "id", key: "id", ellipsis: true, width: 200 },
+  { title: t('workflow.colWorkflowId'), dataIndex: "workflowDefinitionId", key: "workflowDefinitionId" },
+  { title: t('workflow.colVersion'), dataIndex: "version", key: "version", width: 80 },
+  { title: t('workflow.colStatus'), dataIndex: "status", key: "status", width: 120 },
+  { title: t('workflow.colCreatedAt'), dataIndex: "createTime", key: "createTime", width: 180 },
+  { title: t('workflow.colCompletedAt'), dataIndex: "completeTime", key: "completeTime", width: 180 },
+  { title: t('workflow.colActions'), key: "actions", width: 280 }
+]);
+
+const tablePagination = computed(() => ({
+  current: pageIndex.value,
+  pageSize: pageSize.value,
+  total: total.value,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  showTotal: (n: number) => t('crud.totalItems', { total: n })
+}));
 
 const loadInstances = async () => {
   loading.value = true;
@@ -208,7 +211,7 @@ const loadInstances = async () => {
     instances.value = result.items;
     total.value = result.total;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "加载失败");
+    message.error(err instanceof Error ? err.message : t('workflow.loadFailed'));
   } finally {
     loading.value = false;
   }
@@ -230,7 +233,7 @@ const handleViewDetail = async (record: WorkflowInstanceListItem) => {
     if (!isMounted.value) return;
     detailDrawerVisible.value = true;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "加载详情失败");
+    message.error(err instanceof Error ? err.message : t('workflow.loadDetailFailed'));
   }
 };
 
@@ -241,7 +244,7 @@ const loadExecutionPointers = async (instanceId: string) => {
 
     if (!isMounted.value) return;
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "加载执行指针失败");
+    message.error(err instanceof Error ? err.message : t('workflow.loadPointersFailed'));
   } finally {
     pointersLoading.value = false;
   }
@@ -267,10 +270,10 @@ const handleSuspend = async (instanceId: string) => {
     await suspendWorkflow(instanceId);
 
     if (!isMounted.value) return;
-    message.success("工作流已挂起");
+    message.success(t('workflow.suspendedOk'));
     loadInstances();
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "挂起失败");
+    message.error(err instanceof Error ? err.message : t('workflow.suspendFailed'));
   }
 };
 
@@ -279,10 +282,10 @@ const handleResume = async (instanceId: string) => {
     await resumeWorkflow(instanceId);
 
     if (!isMounted.value) return;
-    message.success("工作流已恢复");
+    message.success(t('workflow.resumedOk'));
     loadInstances();
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "恢复失败");
+    message.error(err instanceof Error ? err.message : t('workflow.resumeFailed'));
   }
 };
 
@@ -291,10 +294,10 @@ const handleTerminate = async (instanceId: string) => {
     await terminateWorkflow(instanceId);
 
     if (!isMounted.value) return;
-    message.success("工作流已终止");
+    message.success(t('workflow.terminatedOk'));
     loadInstances();
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "终止失败");
+    message.error(err instanceof Error ? err.message : t('workflow.terminateFailed'));
   }
 };
 
@@ -311,11 +314,11 @@ const getStatusColor = (status: string): string => {
 
 const getStatusText = (status: string): string => {
   const textMap: Record<string, string> = {
-    Runnable: "可运行",
-    Running: "运行中",
-    Complete: "已完成",
-    Suspended: "已挂起",
-    Terminated: "已终止"
+    Runnable: t('workflow.wfRunnable'),
+    Running: t('workflow.wfRunning'),
+    Complete: t('workflow.wfComplete'),
+    Suspended: t('workflow.wfSuspended'),
+    Terminated: t('workflow.wfTerminated')
   };
   return textMap[status] || status;
 };
@@ -334,21 +337,20 @@ const getPointerColor = (status: string): string => {
 
 const getPointerStatusText = (status: string): string => {
   const textMap: Record<string, string> = {
-    Running: "运行中",
-    Complete: "已完成",
-    Sleeping: "休眠中",
-    WaitingForEvent: "等待事件",
-    Failed: "失败",
-    Pending: "待执行"
+    Running: t('workflow.ptrRunning'),
+    Complete: t('workflow.ptrComplete'),
+    Sleeping: t('workflow.ptrSleeping'),
+    WaitingForEvent: t('workflow.ptrWaitingEvent'),
+    Failed: t('workflow.ptrFailed'),
+    Pending: t('workflow.ptrPending')
   };
   return textMap[status] || status;
 };
 
 const formatDateTime = (dateTime: string): string => {
-  return new Date(dateTime).toLocaleString("zh-CN");
+  return new Date(dateTime).toLocaleString();
 };
 
-// 自动刷新逻辑
 watch(autoRefresh, (newVal) => {
   if (newVal && selectedInstance.value) {
     refreshTimer = window.setInterval(() => {
@@ -369,7 +371,6 @@ onMounted(async () => {
 
   if (!isMounted.value) return;
 
-  // 如果 URL 中有 instanceId 参数，自动打开详情
   const instanceId = route.query.instanceId as string;
   if (instanceId) {
     const instance = instances.value.find((i) => i.id === instanceId);

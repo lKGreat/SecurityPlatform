@@ -2,16 +2,16 @@
   <div class="instance-detail-page">
     <div class="page-header">
       <a-page-header
-        :title="`流程详情: ${instance?.flowName || ''}`"
+        :title="t('approvalRuntime.pageInstanceTitle', { name: instance?.flowName || '' })"
         @back="$router.back()"
       >
         <template #tags>
           <a-tag :color="getStatusColor(instance?.status)">{{ getStatusText(instance?.status) }}</a-tag>
         </template>
         <template #extra>
-          <a-button v-if="canCancel" danger @click="handleCancel">撤销流程</a-button>
-          <a-button v-if="canSuspend" @click="handleSuspend">挂起</a-button>
-          <a-button v-if="canActivate" type="primary" @click="handleActivate">激活</a-button>
+          <a-button v-if="canCancel" danger @click="handleCancel">{{ t('approvalRuntime.revokeFlow') }}</a-button>
+          <a-button v-if="canSuspend" @click="handleSuspend">{{ t('approvalRuntime.suspend') }}</a-button>
+          <a-button v-if="canActivate" type="primary" @click="handleActivate">{{ t('approvalRuntime.activate') }}</a-button>
         </template>
       </a-page-header>
     </div>
@@ -19,8 +19,7 @@
     <a-spin :spinning="loading">
       <div class="content-layout">
         <div class="main-content">
-          <!-- 表单详情 (只读) -->
-          <a-card title="表单详情" class="mb-4">
+          <a-card :title="t('approvalRuntime.cardFormDetail')" class="mb-4">
             <div v-if="instance?.dataJson">
               <LfFormRenderer
                 v-if="formJson"
@@ -30,11 +29,10 @@
               />
               <pre v-else>{{ JSON.stringify(JSON.parse(instance.dataJson), null, 2) }}</pre>
             </div>
-            <a-empty v-else description="暂无表单数据" />
+            <a-empty v-else :description="t('approvalRuntime.emptyFormData')" />
           </a-card>
 
-          <!-- 流程图状态 -->
-          <a-card title="流程状态" class="mb-4">
+          <a-card :title="t('approvalRuntime.cardFlowStatus')" class="mb-4">
             <div class="flow-chart-container" ref="flowChartRef">
               <a-steps
                 v-if="flowSteps.length > 0"
@@ -43,14 +41,13 @@
                 :current="currentFlowStepIndex"
                 :items="flowSteps"
               />
-              <a-empty v-else description="当前实例暂无可展示的状态轨迹" />
+              <a-empty v-else :description="t('approvalRuntime.emptyFlowStatus')" />
             </div>
           </a-card>
         </div>
 
         <div class="side-content">
-          <!-- 审批记录时间线 -->
-          <a-card title="审批记录">
+          <a-card :title="t('approvalRuntime.cardApprovalRecords')">
             <a-timeline>
               <a-timeline-item
                 v-for="event in historyEvents"
@@ -62,7 +59,7 @@
                 </template>
                 <div class="timeline-content">
                   <div class="timeline-header">
-                    <span class="timeline-user">{{ event.actorUserId ? `用户 ${event.actorUserId}` : '系统' }}</span>
+                    <span class="timeline-user">{{ event.actorUserId ? t('approvalRuntime.userLabel', { id: event.actorUserId }) : t('approvalRuntime.systemLabel') }}</span>
                     <span class="timeline-action">{{ getEventActionText(event.eventType) }}</span>
                   </div>
                   <div class="timeline-comment" v-if="event.payloadJson">{{ event.payloadJson }}</div>
@@ -79,6 +76,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -87,18 +85,18 @@ onUnmounted(() => { isMounted.value = false; });
 import { useRoute } from 'vue-router';
 import { message } from 'ant-design-vue';
 import type { Component } from 'vue';
-import { 
-  getApprovalInstanceById, 
-  getApprovalInstanceHistory, 
+import {
+  getApprovalInstanceById,
+  getApprovalInstanceHistory,
   cancelApprovalInstance,
   suspendInstance,
   activateInstance,
   getApprovalFlowById
 } from '@/services/api';
-import { 
-  CheckCircleOutlined, 
-  CloseCircleOutlined, 
-  ClockCircleOutlined, 
+import {
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ClockCircleOutlined,
   PlayCircleOutlined,
   StopOutlined
 } from '@ant-design/icons-vue';
@@ -114,6 +112,7 @@ import type { FormJson } from '@/types/approval-definition';
 import LfFormRenderer from '@/components/approval/runtime/LfFormRenderer.vue';
 import dayjs from 'dayjs';
 
+const { t } = useI18n();
 const route = useRoute();
 const instanceId = route.params.id as string;
 
@@ -143,7 +142,7 @@ const flowSteps = computed(() => {
     .sort((a, b) => dayjs(a.occurredAt).valueOf() - dayjs(b.occurredAt).valueOf())
     .map((event) => ({
       title: getEventActionText(event.eventType),
-      description: `${event.actorUserId ? `用户 ${event.actorUserId}` : '系统'} · ${formatTime(event.occurredAt)}`
+      description: `${event.actorUserId ? t('approvalRuntime.userLabel', { id: event.actorUserId }) : t('approvalRuntime.systemLabel')} · ${formatTime(event.occurredAt)}`
     }));
 });
 
@@ -162,14 +161,13 @@ const fetchDetail = async () => {
 
     if (!isMounted.value) return;
     instance.value = res;
-    
+
     const historyRes  = await getApprovalInstanceHistory(instanceId, { pageIndex: 1, pageSize: 100 });
 
-    
+
     if (!isMounted.value) return;
     historyEvents.value = historyRes.items;
 
-    // 加载流程定义以获取 formJson 用于只读渲染
     if (res.definitionId) {
       try {
         const flowDef  = await getApprovalFlowById(String(res.definitionId));
@@ -182,12 +180,12 @@ const fetchDetail = async () => {
           }
         }
       } catch {
-        // 流程定义加载失败时回退到 JSON 展示
+        // ignore
       }
     }
-    
-  } catch (error) {
-    message.error('获取详情失败');
+
+  } catch {
+    message.error(t('approvalRuntime.loadDetailFailed'));
   } finally {
     loading.value = false;
   }
@@ -198,10 +196,10 @@ const handleCancel = async () => {
     await cancelApprovalInstance(instanceId);
 
     if (!isMounted.value) return;
-    message.success('已撤销');
+    message.success(t('approvalRuntime.cancelSuccess'));
     fetchDetail();
-  } catch (error) {
-    message.error('撤销失败');
+  } catch {
+    message.error(t('approvalRuntime.cancelFailed'));
   }
 };
 
@@ -210,10 +208,10 @@ const handleSuspend = async () => {
     await suspendInstance(instanceId);
 
     if (!isMounted.value) return;
-    message.success('已挂起');
+    message.success(t('approvalRuntime.suspendSuccess'));
     fetchDetail();
-  } catch (error) {
-    message.error('挂起失败');
+  } catch {
+    message.error(t('approvalRuntime.suspendFailed'));
   }
 };
 
@@ -222,10 +220,10 @@ const handleActivate = async () => {
     await activateInstance(instanceId);
 
     if (!isMounted.value) return;
-    message.success('已激活');
+    message.success(t('approvalRuntime.activateSuccess'));
     fetchDetail();
-  } catch (error) {
-    message.error('激活失败');
+  } catch {
+    message.error(t('approvalRuntime.activateFailed'));
   }
 };
 
@@ -254,25 +252,25 @@ const getStatusColor = (status?: ApprovalInstanceDetailDto['status']) => {
 
 const getStatusText = (status?: ApprovalInstanceDetailDto['status']) => {
   if (status === undefined) {
-    return '未知';
+    return t('approvalRuntime.instStatusUnknown');
   }
 
   const map: Record<ApprovalInstanceDetailDto['status'], string> = {
-    [ApprovalInstanceStatus.Destroy]: '已作废',
-    [ApprovalInstanceStatus.Suspended]: '已挂起',
-    [ApprovalInstanceStatus.Draft]: '草稿',
-    [ApprovalInstanceStatus.Running]: '运行中',
-    [ApprovalInstanceStatus.Completed]: '已完成',
-    [ApprovalInstanceStatus.Rejected]: '已驳回',
-    [ApprovalInstanceStatus.Canceled]: '已取消',
-    [ApprovalInstanceStatus.TimedOut]: '已超时结束',
-    [ApprovalInstanceStatus.Terminated]: '已强制终止',
-    [ApprovalInstanceStatus.AutoApproved]: '自动通过',
-    [ApprovalInstanceStatus.AutoRejected]: '自动拒绝',
-    [ApprovalInstanceStatus.AiProcessing]: 'AI 处理中',
-    [ApprovalInstanceStatus.AiManualReview]: 'AI 转人工'
+    [ApprovalInstanceStatus.Destroy]: t('approvalRuntime.instStatusDestroy'),
+    [ApprovalInstanceStatus.Suspended]: t('approvalRuntime.instStatusSuspended'),
+    [ApprovalInstanceStatus.Draft]: t('approvalRuntime.instStatusDraft'),
+    [ApprovalInstanceStatus.Running]: t('approvalRuntime.instStatusRunning'),
+    [ApprovalInstanceStatus.Completed]: t('approvalRuntime.instStatusCompleted'),
+    [ApprovalInstanceStatus.Rejected]: t('approvalRuntime.instStatusRejected'),
+    [ApprovalInstanceStatus.Canceled]: t('approvalRuntime.instStatusCanceled'),
+    [ApprovalInstanceStatus.TimedOut]: t('approvalRuntime.instDetailTimedOutEnd'),
+    [ApprovalInstanceStatus.Terminated]: t('approvalRuntime.instDetailTerminated'),
+    [ApprovalInstanceStatus.AutoApproved]: t('approvalRuntime.instStatusAutoApproved'),
+    [ApprovalInstanceStatus.AutoRejected]: t('approvalRuntime.instDetailAutoReject'),
+    [ApprovalInstanceStatus.AiProcessing]: t('approvalRuntime.instStatusAiProcessing'),
+    [ApprovalInstanceStatus.AiManualReview]: t('approvalRuntime.instStatusAiManual')
   };
-  return map[status] || '未知';
+  return map[status] || t('approvalRuntime.instStatusUnknown');
 };
 
 const getEventColor = (type: ApprovalHistoryEventDto['eventType']) => {
@@ -306,19 +304,19 @@ const getEventIcon = (type: ApprovalHistoryEventDto['eventType']): Component => 
 
 const getEventActionText = (type: ApprovalHistoryEventDto['eventType']) => {
   const map: Partial<Record<ApprovalHistoryEventDto['eventType'], string>> = {
-    [ApprovalHistoryEventType.InstanceStarted]: '发起流程',
-    [ApprovalHistoryEventType.TaskCreated]: '创建任务',
-    [ApprovalHistoryEventType.TaskApproved]: '审批通过',
-    [ApprovalHistoryEventType.TaskRejected]: '审批驳回',
-    [ApprovalHistoryEventType.NodeAdvanced]: '流转到下一节点',
-    [ApprovalHistoryEventType.InstanceCompleted]: '流程完成',
-    [ApprovalHistoryEventType.InstanceRejected]: '流程驳回',
-    [ApprovalHistoryEventType.InstanceCanceled]: '流程取消',
-    [ApprovalHistoryEventType.InstanceSuspended]: '流程挂起',
-    [ApprovalHistoryEventType.InstanceActivated]: '流程激活',
-    [ApprovalHistoryEventType.InstanceTerminated]: '流程终止'
+    [ApprovalHistoryEventType.InstanceStarted]: t('approvalRuntime.historyEventInstanceStarted'),
+    [ApprovalHistoryEventType.TaskCreated]: t('approvalRuntime.historyEventTaskCreated'),
+    [ApprovalHistoryEventType.TaskApproved]: t('approvalRuntime.historyEventTaskApproved'),
+    [ApprovalHistoryEventType.TaskRejected]: t('approvalRuntime.historyEventTaskRejected'),
+    [ApprovalHistoryEventType.NodeAdvanced]: t('approvalRuntime.historyEventNodeAdvanced'),
+    [ApprovalHistoryEventType.InstanceCompleted]: t('approvalRuntime.historyEventInstanceCompleted'),
+    [ApprovalHistoryEventType.InstanceRejected]: t('approvalRuntime.historyEventInstanceRejected'),
+    [ApprovalHistoryEventType.InstanceCanceled]: t('approvalRuntime.historyEventInstanceCanceled'),
+    [ApprovalHistoryEventType.InstanceSuspended]: t('approvalRuntime.historyEventInstanceSuspended'),
+    [ApprovalHistoryEventType.InstanceActivated]: t('approvalRuntime.historyEventInstanceActivated'),
+    [ApprovalHistoryEventType.InstanceTerminated]: t('approvalRuntime.historyEventInstanceTerminated')
   };
-  return map[type] ?? '流程操作';
+  return map[type] ?? t('approvalRuntime.historyEventFallback');
 };
 
 const formatTime = (time: string) => {

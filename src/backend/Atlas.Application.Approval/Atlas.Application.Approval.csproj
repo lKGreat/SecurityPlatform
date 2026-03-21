@@ -9,12 +9,14 @@
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="14.0.0" />
     <PackageReference Include="FluentValidation" Version="11.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="10.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Atlas.Core\Atlas.Core.csproj" />
     <ProjectReference Include="..\Atlas.Domain\Atlas.Domain.csproj" />
     <ProjectReference Include="..\Atlas.Domain.Approval\Atlas.Domain.Approval.csproj" />
+    <ProjectReference Include="..\Atlas.Application\Atlas.Application.csproj" />
   </ItemGroup>
 
 </Project>

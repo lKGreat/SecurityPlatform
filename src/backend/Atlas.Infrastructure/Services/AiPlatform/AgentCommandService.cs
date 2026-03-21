@@ -40,7 +40,7 @@ public sealed class AgentCommandService : IAgentCommandService
         var exists = await _agentRepository.ExistsByNameAsync(tenantId, request.Name, cancellationToken);
         if (exists)
         {
-            throw new BusinessException($"Agent 名称 '{request.Name}' 已存在。", ErrorCodes.ValidationError);
+            throw new BusinessException("AgentNameExists", ErrorCodes.ValidationError);
         }
 
         var modelConfigId = await ResolveModelConfigIdAsync(tenantId, request.ModelConfigId, cancellationToken);
@@ -62,7 +62,7 @@ public sealed class AgentCommandService : IAgentCommandService
     public async Task UpdateAsync(TenantId tenantId, long id, AgentUpdateRequest request, CancellationToken cancellationToken)
     {
         var entity = await _agentRepository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("Agent 不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("AgentNotFound", ErrorCodes.NotFound);
 
         var modelConfigId = await ResolveModelConfigIdAsync(tenantId, request.ModelConfigId, cancellationToken);
         entity.Update(
@@ -100,7 +100,7 @@ public sealed class AgentCommandService : IAgentCommandService
     public async Task DeleteAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
     {
         var entity = await _agentRepository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("Agent 不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("AgentNotFound", ErrorCodes.NotFound);
 
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
@@ -112,7 +112,7 @@ public sealed class AgentCommandService : IAgentCommandService
     public async Task<long> DuplicateAsync(TenantId tenantId, long creatorId, long id, CancellationToken cancellationToken)
     {
         var source = await _agentRepository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("Agent 不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("AgentNotFound", ErrorCodes.NotFound);
 
         var links = await _linkRepository.GetByAgentIdAsync(tenantId, id, cancellationToken);
         var duplicateId = _idGeneratorAccessor.NextId();
@@ -142,7 +142,7 @@ public sealed class AgentCommandService : IAgentCommandService
     public async Task PublishAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
     {
         var entity = await _agentRepository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("Agent 不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("AgentNotFound", ErrorCodes.NotFound);
 
         entity.Publish();
         await _agentRepository.UpdateAsync(entity, cancellationToken);
@@ -158,7 +158,7 @@ public sealed class AgentCommandService : IAgentCommandService
             var exists = await _modelConfigRepository.FindByIdAsync(tenantId, requestedModelConfigId.Value, cancellationToken);
             if (exists is null)
             {
-                throw new BusinessException("指定模型配置不存在。", ErrorCodes.ValidationError);
+                throw new BusinessException("ModelConfigNotFound", ErrorCodes.ValidationError);
             }
 
             return requestedModelConfigId.Value;

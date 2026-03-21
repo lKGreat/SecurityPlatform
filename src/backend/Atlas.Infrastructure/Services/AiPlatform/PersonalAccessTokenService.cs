@@ -84,10 +84,10 @@ public sealed class PersonalAccessTokenService : IPersonalAccessTokenService
         CancellationToken cancellationToken)
     {
         var entity = await _repository.FindOwnedByIdAsync(tenantId, createdByUserId, tokenId, cancellationToken)
-            ?? throw new BusinessException("PAT 不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("PatNotFound", ErrorCodes.NotFound);
         if (entity.RevokedAt.HasValue)
         {
-            throw new BusinessException("已撤销的 PAT 不允许修改。", ErrorCodes.ValidationError);
+            throw new BusinessException("PatRevokedCannotModify", ErrorCodes.ValidationError);
         }
 
         entity.Update(request.Name.Trim(), SerializeScopes(NormalizeScopes(request.Scopes)), request.ExpiresAt);
@@ -101,7 +101,7 @@ public sealed class PersonalAccessTokenService : IPersonalAccessTokenService
         CancellationToken cancellationToken)
     {
         var entity = await _repository.FindOwnedByIdAsync(tenantId, createdByUserId, tokenId, cancellationToken)
-            ?? throw new BusinessException("PAT 不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("PatNotFound", ErrorCodes.NotFound);
         if (entity.RevokedAt.HasValue)
         {
             return;

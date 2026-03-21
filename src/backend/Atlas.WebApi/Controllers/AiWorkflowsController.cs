@@ -4,6 +4,7 @@ using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Authorization;
+using Atlas.WebApi.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -60,7 +61,7 @@ public sealed class AiWorkflowsController : ControllerBase
         var result = await _designService.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<AiWorkflowDetailDto>.Fail(ErrorCodes.NotFound, "工作流不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AiWorkflowDetailDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "WorkflowDefNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AiWorkflowDetailDto>.Ok(result, HttpContext.TraceIdentifier));
@@ -173,7 +174,7 @@ public sealed class AiWorkflowsController : ControllerBase
         var result = await _executionService.GetProgressAsync(tenantId, execId, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<AiWorkflowExecutionProgressDto>.Fail(ErrorCodes.NotFound, "执行实例不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AiWorkflowExecutionProgressDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "WorkflowInstanceNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AiWorkflowExecutionProgressDto>.Ok(result, HttpContext.TraceIdentifier));
@@ -196,13 +197,13 @@ public sealed class AiWorkflowsController : ControllerBase
     {
         var result = new List<AiWorkflowNodeTypeDto>
         {
-            new("llm", "LLM", "AI", "调用大模型节点"),
-            new("plugin", "Plugin/API", "Integration", "调用外部插件或 API"),
-            new("coderunner", "CodeRunner", "Compute", "运行代码/表达式"),
-            new("knowledgeretriever", "KnowledgeRetriever", "RAG", "检索知识库内容"),
-            new("textprocessor", "TextProcessor", "Transform", "文本模板与处理"),
-            new("httprequester", "HTTPRequester", "Integration", "发起 HTTP 请求"),
-            new("outputemitter", "OutputEmitter", "Output", "写出流程输出")
+            new("llm", "LLM", "AI", ApiResponseLocalizer.T(HttpContext, "AiWorkflowNodeTypeDescLlm")),
+            new("plugin", "Plugin/API", "Integration", ApiResponseLocalizer.T(HttpContext, "AiWorkflowNodeTypeDescPlugin")),
+            new("coderunner", "CodeRunner", "Compute", ApiResponseLocalizer.T(HttpContext, "AiWorkflowNodeTypeDescCodeRunner")),
+            new("knowledgeretriever", "KnowledgeRetriever", "RAG", ApiResponseLocalizer.T(HttpContext, "AiWorkflowNodeTypeDescKnowledgeRetriever")),
+            new("textprocessor", "TextProcessor", "Transform", ApiResponseLocalizer.T(HttpContext, "AiWorkflowNodeTypeDescTextProcessor")),
+            new("httprequester", "HTTPRequester", "Integration", ApiResponseLocalizer.T(HttpContext, "AiWorkflowNodeTypeDescHttpRequester")),
+            new("outputemitter", "OutputEmitter", "Output", ApiResponseLocalizer.T(HttpContext, "AiWorkflowNodeTypeDescOutputEmitter"))
         };
         return Ok(ApiResponse<IReadOnlyList<AiWorkflowNodeTypeDto>>.Ok(result, HttpContext.TraceIdentifier));
     }
@@ -232,7 +233,7 @@ public sealed class AiWorkflowsController : ControllerBase
         {
             return NotFound(ApiResponse<AiWorkflowVersionDiff>.Fail(
                 ErrorCodes.NotFound,
-                $"版本 {from} 或 {to} 不存在。",
+                ApiResponseLocalizer.T(HttpContext, "WorkflowVersionPairNotFound", from, to),
                 HttpContext.TraceIdentifier));
         }
 
@@ -251,7 +252,7 @@ public sealed class AiWorkflowsController : ControllerBase
         {
             return Unauthorized(ApiResponse<AiWorkflowRollbackResult>.Fail(
                 ErrorCodes.Unauthorized,
-                "Unauthorized.",
+                ApiResponseLocalizer.T(HttpContext, "Unauthorized"),
                 HttpContext.TraceIdentifier));
         }
 

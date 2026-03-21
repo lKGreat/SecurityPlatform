@@ -50,34 +50,34 @@ public sealed class AddAssigneeOperationHandler : IApprovalOperationHandler
     {
         if (!taskId.HasValue)
         {
-            throw new BusinessException("TASK_ID_REQUIRED", "加签操作需要指定任务ID");
+            throw new BusinessException("TASK_ID_REQUIRED", "ApprovalOpTaskIdRequired");
         }
 
         if (request.AdditionalAssigneeValues == null || request.AdditionalAssigneeValues.Count == 0)
         {
-            throw new BusinessException("ASSIGNEE_REQUIRED", "加签操作需要指定至少一个审批人");
+            throw new BusinessException("ASSIGNEE_REQUIRED", "ApprovalOpAssigneeRequired");
         }
 
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
         if (task == null)
         {
-            throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+            throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         }
 
         if (task.InstanceId != instanceId)
         {
-            throw new BusinessException("TASK_INSTANCE_MISMATCH", "任务不属于指定的流程实例");
+            throw new BusinessException("TASK_INSTANCE_MISMATCH", "ApprovalOpTaskInstanceMismatch");
         }
 
         if (task.Status != ApprovalTaskStatus.Pending)
         {
-            throw new BusinessException("TASK_NOT_PENDING", "只能对待审批的任务进行加签");
+            throw new BusinessException("TASK_NOT_PENDING", "ApprovalOpOnlyPendingTask");
         }
 
         // Authorization: only the current task assignee can add assignees
         if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != operatorUserId.ToString())
         {
-            throw new BusinessException("FORBIDDEN", "只有当前处理人可以执行加签操作");
+            throw new BusinessException("FORBIDDEN", "ApprovalOpOnlyCurrentHandler");
         }
 
         var addSignType = request.AddSignType; // 0=parallel, 1=before, 2=after

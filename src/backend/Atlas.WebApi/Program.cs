@@ -310,28 +310,32 @@ builder.Services.AddAuthentication()
                 var principal = context.Principal;
                 if (principal is null)
                 {
-                    context.Fail("无效令牌。");
+                    var loc = context.HttpContext.RequestServices.GetService<IStringLocalizer<Messages>>();
+                    context.Fail(loc?["InvalidToken"].Value ?? "Invalid token.");
                     return;
                 }
 
                 var tenantIdRaw = principal.FindFirstValue("tenant_id");
                 if (!Guid.TryParse(tenantIdRaw, out var tenantGuid))
                 {
-                    context.Fail("令牌缺少有效租户信息。");
+                    var loc = context.HttpContext.RequestServices.GetService<IStringLocalizer<Messages>>();
+                    context.Fail(loc?["TokenMissingTenant"].Value ?? "Token is missing a valid tenant claim.");
                     return;
                 }
 
                 var userIdRaw = principal.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (!long.TryParse(userIdRaw, out var userId))
                 {
-                    context.Fail("令牌缺少有效用户标识。");
+                    var loc = context.HttpContext.RequestServices.GetService<IStringLocalizer<Messages>>();
+                    context.Fail(loc?["TokenMissingUser"].Value ?? "Token is missing a valid user identifier.");
                     return;
                 }
 
                 var sessionIdRaw = principal.FindFirstValue("sid");
                 if (!long.TryParse(sessionIdRaw, out var sessionId))
                 {
-                    context.Fail("令牌缺少有效会话标识。");
+                    var loc = context.HttpContext.RequestServices.GetService<IStringLocalizer<Messages>>();
+                    context.Fail(loc?["TokenMissingSession"].Value ?? "Token is missing a valid session identifier.");
                     return;
                 }
 
@@ -347,13 +351,15 @@ builder.Services.AddAuthentication()
                     // 缓存命中：直接使用缓存结果验证
                     if (!cached.IsUserActive)
                     {
-                        context.Fail("用户已禁用或不存在。");
+                        var loc = context.HttpContext.RequestServices.GetService<IStringLocalizer<Messages>>();
+                        context.Fail(loc?["UserDisabledOrNotExist"].Value ?? "User is disabled or does not exist.");
                         return;
                     }
 
                     if (cached.IsSessionRevoked || cached.SessionExpiresAt <= DateTimeOffset.UtcNow)
                     {
-                        context.Fail("会话已失效。");
+                        var loc = context.HttpContext.RequestServices.GetService<IStringLocalizer<Messages>>();
+                        context.Fail(loc?["SessionRevoked"].Value ?? "Session has expired or been revoked.");
                         return;
                     }
 
@@ -365,7 +371,8 @@ builder.Services.AddAuthentication()
                 var account = await userRepository.FindByIdAsync(tenantId, userId, context.HttpContext.RequestAborted);
                 if (account is null || !account.IsActive)
                 {
-                    context.Fail("用户已禁用或不存在。");
+                    var loc = context.HttpContext.RequestServices.GetService<IStringLocalizer<Messages>>();
+                    context.Fail(loc?["UserDisabledOrNotExist"].Value ?? "User is disabled or does not exist.");
                     return;
                 }
 
@@ -373,7 +380,8 @@ builder.Services.AddAuthentication()
                 var session = await sessionRepository.FindByIdAsync(tenantId, sessionId, context.HttpContext.RequestAborted);
                 if (session is null || session.UserId != userId || session.RevokedAt.HasValue || session.ExpiresAt <= DateTimeOffset.UtcNow)
                 {
-                    context.Fail("会话已失效。");
+                    var loc = context.HttpContext.RequestServices.GetService<IStringLocalizer<Messages>>();
+                    context.Fail(loc?["SessionRevoked"].Value ?? "Session has expired or been revoked.");
                     return;
                 }
 

@@ -1,5 +1,7 @@
 using Atlas.Application.Approval.Models;
+using Atlas.Application.Resources;
 using FluentValidation;
+using Microsoft.Extensions.Localization;
 
 namespace Atlas.Application.Approval.Validators;
 
@@ -8,16 +10,16 @@ namespace Atlas.Application.Approval.Validators;
 /// </summary>
 public sealed class ApprovalStartRequestValidator : AbstractValidator<ApprovalStartRequest>
 {
-    public ApprovalStartRequestValidator()
+    public ApprovalStartRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.DefinitionId)
-            .GreaterThan(0).WithMessage("流程定义ID必须大于0");
+            .GreaterThan(0).WithMessage(localizer["ApprovalDefinitionIdRequired"].Value);
 
         RuleFor(x => x.BusinessKey)
-            .NotEmpty().WithMessage("业务key不能为空")
-            .MaximumLength(200).WithMessage("业务key长度不超过200个字符");
+            .NotEmpty().WithMessage(localizer["ApprovalBusinessKeyRequired"].Value)
+            .MaximumLength(200).WithMessage(localizer["ApprovalBusinessKeyMaxLength"].Value);
 
         RuleFor(x => x.DataJson)
-            .MaximumLength(10000).WithMessage("业务数据JSON长度不超过10000个字符");
+            .MaximumLength(10000).WithMessage(localizer["ApprovalDataJsonMaxLength"].Value);
     }
 }

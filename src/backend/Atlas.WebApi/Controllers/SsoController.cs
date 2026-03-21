@@ -57,14 +57,16 @@ public sealed class SsoController : ControllerBase
     {
         if (!_oidcOptions.Enabled)
         {
-            return BadRequest(ApiResponse<object>.Fail("FEATURE_DISABLED", "SSO 未启用", HttpContext.TraceIdentifier));
+            return BadRequest(ApiResponse<object>.Fail("FEATURE_DISABLED", ApiResponseLocalizer.T(HttpContext, "SsoFeatureDisabled"), HttpContext.TraceIdentifier));
         }
 
         var providers = _oidcOptions.GetEffectiveProviders();
         var provider = providers.FirstOrDefault(p => string.Equals(p.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
         if (provider is null)
         {
-            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", $"提供者 '{providerId}' 不存在或未启用", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail("NOT_FOUND",
+                string.Format(ApiResponseLocalizer.T(HttpContext, "SsoProviderNotFoundFormat"), providerId),
+                HttpContext.TraceIdentifier));
         }
 
         // 使用 ASP.NET Core 的 Challenge 机制发起 OIDC 授权请求

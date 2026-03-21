@@ -61,7 +61,7 @@ public sealed class AiVariablesController : ControllerBase
         var result = await _service.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<AiVariableDetail>.Fail(ErrorCodes.NotFound, "变量不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AiVariableDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "AiVariableNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AiVariableDetail>.Ok(result, HttpContext.TraceIdentifier));

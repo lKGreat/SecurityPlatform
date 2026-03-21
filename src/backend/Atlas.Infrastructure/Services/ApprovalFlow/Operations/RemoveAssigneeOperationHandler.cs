@@ -42,18 +42,18 @@ public sealed class RemoveAssigneeOperationHandler : IApprovalOperationHandler
     {
         if (!taskId.HasValue)
         {
-            throw new BusinessException("TASK_ID_REQUIRED", "减签操作需要指定任务ID");
+            throw new BusinessException("TASK_ID_REQUIRED", "ApprovalOpRemoveAssigneeTaskIdRequired");
         }
 
         if (string.IsNullOrEmpty(request.TargetAssigneeValue))
         {
-            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "减签操作需要指定要移除的审批人");
+            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "ApprovalOpRemoveAssigneeTargetRequired");
         }
 
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
         if (task == null)
         {
-            throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+            throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         }
 
         // 获取同节点的所有任务
@@ -62,7 +62,7 @@ public sealed class RemoveAssigneeOperationHandler : IApprovalOperationHandler
 
         if (targetTask == null)
         {
-            throw new BusinessException("TARGET_TASK_NOT_FOUND", "未找到要移除的审批任务");
+            throw new BusinessException("TARGET_TASK_NOT_FOUND", "ApprovalOpRemoveAssigneeTargetTaskNotFound");
         }
 
         // 记录减签操作

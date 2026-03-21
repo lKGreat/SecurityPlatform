@@ -4,6 +4,7 @@ using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Authorization;
+using Atlas.WebApi.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -47,7 +48,7 @@ public sealed class ToolAuthorizationPoliciesController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -65,7 +66,7 @@ public sealed class ToolAuthorizationPoliciesController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -86,6 +87,6 @@ public sealed class ToolAuthorizationPoliciesController : ControllerBase
     [HttpGet("audit")]
     public ActionResult<ApiResponse<object>> Audit()
     {
-        return Ok(ApiResponse<object>.Ok(new { Message = "审计查询占位，后续接入审计聚合查询" }, HttpContext.TraceIdentifier));
+        return Ok(ApiResponse<object>.Ok(new { Message = ApiResponseLocalizer.T(HttpContext, "ToolAuditQueryPlaceholder") }, HttpContext.TraceIdentifier));
     }
 }

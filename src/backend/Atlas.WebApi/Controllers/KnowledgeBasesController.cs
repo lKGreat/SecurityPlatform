@@ -81,7 +81,7 @@ public sealed class KnowledgeBasesController : ControllerBase
         var result = await _knowledgeBaseService.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<KnowledgeBaseDto>.Fail(ErrorCodes.NotFound, "知识库不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<KnowledgeBaseDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "KnowledgeBaseNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<KnowledgeBaseDto>.Ok(result, HttpContext.TraceIdentifier));
@@ -153,7 +153,7 @@ public sealed class KnowledgeBasesController : ControllerBase
         {
             if (file is null || file.Length <= 0)
             {
-                return BadRequest(ApiResponse<object>.Fail(ErrorCodes.ValidationError, "请提供 fileId 或上传文件", HttpContext.TraceIdentifier));
+                return BadRequest(ApiResponse<object>.Fail(ErrorCodes.ValidationError, ApiResponseLocalizer.T(HttpContext, "KnowledgeBaseImportRequiresFileOrId"), HttpContext.TraceIdentifier));
             }
 
             var currentUser = _currentUserAccessor.GetCurrentUserOrThrow();

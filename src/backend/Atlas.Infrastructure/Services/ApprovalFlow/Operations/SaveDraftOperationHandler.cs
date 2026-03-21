@@ -40,7 +40,7 @@ public sealed class SaveDraftOperationHandler : IApprovalOperationHandler
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null)
         {
-            throw new BusinessException("INSTANCE_NOT_FOUND", "流程实例不存在");
+            throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalInstanceNotFound");
         }
 
         // 保存草稿：更新实例的 DataJson（如果提供了变量）

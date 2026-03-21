@@ -53,13 +53,13 @@ public sealed class ProcessMoveAheadOperationHandler : IApprovalOperationHandler
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null || instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         var flowDef = await _flowRepository.GetByIdAsync(tenantId, instance.DefinitionId, cancellationToken);
         if (flowDef == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "流程定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "ApprovalFlowDefNotFoundShort");
         }
 
         var flowDefinition = FlowDefinitionParser.Parse(flowDef.DefinitionJson);
@@ -68,7 +68,7 @@ public sealed class ProcessMoveAheadOperationHandler : IApprovalOperationHandler
         var currentNodeId = instance.CurrentNodeId;
         if (string.IsNullOrEmpty(currentNodeId))
         {
-            throw new BusinessException("NO_CURRENT_NODE", "流程实例没有当前节点");
+            throw new BusinessException("NO_CURRENT_NODE", "ApprovalOpNoCurrentNode");
         }
 
         // 取消当前节点的所有待审批任务

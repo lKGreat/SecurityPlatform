@@ -1,11 +1,11 @@
 <template>
   <div class="webhooks-page">
-    <a-page-header title="Webhook 管理" subtitle="注册外部回调，订阅平台事件" />
+    <a-page-header :title="t('systemWebhooks.pageTitle')" :sub-title="t('systemWebhooks.pageSubtitle')" />
 
     <a-card :bordered="false">
       <template #extra>
         <a-button type="primary" @click="openCreate">
-          <PlusOutlined />新建 Webhook
+          <PlusOutlined />{{ t("systemWebhooks.createWebhook") }}
         </a-button>
       </template>
 
@@ -18,18 +18,21 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'isActive'">
-            <a-badge :status="record.isActive ? 'success' : 'default'" :text="record.isActive ? '启用' : '停用'" />
+            <a-badge
+              :status="record.isActive ? 'success' : 'default'"
+              :text="record.isActive ? t('systemWebhooks.enabled') : t('systemWebhooks.disabled')"
+            />
           </template>
           <template v-if="column.key === 'eventTypes'">
             <a-tag v-for="et in record.eventTypes" :key="et">{{ et }}</a-tag>
           </template>
           <template v-if="column.key === 'actions'">
             <a-space>
-              <a-button size="small" type="link" @click="openDeliveries(record)">投递日志</a-button>
-              <a-button size="small" type="link" @click="handleTest(record.id)">测试</a-button>
-              <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
-              <a-popconfirm title="确认删除?" @confirm="handleDelete(record.id)">
-                <a-button size="small" type="link" danger>删除</a-button>
+              <a-button size="small" type="link" @click="openDeliveries(record)">{{ t("systemWebhooks.deliveriesLog") }}</a-button>
+              <a-button size="small" type="link" @click="handleTest(record.id)">{{ t("systemWebhooks.test") }}</a-button>
+              <a-button size="small" type="link" @click="openEdit(record)">{{ t("systemWebhooks.edit") }}</a-button>
+              <a-popconfirm :title="t('systemWebhooks.deleteConfirm')" @confirm="handleDelete(record.id)">
+                <a-button size="small" type="link" danger>{{ t("common.delete") }}</a-button>
               </a-popconfirm>
             </a-space>
           </template>
@@ -37,45 +40,47 @@
       </a-table>
     </a-card>
 
-    <!-- 创建/编辑 Modal -->
     <a-modal
       v-model:open="modalOpen"
-      :title="editItem ? '编辑 Webhook' : '新建 Webhook'"
+      :title="editItem ? t('systemWebhooks.modalEditTitle') : t('systemWebhooks.modalCreateTitle')"
       :confirm-loading="saving"
       @ok="handleSave"
     >
       <a-form :model="form" layout="vertical">
-        <a-form-item label="名称" required>
+        <a-form-item :label="t('systemWebhooks.nameLabel')" required>
           <a-input v-model:value="form.name" />
         </a-form-item>
-        <a-form-item label="回调 URL" required>
-          <a-input v-model:value="form.targetUrl" placeholder="https://..." />
+        <a-form-item :label="t('systemWebhooks.urlLabel')" required>
+          <a-input v-model:value="form.targetUrl" :placeholder="t('systemWebhooks.urlPlaceholder')" />
         </a-form-item>
-        <a-form-item label="签名密钥">
-          <a-input v-model:value="form.secret" placeholder="HMAC-SHA256 密钥" />
+        <a-form-item :label="t('systemWebhooks.secretLabel')">
+          <a-input v-model:value="form.secret" :placeholder="t('systemWebhooks.secretPlaceholder')" />
         </a-form-item>
-        <a-form-item label="订阅事件（多选）">
+        <a-form-item :label="t('systemWebhooks.eventsLabel')">
           <a-select
             v-model:value="form.eventTypes"
             mode="tags"
-            placeholder="输入或选择事件类型，如 approval.completed"
+            :placeholder="t('systemWebhooks.eventsPlaceholder')"
           >
             <a-select-option value="approval.completed">approval.completed</a-select-option>
             <a-select-option value="approval.rejected">approval.rejected</a-select-option>
             <a-select-option value="approval.started">approval.started</a-select-option>
-            <a-select-option value="*">* (全部)</a-select-option>
+            <a-select-option value="*">{{ t("systemWebhooks.eventAllOption") }}</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item v-if="editItem" label="状态">
-          <a-switch v-model:checked="form.isActive" checked-children="启用" un-checked-children="停用" />
+        <a-form-item v-if="editItem" :label="t('systemWebhooks.statusLabel')">
+          <a-switch
+            v-model:checked="form.isActive"
+            :checked-children="t('common.statusEnabled')"
+            :un-checked-children="t('common.statusDisabled')"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
 
-    <!-- 投递日志 Drawer -->
     <a-drawer
       v-if="deliveriesWebhook"
-      :title="`投递日志 — ${deliveriesWebhook.name}`"
+      :title="t('systemWebhooks.deliveriesDrawerTitle', { name: deliveriesWebhook.name })"
       width="640"
       :open="true"
       @close="deliveriesWebhook = null"
@@ -90,7 +95,7 @@
             <a-list-item-meta>
               <template #title>
                 <span>
-                  <a-tag :color="item.success ? 'green' : 'red'">{{ item.responseCode ?? 'ERR' }}</a-tag>
+                  <a-tag :color="item.success ? 'green' : 'red'">{{ item.responseCode ?? "ERR" }}</a-tag>
                   {{ item.eventType }}
                   <span class="log-duration">{{ item.durationMs }}ms</span>
                 </span>
@@ -108,14 +113,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, onUnmounted } from 'vue'
+import { ref, onMounted, reactive, onUnmounted, computed } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
 onUnmounted(() => { isMounted.value = false; });
 
-import { PlusOutlined } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
+import { PlusOutlined } from "@ant-design/icons-vue";
+import { message } from "ant-design-vue";
 import {
   getWebhooks,
   createWebhook,
@@ -123,71 +129,83 @@ import {
   deleteWebhook,
   getWebhookDeliveries,
   testWebhookDelivery,
-} from '@/services/api-webhook'
-import type { WebhookSubscription, WebhookDeliveryLog } from '@/services/api-webhook'
+} from "@/services/api-webhook";
+import type { WebhookSubscription, WebhookDeliveryLog } from "@/services/api-webhook";
 
-const loading = ref(false)
-const webhooks = ref<WebhookSubscription[]>([])
-const modalOpen = ref(false)
-const saving = ref(false)
-const editItem = ref<WebhookSubscription | null>(null)
-const deliveriesWebhook = ref<WebhookSubscription | null>(null)
-const deliveries = ref<WebhookDeliveryLog[]>([])
-const deliveriesLoading = ref(false)
+const { t, locale } = useI18n();
+
+const loading = ref(false);
+const webhooks = ref<WebhookSubscription[]>([]);
+const modalOpen = ref(false);
+const saving = ref(false);
+const editItem = ref<WebhookSubscription | null>(null);
+const deliveriesWebhook = ref<WebhookSubscription | null>(null);
+const deliveries = ref<WebhookDeliveryLog[]>([]);
+const deliveriesLoading = ref(false);
 
 const form = reactive({
-  name: '',
-  targetUrl: '',
-  secret: '',
+  name: "",
+  targetUrl: "",
+  secret: "",
   eventTypes: [] as string[],
   isActive: true,
-})
+});
 
-const columns = [
-  { title: '名称', dataIndex: 'name', key: 'name' },
-  { title: '回调 URL', dataIndex: 'targetUrl', key: 'targetUrl', ellipsis: true },
-  { title: '订阅事件', key: 'eventTypes' },
-  { title: '状态', key: 'isActive', width: 80 },
-  { title: '最后触发', dataIndex: 'lastTriggeredAt', key: 'lastTriggeredAt', customRender: ({ value }: { value: string }) => value ? formatDate(value) : '—' },
-  { title: '操作', key: 'actions', width: 200 },
-]
+function formatDate(d: string) {
+  const loc = locale.value === "en-US" ? "en-US" : "zh-CN";
+  return new Date(d).toLocaleString(loc);
+}
+
+const columns = computed(() => [
+  { title: t("systemWebhooks.colName"), dataIndex: "name", key: "name" },
+  { title: t("systemWebhooks.colCallbackUrl"), dataIndex: "targetUrl", key: "targetUrl", ellipsis: true },
+  { title: t("systemWebhooks.colSubscribedEvents"), key: "eventTypes" },
+  { title: t("systemWebhooks.colStatus"), key: "isActive", width: 80 },
+  {
+    title: t("systemWebhooks.colLastTriggered"),
+    dataIndex: "lastTriggeredAt",
+    key: "lastTriggeredAt",
+    customRender: ({ value }: { value: string }) => (value ? formatDate(value) : t("systemWebhooks.dash")),
+  },
+  { title: t("systemWebhooks.colActions"), key: "actions", width: 200 },
+]);
 
 async function fetchWebhooks() {
-  loading.value = true
+  loading.value = true;
   try {
-    const res = await getWebhooks()
-    if (res.success) webhooks.value = res.data ?? []
+    const res = await getWebhooks();
+    if (res.success) webhooks.value = res.data ?? [];
   } catch (error) {
-    webhooks.value = []
-    const status = (error as { status?: number })?.status
+    webhooks.value = [];
+    const status = (error as { status?: number })?.status;
     if (status !== 401) {
-      message.error('加载 Webhook 列表失败')
+      message.error(t("systemWebhooks.loadListFailed"));
     }
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function openCreate() {
-  editItem.value = null
-  Object.assign(form, { name: '', targetUrl: '', secret: '', eventTypes: [], isActive: true })
-  modalOpen.value = true
+  editItem.value = null;
+  Object.assign(form, { name: "", targetUrl: "", secret: "", eventTypes: [], isActive: true });
+  modalOpen.value = true;
 }
 
 function openEdit(item: WebhookSubscription) {
-  editItem.value = item
+  editItem.value = item;
   Object.assign(form, {
     name: item.name,
     targetUrl: item.targetUrl,
     secret: item.secret,
     eventTypes: [...item.eventTypes],
     isActive: item.isActive,
-  })
-  modalOpen.value = true
+  });
+  modalOpen.value = true;
 }
 
 async function handleSave() {
-  saving.value = true
+  saving.value = true;
   try {
     if (editItem.value) {
       await updateWebhook(editItem.value.id, {
@@ -195,50 +213,46 @@ async function handleSave() {
         targetUrl: form.targetUrl,
         eventTypes: form.eventTypes,
         isActive: form.isActive,
-      })
+      });
     } else {
       await createWebhook({
         name: form.name,
         targetUrl: form.targetUrl,
         secret: form.secret,
         eventTypes: form.eventTypes,
-      })
+      });
     }
-    message.success('保存成功')
-    modalOpen.value = false
-    fetchWebhooks()
+    message.success(t("systemWebhooks.saveSuccess"));
+    modalOpen.value = false;
+    fetchWebhooks();
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 async function handleDelete(id: number) {
-  await deleteWebhook(id)
-  message.success('已删除')
-  fetchWebhooks()
+  await deleteWebhook(id);
+  message.success(t("systemWebhooks.deletedSuccess"));
+  fetchWebhooks();
 }
 
 async function handleTest(id: number) {
-  await testWebhookDelivery(id)
-  message.success('测试请求已发送')
+  await testWebhookDelivery(id);
+  message.success(t("systemWebhooks.testSent"));
 }
 
 async function openDeliveries(webhook: WebhookSubscription) {
-  deliveriesWebhook.value = webhook
-  deliveriesLoading.value = true
+  deliveriesWebhook.value = webhook;
+  deliveriesLoading.value = true;
   try {
-    const res = await getWebhookDeliveries(webhook.id)
-    if (res.success) deliveries.value = res.data ?? []
+    const res = await getWebhookDeliveries(webhook.id);
+    if (res.success) deliveries.value = res.data ?? [];
   } finally {
-    deliveriesLoading.value = false
+    deliveriesLoading.value = false;
   }
 }
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleString('zh-CN')
-}
-
-onMounted(fetchWebhooks)
+onMounted(fetchWebhooks);
 </script>
 
 <style scoped>

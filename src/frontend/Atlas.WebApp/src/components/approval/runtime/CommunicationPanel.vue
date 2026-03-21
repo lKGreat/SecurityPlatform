@@ -1,14 +1,14 @@
 <template>
   <div class="communication-panel">
     <div class="msg-list" ref="msgListRef">
-      <div v-if="messages.length === 0" class="empty-msg">暂无沟通记录</div>
+      <div v-if="messages.length === 0" class="empty-msg">{{ t('approvalDesigner.commEmpty') }}</div>
       <div v-for="msg in messages" :key="msg.id" class="msg-item" :class="{ 'is-me': msg.senderUserId === currentUserId }">
         <div class="msg-avatar">
           <a-avatar>{{ msg.senderName?.[0] || 'U' }}</a-avatar>
         </div>
         <div class="msg-content">
           <div class="msg-info">
-            <span class="msg-name">{{ msg.senderName || '用户' }}</span>
+            <span class="msg-name">{{ msg.senderName || t('approvalDesigner.commUserFallback') }}</span>
             <span class="msg-time">{{ formatTime(msg.createdAt) }}</span>
           </div>
           <div class="msg-text">{{ msg.content }}</div>
@@ -18,13 +18,13 @@
     <div class="msg-input">
       <a-textarea
         v-model:value="inputText"
-        placeholder="请输入沟通内容..."
+        :placeholder="t('approvalDesigner.commPlaceholder')"
         :auto-size="{ minRows: 2, maxRows: 4 }"
         @pressEnter.prevent="handleSend"
       />
       <div class="msg-actions">
-        <UserRolePicker mode="user" v-model:value="recipientIds" placeholder="选择沟通对象" style="width: 200px" />
-        <a-button type="primary" :loading="sending" @click="handleSend">发送</a-button>
+        <UserRolePicker mode="user" v-model:value="recipientIds" :placeholder="t('approvalDesigner.commPickRecipients')" style="width: 200px" />
+        <a-button type="primary" :loading="sending" @click="handleSend">{{ t('approvalDesigner.commSend') }}</a-button>
       </div>
     </div>
   </div>
@@ -32,6 +32,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -68,7 +71,7 @@ const fetchMessages = async () => {
 const handleSend = async () => {
   if (!inputText.value.trim()) return;
   if (recipientIds.value.length === 0) {
-    message.warning('请选择沟通对象');
+    message.warning(t('approvalDesigner.commWarnRecipients'));
     return;
   }
 
@@ -80,10 +83,10 @@ const handleSend = async () => {
     if (!isMounted.value) return;
     inputText.value = '';
     recipientIds.value = [];
-    message.success('发送成功');
+    message.success(t('approvalDesigner.commSendOk'));
     fetchMessages();
   } catch (error) {
-    message.error('发送失败');
+    message.error(t('approvalDesigner.commSendFailed'));
   } finally {
     sending.value = false;
   }

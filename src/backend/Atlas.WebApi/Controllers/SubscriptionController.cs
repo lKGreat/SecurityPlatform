@@ -34,7 +34,7 @@ public sealed class PlansController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> GetById(long id, CancellationToken cancellationToken)
     {
         var plan = await _queryService.GetByIdAsync(id, cancellationToken);
-        if (plan is null) return NotFound(ApiResponse<object>.Fail(ErrorCodes.NotFound, "套餐不存在", HttpContext.TraceIdentifier));
+        if (plan is null) return NotFound(ApiResponse<object>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "SubscriptionPlanNotFound"), HttpContext.TraceIdentifier));
         return Ok(ApiResponse<object>.Ok(plan, HttpContext.TraceIdentifier));
     }
 

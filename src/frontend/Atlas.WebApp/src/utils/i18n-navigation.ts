@@ -7,6 +7,7 @@ type NavigableMeta = {
 } | null | undefined;
 
 const titleKeyByPath: Record<string, string> = {
+  "/index": "route.workspace",
   "/login": "route.login",
   "/register": "route.register",
   "/profile": "route.profile",
@@ -20,6 +21,7 @@ const titleKeyByPath: Record<string, string> = {
   "/console/resources/datasource-consumption": "route.consoleDatasourceConsumption",
   "/console/releases": "route.consoleReleases",
   "/console/debug": "route.consoleDebugLayer",
+  "/console/migration-governance": "route.consoleMigrationGovernance",
   "/console/tools": "route.consoleTools",
   "/console/datasources": "route.consoleDatasources",
   "/console/settings/system/configs": "route.consoleSystemConfigs",
@@ -69,12 +71,25 @@ const titleKeyByPath: Record<string, string> = {
   "/ai/devops/mock-sets": "route.aiMockSets",
   "/ai/shortcuts": "route.aiShortcuts",
   "/ai/search": "route.aiSearch",
-  "/ai/marketplace": "route.aiMarketplace"
+  "/ai/marketplace": "route.aiMarketplace",
+  "/process/start": "route.approvalStart",
+  "/process/inbox": "route.approvalInbox",
+  "/process/done": "route.approvalDone",
+  "/process/my-requests": "route.approvalMyRequests",
+  "/process/cc": "route.approvalCc",
+  "/process/manage/flows": "route.approvalFlowManage",
+  "/process/manage/instances": "route.approvalInstancesManage",
+  "/workflow/designer": "route.workflowDesigner",
+  "/settings/auth/pats": "route.personalAccessTokens",
+  "/ai/workflows": "route.aiWorkflowListGlobal",
+  "/ai/knowledge-bases": "route.knowledgeBaseList"
 };
 
 // 兼容历史动态路由：优先使用 meta.titleKey，以下仅保留少量中文标题兜底映射。
 const titleKeyByTitle: Record<string, string> = {
   "首页": "route.home",
+  "工作台": "route.workspace",
+  "页面未找到": "route.notFound",
   "通知中心": "route.notifications",
   "字典管理": "route.dictTypes",
   "参数配置": "route.systemConfigs",

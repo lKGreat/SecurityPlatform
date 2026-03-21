@@ -1,21 +1,21 @@
 <template>
   <CrudPageLayout
     v-model:keyword="keyword"
-    title="工作流引擎"
-    search-placeholder="搜索工作流名称"
+    :title="t('workflow.listTitle')"
+    :search-placeholder="t('workflow.searchPlaceholder')"
     @search="handleSearch"
   >
     <template #toolbar-actions>
       <a-button type="primary" @click="showCreateModal = true">
         <template #icon><PlusOutlined /></template>
-        新建工作流
+        {{ t('workflow.newWorkflow') }}
       </a-button>
     </template>
 
     <template #table>
       <a-tabs v-model:active-key="activeTab" @change="handleTabChange">
-        <a-tab-pane key="all" tab="全部工作流" />
-        <a-tab-pane key="published" tab="已发布工作流" />
+        <a-tab-pane key="all" :tab="t('workflow.tabAll')" />
+        <a-tab-pane key="published" :tab="t('workflow.tabPublished')" />
       </a-tabs>
 
       <a-table
@@ -34,43 +34,43 @@
             <a-tag :color="statusColor(record.status)">{{ statusLabel(record.status) }}</a-tag>
           </template>
           <template v-if="column.key === 'mode'">
-            <a-tag>{{ record.mode === 0 ? '标准' : 'ChatFlow' }}</a-tag>
+            <a-tag>{{ record.mode === 0 ? t('workflow.modeStandard') : t('workflow.modeChatFlow') }}</a-tag>
           </template>
           <template v-if="column.key === 'actions'">
             <a-space>
-              <a @click="openEditor(record.id)">编辑</a>
+              <a @click="openEditor(record.id)">{{ t('workflow.edit') }}</a>
               <a-divider type="vertical" />
-              <a @click="handleCopy(record.id)">复制</a>
+              <a @click="handleCopy(record.id)">{{ t('workflow.copy') }}</a>
               <a-divider type="vertical" />
-              <a-popconfirm title="确认删除此工作流？" @confirm="handleDelete(record.id)">
-                <a class="danger-link">删除</a>
+              <a-popconfirm :title="t('workflow.deleteConfirm')" @confirm="handleDelete(record.id)">
+                <a class="danger-link">{{ t('workflow.delete') }}</a>
               </a-popconfirm>
             </a-space>
           </template>
         </template>
       </a-table>
 
-      <a-card class="mt12" title="执行恢复与调试视图" :bordered="false">
+      <a-card class="mt12" :title="t('workflow.debugCardTitle')" :bordered="false">
         <a-space wrap>
           <a-input-number
             v-model:value="executionIdInput"
             :min="1"
             :precision="0"
             style="width: 220px"
-            placeholder="输入执行ID"
+            :placeholder="t('workflow.execIdPlaceholder')"
           />
-          <a-button :loading="inspecting" @click="inspectExecution">获取检查点</a-button>
-          <a-button :loading="inspecting" @click="inspectDebugView">获取调试视图</a-button>
-          <a-button type="primary" :loading="recovering" @click="recoverFromCheckpoint">执行恢复</a-button>
+          <a-button :loading="inspecting" @click="inspectExecution">{{ t('workflow.getCheckpoint') }}</a-button>
+          <a-button :loading="inspecting" @click="inspectDebugView">{{ t('workflow.getDebugView') }}</a-button>
+          <a-button type="primary" :loading="recovering" @click="recoverFromCheckpoint">{{ t('workflow.recoverExec') }}</a-button>
         </a-space>
         <a-alert v-if="checkpointError" class="mt12" type="warning" :message="checkpointError" show-icon />
         <a-descriptions v-if="checkpoint" class="mt12" bordered :column="2" size="small">
-          <a-descriptions-item label="执行ID">{{ checkpoint.executionId }}</a-descriptions-item>
-          <a-descriptions-item label="工作流ID">{{ checkpoint.workflowId }}</a-descriptions-item>
-          <a-descriptions-item label="状态">{{ checkpoint.status }}</a-descriptions-item>
-          <a-descriptions-item label="最近节点">{{ checkpoint.lastNodeKey || "-" }}</a-descriptions-item>
-          <a-descriptions-item label="开始时间">{{ checkpoint.startedAt }}</a-descriptions-item>
-          <a-descriptions-item label="完成时间">{{ checkpoint.completedAt || "-" }}</a-descriptions-item>
+          <a-descriptions-item :label="t('workflow.labelExecId')">{{ checkpoint.executionId }}</a-descriptions-item>
+          <a-descriptions-item :label="t('workflow.labelWorkflowId')">{{ checkpoint.workflowId }}</a-descriptions-item>
+          <a-descriptions-item :label="t('workflow.labelStatus')">{{ checkpoint.status }}</a-descriptions-item>
+          <a-descriptions-item :label="t('workflow.labelLastNode')">{{ checkpoint.lastNodeKey || "-" }}</a-descriptions-item>
+          <a-descriptions-item :label="t('workflow.labelStartedAt')">{{ checkpoint.startedAt }}</a-descriptions-item>
+          <a-descriptions-item :label="t('workflow.checkpointCompletedAt')">{{ checkpoint.completedAt || "-" }}</a-descriptions-item>
         </a-descriptions>
         <a-typography-paragraph v-if="debugView" class="mt12 debug-reason">
           {{ debugView.focusReason }}
@@ -80,24 +80,23 @@
     </template>
   </CrudPageLayout>
 
-    <!-- 新建工作流弹窗 -->
     <a-modal
       v-model:open="showCreateModal"
-      title="新建工作流"
+      :title="t('workflow.createModalTitle')"
       :confirm-loading="creating"
       @ok="handleCreate"
     >
       <a-form :model="createForm" layout="vertical">
-        <a-form-item label="工作流名称" required>
-          <a-input v-model:value="createForm.name" placeholder="请输入工作流名称" />
+        <a-form-item :label="t('workflow.labelName')" required>
+          <a-input v-model:value="createForm.name" :placeholder="t('workflow.phName')" />
         </a-form-item>
-        <a-form-item label="描述">
-          <a-textarea v-model:value="createForm.description" :rows="3" placeholder="可选描述" />
+        <a-form-item :label="t('workflow.labelDescription')">
+          <a-textarea v-model:value="createForm.description" :rows="3" :placeholder="t('workflow.phDescription')" />
         </a-form-item>
-        <a-form-item label="模式">
+        <a-form-item :label="t('workflow.labelMode')">
           <a-select v-model:value="createForm.mode">
-            <a-select-option :value="0">标准工作流</a-select-option>
-            <a-select-option :value="1">ChatFlow</a-select-option>
+            <a-select-option :value="0">{{ t('workflow.modeStandardOption') }}</a-select-option>
+            <a-select-option :value="1">{{ t('workflow.modeChatFlow') }}</a-select-option>
           </a-select>
         </a-form-item>
       </a-form>
@@ -105,7 +104,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -132,6 +132,7 @@ import type {
 import { resolveCurrentAppId } from '@/utils/app-context'
 import CrudPageLayout from "@/components/crud/CrudPageLayout.vue"
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
@@ -150,20 +151,20 @@ const recovering = ref(false)
 
 const createForm = reactive({ name: '', description: '', mode: 0 as 0 | 1 })
 
-const columns = [
-  { title: '名称', key: 'name', dataIndex: 'name' },
-  { title: '模式', key: 'mode', dataIndex: 'mode', width: 100 },
-  { title: '状态', key: 'status', dataIndex: 'status', width: 100 },
-  { title: '最新版本', key: 'latestVersionNumber', dataIndex: 'latestVersionNumber', width: 120 },
-  { title: '更新时间', key: 'updatedAt', dataIndex: 'updatedAt', width: 180 },
-  { title: '操作', key: 'actions', width: 180 },
-]
+const columns = computed(() => [
+  { title: t('workflow.colName'), key: 'name', dataIndex: 'name' },
+  { title: t('workflow.colMode'), key: 'mode', dataIndex: 'mode', width: 100 },
+  { title: t('workflow.colStatusShort'), key: 'status', dataIndex: 'status', width: 100 },
+  { title: t('workflow.colLatestVersion'), key: 'latestVersionNumber', dataIndex: 'latestVersionNumber', width: 120 },
+  { title: t('workflow.colUpdatedAt'), key: 'updatedAt', dataIndex: 'updatedAt', width: 180 },
+  { title: t('workflow.colActions'), key: 'actions', width: 180 },
+])
 
 function statusColor(status: number) {
   return status === 0 ? 'default' : status === 1 ? 'green' : 'orange'
 }
 function statusLabel(status: number) {
-  return status === 0 ? '草稿' : status === 1 ? '已发布' : '已归档'
+  return status === 0 ? t('workflow.statusDraft') : status === 1 ? t('workflow.statusPublished') : t('workflow.statusArchived')
 }
 
 async function loadList() {
@@ -209,7 +210,7 @@ function openEditor(id: number) {
 
 async function handleCreate() {
   if (!createForm.name.trim()) {
-    message.warning('请输入工作流名称')
+    message.warning(t('workflow.warnName'))
     return
   }
   creating.value = true
@@ -217,7 +218,7 @@ async function handleCreate() {
     const res = await createWorkflow({ name: createForm.name, description: createForm.description, mode: createForm.mode })
     if (res.success && res.data) {
       showCreateModal.value = false
-      message.success('创建成功')
+      message.success(t('workflow.createOk'))
       const currentAppId = resolveCurrentAppId(route)
       if (!currentAppId) {
         router.push('/console/apps')
@@ -233,7 +234,7 @@ async function handleCreate() {
 async function handleCopy(id: number) {
   const res = await copyWorkflow(id)
   if (res.success) {
-    message.success('复制成功')
+    message.success(t('workflow.copyOk'))
     loadList()
   }
 }
@@ -241,7 +242,7 @@ async function handleCopy(id: number) {
 async function handleDelete(id: number) {
   const res = await deleteWorkflow(id)
   if (res.success) {
-    message.success('删除成功')
+    message.success(t('workflow.deleteOk'))
     loadList()
   }
 }
@@ -249,7 +250,7 @@ async function handleDelete(id: number) {
 function resolveExecutionId() {
   const value = executionIdInput.value
   if (!value || value <= 0) {
-    message.warning('请输入有效执行ID')
+    message.warning(t('workflow.warnExecId'))
     return null
   }
   return value
@@ -268,10 +269,10 @@ async function inspectExecution() {
     if (res.success && res.data) {
       checkpoint.value = res.data
     } else {
-      checkpointError.value = res.message || '未获取到检查点信息'
+      checkpointError.value = res.message || t('workflow.checkpointMissing')
     }
   } catch (error) {
-    checkpointError.value = (error as Error).message || '获取检查点失败'
+    checkpointError.value = (error as Error).message || t('workflow.checkpointFailed')
   } finally {
     inspecting.value = false
   }
@@ -289,10 +290,10 @@ async function inspectDebugView() {
     if (res.success && res.data) {
       debugView.value = res.data
     } else {
-      message.warning(res.message || '未获取到调试视图')
+      message.warning(res.message || t('workflow.debugViewWarn'))
     }
   } catch (error) {
-    message.error((error as Error).message || '获取调试视图失败')
+    message.error((error as Error).message || t('workflow.debugViewFailed'))
   } finally {
     inspecting.value = false
   }
@@ -308,12 +309,12 @@ async function recoverFromCheckpoint() {
   try {
     const res = await recoverExecution(executionId)
     if (res.success) {
-      message.success(`恢复执行已提交，新的执行ID：${res.data?.executionId ?? '-'}`)
+      message.success(t('workflow.recoverSubmitted', { id: res.data?.executionId ?? '-' }))
     } else {
-      message.warning(res.message || '恢复执行未成功')
+      message.warning(res.message || t('workflow.recoverWarn'))
     }
   } catch (error) {
-    message.error((error as Error).message || '恢复执行失败')
+    message.error((error as Error).message || t('workflow.recoverFailed'))
   } finally {
     recovering.value = false
   }

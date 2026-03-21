@@ -43,13 +43,13 @@ public sealed class ProcessDrawBackOperationHandler : IApprovalOperationHandler
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null)
         {
-            throw new BusinessException("INSTANCE_NOT_FOUND", "流程实例不存在");
+            throw new BusinessException("INSTANCE_NOT_FOUND", "ApprovalInstanceNotFound");
         }
 
         // 只有发起人可以撤回
         if (instance.InitiatorUserId != operatorUserId)
         {
-            throw new BusinessException("UNAUTHORIZED", "只有发起人可以撤回流程");
+            throw new BusinessException("UNAUTHORIZED", "ApprovalOnlyInitiatorDrawBack");
         }
 
         // 只能撤回运行中的流程
@@ -64,7 +64,7 @@ public sealed class ProcessDrawBackOperationHandler : IApprovalOperationHandler
 
         if (hasApproved)
         {
-            throw new BusinessException("CANNOT_DRAW_BACK", "流程已被审批，不允许撤回");
+            throw new BusinessException("CANNOT_DRAW_BACK", "ApprovalDrawBackAlreadyProgressed");
         }
 
         // 取消流程

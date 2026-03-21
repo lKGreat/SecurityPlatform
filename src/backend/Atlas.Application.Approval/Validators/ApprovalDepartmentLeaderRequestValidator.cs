@@ -1,5 +1,7 @@
 using Atlas.Application.Approval.Models;
+using Atlas.Application.Resources;
 using FluentValidation;
+using Microsoft.Extensions.Localization;
 
 namespace Atlas.Application.Approval.Validators;
 
@@ -8,12 +10,12 @@ namespace Atlas.Application.Approval.Validators;
 /// </summary>
 public sealed class ApprovalDepartmentLeaderRequestValidator : AbstractValidator<ApprovalDepartmentLeaderRequest>
 {
-    public ApprovalDepartmentLeaderRequestValidator()
+    public ApprovalDepartmentLeaderRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.DepartmentId)
-            .GreaterThan(0).WithMessage("部门ID必须大于0");
+            .GreaterThan(0).WithMessage(localizer["ApprovalDeptIdRequired"].Value);
 
         RuleFor(x => x.LeaderUserId)
-            .GreaterThan(0).WithMessage("用户ID必须大于0");
+            .GreaterThan(0).WithMessage(localizer["ApprovalLeaderUserIdRequired"].Value);
     }
 }

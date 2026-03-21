@@ -1,5 +1,7 @@
 using FluentValidation;
 using Atlas.Application.System.Models;
+using Atlas.Application.Resources;
+using Microsoft.Extensions.Localization;
 using global::System.Text.RegularExpressions;
 
 namespace Atlas.Application.System.Validators;
@@ -12,13 +14,13 @@ public sealed class DictTypeCreateRequestValidator : AbstractValidator<DictTypeC
     private static readonly Regex SafeCodePattern =
         new(@"^[a-z][a-z0-9_]{0,63}$", RegexOptions.Compiled);
 
-    public DictTypeCreateRequestValidator()
+    public DictTypeCreateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Code)
             .NotEmpty()
             .MaximumLength(64)
             .Must(c => SafeCodePattern.IsMatch(c))
-            .WithMessage("字典编码只允许小写字母、数字和下划线，且必须以字母开头，最长64位。");
+            .WithMessage(localizer["DictCodeFormat"].Value);
         RuleFor(x => x.Name).NotEmpty().MaximumLength(128);
         RuleFor(x => x.Remark).MaximumLength(500).When(x => x.Remark != null);
     }

@@ -31,7 +31,7 @@ public sealed class MenuCommandService : IMenuCommandService
             var exists = await _menuRepository.ExistsByPathAsync(tenantId, request.Path, null, cancellationToken);
             if (exists)
             {
-                throw new BusinessException("菜单路径已存在，请使用不同的路径。", ErrorCodes.ValidationError);
+                throw new BusinessException("MenuPathExists", ErrorCodes.ValidationError);
             }
         }
 
@@ -66,7 +66,7 @@ public sealed class MenuCommandService : IMenuCommandService
         var menu = await _menuRepository.FindByIdAsync(tenantId, menuId, cancellationToken);
         if (menu is null)
         {
-            throw new BusinessException("Menu not found.", ErrorCodes.NotFound);
+            throw new BusinessException("MenuNotFound", ErrorCodes.NotFound);
         }
 
         // 非按钮类型才检查路径唯一性（排除自身）
@@ -75,7 +75,7 @@ public sealed class MenuCommandService : IMenuCommandService
             var exists = await _menuRepository.ExistsByPathAsync(tenantId, request.Path, menuId, cancellationToken);
             if (exists)
             {
-                throw new BusinessException("菜单路径已存在，请使用不同的路径。", ErrorCodes.ValidationError);
+                throw new BusinessException("MenuPathExists", ErrorCodes.ValidationError);
             }
         }
 
@@ -106,13 +106,13 @@ public sealed class MenuCommandService : IMenuCommandService
         var menu = await _menuRepository.FindByIdAsync(tenantId, menuId, cancellationToken);
         if (menu is null)
         {
-            throw new BusinessException("菜单不存在。", ErrorCodes.NotFound);
+            throw new BusinessException("MenuNotFound", ErrorCodes.NotFound);
         }
 
         var hasChildren = await _menuRepository.HasChildrenAsync(tenantId, menuId, cancellationToken);
         if (hasChildren)
         {
-            throw new BusinessException("该菜单存在子菜单，请先删除子菜单后再删除本菜单。", ErrorCodes.ValidationError);
+            throw new BusinessException("MenuHasChildren", ErrorCodes.ValidationError);
         }
 
         // 级联清理角色-菜单关联

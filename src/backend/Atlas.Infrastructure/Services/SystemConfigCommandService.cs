@@ -26,7 +26,7 @@ public sealed class SystemConfigCommandService : ISystemConfigCommandService
         var exists = await _repository.ExistsByKeyAsync(tenantId, request.ConfigKey, cancellationToken);
         if (exists)
         {
-            throw new BusinessException($"参数键 '{request.ConfigKey}' 已存在。", ErrorCodes.ValidationError);
+            throw new BusinessException("SystemConfigKeyExists", ErrorCodes.ValidationError);
         }
 
         var entity = new SystemConfig(tenantId, request.ConfigKey, request.ConfigValue, request.ConfigName, false, _idGeneratorAccessor.NextId(), request.ConfigType ?? "Text");
@@ -39,7 +39,7 @@ public sealed class SystemConfigCommandService : ISystemConfigCommandService
         TenantId tenantId, long id, SystemConfigUpdateRequest request, CancellationToken cancellationToken)
     {
         var entity = await _repository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("参数不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("SystemConfigNotFound", ErrorCodes.NotFound);
 
         entity.Update(request.ConfigValue, request.ConfigName, request.Remark);
         await _repository.UpdateAsync(entity, cancellationToken);
@@ -49,11 +49,11 @@ public sealed class SystemConfigCommandService : ISystemConfigCommandService
         TenantId tenantId, long id, CancellationToken cancellationToken)
     {
         var entity = await _repository.FindByIdAsync(tenantId, id, cancellationToken)
-            ?? throw new BusinessException("参数不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("SystemConfigNotFound", ErrorCodes.NotFound);
 
         if (entity.IsBuiltIn)
         {
-            throw new BusinessException("内置参数不允许删除。", ErrorCodes.Forbidden);
+            throw new BusinessException("SystemConfigBuiltinCannotDelete", ErrorCodes.Forbidden);
         }
 
         await _repository.DeleteAsync(tenantId, id, cancellationToken);

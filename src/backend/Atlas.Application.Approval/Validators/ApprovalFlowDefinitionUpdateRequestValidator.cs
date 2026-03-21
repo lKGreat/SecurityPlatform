@@ -1,5 +1,7 @@
 using Atlas.Application.Approval.Models;
+using Atlas.Application.Resources;
 using FluentValidation;
+using Microsoft.Extensions.Localization;
 using System.Text.Json;
 
 namespace Atlas.Application.Approval.Validators;
@@ -9,17 +11,17 @@ namespace Atlas.Application.Approval.Validators;
 /// </summary>
 public sealed class ApprovalFlowDefinitionUpdateRequestValidator : AbstractValidator<ApprovalFlowDefinitionUpdateRequest>
 {
-    public ApprovalFlowDefinitionUpdateRequestValidator()
+    public ApprovalFlowDefinitionUpdateRequestValidator(IStringLocalizer<Messages> localizer)
     {
         RuleFor(x => x.Id)
-            .GreaterThan(0).WithMessage("流程ID必须大于0");
+            .GreaterThan(0).WithMessage(localizer["ApprovalFlowIdRequired"].Value);
 
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("流程名称不能为空")
-            .MaximumLength(100).WithMessage("流程名称长度不超过100个字符");
+            .NotEmpty().WithMessage(localizer["ApprovalFlowNameRequired"].Value)
+            .MaximumLength(100).WithMessage(localizer["ApprovalFlowNameMaxLength"].Value);
 
         RuleFor(x => x.DefinitionJson)
-            .NotEmpty().WithMessage("流程定义JSON不能为空")
+            .NotEmpty().WithMessage(localizer["ApprovalFlowDefinitionJsonRequired"].Value)
             .Custom((json, ctx) => ValidateDefinitionJson(json, ctx));
     }
 

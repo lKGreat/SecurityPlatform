@@ -82,7 +82,7 @@ public sealed class ConversationsController : ControllerBase
         var result = await _conversationService.GetByIdAsync(tenantId, userId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<ConversationDto>.Fail(ErrorCodes.NotFound, "会话不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<ConversationDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "ConversationNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<ConversationDto>.Ok(result, HttpContext.TraceIdentifier));

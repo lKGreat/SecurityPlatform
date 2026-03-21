@@ -53,7 +53,7 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
             {
                 if (!field.AllowNull)
                 {
-                    throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, $"字段 {field.Name} 必填。");
+                    throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, $"Field '{field.Name}' is required.");
                 }
                 continue;
             }
@@ -64,7 +64,7 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
 
         if (row.Count <= 1)
         {
-            throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, "没有可写入的字段。");
+            throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, "No writable fields.");
         }
 
         await _db.Insertable(row).AS(table.TableKey).ExecuteCommandAsync();
@@ -186,7 +186,7 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
         {
             if (table.DbType != DynamicDbType.Sqlite)
             {
-                throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, "当前仅支持 SQLite 动态数据查询。");
+                throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, "Only SQLite is supported for dynamic data queries.");
             }
 
             var where = BuildWhereClause(tenantId, fields, request, out var parameters);
@@ -250,7 +250,7 @@ public sealed class DynamicRecordRepository : IDynamicRecordRepository
         var pk = fields.FirstOrDefault(x => x.IsPrimaryKey);
         if (pk is null)
         {
-            throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, "未配置主键字段。");
+            throw new BusinessException(Atlas.Core.Models.ErrorCodes.ValidationError, "Primary key field is not configured.");
         }
 
         return pk;

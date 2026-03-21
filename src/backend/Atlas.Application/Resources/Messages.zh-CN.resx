@@ -95,4 +95,412 @@
   <data name="COPY_RECORD_NOT_OWNER" xml:space="preserve"><value>无权操作该抄送记录。</value></data>
   <data name="INVALID_OPERATION" xml:space="preserve"><value>当前操作无效。</value></data>
   <data name="INVALID_STATUS" xml:space="preserve"><value>当前状态不允许执行该操作。</value></data>
+  <!-- JWT / Token -->
+  <data name="Conflict" xml:space="preserve"><value>数据冲突，请刷新后重试。</value></data>
+  <data name="InvalidToken" xml:space="preserve"><value>无效令牌。</value></data>
+  <data name="TokenMissingTenant" xml:space="preserve"><value>令牌缺少有效租户信息。</value></data>
+  <data name="TokenMissingUser" xml:space="preserve"><value>令牌缺少有效用户标识。</value></data>
+  <data name="TokenMissingSession" xml:space="preserve"><value>令牌缺少有效会话标识。</value></data>
+  <data name="UserDisabledOrNotExist" xml:space="preserve"><value>用户已禁用或不存在。</value></data>
+  <data name="SessionRevoked" xml:space="preserve"><value>会话已失效。</value></data>
+  <data name="RefreshTokenInvalid" xml:space="preserve"><value>刷新令牌无效或已过期。</value></data>
+  <data name="RefreshTokenRevoked" xml:space="preserve"><value>刷新令牌已失效。</value></data>
+  <data name="RefreshTokenExpired" xml:space="preserve"><value>刷新令牌已过期。</value></data>
+  <data name="AccountDisabled" xml:space="preserve"><value>账号不存在或已失效。</value></data>
+  <data name="AccountSuspended" xml:space="preserve"><value>账号已停用。</value></data>
+  <data name="PasswordChanged" xml:space="preserve"><value>密码已变更，请重新登录。</value></data>
+  <!-- MFA -->
+  <data name="MfaCodeRequired" xml:space="preserve"><value>需要多因素认证验证码。</value></data>
+  <data name="MfaNotSetup" xml:space="preserve"><value>请先调用 setup 接口生成密钥。</value></data>
+  <data name="MfaAlreadyEnabled" xml:space="preserve"><value>MFA 已启用，请先禁用后重新设置。</value></data>
+  <data name="MfaAlreadyEnabledSimple" xml:space="preserve"><value>MFA 已启用。</value></data>
+  <data name="MfaNotEnabled" xml:space="preserve"><value>MFA 未启用。</value></data>
+  <data name="MfaCodeInvalid" xml:space="preserve"><value>验证码错误，请重试。</value></data>
+  <data name="UserNotFound" xml:space="preserve"><value>用户不存在。</value></data>
+  <!-- Auth Controller -->
+  <data name="TenantIdRequired" xml:space="preserve"><value>缺少租户标识。</value></data>
+  <data name="LoginFailedTooManyTimes" xml:space="preserve"><value>连续登录失败次数过多，请输入验证码。</value></data>
+  <data name="CaptchaExpired" xml:space="preserve"><value>验证码错误或已过期。</value></data>
+  <data name="RegistrationDisabled" xml:space="preserve"><value>当前系统未开启注册功能。</value></data>
+  <data name="UsernameAlreadyExists" xml:space="preserve"><value>用户名已存在。</value></data>
+  <!-- Approval -->
+  <data name="AgentEndTimeInvalid" xml:space="preserve"><value>代理结束时间必须晚于开始时间。</value></data>
+  <data name="AgentForbiddenDelete" xml:space="preserve"><value>无权删除该代理设置。</value></data>
+  <data name="TransferUserInvalid" xml:space="preserve"><value>转办用户参数不合法。</value></data>
+  <data name="NoPermissionMarkRead" xml:space="preserve"><value>无权标记该任务为已阅。</value></data>
+  <data name="CannotApproveTask" xml:space="preserve"><value>您无权审批此任务。</value></data>
+  <data name="OnlyInitiatorCanCancel" xml:space="preserve"><value>只有发起人可以取消流程。</value></data>
+  <data name="OnlyInitiatorOrAdminCanSubmit" xml:space="preserve"><value>只有发起人或管理员可以提交草稿。</value></data>
+  <data name="TargetNodeRequired" xml:space="preserve"><value>变更未来节点处理人操作需要指定目标节点ID。</value></data>
+  <data name="TargetAssigneeRequired" xml:space="preserve"><value>变更处理人操作需要指定目标处理人。</value></data>
+  <data name="NodeNotFound" xml:space="preserve"><value>目标节点不存在。</value></data>
+  <data name="NodeAlreadyExecuted" xml:space="preserve"><value>目标节点已经执行，无法变更未来节点处理人。</value></data>
+  <data name="TaskIdRequired" xml:space="preserve"><value>操作需要指定任务ID。</value></data>
+  <data name="AssigneeRequired" xml:space="preserve"><value>操作需要指定至少一个审批人。</value></data>
+  <data name="TaskInstanceMismatch" xml:space="preserve"><value>任务不属于指定的流程实例。</value></data>
+  <data name="OnlyCurrentAssigneeCanAddSign" xml:space="preserve"><value>只有当前处理人可以执行加签操作。</value></data>
+  <data name="CannotDrawBack" xml:space="preserve"><value>流程已被审批，不允许撤回。</value></data>
+  <data name="OnlyInitiatorCanDrawBack" xml:space="preserve"><value>只有发起人可以撤回流程。</value></data>
+  <data name="InvalidRequest" xml:space="preserve"><value>请求参数无效。</value></data>
+  <data name="TargetTaskNotFound" xml:space="preserve"><value>未找到要移除的审批任务。</value></data>
+  <data name="DelegateTaskSelf" xml:space="preserve"><value>只能承办自己的任务。</value></data>
+  <data name="CannotReturnDelegateTask" xml:space="preserve"><value>非委派任务不能归还。</value></data>
+  <data name="NoPermissionDelegate" xml:space="preserve"><value>您无权委派此任务。</value></data>
+  <data name="FlowInstanceForbidden" xml:space="preserve"><value>您无权操作该流程实例。</value></data>
+  <!-- Dict -->
+  <data name="DictTypeCodeExists" xml:space="preserve"><value>字典类型编码已存在。</value></data>
+  <data name="DictTypeNotFound" xml:space="preserve"><value>字典类型不存在。</value></data>
+  <data name="DictDataNotFound" xml:space="preserve"><value>字典数据不存在。</value></data>
+  <!-- Menu -->
+  <data name="MenuPathExists" xml:space="preserve"><value>菜单路径已存在，请使用不同的路径。</value></data>
+  <data name="MenuNotFound" xml:space="preserve"><value>菜单不存在。</value></data>
+  <data name="MenuHasChildren" xml:space="preserve"><value>该菜单存在子菜单，请先删除子菜单后再删除本菜单。</value></data>
+  <!-- Role -->
+  <data name="RoleNotFound" xml:space="preserve"><value>角色不存在。</value></data>
+  <data name="RoleHasUsers" xml:space="preserve"><value>角色下已有用户，请先解除绑定后再删除。</value></data>
+  <data name="DataScopeDeptRequired" xml:space="preserve"><value>自定义数据范围至少需要指定一个部门。</value></data>
+  <data name="PermissionNotFoundPlatform" xml:space="preserve"><value>权限不存在或不是平台级权限。</value></data>
+  <!-- Department -->
+  <data name="DeptNameOrCodeExists" xml:space="preserve"><value>部门名称或编码已存在。</value></data>
+  <data name="DeptHasChildren" xml:space="preserve"><value>该部门存在子部门，无法直接删除。</value></data>
+  <data name="DeptNotInProject" xml:space="preserve"><value>部门不属于当前项目。</value></data>
+  <!-- Tenant -->
+  <data name="TenantCodeExists" xml:space="preserve"><value>租户编码已存在。</value></data>
+  <data name="TenantNotFound" xml:space="preserve"><value>租户不存在。</value></data>
+  <data name="CoreTenantCannotDelete" xml:space="preserve"><value>内置核心租户不允许删除。</value></data>
+  <!-- AI -->
+  <data name="AgentNotFound" xml:space="preserve"><value>Agent 不存在。</value></data>
+  <data name="ConversationNotFound" xml:space="preserve"><value>会话不存在。</value></data>
+  <data name="NoPermissionAccessConversation" xml:space="preserve"><value>无权访问此会话。</value></data>
+  <data name="MessageNotFound" xml:space="preserve"><value>消息不存在。</value></data>
+  <data name="PatNotFound" xml:space="preserve"><value>PAT 不存在。</value></data>
+  <data name="PatRevokedCannotModify" xml:space="preserve"><value>已撤销的 PAT 不允许修改。</value></data>
+  <data name="ShortcutCodeExists" xml:space="preserve"><value>快捷命令编码已存在。</value></data>
+  <data name="ShortcutNotFound" xml:space="preserve"><value>快捷命令不存在。</value></data>
+  <!-- Workflow -->
+  <data name="WorkflowDefNotFound" xml:space="preserve"><value>工作流定义不存在。</value></data>
+  <data name="WorkflowNotPublished" xml:space="preserve"><value>仅允许执行已发布的工作流。</value></data>
+  <data name="WorkflowInstanceNotFound" xml:space="preserve"><value>执行实例不存在。</value></data>
+  <!-- Migration -->
+  <data name="DynamicTableMigrationVersionExists" xml:space="preserve"><value>同一表的迁移版本已存在。</value></data>
+  <data name="DynamicTableNotFoundForMigration" xml:space="preserve"><value>动态表不存在。</value></data>
+  <data name="MigrationRecordNotFound" xml:space="preserve"><value>迁移记录不存在。</value></data>
+  <data name="MigrationDestructiveNotConfirmed" xml:space="preserve"><value>该迁移包含破坏性变更，请先通过预检查并确认执行。</value></data>
+  <data name="MigrationAlreadySucceeded" xml:space="preserve"><value>迁移已成功执行，不可重复执行。</value></data>
+  <data name="MigrationInProgress" xml:space="preserve"><value>迁移正在执行中，请稍后重试。</value></data>
+  <data name="MigrationTableKeyMismatch" xml:space="preserve"><value>迁移脚本表名与目标动态表不一致。</value></data>
+  <!-- Idempotency / Security -->
+  <data name="IdempotencyRequired" xml:space="preserve"><value>幂等键不能为空。</value></data>
+  <data name="IdempotencyConflict" xml:space="preserve"><value>幂等键冲突，请勿重复提交。</value></data>
+  <data name="IdempotencyInProgress" xml:space="preserve"><value>请求正在处理中，请稍后重试。</value></data>
+  <data name="AntiforgeryTokenInvalid" xml:space="preserve"><value>CSRF 令牌无效，请刷新页面后重试。</value></data>
+  <!-- License -->
+  <data name="LicenseExpired" xml:space="preserve"><value>许可证已过期。</value></data>
+  <data name="LicenseInvalid" xml:space="preserve"><value>许可证无效。</value></data>
+  <data name="LicenseLimitExceeded" xml:space="preserve"><value>已超出许可证使用限制。</value></data>
+  <!-- Project -->
+  <data name="ProjectNotFound" xml:space="preserve"><value>项目不存在。</value></data>
+  <data name="ProjectDisabled" xml:space="preserve"><value>项目已禁用。</value></data>
+  <data name="ProjectForbidden" xml:space="preserve"><value>无权访问该项目。</value></data>
+  <data name="CrossTenantForbidden" xml:space="preserve"><value>禁止跨租户操作。</value></data>
+  <data name="AppContextRequired" xml:space="preserve"><value>应用上下文缺失。</value></data>
+  <!-- Validator: Approval Operation -->
+  <data name="ApprovalOperationTypeInvalid" xml:space="preserve"><value>操作类型无效。</value></data>
+  <data name="ApprovalCommentMaxLength" xml:space="preserve"><value>操作说明不能超过 500 个字符。</value></data>
+  <data name="ApprovalTargetNodeRequired" xml:space="preserve"><value>退回任意节点操作需要指定目标节点ID。</value></data>
+  <data name="ApprovalTransferTargetRequired" xml:space="preserve"><value>转办/变更处理人操作需要指定目标处理人。</value></data>
+  <data name="ApprovalAddAssigneeRequired" xml:space="preserve"><value>加签操作需要指定至少一个审批人。</value></data>
+  <!-- Validator: ApprovalFlowDefinition -->
+  <data name="ApprovalFlowNameRequired" xml:space="preserve"><value>流程名称不能为空。</value></data>
+  <data name="ApprovalFlowNameMaxLength" xml:space="preserve"><value>流程名称长度不超过 100 个字符。</value></data>
+  <data name="ApprovalFlowDefinitionJsonRequired" xml:space="preserve"><value>流程定义JSON不能为空。</value></data>
+  <data name="ApprovalFlowIdRequired" xml:space="preserve"><value>流程ID必须大于0。</value></data>
+  <!-- Validator: ApprovalStart -->
+  <data name="ApprovalDefinitionIdRequired" xml:space="preserve"><value>流程定义ID必须大于0。</value></data>
+  <data name="ApprovalBusinessKeyRequired" xml:space="preserve"><value>业务key不能为空。</value></data>
+  <data name="ApprovalBusinessKeyMaxLength" xml:space="preserve"><value>业务key长度不超过 200 个字符。</value></data>
+  <data name="ApprovalDataJsonMaxLength" xml:space="preserve"><value>业务数据JSON长度不超过 10000 个字符。</value></data>
+  <!-- Validator: ApprovalDepartmentLeader -->
+  <data name="ApprovalDeptIdRequired" xml:space="preserve"><value>部门ID必须大于0。</value></data>
+  <data name="ApprovalLeaderUserIdRequired" xml:space="preserve"><value>用户ID必须大于0。</value></data>
+  <!-- Validator: SystemConfig -->
+  <data name="SystemConfigKeyFormat" xml:space="preserve"><value>参数键只允许字母、数字、点和下划线，必须以字母开头，最长128位。</value></data>
+  <!-- Validator: Permission -->
+  <data name="PermissionTypeInvalid" xml:space="preserve"><value>权限类型必须为 Api/Menu/Application/Page/Action 之一。</value></data>
+  <!-- Validator: Dict -->
+  <data name="DictCodeFormat" xml:space="preserve"><value>字典编码只允许小写字母、数字和下划线，且必须以字母开头，最长64位。</value></data>
+  <!-- Validator: TableView -->
+  <data name="TableViewKeyRequired" xml:space="preserve"><value>TableKey不能为空。</value></data>
+  <data name="TableViewKeyMaxLength" xml:space="preserve"><value>TableKey长度超出限制。</value></data>
+  <data name="TableViewNameRequired" xml:space="preserve"><value>视图名称不能为空。</value></data>
+  <data name="TableViewNameMaxLength" xml:space="preserve"><value>视图名称长度超出限制。</value></data>
+  <data name="TableViewConfigRequired" xml:space="preserve"><value>视图配置不能为空。</value></data>
+  <!-- Validator: TenantAppMembership -->
+  <data name="AppMemberRequired" xml:space="preserve"><value>至少选择一名应用成员。</value></data>
+  <data name="AppRoleCodeFormat" xml:space="preserve"><value>角色编码仅支持字母开头，后续使用字母数字冒号下划线或中划线。</value></data>
+  <!-- Validator: DynamicRecord -->
+  <data name="DynamicRecordFilterFieldRequired" xml:space="preserve"><value>筛选字段不能为空。</value></data>
+  <data name="DynamicRecordValuesRequired" xml:space="preserve"><value>记录值不能为空。</value></data>
+  <data name="DynamicRecordFieldNameRequired" xml:space="preserve"><value>字段名不能为空。</value></data>
+  <data name="DynamicRecordFieldNameFormat" xml:space="preserve"><value>字段名格式不正确。</value></data>
+  <data name="DynamicRecordFieldValueTypeInvalid" xml:space="preserve"><value>字段值类型不支持。</value></data>
+  <data name="DynamicRecordFieldValueSingle" xml:space="preserve"><value>字段值必须且只能填写一个具体类型。</value></data>
+  <data name="DynamicRecordFieldNameDuplicated" xml:space="preserve"><value>字段名不能重复。</value></data>
+  <!-- Validator: Workflow PublishEvent -->
+  <data name="WorkflowEventNameRequired" xml:space="preserve"><value>事件名称不能为空。</value></data>
+  <data name="WorkflowEventKeyRequired" xml:space="preserve"><value>事件键不能为空。</value></data>
+  <!-- Validator: ModelConfig -->
+  <data name="ModelConfigProviderTypeInvalid" xml:space="preserve"><value>ProviderType 仅支持 openai/deepseek/ollama/custom。</value></data>
+  <data name="ModelConfigBaseUrlInvalid" xml:space="preserve"><value>BaseUrl 必须是合法绝对地址。</value></data>
+  <!-- Validator: LowCode Environment -->
+  <data name="LowCodeEnvNameRequired" xml:space="preserve"><value>环境名称不能为空。</value></data>
+  <data name="LowCodeEnvNameMaxLength" xml:space="preserve"><value>环境名称不能超过 100 个字符。</value></data>
+  <data name="LowCodeEnvCodeRequired" xml:space="preserve"><value>环境编码不能为空。</value></data>
+  <data name="LowCodeEnvCodeMaxLength" xml:space="preserve"><value>环境编码不能超过 50 个字符。</value></data>
+  <data name="LowCodeEnvCodeFormat" xml:space="preserve"><value>环境编码格式不正确。</value></data>
+  <data name="LowCodeEnvDescriptionMaxLength" xml:space="preserve"><value>描述不能超过 500 个字符。</value></data>
+  <data name="LowCodeEnvVariablesJsonInvalid" xml:space="preserve"><value>VariablesJson 必须是 JSON 对象。</value></data>
+  <!-- Validator: LowCode Page -->
+  <data name="LowCodePageKeyRequired" xml:space="preserve"><value>页面标识不能为空。</value></data>
+  <data name="LowCodePageKeyMaxLength" xml:space="preserve"><value>页面标识不能超过 100 个字符。</value></data>
+  <data name="LowCodePageKeyFormat" xml:space="preserve"><value>页面标识只能包含字母、数字、下划线和连字符。</value></data>
+  <data name="LowCodePageNameRequired" xml:space="preserve"><value>页面名称不能为空。</value></data>
+  <data name="LowCodePageNameMaxLength" xml:space="preserve"><value>页面名称不能超过 200 个字符。</value></data>
+  <data name="LowCodePageTypeRequired" xml:space="preserve"><value>页面类型不能为空。</value></data>
+  <data name="LowCodePageSchemaRequired" xml:space="preserve"><value>页面 Schema 不能为空。</value></data>
+  <data name="LowCodePageDescriptionMaxLength" xml:space="preserve"><value>描述不能超过 1000 个字符。</value></data>
+  <!-- Validator: Form -->
+  <data name="FormNameRequired" xml:space="preserve"><value>表单名称不能为空。</value></data>
+  <data name="FormNameMaxLength" xml:space="preserve"><value>表单名称不能超过 200 个字符。</value></data>
+  <data name="FormSchemaRequired" xml:space="preserve"><value>表单 Schema 不能为空。</value></data>
+  <data name="FormCategoryMaxLength" xml:space="preserve"><value>分类不能超过 100 个字符。</value></data>
+  <data name="FormDescriptionMaxLength" xml:space="preserve"><value>描述不能超过 1000 个字符。</value></data>
+  <data name="AppConfigNotFound" xml:space="preserve"><value>应用配置不存在。</value></data>
+  <!-- Service: DynamicTable -->
+  <data name="DynamicTableKeyExists" xml:space="preserve"><value>表标识已存在。</value></data>
+  <data name="DynamicTableOnlySqlite" xml:space="preserve"><value>当前仅支持 SQLite 动态建表。</value></data>
+  <data name="DynamicTableNotFound" xml:space="preserve"><value>动态表不存在。</value></data>
+  <data name="DynamicTableOnlySqliteAlter" xml:space="preserve"><value>当前仅支持 SQLite 动态表结构变更。</value></data>
+  <data name="DynamicTableOnlySqlitePreview" xml:space="preserve"><value>当前仅支持 SQLite 动态表结构变更预览。</value></data>
+  <data name="DynamicTableApprovalServiceNotAvailable" xml:space="preserve"><value>审批服务不可用。</value></data>
+  <data name="DynamicTableNotBoundApprovalFlow" xml:space="preserve"><value>该动态表未绑定审批流。</value></data>
+  <data name="DynamicTableFieldExists" xml:space="preserve"><value>字段已存在。</value></data>
+  <data name="DynamicTablePrimaryKeyNotSupported" xml:space="preserve"><value>当前版本不支持在变更中新增主键或自增字段。</value></data>
+  <data name="DynamicTableFieldTypeRequired" xml:space="preserve"><value>字段类型不能为空。</value></data>
+  <data name="DynamicTableFieldPrecisionInvalid" xml:space="preserve"><value>精度/小数位配置不合法。</value></data>
+  <data name="DynamicTableNonNullFieldRequiresDefault" xml:space="preserve"><value>新增非空字段必须提供默认值。</value></data>
+  <data name="DynamicTableFieldUpdateLimitedFields" xml:space="preserve"><value>当前版本仅支持更新字段显示名和排序。</value></data>
+  <!-- Service: DynamicRecord -->
+  <data name="DynamicRecordNotFound" xml:space="preserve"><value>记录不存在。</value></data>
+  <data name="DynamicTableFieldsEmpty" xml:space="preserve"><value>动态表字段为空。</value></data>
+  <!-- Service: TableView -->
+  <data name="TableViewNameExists" xml:space="preserve"><value>视图名称已存在。</value></data>
+  <data name="TableViewNotFound" xml:space="preserve"><value>视图不存在。</value></data>
+  <!-- Service: FieldPermission -->
+  <data name="FieldNoEditPermission" xml:space="preserve"><value>当前角色无字段编辑权限。</value></data>
+  <data name="FieldEditPermissionBlocked" xml:space="preserve"><value>无编辑权限的字段。</value></data>
+  <!-- Service: ApprovalFlow -->
+  <data name="FlowNotFound" xml:space="preserve"><value>审批流定义不存在。</value></data>
+  <data name="FlowNotPublished" xml:space="preserve"><value>流程定义未发布。</value></data>
+  <data name="FlowDeprecated" xml:space="preserve"><value>流程定义已弃用，不允许新发起实例。</value></data>
+  <data name="FlowNotDraft" xml:space="preserve"><value>仅可编辑草稿状态的流程定义。</value></data>
+  <data name="FlowNotDraftDelete" xml:space="preserve"><value>仅可删除草稿状态的流程定义。</value></data>
+  <data name="FlowAlreadyPublished" xml:space="preserve"><value>该流程定义已发布。</value></data>
+  <data name="FlowVersionNotFound" xml:space="preserve"><value>版本快照不存在。</value></data>
+  <data name="FlowVersionMismatch" xml:space="preserve"><value>版本不属于该审批流定义。</value></data>
+  <!-- Service: ApprovalRuntime -->
+  <data name="ApprovalTaskNotFound" xml:space="preserve"><value>审批任务不存在。</value></data>
+  <data name="ApprovalTaskNotPending" xml:space="preserve"><value>任务不是待审批状态。</value></data>
+  <data name="ApprovalNoPermission" xml:space="preserve"><value>您无权审批此任务。</value></data>
+  <data name="ApprovalInstanceNotRunning" xml:space="preserve"><value>流程实例不在运行状态。</value></data>
+  <data name="ApprovalInstanceNotFound" xml:space="preserve"><value>流程实例不存在。</value></data>
+  <data name="ApprovalCopyRecordNotFound" xml:space="preserve"><value>抄送记录不存在。</value></data>
+  <data name="ApprovalCopyRecordNotOwner" xml:space="preserve"><value>无权操作此抄送记录。</value></data>
+  <data name="ApprovalOnlyInitiatorCanCancel" xml:space="preserve"><value>只有发起人可以取消流程。</value></data>
+  <data name="ApprovalNoPermissionDelegate" xml:space="preserve"><value>您无权委派此任务。</value></data>
+  <data name="ApprovalNonDelegateTaskReturn" xml:space="preserve"><value>非委派任务不能归还。</value></data>
+  <data name="ApprovalNoPermissionDelegate2" xml:space="preserve"><value>您无权处理此委派任务。</value></data>
+  <data name="ApprovalSubFlowDefNotFound" xml:space="preserve"><value>子流程定义不存在。</value></data>
+  <data name="ApprovalParentInstanceNotFound" xml:space="preserve"><value>父流程实例不存在。</value></data>
+  <data name="ApprovalDraftNotFound" xml:space="preserve"><value>草稿不存在。</value></data>
+  <data name="ApprovalInvalidDraftStatus" xml:space="preserve"><value>非草稿状态。</value></data>
+  <data name="ApprovalNoPermissionInstance" xml:space="preserve"><value>您无权操作该流程实例。</value></data>
+  <data name="ApprovalOnlyInitiatorOrAdminSubmit" xml:space="preserve"><value>只有发起人或管理员可以提交草稿。</value></data>
+  <data name="ApprovalTaskStatusInvalid" xml:space="preserve"><value>任务状态不正确。</value></data>
+  <!-- Service: SystemConfig -->
+  <data name="SystemConfigKeyExists" xml:space="preserve"><value>参数键已存在。</value></data>
+  <data name="SystemConfigNotFound" xml:space="preserve"><value>参数不存在。</value></data>
+  <data name="SystemConfigBuiltinCannotDelete" xml:space="preserve"><value>内置参数不允许删除。</value></data>
+  <!-- Service: LowCodeApp -->
+  <data name="LowCodeAppKeyExists" xml:space="preserve"><value>应用标识已存在。</value></data>
+  <data name="LowCodeDataSourceNotFound" xml:space="preserve"><value>数据源不存在。</value></data>
+  <data name="LowCodeAppNotFound" xml:space="preserve"><value>应用不存在。</value></data>
+  <data name="LowCodeAppVersionNotFound" xml:space="preserve"><value>应用版本不存在。</value></data>
+  <data name="LowCodeAppVersionMismatch" xml:space="preserve"><value>版本快照与当前应用不匹配。</value></data>
+  <data name="LowCodeImportPackageEmpty" xml:space="preserve"><value>导入包不能为空。</value></data>
+  <data name="LowCodeImportPackageMissingInfo" xml:space="preserve"><value>导入包缺少应用标识或名称。</value></data>
+  <data name="LowCodeAppVersionSnapshotInvalid" xml:space="preserve"><value>应用版本快照无效。</value></data>
+  <!-- Service: DynamicTable errors -->
+  <data name="DynamicTableCreateFailed" xml:space="preserve"><value>创建动态表失败。</value></data>
+  <data name="DynamicTableAlterFailed" xml:space="preserve"><value>动态表结构变更失败。</value></data>
+  <data name="DynamicTableDeleteFailed" xml:space="preserve"><value>删除动态表失败。</value></data>
+  <data name="DynamicTableRelationsUpdateFailed" xml:space="preserve"><value>更新动态表关系失败。</value></data>
+  <!-- Approval operations (shared) -->
+  <data name="ApprovalOpTaskIdRequired" xml:space="preserve"><value>该操作需要指定任务 ID。</value></data>
+  <data name="ApprovalOpAssigneeRequired" xml:space="preserve"><value>该操作需要指定至少一名审批人。</value></data>
+  <data name="ApprovalOpTaskInstanceMismatch" xml:space="preserve"><value>任务不属于指定的流程实例。</value></data>
+  <data name="ApprovalOpOnlyPendingTask" xml:space="preserve"><value>只能对待审批状态的任务执行该操作。</value></data>
+  <data name="ApprovalOpOnlyCurrentHandler" xml:space="preserve"><value>只有当前处理人可以执行该操作。</value></data>
+  <data name="ApprovalOpTargetAssigneeRequired" xml:space="preserve"><value>该操作需要指定目标处理人。</value></data>
+  <data name="ApprovalOpOnlyOwnTask" xml:space="preserve"><value>只能操作自己的任务。</value></data>
+  <data name="ApprovalOpTargetNodeRequired" xml:space="preserve"><value>该操作需要指定目标节点 ID。</value></data>
+  <data name="ApprovalOpTargetNodeNotFound" xml:space="preserve"><value>目标节点不存在。</value></data>
+  <data name="ApprovalOpNodeAlreadyExecuted" xml:space="preserve"><value>目标节点已执行，无法完成该操作。</value></data>
+  <data name="ApprovalOpNoCurrentNode" xml:space="preserve"><value>流程实例没有当前节点。</value></data>
+  <data name="ApprovalOpTaskNotApproved" xml:space="preserve"><value>只能撤销已同意的任务。</value></data>
+  <data name="ApprovalOpJumpTargetRequired" xml:space="preserve"><value>跳转目标节点不能为空。</value></data>
+  <data name="ApprovalOpCommunicateTaskIdRequired" xml:space="preserve"><value>任务 ID 不能为空。</value></data>
+  <data name="ApprovalOpCommunicateTargetRequired" xml:space="preserve"><value>沟通对象不能为空。</value></data>
+  <data name="ApprovalOpCommunicateInvalidTarget" xml:space="preserve"><value>无效的沟通对象 ID。</value></data>
+  <data name="ApprovalFlowDefNotFoundShort" xml:space="preserve"><value>流程定义不存在。</value></data>
+  <data name="FlowTargetNodeNotFound" xml:space="preserve"><value>目标节点不存在。</value></data>
+  <data name="ApprovalOpReclaimTaskIdRequired" xml:space="preserve"><value>必须指定要拿回的任务 ID。</value></data>
+  <data name="ApprovalOpReclaimOnlyOwnApproved" xml:space="preserve"><value>只能拿回自己审批过的任务。</value></data>
+  <data name="ApprovalOpRecoverOnlyEndedInstance" xml:space="preserve"><value>只能恢复已结束的流程。</value></data>
+  <data name="ApprovalOpFutureRemoveNodeRequired" xml:space="preserve"><value>未来节点减签操作需要指定目标节点 ID。</value></data>
+  <data name="ApprovalOpFutureRemoveAssigneeRequired" xml:space="preserve"><value>未来节点减签操作需要指定要移除的审批人。</value></data>
+  <data name="ApprovalOpFutureRemoveNodeExecuted" xml:space="preserve"><value>目标节点已执行，无法进行未来节点减签。</value></data>
+  <data name="ApprovalOpTaskIdEmpty" xml:space="preserve"><value>任务 ID 不能为空。</value></data>
+  <data name="ApprovalTaskAlreadyClaimed" xml:space="preserve"><value>任务已被认领。</value></data>
+  <data name="ApprovalAppendAssigneeRequired" xml:space="preserve"><value>追加人员不能为空。</value></data>
+  <data name="SnowflakeTenantIdRequired" xml:space="preserve"><value>缺少租户标识，无法生成 ID。</value></data>
+  <data name="SnowflakeAppIdRequired" xml:space="preserve"><value>缺少应用标识，无法生成 ID。</value></data>
+  <data name="AnnouncementNotFound" xml:space="preserve"><value>公告不存在。</value></data>
+  <data name="AnnouncementTitleRequired" xml:space="preserve"><value>公告标题不能为空。</value></data>
+  <data name="AnnouncementContentRequired" xml:space="preserve"><value>公告内容不能为空。</value></data>
+  <data name="AppOrgDepartmentNotFound" xml:space="preserve"><value>应用部门不存在。</value></data>
+  <data name="AppOrgPositionNotFound" xml:space="preserve"><value>应用职位不存在。</value></data>
+  <data name="AppOrgProjectNotFound" xml:space="preserve"><value>应用项目不存在。</value></data>
+  <data name="AppOrgRoleNotFound" xml:space="preserve"><value>应用角色不存在。</value></data>
+  <data name="AppPermissionCodeExists" xml:space="preserve"><value>该应用下权限编码已存在。</value></data>
+  <data name="AppScopedPermissionNotFound" xml:space="preserve"><value>应用级权限不存在。</value></data>
+  <data name="LowCodeAppCreateFailed" xml:space="preserve"><value>创建低代码应用失败。</value></data>
+  <data name="LowCodeAppUpdateFailed" xml:space="preserve"><value>更新低代码应用失败。</value></data>
+  <data name="LowCodeAppPublishFailed" xml:space="preserve"><value>发布应用失败。</value></data>
+  <data name="LowCodeAppRollbackFailed" xml:space="preserve"><value>回滚应用失败。</value></data>
+  <data name="LowCodeAppDisableFailed" xml:space="preserve"><value>停用低代码应用失败。</value></data>
+  <data name="LowCodeAppEnableFailed" xml:space="preserve"><value>启用低代码应用失败。</value></data>
+  <data name="LowCodeAppEntityAliasUpdateFailed" xml:space="preserve"><value>更新实体别名失败。</value></data>
+  <data name="ConversationForbidden" xml:space="preserve"><value>无权操作此会话。</value></data>
+  <data name="ConversationAgentMismatch" xml:space="preserve"><value>会话与当前 Agent 不匹配。</value></data>
+  <data name="ConversationAccessDenied" xml:space="preserve"><value>无权访问此会话。</value></data>
+  <data name="ModelEmptyResponse" xml:space="preserve"><value>模型未返回可用响应。</value></data>
+  <data name="AgentNameExists" xml:space="preserve"><value>Agent 名称已存在。</value></data>
+  <data name="ModelConfigNotFound" xml:space="preserve"><value>指定模型配置不存在。</value></data>
+  <data name="PromptNameExists" xml:space="preserve"><value>Prompt 名称已存在。</value></data>
+  <data name="PromptTemplateNotFound" xml:space="preserve"><value>Prompt 模板不存在。</value></data>
+  <data name="SystemPromptCannotModify" xml:space="preserve"><value>系统 Prompt 模板不允许修改。</value></data>
+  <data name="SystemPromptCannotDelete" xml:space="preserve"><value>系统 Prompt 模板不允许删除。</value></data>
+  <data name="ApprovalOpRemoveAssigneeTaskIdRequired" xml:space="preserve"><value>减签操作需要指定任务 ID。</value></data>
+  <data name="ApprovalOpRemoveAssigneeTargetRequired" xml:space="preserve"><value>减签操作需要指定要移除的审批人。</value></data>
+  <data name="ApprovalOpRemoveAssigneeTargetTaskNotFound" xml:space="preserve"><value>未找到要移除的审批任务。</value></data>
+  <data name="ApprovalOpUndertakePendingOnly" xml:space="preserve"><value>只能承办待审批的任务。</value></data>
+  <data name="ApprovalOpUndertakeOwnTask" xml:space="preserve"><value>只能承办自己的任务。</value></data>
+  <data name="ApprovalOnlyInitiatorDrawBack" xml:space="preserve"><value>只有发起人可以撤回流程。</value></data>
+  <data name="ApprovalDrawBackOnlyRunning" xml:space="preserve"><value>只能撤回运行中的流程。</value></data>
+  <data name="ApprovalDrawBackAlreadyProgressed" xml:space="preserve"><value>流程已被审批，不允许撤回。</value></data>
+  <data name="ApprovalOpChangeAssigneeTaskIdRequired" xml:space="preserve"><value>变更处理人操作需要指定任务 ID。</value></data>
+  <data name="ApprovalOpChangeAssigneeTargetRequired" xml:space="preserve"><value>变更处理人操作需要指定目标处理人。</value></data>
+  <data name="ApprovalOpChangeAssigneePendingOnly" xml:space="preserve"><value>只能变更待审批任务的处理人。</value></data>
+  <data name="ApprovalOpBackAnyNodeTargetRequired" xml:space="preserve"><value>退回任意节点操作需要指定目标节点 ID。</value></data>
+  <data name="ApprovalOpBackAnyNodePendingOnly" xml:space="preserve"><value>只能基于待审批任务执行退回任意节点。</value></data>
+  <data name="ApprovalOpBackAnyNodeForbidden" xml:space="preserve"><value>只有发起人或当前处理人可以执行退回操作。</value></data>
+  <data name="ApprovalOpTransferTargetEmpty" xml:space="preserve"><value>转办目标不能为空。</value></data>
+  <data name="ApprovalOperationInProgress" xml:space="preserve"><value>操作正在处理中，请勿重复提交。</value></data>
+  <data name="ApprovalOperationRetryRequired" xml:space="preserve"><value>上次操作失败，请使用新的幂等键重试。</value></data>
+  <data name="ApprovalInstanceAlreadyRunning" xml:space="preserve"><value>流程正在运行中，无需唤醒。</value></data>
+  <!-- Controller API messages -->
+  <data name="KnowledgeBaseNotFound" xml:space="preserve"><value>知识库不存在。</value></data>
+  <data name="KnowledgeBaseImportRequiresFileOrId" xml:space="preserve"><value>请提供 fileId 或上传文件。</value></data>
+  <data name="AiVariableNotFound" xml:space="preserve"><value>变量不存在。</value></data>
+  <data name="FileRecordNotFound" xml:space="preserve"><value>文件不存在。</value></data>
+  <data name="ComponentTemplateNotFound" xml:space="preserve"><value>模板不存在。</value></data>
+  <data name="PluginMarketItemNotFound" xml:space="preserve"><value>插件不存在。</value></data>
+  <data name="WebhookSubscriptionNotFound" xml:space="preserve"><value>订阅不存在。</value></data>
+  <data name="ApiConnectorNotFound" xml:space="preserve"><value>连接器不存在。</value></data>
+  <data name="LicenseCertificateRequired" xml:space="preserve"><value>证书内容不能为空。</value></data>
+  <data name="AiDatabaseNotFound" xml:space="preserve"><value>数据库不存在。</value></data>
+  <data name="AiDatabaseBotIdInvalid" xml:space="preserve"><value>BotId 必须大于 0。</value></data>
+  <data name="WorkflowVersionNotInWorkflow" xml:space="preserve"><value>版本不存在或不属于此工作流。</value></data>
+  <data name="WorkflowNodeExecutionNotFound" xml:space="preserve"><value>节点执行记录不存在。</value></data>
+  <data name="ApprovalAgentConfigNotFound" xml:space="preserve"><value>代理设置不存在。</value></data>
+  <data name="SsoFeatureDisabled" xml:space="preserve"><value>SSO 未启用。</value></data>
+  <data name="IntegrationApiKeyRequired" xml:space="preserve"><value>需要 X-Api-Key。</value></data>
+  <data name="IntegrationTenantIdInvalid" xml:space="preserve"><value>X-Tenant-Id 格式无效。</value></data>
+  <data name="IntegrationApiKeyInvalid" xml:space="preserve"><value>API Key 无效或无权限。</value></data>
+  <data name="ApprovalInstanceNotFoundShort" xml:space="preserve"><value>审批实例不存在。</value></data>
+  <data name="LowCodeAppNotBoundDataSource" xml:space="preserve"><value>应用未绑定数据源。</value></data>
+  <data name="TaskIdInvalid" xml:space="preserve"><value>taskId 无效。</value></data>
+  <data name="SsoProviderNotFoundOrDisabled" xml:space="preserve"><value>提供者不存在或未启用。</value></data>
+  <data name="SsoProviderNotFoundFormat" xml:space="preserve"><value>提供者 '{0}' 不存在或未启用。</value></data>
+  <data name="FlowDefinitionNotFoundShort" xml:space="preserve"><value>流程定义不存在。</value></data>
+  <data name="FlowVersionNotFoundShort" xml:space="preserve"><value>版本不存在。</value></data>
+  <data name="OpenBotNotFound" xml:space="preserve"><value>Bot 不存在。</value></data>
+  <data name="ExpressionRequired" xml:space="preserve"><value>表达式不能为空。</value></data>
+  <data name="SubscriptionPlanNotFound" xml:space="preserve"><value>套餐不存在。</value></data>
+  <data name="AiAppDetailNotFound" xml:space="preserve"><value>AI 应用不存在。</value></data>
+  <data name="AiPluginDetailNotFound" xml:space="preserve"><value>插件不存在。</value></data>
+  <data name="TenantDataSourceNotFound" xml:space="preserve"><value>数据源不存在。</value></data>
+  <data name="TenantContextMismatch" xml:space="preserve"><value>租户上下文不一致。</value></data>
+  <data name="ApprovalWritebackFailureNotFound" xml:space="preserve"><value>回写失败记录不存在。</value></data>
+  <data name="PluginPackageUploadRequired" xml:space="preserve"><value>请上传插件包文件。</value></data>
+  <data name="ModelConfigDtoNotFound" xml:space="preserve"><value>模型配置不存在。</value></data>
+  <data name="WorkflowV2ResumeInvalidState" xml:space="preserve"><value>仅失败、取消或中断状态允许恢复。</value></data>
+  <data name="PatMissingKnowledgeReadScope" xml:space="preserve"><value>PAT 缺少 open:knowledge:read 权限。</value></data>
+  <data name="PatMissingFilesWriteScope" xml:space="preserve"><value>PAT 缺少 open:files:write 权限。</value></data>
+  <data name="PatMissingFilesReadScope" xml:space="preserve"><value>PAT 缺少 open:files:read 权限。</value></data>
+  <data name="OpenFilesNoValidUpload" xml:space="preserve"><value>未收到有效文件。</value></data>
+  <data name="VisualizationProcessNotFoundFormat" xml:space="preserve"><value>流程不存在: {0}</value></data>
+  <data name="VisualizationInstanceNotFoundFormat" xml:space="preserve"><value>实例不存在: {0}</value></data>
+  <data name="PluginMetricsNotFoundFormat" xml:space="preserve"><value>插件 {0} 无指标记录</value></data>
+  <data name="FlowPublishValidationFailed" xml:space="preserve"><value>发布前校验不通过：{0}</value></data>
+  <data name="FlowCompareTargetVersionNotFound" xml:space="preserve"><value>目标版本不存在，无法对比。</value></data>
+  <data name="ApprovalFlowPublishSuccess" xml:space="preserve"><value>已发布</value></data>
+  <data name="ApprovalFlowDeleteSuccess" xml:space="preserve"><value>已删除</value></data>
+  <data name="ApprovalFlowDisableSuccess" xml:space="preserve"><value>已禁用</value></data>
+  <data name="ApprovalTaskDelegatedSuccess" xml:space="preserve"><value>已委派</value></data>
+  <data name="ApprovalTaskReturnedSuccess" xml:space="preserve"><value>已归还</value></data>
+  <data name="ApprovalTaskClaimedSuccess" xml:space="preserve"><value>已认领</value></data>
+  <data name="ApprovalTaskUrgedSuccess" xml:space="preserve"><value>已催办</value></data>
+  <data name="ApprovalTaskCommunicationSentSuccess" xml:space="preserve"><value>已发送沟通</value></data>
+  <data name="ApprovalTaskMarkedViewedSuccess" xml:space="preserve"><value>已标记已阅</value></data>
+  <data name="ApprovalTaskApprovedSuccess" xml:space="preserve"><value>已同意</value></data>
+  <data name="ApprovalTaskRejectedSuccess" xml:space="preserve"><value>已驳回</value></data>
+  <data name="ApprovalBatchTransferSuccess" xml:space="preserve"><value>已转办 {0} 个任务</value></data>
+  <data name="PatMissingBotsReadScope" xml:space="preserve"><value>PAT 缺少 open:bots:read 权限。</value></data>
+  <data name="AiResourceCopyTaskNotFound" xml:space="preserve"><value>资源复制任务不存在。</value></data>
+  <data name="AiDatabaseImportTaskNotFound" xml:space="preserve"><value>导入任务不存在。</value></data>
+  <data name="WorkflowVersionPairNotFound" xml:space="preserve"><value>版本 {0} 或 {1} 不存在。</value></data>
+  <data name="AiWorkflowNodeTypeDescLlm" xml:space="preserve"><value>调用大模型节点</value></data>
+  <data name="AiWorkflowNodeTypeDescPlugin" xml:space="preserve"><value>调用外部插件或 API</value></data>
+  <data name="AiWorkflowNodeTypeDescCodeRunner" xml:space="preserve"><value>运行代码/表达式</value></data>
+  <data name="AiWorkflowNodeTypeDescKnowledgeRetriever" xml:space="preserve"><value>检索知识库内容</value></data>
+  <data name="AiWorkflowNodeTypeDescTextProcessor" xml:space="preserve"><value>文本模板与处理</value></data>
+  <data name="AiWorkflowNodeTypeDescHttpRequester" xml:space="preserve"><value>发起 HTTP 请求</value></data>
+  <data name="AiWorkflowNodeTypeDescOutputEmitter" xml:space="preserve"><value>写出流程输出</value></data>
+  <data name="AuditActionApprovalTaskApprove" xml:space="preserve"><value>审批任务-同意</value></data>
+  <data name="AuditActionApprovalTaskReject" xml:space="preserve"><value>审批任务-驳回</value></data>
+  <data name="AuditOutcomeSuccess" xml:space="preserve"><value>成功</value></data>
+  <data name="AuditDetailTaskIdFormat" xml:space="preserve"><value>任务ID: {0}</value></data>
+  <data name="AuditActionApprovalAgentCreate" xml:space="preserve"><value>审批代理-创建</value></data>
+  <data name="AuditActionApprovalAgentDelete" xml:space="preserve"><value>审批代理-删除</value></data>
+  <data name="AuditDetailApprovalAgentConfigIdFormat" xml:space="preserve"><value>代理配置ID: {0}</value></data>
+  <data name="ApprovalAgentCreatedSuccess" xml:space="preserve"><value>已创建</value></data>
+  <data name="ToolAuditQueryPlaceholder" xml:space="preserve"><value>审计查询占位，后续接入审计聚合查询</value></data>
+  <data name="AppManifestImpactAnalysisPending" xml:space="preserve"><value>影响分析功能正在建设中，将在后续版本上线。</value></data>
+  <data name="AuditActionVisualizationSave" xml:space="preserve"><value>可视化流程-保存</value></data>
+  <data name="AuditActionVisualizationUpdate" xml:space="preserve"><value>可视化流程-更新</value></data>
+  <data name="AuditActionVisualizationPublish" xml:space="preserve"><value>可视化流程-发布</value></data>
+  <data name="AuditDetailVisualizationProcessIdFormat" xml:space="preserve"><value>流程ID: {0}</value></data>
+  <data name="UserNotSignedIn" xml:space="preserve"><value>未登录。</value></data>
 </root>

@@ -28,7 +28,7 @@ public sealed class SnowflakeIdGeneratorProvider : IIdGeneratorProvider
     {
         if (tenantId.IsEmpty)
         {
-            throw new BusinessException("缺少租户标识，无法生成ID。", ErrorCodes.ValidationError);
+            throw new BusinessException("SnowflakeTenantIdRequired", ErrorCodes.ValidationError);
         }
 
         var resolvedAppId = ResolveAppId(appId);
@@ -38,7 +38,7 @@ public sealed class SnowflakeIdGeneratorProvider : IIdGeneratorProvider
             if (_options.FallbackGeneratorId is null)
             {
                 throw new BusinessException(
-                    $"未配置租户({tenantId.Value:D})与应用({resolvedAppId})的GeneratorId。",
+                    $"Snowflake generator is not configured for tenant {tenantId.Value:D} and app {resolvedAppId}.",
                     ErrorCodes.ValidationError);
             }
 
@@ -91,7 +91,7 @@ public sealed class SnowflakeIdGeneratorProvider : IIdGeneratorProvider
         var resolved = string.IsNullOrWhiteSpace(appId) ? _options.DefaultAppId : appId.Trim();
         if (string.IsNullOrWhiteSpace(resolved))
         {
-            throw new BusinessException("缺少应用标识，无法生成ID。", ErrorCodes.ValidationError);
+            throw new BusinessException("SnowflakeAppIdRequired", ErrorCodes.ValidationError);
         }
 
         return resolved;

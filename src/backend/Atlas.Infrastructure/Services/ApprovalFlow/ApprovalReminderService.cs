@@ -45,7 +45,7 @@ public sealed class ApprovalReminderService : IApprovalReminderService
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null)
         {
-            throw new Core.Exceptions.BusinessException("INSTANCE_NOT_FOUND", "流程实例不存在");
+            throw new Core.Exceptions.BusinessException("INSTANCE_NOT_FOUND", "ApprovalInstanceNotFound");
         }
 
         // 如果指定了任务ID，验证任务是否存在
@@ -54,7 +54,7 @@ public sealed class ApprovalReminderService : IApprovalReminderService
             var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
             if (task == null || task.InstanceId != instanceId)
             {
-                throw new Core.Exceptions.BusinessException("TASK_NOT_FOUND", "任务不存在");
+                throw new Core.Exceptions.BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
             }
         }
 

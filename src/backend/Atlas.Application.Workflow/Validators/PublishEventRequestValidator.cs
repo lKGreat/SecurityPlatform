@@ -12,10 +12,10 @@ public class PublishEventRequestValidator : AbstractValidator<PublishEventReques
     {
         RuleFor(x => x.EventName)
             .NotEmpty()
-            .WithMessage("事件名称不能为空");
+            .WithMessage("Event name is required.");
 
         RuleFor(x => x.EventKey)
             .NotEmpty()
-            .WithMessage("事件键不能为空");
+            .WithMessage("Event key is required.");
     }
 }

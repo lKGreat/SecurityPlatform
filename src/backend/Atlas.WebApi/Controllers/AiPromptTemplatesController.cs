@@ -58,7 +58,7 @@ public sealed class AiPromptTemplatesController : ControllerBase
         var result = await _service.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<AiPromptTemplateDetail>.Fail(ErrorCodes.NotFound, "Prompt 模板不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AiPromptTemplateDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "PromptTemplateNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AiPromptTemplateDetail>.Ok(result, HttpContext.TraceIdentifier));

@@ -1,12 +1,12 @@
 <template>
   <div class="dd-toolbar">
     <a-button type="text" size="small" class="dd-toolbar__back" @click="emit('back')">
-      <LeftOutlined /> 返回
+      <LeftOutlined /> {{ t('approvalDesigner.toolbarBack') }}
     </a-button>
     <a-divider type="vertical" />
     <a-input
       :value="flowName"
-      placeholder="流程名称"
+      :placeholder="t('approvalDesigner.toolbarFlowNamePh')"
       :bordered="false"
       class="dd-toolbar__name"
       :maxlength="100"
@@ -22,31 +22,32 @@
         <a-button
           size="small"
           :type="paletteVisible ? 'primary' : 'default'"
-          title="节点面板"
+          :title="t('approvalDesigner.nodePaletteTitle')"
           @click="emit('update:paletteVisible', !paletteVisible)"
         >
           <AppstoreOutlined />
         </a-button>
         <a-divider type="vertical" />
-        <a-button size="small" title="缩小（Ctrl + -）" @click="emit('zoom-out')"><MinusOutlined /></a-button>
-        <a-button size="small" title="适应画布（Ctrl + 0）" @click="emit('zoom-fit')"><CompressOutlined /></a-button>
-        <a-button size="small" title="放大（Ctrl + +）" @click="emit('zoom-in')"><PlusOutlined /></a-button>
+        <a-button size="small" :title="t('approvalDesigner.zoomOutTitle')" @click="emit('zoom-out')"><MinusOutlined /></a-button>
+        <a-button size="small" :title="t('approvalDesigner.zoomFitTitle')" @click="emit('zoom-fit')"><CompressOutlined /></a-button>
+        <a-button size="small" :title="t('approvalDesigner.zoomInTitle')" @click="emit('zoom-in')"><PlusOutlined /></a-button>
         <a-divider type="vertical" />
         <a-button size="small" :disabled="!canUndo" @click="emit('undo')"><UndoOutlined /></a-button>
         <a-button size="small" :disabled="!canRedo" @click="emit('redo')"><RedoOutlined /></a-button>
         <a-divider type="vertical" />
-        <a-button size="small" :loading="validating" @click="emit('validate')"><CheckCircleOutlined /> 校验</a-button>
-        <a-button size="small" @click="emit('preview')"><EyeOutlined /> 预览</a-button>
+        <a-button size="small" :loading="validating" @click="emit('validate')"><CheckCircleOutlined /> {{ t('approvalDesigner.toolbarValidate') }}</a-button>
+        <a-button size="small" @click="emit('preview')"><EyeOutlined /> {{ t('approvalDesigner.toolbarPreview') }}</a-button>
       </template>
       <a-divider type="vertical" />
-      <a-button size="small" @click="emit('history')"><HistoryOutlined /> 历史</a-button>
-      <a-button size="small" @click="emit('save')">保存</a-button>
-      <a-button type="primary" size="small" @click="emit('publish')">发布</a-button>
+      <a-button size="small" @click="emit('history')"><HistoryOutlined /> {{ t('approvalDesigner.toolbarVersionHistory') }}</a-button>
+      <a-button size="small" @click="emit('save')">{{ t('approvalDesigner.toolbarSave') }}</a-button>
+      <a-button type="primary" size="small" @click="emit('publish')">{{ t('approvalDesigner.toolbarPublish') }}</a-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import {
   LeftOutlined,
   MinusOutlined,
@@ -59,6 +60,8 @@ import {
   AppstoreOutlined,
   HistoryOutlined,
 } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 
 defineProps<{
   flowName: string;
@@ -85,7 +88,7 @@ const emit = defineEmits<{
   save: [];
   publish: [];
   history: [];
-}>(); 
+}>();
 </script>
 
 <style scoped>

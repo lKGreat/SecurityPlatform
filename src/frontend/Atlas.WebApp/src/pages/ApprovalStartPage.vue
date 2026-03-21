@@ -1,40 +1,41 @@
 <template>
-  <a-card title="发起审批" class="page-card">
+  <a-card :title="t('approvalRuntime.startPageTitle')" class="page-card">
     <a-form layout="vertical">
-      <a-form-item label="选择流程" required>
+      <a-form-item :label="t('approvalRuntime.labelSelectFlow')" required>
         <a-select
           v-model:value="selectedDefinitionId"
           show-search
           :filter-option="false"
           :options="flowOptions"
           :loading="flowLoading"
-          placeholder="请选择已发布流程"
+          :placeholder="t('approvalRuntime.placeholderPublishedFlow')"
           @search="handleSearch"
         />
       </a-form-item>
 
-      <a-form-item label="业务标识（BusinessKey）" required>
-        <a-input v-model:value="businessKey" placeholder="例如：PROC-20260303-0001" />
+      <a-form-item :label="t('approvalRuntime.labelBusinessKey')" required>
+        <a-input v-model:value="businessKey" :placeholder="t('approvalRuntime.placeholderBusinessKeyExample')" />
       </a-form-item>
 
-      <a-form-item label="业务数据 JSON">
+      <a-form-item :label="t('approvalRuntime.labelBusinessJson')">
         <a-textarea
           v-model:value="dataJsonText"
           :rows="8"
-          placeholder='{"title":"采购申请","amount":1000}'
+          :placeholder="t('approvalRuntime.placeholderBusinessJson')"
         />
       </a-form-item>
     </a-form>
 
     <a-space>
-      <a-button @click="handleSaveDraft" :loading="submitting">保存草稿</a-button>
-      <a-button type="primary" @click="handleStart" :loading="submitting">提交发起</a-button>
+      <a-button @click="handleSaveDraft" :loading="submitting">{{ t('approvalRuntime.saveDraft') }}</a-button>
+      <a-button type="primary" @click="handleStart" :loading="submitting">{{ t('approvalRuntime.submitStart') }}</a-button>
     </a-space>
   </a-card>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -43,6 +44,8 @@ onUnmounted(() => { isMounted.value = false; });
 import { message } from 'ant-design-vue';
 import { getApprovalFlowsPaged, saveDraft, startApprovalInstance } from '@/services/api';
 import { ApprovalFlowStatus } from '@/types/api';
+
+const { t } = useI18n();
 
 const selectedDefinitionId = ref<string>();
 const businessKey = ref('');
@@ -68,7 +71,7 @@ const loadFlows = async (keyword?: string) => {
         value: item.id,
       }));
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '加载流程列表失败');
+    message.error(err instanceof Error ? err.message : t('approvalRuntime.loadFlowsFailed'));
   } finally {
     flowLoading.value = false;
   }
@@ -76,11 +79,11 @@ const loadFlows = async (keyword?: string) => {
 
 const validatePayload = () => {
   if (!selectedDefinitionId.value) {
-    message.warning('请选择流程定义');
+    message.warning(t('approvalRuntime.warnSelectDefinition'));
     return false;
   }
   if (!businessKey.value.trim()) {
-    message.warning('请输入业务标识');
+    message.warning(t('approvalRuntime.warnBusinessKey'));
     return false;
   }
   if (!dataJsonText.value.trim()) {
@@ -90,7 +93,7 @@ const validatePayload = () => {
     JSON.parse(dataJsonText.value);
     return true;
   } catch {
-    message.warning('业务数据 JSON 格式不正确');
+    message.warning(t('approvalRuntime.warnInvalidDataJson'));
     return false;
   }
 };
@@ -109,11 +112,11 @@ const handleStart = async () => {
     });
 
     if (!isMounted.value) return;
-    message.success('流程发起成功');
+    message.success(t('approvalRuntime.startSuccess'));
     businessKey.value = '';
     dataJsonText.value = '';
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '发起失败');
+    message.error(err instanceof Error ? err.message : t('approvalRuntime.startFailed'));
   } finally {
     submitting.value = false;
   }
@@ -133,9 +136,9 @@ const handleSaveDraft = async () => {
     });
 
     if (!isMounted.value) return;
-    message.success('草稿保存成功');
+    message.success(t('approvalRuntime.draftSaved'));
   } catch (err) {
-    message.error(err instanceof Error ? err.message : '保存草稿失败');
+    message.error(err instanceof Error ? err.message : t('approvalRuntime.draftSaveFailed'));
   } finally {
     submitting.value = false;
   }

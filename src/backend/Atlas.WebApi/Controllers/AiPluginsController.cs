@@ -72,7 +72,7 @@ public sealed class AiPluginsController : ControllerBase
         var result = await _service.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<AiPluginDetail>.Fail(ErrorCodes.NotFound, "插件不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AiPluginDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "AiPluginDetailNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AiPluginDetail>.Ok(result, HttpContext.TraceIdentifier));

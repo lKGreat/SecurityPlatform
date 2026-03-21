@@ -3,7 +3,7 @@
     v-model:value="internalValue"
     show-search
     :mode="multiple ? 'multiple' : undefined"
-    :placeholder="placeholder"
+    :placeholder="resolvedPlaceholder"
     :filter-option="false"
     :not-found-content="fetching ? undefined : null"
     :options="options"
@@ -26,7 +26,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -36,16 +37,20 @@ import { debounce } from 'lodash-es';
 import { getUsersPaged, getRolesPaged, getDepartmentsPaged } from '@/services/api';
 import type { UserListItem, RoleListItem, DepartmentListItem } from '@/types/api';
 
+const { t } = useI18n();
+
 const props = withDefaults(defineProps<{
   value?: string | string[];
-  mode?: 'user' | 'role' | 'department';
+  mode?: "user" | "role" | "department";
   multiple?: boolean;
   placeholder?: string;
 }>(), {
-  mode: 'user',
+  mode: "user",
   multiple: true,
-  placeholder: '请选择'
+  placeholder: undefined
 });
+
+const resolvedPlaceholder = computed(() => props.placeholder ?? t("commonUi.pleaseSelect"));
 
 const emit = defineEmits<{
   'update:value': [value: string | string[]];

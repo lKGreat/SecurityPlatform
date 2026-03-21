@@ -67,7 +67,7 @@ public sealed class FieldPermissionResolver : IFieldPermissionResolver
         }
         if (rules.Count == 0)
         {
-            throw new BusinessException(ErrorCodes.Forbidden, "当前角色无字段编辑权限。");
+            throw new BusinessException(ErrorCodes.Forbidden, "FieldNoEditPermission");
         }
 
         var editable = rules
@@ -80,7 +80,7 @@ public sealed class FieldPermissionResolver : IFieldPermissionResolver
             .ToArray();
         if (blocked.Length > 0)
         {
-            throw new BusinessException(ErrorCodes.Forbidden, $"字段无编辑权限：{string.Join(", ", blocked)}");
+            throw new BusinessException(ErrorCodes.Forbidden, $"Fields not editable: {string.Join(", ", blocked)}");
         }
     }
 

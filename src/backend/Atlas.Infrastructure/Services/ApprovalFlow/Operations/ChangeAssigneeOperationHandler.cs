@@ -42,23 +42,23 @@ public sealed class ChangeAssigneeOperationHandler : IApprovalOperationHandler
     {
         if (!taskId.HasValue)
         {
-            throw new BusinessException("TASK_ID_REQUIRED", "变更处理人操作需要指定任务ID");
+            throw new BusinessException("TASK_ID_REQUIRED", "ApprovalOpChangeAssigneeTaskIdRequired");
         }
 
         if (string.IsNullOrEmpty(request.TargetAssigneeValue))
         {
-            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "变更处理人操作需要指定目标处理人");
+            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "ApprovalOpChangeAssigneeTargetRequired");
         }
 
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
         if (task == null)
         {
-            throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+            throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         }
 
         if (task.Status != ApprovalTaskStatus.Pending)
         {
-            throw new BusinessException("TASK_NOT_PENDING", "只能变更待审批任务的处理人");
+            throw new BusinessException("TASK_NOT_PENDING", "ApprovalOpChangeAssigneePendingOnly");
         }
 
         // 记录变更

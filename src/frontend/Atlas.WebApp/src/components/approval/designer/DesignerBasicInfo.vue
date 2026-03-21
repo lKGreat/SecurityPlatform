@@ -1,56 +1,59 @@
 <template>
   <a-form layout="vertical" class="dd-basic-form">
-    <a-form-item label="流程名称">
-      <a-input v-model:value="flowNameModel" :maxlength="100" placeholder="请输入流程名称" />
+    <a-form-item :label="t('approvalDesigner.basicFlowName')">
+      <a-input v-model:value="flowNameModel" :maxlength="100" :placeholder="t('approvalDesigner.basicFlowNamePh')" />
     </a-form-item>
-    <a-form-item label="流程分类">
-      <a-input v-model:value="categoryModel" placeholder="如：采购/人事/财务" />
+    <a-form-item :label="t('approvalDesigner.basicCategory')">
+      <a-input v-model:value="categoryModel" :placeholder="t('approvalDesigner.basicCategoryPh')" />
     </a-form-item>
-    <a-form-item label="流程说明">
+    <a-form-item :label="t('approvalDesigner.basicDescription')">
       <a-textarea v-model:value="descriptionModel" :rows="3" />
     </a-form-item>
-    
-    <a-form-item label="可见范围">
+
+    <a-form-item :label="t('approvalDesigner.basicVisibility')">
       <a-radio-group v-model:value="visibilityScopeTypeModel" style="margin-bottom: 12px">
-        <a-radio value="All">全部可见</a-radio>
-        <a-radio value="Department">指定部门</a-radio>
-        <a-radio value="Role">指定角色</a-radio>
-        <a-radio value="User">指定人员</a-radio>
+        <a-radio value="All">{{ t('approvalDesigner.visAll') }}</a-radio>
+        <a-radio value="Department">{{ t('approvalDesigner.visDept') }}</a-radio>
+        <a-radio value="Role">{{ t('approvalDesigner.visRole') }}</a-radio>
+        <a-radio value="User">{{ t('approvalDesigner.visUser') }}</a-radio>
       </a-radio-group>
-      
+
       <div v-if="visibilityScopeTypeModel !== 'All'">
         <UserRolePicker
           v-if="visibilityScopeTypeModel === 'Department'"
           mode="department"
           v-model:value="visibilityScopeIdsModel"
-          placeholder="请选择部门"
+          :placeholder="t('approvalDesigner.phSelectDept')"
         />
         <UserRolePicker
           v-else-if="visibilityScopeTypeModel === 'Role'"
           mode="role"
           v-model:value="visibilityScopeIdsModel"
-          placeholder="请选择角色"
+          :placeholder="t('approvalDesigner.phSelectRole')"
         />
         <UserRolePicker
           v-else-if="visibilityScopeTypeModel === 'User'"
           mode="user"
           v-model:value="visibilityScopeIdsModel"
-          placeholder="请选择人员"
+          :placeholder="t('approvalDesigner.phSelectUser')"
         />
       </div>
     </a-form-item>
 
     <a-space>
-      <a-switch v-model:checked="quickEntryModel" /> <span>快捷入口</span>
-      <a-switch v-model:checked="lowCodeFlowModel" /> <span>启用低代码表单</span>
+      <a-switch v-model:checked="quickEntryModel" /> <span>{{ t('approvalDesigner.quickEntry') }}</span>
+      <a-switch v-model:checked="lowCodeFlowModel" /> <span>{{ t('approvalDesigner.lowCodeForm') }}</span>
     </a-space>
   </a-form>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import UserRolePicker from '@/components/common/UserRolePicker.vue';
 import type { ApprovalDefinitionMeta } from '@/types/approval-definition';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   flowName: string;
@@ -102,7 +105,7 @@ const visibilityScopeTypeModel = computed({
   get: () => props.visibilityScopeType,
   set: (val) => {
     emit('update:visibilityScopeType', val);
-    emit('update:visibilityScopeIds', []); // Reset ids when type changes
+    emit('update:visibilityScopeIds', []);
   }
 });
 

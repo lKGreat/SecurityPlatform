@@ -33,7 +33,7 @@ public sealed class ApiConnectorsController : ControllerBase
         var connector = await _service.GetByIdAsync(id, cancellationToken);
         if (connector is null)
         {
-            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", "连接器不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<object>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "ApiConnectorNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<object>.Ok(connector, HttpContext.TraceIdentifier));

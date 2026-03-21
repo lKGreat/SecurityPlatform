@@ -82,7 +82,7 @@ public sealed class FormDefinitionsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -104,7 +104,7 @@ public sealed class FormDefinitionsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -126,7 +126,7 @@ public sealed class FormDefinitionsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -146,7 +146,7 @@ public sealed class FormDefinitionsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -166,7 +166,7 @@ public sealed class FormDefinitionsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -186,7 +186,7 @@ public sealed class FormDefinitionsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -206,7 +206,7 @@ public sealed class FormDefinitionsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -256,7 +256,7 @@ public sealed class FormDefinitionsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var tenantId = _tenantProvider.GetTenantId();
@@ -273,7 +273,7 @@ public sealed class FormDefinitionsController : ControllerBase
     {
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
-            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
 
         var tenantId = _tenantProvider.GetTenantId();
         await _commandService.DeprecateAsync(tenantId, currentUser.UserId, id, cancellationToken);

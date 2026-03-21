@@ -86,13 +86,13 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         var existing = await _tableRepository.FindByKeyAsync(tenantId, request.TableKey, appId, cancellationToken);
         if (existing is not null)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "表标识已存在。");
+            throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableKeyExists");
         }
 
         var dbType = DynamicEnumMapper.ParseDbType(request.DbType);
         if (dbType != DynamicDbType.Sqlite)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "当前仅支持 SQLite 动态建表。");
+            throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableOnlySqlite");
         }
         var now = _timeProvider.GetUtcNow();
         var table = new DynamicTable(
@@ -131,7 +131,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
 
         if (!result.IsSuccess)
         {
-            throw result.ErrorException ?? new BusinessException(ErrorCodes.ServerError, "创建动态表失败。");
+            throw result.ErrorException ?? new BusinessException(ErrorCodes.ServerError, "DynamicTableCreateFailed");
         }
 
         return table.Id;
@@ -147,7 +147,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, _appContextAccessor.ResolveAppId(), cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFound");
         }
 
         var status = DynamicEnumMapper.ParseStatus(request.Status);
@@ -165,12 +165,12 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, _appContextAccessor.ResolveAppId(), cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFound");
         }
 
         if (table.DbType != DynamicDbType.Sqlite)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "当前仅支持 SQLite 动态表结构变更。");
+            throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableOnlySqliteAlter");
         }
 
         if (request.AddFields.Count == 0 && request.UpdateFields.Count == 0 && request.RemoveFields.Count == 0)
@@ -257,7 +257,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
 
         if (!result.IsSuccess)
         {
-            throw result.ErrorException ?? new BusinessException(ErrorCodes.ServerError, "动态表结构变更失败。");
+            throw result.ErrorException ?? new BusinessException(ErrorCodes.ServerError, "DynamicTableAlterFailed");
         }
     }
 
@@ -270,12 +270,12 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, _appContextAccessor.ResolveAppId(), cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFound");
         }
 
         if (table.DbType != DynamicDbType.Sqlite)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "当前仅支持 SQLite 动态表结构变更预览。");
+            throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableOnlySqlitePreview");
         }
 
         if (request.AddFields.Count == 0 && request.UpdateFields.Count == 0 && request.RemoveFields.Count == 0)
@@ -324,7 +324,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
 
         if (!result.IsSuccess)
         {
-            throw result.ErrorException ?? new BusinessException(ErrorCodes.ServerError, "删除动态表失败。");
+            throw result.ErrorException ?? new BusinessException(ErrorCodes.ServerError, "DynamicTableDeleteFailed");
         }
     }
 
@@ -338,7 +338,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, _appContextAccessor.ResolveAppId(), cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFound");
         }
 
         var relations = request.Relations ?? Array.Empty<DynamicRelationDefinition>();
@@ -354,7 +354,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         if (relatedTableMap.Count != relatedTableKeys.Length)
         {
             var missing = relatedTableKeys.Where(x => !relatedTableMap.ContainsKey(x)).ToArray();
-            throw new BusinessException(ErrorCodes.ValidationError, $"关联表不存在：{string.Join(", ", missing)}");
+            throw new BusinessException(ErrorCodes.ValidationError, $"Related tables not found: {string.Join(", ", missing)}");
         }
 
         var relatedTableIds = relatedTables.Select(x => x.Id).Distinct().ToArray();
@@ -370,7 +370,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         {
             if (!sourceFieldSet.Contains(relation.SourceField))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"源字段 {relation.SourceField} 不存在。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Source field {relation.SourceField} does not exist.");
             }
 
             var relatedTable = relatedTableMap[relation.RelatedTableKey];
@@ -380,7 +380,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             }
             if (!targetSet.Contains(relation.TargetField))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"关联字段 {relation.TargetField} 在表 {relation.RelatedTableKey} 中不存在。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Related field {relation.TargetField} does not exist in table {relation.RelatedTableKey}.");
             }
 
             relationEntities.Add(new DynamicRelation(
@@ -403,7 +403,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
 
         if (!tran.IsSuccess)
         {
-            throw tran.ErrorException ?? new BusinessException(ErrorCodes.ServerError, "更新动态表关系失败。");
+            throw tran.ErrorException ?? new BusinessException(ErrorCodes.ServerError, "DynamicTableRelationsUpdateFailed");
         }
     }
 
@@ -417,7 +417,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, _appContextAccessor.ResolveAppId(), cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFound");
         }
 
         var rules = request.Permissions ?? Array.Empty<DynamicFieldPermissionRule>();
@@ -431,7 +431,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             .ToArray();
         if (invalid.Length > 0)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, $"字段不存在：{string.Join(", ", invalid)}");
+            throw new BusinessException(ErrorCodes.ValidationError, $"Fields not found: {string.Join(", ", invalid)}");
         }
 
         var now = _timeProvider.GetUtcNow();
@@ -523,7 +523,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, _appContextAccessor.ResolveAppId(), cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFound");
         }
 
         var now = _timeProvider.GetUtcNow();
@@ -535,7 +535,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
             var hasField = fields.Any(f => f.Name.Equals(request.ApprovalStatusField, StringComparison.OrdinalIgnoreCase));
             if (!hasField)
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"状态字段 '{request.ApprovalStatusField}' 在动态表 '{tableKey}' 中不存在。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Approval status field '{request.ApprovalStatusField}' does not exist in table '{tableKey}'.");
             }
 
             table.BindApprovalFlow(request.ApprovalFlowDefinitionId.Value, request.ApprovalStatusField, userId, now);
@@ -557,18 +557,18 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
     {
         if (_approvalRuntimeService is null)
         {
-            throw new BusinessException(ErrorCodes.ServerError, "审批服务不可用。");
+            throw new BusinessException(ErrorCodes.ServerError, "DynamicTableApprovalServiceNotAvailable");
         }
 
         var table = await _tableRepository.FindByKeyAsync(tenantId, tableKey, _appContextAccessor.ResolveAppId(), cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFound");
         }
 
         if (!table.ApprovalFlowDefinitionId.HasValue || string.IsNullOrWhiteSpace(table.ApprovalStatusField))
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "该动态表未绑定审批流。");
+            throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableNotBoundApprovalFlow");
         }
 
         // 读取记录数据，构建 DataJson
@@ -576,7 +576,7 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         var record = await _recordRepository.GetByIdAsync(tenantId, table, fields, recordId, cancellationToken);
         if (record is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "记录不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicRecordNotFound");
         }
 
         // 将记录值转为 JSON 对象作为审批实例的 DataJson
@@ -704,29 +704,29 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         {
             if (string.IsNullOrWhiteSpace(field.Name) || !FieldNamePattern.IsMatch(field.Name) || ReservedNames.Contains(field.Name))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"字段名 '{field.Name}' 不合法。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Field name '{field.Name}' is invalid.");
             }
 
             if (existingNames.Contains(field.Name) || !requestNames.Add(field.Name))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{field.Name}' 已存在。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Field '{field.Name}' already exists.");
             }
 
             if (field.IsPrimaryKey || field.IsAutoIncrement)
             {
-                throw new BusinessException(ErrorCodes.ValidationError, "当前版本不支持在变更中新增主键或自增字段。");
+                throw new BusinessException(ErrorCodes.ValidationError, "DynamicTablePrimaryKeyNotSupported");
             }
 
             var fieldType = field.FieldType?.Trim();
             if (fieldType is null)
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{field.Name}' 类型不能为空。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Field '{field.Name}' type is required.");
             }
 
             if (fieldType.Equals("String", StringComparison.OrdinalIgnoreCase) &&
                 (field.Length is null || field.Length <= 0 || field.Length > 4000))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{field.Name}' 长度必须在 1-4000 之间。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Field '{field.Name}' length must be between 1 and 4000.");
             }
 
             if (fieldType.Equals("Decimal", StringComparison.OrdinalIgnoreCase))
@@ -735,13 +735,13 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
                     field.Scale is null || field.Scale < 0 || field.Scale > 18 ||
                     field.Scale > field.Precision)
                 {
-                    throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{field.Name}' 精度/小数位配置不合法。");
+                    throw new BusinessException(ErrorCodes.ValidationError, $"Field '{field.Name}' precision/scale configuration is invalid.");
                 }
             }
 
             if (!field.AllowNull && string.IsNullOrWhiteSpace(field.DefaultValue))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"新增非空字段 '{field.Name}' 必须提供默认值。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Non-nullable field '{field.Name}' must have a default value.");
             }
         }
     }
@@ -762,13 +762,13 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         {
             if (!map.TryGetValue(update.Name, out var field))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{update.Name}' 不存在。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Field '{update.Name}' does not exist.");
             }
 
             if (update.Length.HasValue || update.Precision.HasValue || update.Scale.HasValue ||
                 update.AllowNull.HasValue || update.IsUnique.HasValue || update.DefaultValue is not null)
             {
-                throw new BusinessException(ErrorCodes.ValidationError, "当前版本仅支持更新字段显示名和排序。");
+                throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableFieldUpdateLimitedFields");
             }
 
             var displayName = string.IsNullOrWhiteSpace(update.DisplayName) ? field.DisplayName : update.DisplayName;
@@ -808,13 +808,13 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         {
             if (!map.TryGetValue(update.Name, out var field))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{update.Name}' 不存在。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Field '{update.Name}' does not exist.");
             }
 
             if (update.Length.HasValue || update.Precision.HasValue || update.Scale.HasValue ||
                 update.AllowNull.HasValue || update.IsUnique.HasValue || update.DefaultValue is not null)
             {
-                throw new BusinessException(ErrorCodes.ValidationError, "当前版本仅支持更新字段显示名和排序。");
+                throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableFieldUpdateLimitedFields");
             }
 
             var displayName = string.IsNullOrWhiteSpace(update.DisplayName) ? field.DisplayName : update.DisplayName;
@@ -924,12 +924,12 @@ public sealed class DynamicTableCommandService : IDynamicTableCommandService
         {
             if (!existingMap.TryGetValue(fieldName, out var field))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{fieldName}' 不存在。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Field '{fieldName}' does not exist.");
             }
 
             if (field.IsPrimaryKey || field.IsAutoIncrement || ProtectedFieldNames.Contains(field.Name))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, $"字段 '{fieldName}' 不允许删除。");
+                throw new BusinessException(ErrorCodes.ValidationError, $"Field '{fieldName}' cannot be deleted.");
             }
 
             removed.Add(field);

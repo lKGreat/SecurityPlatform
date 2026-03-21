@@ -69,7 +69,7 @@ public sealed class SystemConfigsController : ControllerBase
         var result = await _queryService.GetByKeyAsync(tenantId, key, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<SystemConfigDto>.Fail(ErrorCodes.NotFound, "参数不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<SystemConfigDto>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "SystemConfigNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<SystemConfigDto>.Ok(result, HttpContext.TraceIdentifier));

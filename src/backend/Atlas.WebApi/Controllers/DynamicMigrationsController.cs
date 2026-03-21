@@ -4,6 +4,7 @@ using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Authorization;
+using Atlas.WebApi.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -67,7 +68,7 @@ public sealed class DynamicMigrationsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -100,7 +101,7 @@ public sealed class DynamicMigrationsController : ControllerBase
         {
             return Unauthorized(ApiResponse<MigrationExecutionResult>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 

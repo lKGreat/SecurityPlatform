@@ -52,13 +52,13 @@ public sealed class BackToAnyNodeOperationHandler : IApprovalOperationHandler
     {
         if (string.IsNullOrEmpty(request.TargetNodeId))
         {
-            throw new BusinessException("TARGET_NODE_REQUIRED", "退回任意节点操作需要指定目标节点ID");
+            throw new BusinessException("TARGET_NODE_REQUIRED", "ApprovalOpBackAnyNodeTargetRequired");
         }
 
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null || instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         ApprovalTask? task = null;
@@ -67,17 +67,17 @@ public sealed class BackToAnyNodeOperationHandler : IApprovalOperationHandler
             task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
             if (task == null)
             {
-                throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+                throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
             }
 
             if (task.InstanceId != instanceId)
             {
-                throw new BusinessException("TASK_INSTANCE_MISMATCH", "任务不属于指定的流程实例");
+                throw new BusinessException("TASK_INSTANCE_MISMATCH", "ApprovalOpTaskInstanceMismatch");
             }
 
             if (task.Status != ApprovalTaskStatus.Pending)
             {
-                throw new BusinessException("TASK_NOT_PENDING", "只能基于待审批任务执行退回任意节点");
+                throw new BusinessException("TASK_NOT_PENDING", "ApprovalOpBackAnyNodePendingOnly");
             }
         }
 
@@ -88,20 +88,20 @@ public sealed class BackToAnyNodeOperationHandler : IApprovalOperationHandler
             && task.AssigneeValue == operatorUserId.ToString();
         if (!isInitiator && !isCurrentAssignee)
         {
-            throw new BusinessException("FORBIDDEN", "只有发起人或当前处理人可以执行退回操作");
+            throw new BusinessException("FORBIDDEN", "ApprovalOpBackAnyNodeForbidden");
         }
 
         var flowDef = await _flowRepository.GetByIdAsync(tenantId, instance.DefinitionId, cancellationToken);
         if (flowDef == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "流程定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "ApprovalFlowDefNotFoundShort");
         }
 
         var flowDefinition = FlowDefinitionParser.Parse(flowDef.DefinitionJson);
         var targetNode = flowDefinition.GetNodeById(request.TargetNodeId);
         if (targetNode == null)
         {
-            throw new BusinessException("NODE_NOT_FOUND", "目标节点不存在");
+            throw new BusinessException("NODE_NOT_FOUND", "ApprovalOpTargetNodeNotFound");
         }
 
         // 取消所有活跃任务（含 Pending 和 Waiting，修复顺签模式下遗漏 Waiting 任务的 bug）
@@ -195,7 +195,7 @@ public sealed class BackToAnyNodeOperationHandler : IApprovalOperationHandler
             switch (missingAssigneeStrategy)
             {
                 case MissingAssigneeStrategy.NotAllowed:
-                    throw new BusinessException("MISSING_ASSIGNEE", $"节点 {nodeId} 无法找到审批人，不允许发起流程");
+                    throw new BusinessException("MISSING_ASSIGNEE", $"No assignee found for node {nodeId}; cannot start the process.");
 
                 case MissingAssigneeStrategy.Skip:
                     return tasks;

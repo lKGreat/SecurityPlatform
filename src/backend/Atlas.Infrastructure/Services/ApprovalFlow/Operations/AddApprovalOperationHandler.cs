@@ -49,19 +49,19 @@ public sealed class AddApprovalOperationHandler : IApprovalOperationHandler
     {
         if (string.IsNullOrEmpty(request.TargetAssigneeValue))
         {
-            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "加批操作需要指定审批人");
+            throw new BusinessException("TARGET_ASSIGNEE_REQUIRED", "ApprovalOpAssigneeRequired");
         }
 
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null || instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         var flowDef = await _flowRepository.GetByIdAsync(tenantId, instance.DefinitionId, cancellationToken);
         if (flowDef == null)
         {
-            throw new BusinessException("FLOW_NOT_FOUND", "流程定义不存在");
+            throw new BusinessException("FLOW_NOT_FOUND", "ApprovalFlowDefNotFoundShort");
         }
 
         // 加批操作：在当前节点后动态添加一个新的审批节点

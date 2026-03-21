@@ -43,34 +43,34 @@ public sealed class BackToModifyOperationHandler : IApprovalOperationHandler
     {
         if (!taskId.HasValue)
         {
-            throw new BusinessException("TASK_ID_REQUIRED", "打回修改操作需要指定任务ID");
+            throw new BusinessException("TASK_ID_REQUIRED", "ApprovalOpTaskIdRequired");
         }
 
         var task = await _taskRepository.GetByIdAsync(tenantId, taskId.Value, cancellationToken);
         if (task == null)
         {
-            throw new BusinessException("TASK_NOT_FOUND", "审批任务不存在");
+            throw new BusinessException("TASK_NOT_FOUND", "ApprovalTaskNotFound");
         }
 
         if (task.InstanceId != instanceId)
         {
-            throw new BusinessException("TASK_INSTANCE_MISMATCH", "任务不属于指定的流程实例");
+            throw new BusinessException("TASK_INSTANCE_MISMATCH", "ApprovalOpTaskInstanceMismatch");
         }
 
         if (task.Status != ApprovalTaskStatus.Pending)
         {
-            throw new BusinessException("TASK_NOT_PENDING", "只能打回待审批的任务");
+            throw new BusinessException("TASK_NOT_PENDING", "ApprovalOpOnlyPendingTask");
         }
 
         if (task.AssigneeType != AssigneeType.User || task.AssigneeValue != operatorUserId.ToString())
         {
-            throw new BusinessException("FORBIDDEN", "只有当前处理人可以执行打回修改操作");
+            throw new BusinessException("FORBIDDEN", "ApprovalOpOnlyCurrentHandler");
         }
 
         var instance = await _instanceRepository.GetByIdAsync(tenantId, instanceId, cancellationToken);
         if (instance == null || instance.Status != ApprovalInstanceStatus.Running)
         {
-            throw new BusinessException("INSTANCE_NOT_RUNNING", "流程实例不在运行状态");
+            throw new BusinessException("INSTANCE_NOT_RUNNING", "ApprovalInstanceNotRunning");
         }
 
         // 标记任务为驳回

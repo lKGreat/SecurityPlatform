@@ -4,6 +4,7 @@ using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.WebApi.Authorization;
+using Atlas.WebApi.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -61,7 +62,7 @@ public sealed class AiAppsController : ControllerBase
         var result = await _service.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<AiAppDetail>.Fail(ErrorCodes.NotFound, "AI 应用不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AiAppDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "AiAppDetailNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AiAppDetail>.Ok(result, HttpContext.TraceIdentifier));
@@ -151,7 +152,7 @@ public sealed class AiAppsController : ControllerBase
         {
             return NotFound(ApiResponse<AiAppResourceCopyTaskProgress>.Fail(
                 ErrorCodes.NotFound,
-                "资源复制任务不存在",
+                ApiResponseLocalizer.T(HttpContext, "AiResourceCopyTaskNotFound"),
                 HttpContext.TraceIdentifier));
         }
 

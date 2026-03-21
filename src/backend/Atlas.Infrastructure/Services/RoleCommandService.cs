@@ -69,7 +69,7 @@ public sealed class RoleCommandService : IRoleCommandService
         var existing = await _roleRepository.FindByCodeAsync(tenantId, request.Code, cancellationToken);
         if (existing is not null)
         {
-            throw new BusinessException("Role code already exists.", ErrorCodes.ValidationError);
+            throw new BusinessException("RoleCodeExists", ErrorCodes.ValidationError);
         }
 
         var role = new Role(tenantId, request.Name, request.Code, id);
@@ -92,7 +92,7 @@ public sealed class RoleCommandService : IRoleCommandService
         var role = await _roleRepository.FindByIdAsync(tenantId, roleId, cancellationToken);
         if (role is null)
         {
-            throw new BusinessException("Role not found.", ErrorCodes.NotFound);
+            throw new BusinessException("RoleNotFound", ErrorCodes.NotFound);
         }
 
         role.Update(request.Name, request.Description);
@@ -167,18 +167,18 @@ public sealed class RoleCommandService : IRoleCommandService
         var role = await _roleRepository.FindByIdAsync(tenantId, roleId, cancellationToken);
         if (role is null)
         {
-            throw new BusinessException("Role not found.", ErrorCodes.NotFound);
+            throw new BusinessException("RoleNotFound", ErrorCodes.NotFound);
         }
 
         if (role.IsSystem)
         {
-            throw new BusinessException("System role cannot be deleted.", ErrorCodes.Forbidden);
+            throw new BusinessException("SystemRoleCannotDelete", ErrorCodes.Forbidden);
         }
 
         var userIds = await _userRoleRepository.QueryUserIdsByRoleIdAsync(tenantId, roleId, cancellationToken);
         if (userIds.Count > 0)
         {
-            throw new BusinessException("Role has assigned users, please unbind users before deleting.", ErrorCodes.ValidationError);
+            throw new BusinessException("RoleHasUsers", ErrorCodes.ValidationError);
         }
 
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
@@ -202,7 +202,7 @@ public sealed class RoleCommandService : IRoleCommandService
         var role = await _roleRepository.FindByIdAsync(tenantId, roleId, cancellationToken);
         if (role is null)
         {
-            throw new BusinessException("Role not found.", ErrorCodes.NotFound);
+            throw new BusinessException("RoleNotFound", ErrorCodes.NotFound);
         }
 
         var distinctDeptIds = deptIds?.Distinct().ToArray() ?? Array.Empty<long>();
@@ -210,13 +210,13 @@ public sealed class RoleCommandService : IRoleCommandService
         {
             if (distinctDeptIds.Length == 0)
             {
-                throw new BusinessException("Custom department data scope requires at least one department.", ErrorCodes.ValidationError);
+                throw new BusinessException("DataScopeDeptRequired", ErrorCodes.ValidationError);
             }
 
             var depts = await _departmentRepository.QueryByIdsAsync(tenantId, distinctDeptIds, cancellationToken);
             if (depts.Count != distinctDeptIds.Length)
             {
-                throw new BusinessException("Department not found.", ErrorCodes.ValidationError);
+                throw new BusinessException("DeptNotFound", ErrorCodes.ValidationError);
             }
         }
 
@@ -249,7 +249,7 @@ public sealed class RoleCommandService : IRoleCommandService
         var role = await _roleRepository.FindByIdAsync(tenantId, roleId, cancellationToken);
         if (role is null)
         {
-            throw new BusinessException("Role not found.", ErrorCodes.NotFound);
+            throw new BusinessException("RoleNotFound", ErrorCodes.NotFound);
         }
     }
 
@@ -264,10 +264,11 @@ public sealed class RoleCommandService : IRoleCommandService
         }
 
         var distinctIds = permissionIds.Distinct().ToArray();
-        var permissions = await _permissionRepository.QueryByIdsAsync(tenantId, distinctIds, cancellationToken);
+        // 仅校验平台级权限（AppId IS NULL），防止平台角色绑定应用级权限导致跨级提权
+        var permissions = await _permissionRepository.QueryByIdsPlatformOnlyAsync(tenantId, distinctIds, cancellationToken);
         if (permissions.Count != distinctIds.Length)
         {
-            throw new BusinessException("Permission not found.", ErrorCodes.ValidationError);
+            throw new BusinessException("PermissionNotFoundPlatform", ErrorCodes.ValidationError);
         }
     }
 
@@ -285,7 +286,7 @@ public sealed class RoleCommandService : IRoleCommandService
         var menus = await _menuRepository.QueryByIdsAsync(tenantId, distinctIds, cancellationToken);
         if (menus.Count != distinctIds.Length)
         {
-            throw new BusinessException("Menu not found.", ErrorCodes.ValidationError);
+            throw new BusinessException("MenuNotFound", ErrorCodes.ValidationError);
         }
     }
 

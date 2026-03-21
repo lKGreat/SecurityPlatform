@@ -8,6 +8,7 @@ using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.Approval.Enums;
 using Atlas.WebApi.Authorization;
+using Atlas.WebApi.Helpers;
 using FluentValidation;
 
 namespace Atlas.WebApi.Controllers;
@@ -77,7 +78,7 @@ public sealed class ApprovalFlowsController : ControllerBase
         {
             return ApiResponse<ApprovalFlowDefinitionResponse>.Fail(
                 "NOT_FOUND",
-                "流程定义不存在",
+                ApiResponseLocalizer.T(HttpContext, "FlowDefinitionNotFoundShort"),
                 HttpContext.TraceIdentifier);
         }
 
@@ -226,7 +227,7 @@ public sealed class ApprovalFlowsController : ControllerBase
         var definition = await _queryService.GetByIdAsync(currentUser.TenantId, id, cancellationToken);
         if (definition == null)
         {
-            return ApiResponse<string>.Fail("NOT_FOUND", "流程定义不存在", HttpContext.TraceIdentifier);
+            return ApiResponse<string>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "FlowDefinitionNotFoundShort"), HttpContext.TraceIdentifier);
         }
 
         var semanticIssues = _semanticValidator.Validate(definition.DefinitionJson);
@@ -238,7 +239,7 @@ public sealed class ApprovalFlowsController : ControllerBase
             var summary = string.Join("；", blockingIssues.Take(3).Select(issue => issue.Message));
             return ApiResponse<string>.Fail(
                 "VALIDATION_ERROR",
-                $"发布前校验不通过：{summary}",
+                ApiResponseLocalizer.T(HttpContext, "FlowPublishValidationFailed", summary),
                 HttpContext.TraceIdentifier);
         }
 
@@ -247,7 +248,7 @@ public sealed class ApprovalFlowsController : ControllerBase
             id,
             currentUser.UserId,
             cancellationToken);
-        return ApiResponse<string>.Ok("已发布", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalFlowPublishSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -261,7 +262,7 @@ public sealed class ApprovalFlowsController : ControllerBase
     {
         var tenantId = _tenantProvider.GetTenantId();
         await _commandService.DeleteAsync(tenantId, id, cancellationToken);
-        return ApiResponse<string>.Ok("已删除", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalFlowDeleteSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -275,7 +276,7 @@ public sealed class ApprovalFlowsController : ControllerBase
     {
         var tenantId = _tenantProvider.GetTenantId();
         await _commandService.DisableAsync(tenantId, id, cancellationToken);
-        return ApiResponse<string>.Ok("已禁用", HttpContext.TraceIdentifier);
+        return ApiResponse<string>.Ok(ApiResponseLocalizer.T(HttpContext, "ApprovalFlowDisableSuccess"), HttpContext.TraceIdentifier);
     }
 
     /// <summary>
@@ -293,7 +294,7 @@ public sealed class ApprovalFlowsController : ControllerBase
         {
             return ApiResponse<ApprovalFlowExportResponse>.Fail(
                 "NOT_FOUND",
-                "流程定义不存在",
+                ApiResponseLocalizer.T(HttpContext, "FlowDefinitionNotFoundShort"),
                 HttpContext.TraceIdentifier);
         }
 
@@ -316,7 +317,7 @@ public sealed class ApprovalFlowsController : ControllerBase
         {
             return ApiResponse<ApprovalFlowCompareResponse>.Fail(
                 "NOT_FOUND",
-                "目标版本不存在，无法对比",
+                ApiResponseLocalizer.T(HttpContext, "FlowCompareTargetVersionNotFound"),
                 HttpContext.TraceIdentifier);
         }
 
@@ -351,7 +352,7 @@ public sealed class ApprovalFlowsController : ControllerBase
         var version = await _queryService.GetVersionByIdAsync(tenantId, versionId, cancellationToken);
         if (version is null)
         {
-            return ApiResponse<ApprovalFlowVersionDetail>.Fail("NOT_FOUND", "版本不存在", HttpContext.TraceIdentifier);
+            return ApiResponse<ApprovalFlowVersionDetail>.Fail("NOT_FOUND", ApiResponseLocalizer.T(HttpContext, "FlowVersionNotFoundShort"), HttpContext.TraceIdentifier);
         }
 
         return ApiResponse<ApprovalFlowVersionDetail>.Ok(version, HttpContext.TraceIdentifier);
@@ -371,7 +372,7 @@ public sealed class ApprovalFlowsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier);
+            return ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier);
         }
 
         await _commandService.RollbackToVersionAsync(tenantId, id, versionId, currentUser.UserId, cancellationToken);
@@ -389,7 +390,7 @@ public sealed class ApprovalFlowsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier);
+            return ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier);
         }
 
         await _commandService.DeprecateAsync(tenantId, id, currentUser.UserId, cancellationToken);

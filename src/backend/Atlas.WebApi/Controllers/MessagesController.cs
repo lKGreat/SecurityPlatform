@@ -55,7 +55,7 @@ public sealed class MessagesController : ControllerBase
         [FromBody] MessageTemplateCreateRequest request, CancellationToken cancellationToken)
     {
         var currentUser = _currentUserAccessor.GetCurrentUser();
-        if (currentUser is null) return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+        if (currentUser is null) return Unauthorized(ApiResponse<object>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         var tenantId = _tenantProvider.GetTenantId();
         var id = await _messageService.CreateTemplateAsync(tenantId, currentUser.UserId, request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { Id = id.ToString() }, HttpContext.TraceIdentifier));

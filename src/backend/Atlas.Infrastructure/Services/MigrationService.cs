@@ -138,7 +138,7 @@ public sealed class MigrationService : IMigrationService
             cancellationToken);
         if (existed is not null)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "同一表的迁移版本已存在。");
+            throw new BusinessException(ErrorCodes.ValidationError, "DynamicTableMigrationVersionExists");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -166,7 +166,7 @@ public sealed class MigrationService : IMigrationService
         var table = await _dynamicTableRepository.FindByKeyAsync(tenantId, tableKey, null, cancellationToken);
         if (table is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "动态表不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "DynamicTableNotFoundForMigration");
         }
 
         var fields = await _dynamicFieldRepository.ListByTableIdAsync(tenantId, table.Id, cancellationToken);
@@ -261,12 +261,12 @@ public sealed class MigrationService : IMigrationService
         var migration = await _migrationRecordRepository.FindByIdAsync(tenantId, migrationId, cancellationToken);
         if (migration is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "迁移记录不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "MigrationRecordNotFound");
         }
 
         if (migration.IsDestructive && !confirmDestructive)
         {
-            throw new BusinessException(ErrorCodes.ValidationError, "该迁移包含破坏性变更，请先通过预检查并确认执行。");
+            throw new BusinessException(ErrorCodes.ValidationError, "MigrationDestructiveNotConfirmed");
         }
 
         var table = await _dynamicTableRepository.FindByKeyAsync(tenantId, migration.TableKey, null, cancellationToken);
@@ -287,17 +287,17 @@ public sealed class MigrationService : IMigrationService
             migration = await _migrationRecordRepository.FindByIdAsync(tenantId, migrationId, cancellationToken);
             if (migration is null)
             {
-                throw new BusinessException(ErrorCodes.NotFound, "迁移记录不存在。");
+                throw new BusinessException(ErrorCodes.NotFound, "MigrationRecordNotFound");
             }
 
             // 在临界区内检查状态，防止竞态条件
             if (string.Equals(migration.Status, "Succeeded", StringComparison.OrdinalIgnoreCase))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, "迁移已成功执行，不可重复执行。");
+                throw new BusinessException(ErrorCodes.ValidationError, "MigrationAlreadySucceeded");
             }
             if (string.Equals(migration.Status, "Executing", StringComparison.OrdinalIgnoreCase))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, "迁移正在执行中，请稍后重试。");
+                throw new BusinessException(ErrorCodes.ValidationError, "MigrationInProgress");
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -339,7 +339,7 @@ public sealed class MigrationService : IMigrationService
         var migration = await _migrationRecordRepository.FindByIdAsync(tenantId, migrationId, cancellationToken);
         if (migration is null)
         {
-            throw new BusinessException(ErrorCodes.NotFound, "迁移记录不存在。");
+            throw new BusinessException(ErrorCodes.NotFound, "MigrationRecordNotFound");
         }
 
         var checks = new List<string>
@@ -419,7 +419,7 @@ public sealed class MigrationService : IMigrationService
             var tableName = match.Groups["table"].Value;
             if (table is not null && !string.Equals(table.TableKey, tableName, StringComparison.OrdinalIgnoreCase))
             {
-                throw new BusinessException(ErrorCodes.ValidationError, "迁移脚本表名与目标动态表不一致。");
+                throw new BusinessException(ErrorCodes.ValidationError, "MigrationTableKeyMismatch");
             }
 
             var columnName = match.Groups["column"].Value;

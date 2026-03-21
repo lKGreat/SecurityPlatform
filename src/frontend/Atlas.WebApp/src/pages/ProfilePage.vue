@@ -1,25 +1,25 @@
 <template>
   <div class="profile-page">
-    <a-card title="个人中心" :bordered="false">
+    <a-card :title="t('profile.pageTitle')" :bordered="false">
       <a-row :gutter="[16, 16]">
         <a-col :xs="24" :lg="12">
           <a-descriptions bordered size="small" :column="1">
-            <a-descriptions-item label="用户名">
+            <a-descriptions-item :label="t('profile.username')">
               {{ profile?.username || "-" }}
             </a-descriptions-item>
-            <a-descriptions-item label="显示名称">
+            <a-descriptions-item :label="t('profile.displayName')">
               {{ profile?.displayName || "-" }}
             </a-descriptions-item>
-            <a-descriptions-item label="租户ID">
+            <a-descriptions-item :label="t('profile.tenantId')">
               {{ profile?.tenantId || "-" }}
             </a-descriptions-item>
-            <a-descriptions-item label="角色">
+            <a-descriptions-item :label="t('profile.roles')">
               <a-space wrap>
                 <a-tag v-for="role in profile?.roles ?? []" :key="role">{{ role }}</a-tag>
                 <span v-if="(profile?.roles?.length ?? 0) === 0">-</span>
               </a-space>
             </a-descriptions-item>
-            <a-descriptions-item label="登录端">
+            <a-descriptions-item :label="t('profile.loginClient')">
               {{ clientContextLabel }}
             </a-descriptions-item>
           </a-descriptions>
@@ -27,79 +27,79 @@
 
         <a-col :xs="24" :lg="12">
           <a-form :model="formModel" :rules="rules" layout="vertical">
-            <a-form-item label="显示名称" name="displayName">
-              <a-input v-model:value="formModel.displayName" placeholder="请输入显示名称" />
+            <a-form-item :label="t('profile.labelDisplayName')" name="displayName">
+              <a-input v-model:value="formModel.displayName" :placeholder="t('profile.placeholderDisplayName')" />
             </a-form-item>
-            <a-form-item label="邮箱" name="email">
-              <a-input v-model:value="formModel.email" placeholder="请输入邮箱" />
+            <a-form-item :label="t('profile.labelEmail')" name="email">
+              <a-input v-model:value="formModel.email" :placeholder="t('profile.placeholderEmail')" />
             </a-form-item>
-            <a-form-item label="手机号" name="phoneNumber">
-              <a-input v-model:value="formModel.phoneNumber" placeholder="请输入手机号" />
+            <a-form-item :label="t('profile.labelPhone')" name="phoneNumber">
+              <a-input v-model:value="formModel.phoneNumber" :placeholder="t('profile.placeholderPhone')" />
             </a-form-item>
             <a-space>
-              <a-button type="primary" :loading="saving" @click="submit">保存</a-button>
-              <a-button :disabled="saving" @click="resetForm">重置</a-button>
+              <a-button type="primary" :loading="saving" @click="submit">{{ t("profile.save") }}</a-button>
+              <a-button :disabled="saving" @click="resetForm">{{ t("profile.reset") }}</a-button>
             </a-space>
           </a-form>
         </a-col>
       </a-row>
     </a-card>
 
-    <a-card title="修改密码" :bordered="false" class="password-card">
+    <a-card :title="t('profile.passwordCardTitle')" :bordered="false" class="password-card">
       <a-form ref="passwordFormRef" :model="passwordModel" :rules="passwordRules" layout="vertical">
         <a-row :gutter="[16, 0]">
           <a-col :xs="24" :md="12">
-            <a-form-item label="当前密码" name="currentPassword">
-              <a-input-password v-model:value="passwordModel.currentPassword" placeholder="请输入当前密码" />
+            <a-form-item :label="t('profile.currentPassword')" name="currentPassword">
+              <a-input-password v-model:value="passwordModel.currentPassword" :placeholder="t('profile.placeholderCurrentPassword')" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :md="12">
-            <a-form-item label="新密码" name="newPassword">
-              <a-input-password v-model:value="passwordModel.newPassword" placeholder="请输入新密码" />
+            <a-form-item :label="t('profile.newPassword')" name="newPassword">
+              <a-input-password v-model:value="passwordModel.newPassword" :placeholder="t('profile.placeholderNewPassword')" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :md="12">
-            <a-form-item label="确认新密码" name="confirmPassword">
-              <a-input-password v-model:value="passwordModel.confirmPassword" placeholder="请再次输入新密码" />
+            <a-form-item :label="t('profile.confirmPassword')" name="confirmPassword">
+              <a-input-password v-model:value="passwordModel.confirmPassword" :placeholder="t('profile.placeholderConfirmPassword')" />
             </a-form-item>
           </a-col>
         </a-row>
         <a-space>
-          <a-button type="primary" :loading="changing" @click="submitPassword">更新密码</a-button>
-          <a-button :disabled="changing" @click="resetPasswordForm">重置</a-button>
+          <a-button type="primary" :loading="changing" @click="submitPassword">{{ t("profile.updatePassword") }}</a-button>
+          <a-button :disabled="changing" @click="resetPasswordForm">{{ t("profile.resetPassword") }}</a-button>
         </a-space>
       </a-form>
     </a-card>
 
-    <a-card title="两步验证 (MFA) 设置" :bordered="false" class="mfa-card">
-      <div v-if="mfaStatusLoading">加载中...</div>
+    <a-card :title="t('profile.mfaCardTitle')" :bordered="false" class="mfa-card">
+      <div v-if="mfaStatusLoading">{{ t("profile.mfaLoading") }}</div>
       <div v-else>
         <template v-if="mfaEnabled">
-          <a-alert type="success" message="已启用" description="您的账户当前受到两步验证保护。" show-icon style="margin-bottom: 16px" />
+          <a-alert type="success" :message="t('profile.mfaEnabledTitle')" :description="t('profile.mfaEnabledDesc')" show-icon style="margin-bottom: 16px" />
           <a-form layout="inline">
-            <a-form-item label="动态验证码">
-              <a-input v-model:value="mfaCodeInput" placeholder="请输入您的 TOTP 码" />
+            <a-form-item :label="t('profile.mfaTotpCode')">
+              <a-input v-model:value="mfaCodeInput" :placeholder="t('profile.placeholderTotp')" />
             </a-form-item>
             <a-form-item>
-              <a-button danger :loading="disablingMfa" @click="handleDisableMfa">禁用 MFA</a-button>
+              <a-button danger :loading="disablingMfa" @click="handleDisableMfa">{{ t("profile.disableMfa") }}</a-button>
             </a-form-item>
           </a-form>
         </template>
         <template v-else>
-          <a-alert type="warning" message="未启用" description="启用两步验证可大幅提升账户安全性。" show-icon style="margin-bottom: 16px" />
-          <a-button type="primary" :loading="settingMfa" @click="handleSetupMfa">配置两步验证</a-button>
+          <a-alert type="warning" :message="t('profile.mfaDisabledTitle')" :description="t('profile.mfaDisabledDesc')" show-icon style="margin-bottom: 16px" />
+          <a-button type="primary" :loading="settingMfa" @click="handleSetupMfa">{{ t("profile.setupMfa") }}</a-button>
 
           <div v-if="mfaSetupContext" class="mfa-setup-area">
             <a-divider />
-            <h3>请使用 Authenticator App 扫描下方二维码</h3>
+            <h3>{{ t("profile.mfaScanTitle") }}</h3>
             <a-qrcode :value="mfaSetupContext.provisioningUri" :size="200" />
-            <p>或者手动输入密钥：<a-typography-text copyable>{{ mfaSetupContext.secretKey }}</a-typography-text></p>
+            <p>{{ t("profile.mfaSecretHint") }}<a-typography-text copyable>{{ mfaSetupContext.secretKey }}</a-typography-text></p>
             <a-form layout="inline" style="margin-top: 16px">
-              <a-form-item label="6 位验证码">
-                <a-input v-model:value="mfaCodeInput" placeholder="请输入验证码完成绑定" />
+              <a-form-item :label="t('profile.mfa6DigitCode')">
+                <a-input v-model:value="mfaCodeInput" :placeholder="t('profile.placeholderBindCode')" />
               </a-form-item>
               <a-form-item>
-                <a-button type="primary" :loading="verifyingMfa" @click="handleVerifyMfa">验证并启用</a-button>
+                <a-button type="primary" :loading="verifyingMfa" @click="handleVerifyMfa">{{ t("profile.verifyAndEnable") }}</a-button>
               </a-form-item>
             </a-form>
           </div>
@@ -111,6 +111,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -118,11 +119,11 @@ onUnmounted(() => { isMounted.value = false; });
 
 import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
-import { 
-  changePassword, 
-  getCurrentUser, 
-  getProfileDetail, 
-  logout as apiLogout, 
+import {
+  changePassword,
+  getCurrentUser,
+  getProfileDetail,
+  logout as apiLogout,
   updateProfile,
   getMfaStatus,
   setupMfa,
@@ -132,6 +133,8 @@ import {
 } from "@/services/api";
 import type { AuthProfile, ChangePasswordRequest, UserProfileDetail, UserProfileUpdateRequest } from "@/types/api";
 import { clearAuthStorage, getAuthProfile, setAuthProfile } from "@/utils/auth";
+
+const { t } = useI18n();
 
 const profile = ref<AuthProfile | null>(null);
 const userDetail = ref<UserProfileDetail | null>(null);
@@ -146,9 +149,9 @@ const formModel = reactive<UserProfileUpdateRequest>({
   phoneNumber: ""
 });
 
-const rules = {
-  displayName: [{ required: true, message: "请输入显示名称" }]
-};
+const rules = computed(() => ({
+  displayName: [{ required: true, message: t("profile.displayNameRequired") }]
+}));
 
 const passwordModel = reactive<ChangePasswordRequest>({
   currentPassword: "",
@@ -156,17 +159,17 @@ const passwordModel = reactive<ChangePasswordRequest>({
   confirmPassword: ""
 });
 
-const passwordRules = {
-  currentPassword: [{ required: true, message: "请输入当前密码" }],
-  newPassword: [{ required: true, message: "请输入新密码" }],
+const passwordRules = computed(() => ({
+  currentPassword: [{ required: true, message: t("profile.currentPasswordRequired") }],
+  newPassword: [{ required: true, message: t("profile.newPasswordRequired") }],
   confirmPassword: [
-    { required: true, message: "请确认新密码" },
+    { required: true, message: t("profile.confirmPasswordRequired") },
     {
       validator: (_: unknown, value: string) =>
-        value === passwordModel.newPassword ? Promise.resolve() : Promise.reject("两次输入的新密码不一致")
+        value === passwordModel.newPassword ? Promise.resolve() : Promise.reject(t("profile.passwordMismatch"))
     }
   ]
-};
+}));
 
 const clientContextLabel = computed(() => {
   const ctx = profile.value?.clientContext;
@@ -187,7 +190,7 @@ const loadProfile = async () => {
     profile.value = result;
     setAuthProfile(result);
   } catch (error) {
-    message.error((error as Error).message || "获取用户信息失败");
+    message.error((error as Error).message || t("profile.fetchUserFailed"));
   }
 };
 
@@ -205,7 +208,7 @@ const loadDetail = async () => {
     formModel.email = detail.email ?? "";
     formModel.phoneNumber = detail.phoneNumber ?? "";
   } catch (error) {
-    message.error((error as Error).message || "加载个人信息失败");
+    message.error((error as Error).message || t("profile.loadProfileFailed"));
   }
 };
 
@@ -228,7 +231,7 @@ const submit = async () => {
     });
 
     if (!isMounted.value) return;
-    message.success("保存成功");
+    message.success(t("profile.saveSuccess"));
     await loadProfile();
 
     if (!isMounted.value) return;
@@ -236,7 +239,7 @@ const submit = async () => {
 
     if (!isMounted.value) return;
   } catch (error) {
-    message.error((error as Error).message || "保存失败");
+    message.error((error as Error).message || t("profile.saveFailed"));
   } finally {
     saving.value = false;
   }
@@ -267,13 +270,13 @@ const submitPassword = async () => {
     });
 
     if (!isMounted.value) return;
-    message.success("密码更新成功，即将退出登录");
+    message.success(t("profile.passwordUpdatedRelogin"));
     resetPasswordForm();
     await logoutAndRedirect();
 
     if (!isMounted.value) return;
   } catch (error) {
-    message.error((error as Error).message || "修改密码失败");
+    message.error((error as Error).message || t("profile.changePasswordFailed"));
   } finally {
     changing.value = false;
   }
@@ -308,7 +311,7 @@ const loadMfaStatus = async () => {
     if (!isMounted.value) return;
     mfaEnabled.value = status.mfaEnabled;
   } catch (error) {
-    message.error("无法加载MFA状态：" + ((error as Error).message || "未知错误"));
+    message.error(t("profile.loadMfaStatusFailed") + ((error as Error).message || t("profile.unknownError")));
   } finally {
     mfaStatusLoading.value = false;
   }
@@ -323,7 +326,7 @@ const handleSetupMfa = async () => {
     if (!isMounted.value) return;
     mfaSetupContext.value = result;
   } catch (error) {
-    message.error("发起配置失败：" + ((error as Error).message || "未知错误"));
+    message.error(t("profile.setupMfaFailed") + ((error as Error).message || t("profile.unknownError")));
   } finally {
     settingMfa.value = false;
   }
@@ -331,7 +334,7 @@ const handleSetupMfa = async () => {
 
 const handleVerifyMfa = async () => {
   if (!mfaCodeInput.value) {
-    message.warning("请输入验证码");
+    message.warning(t("profile.enterOtpWarning"));
     return;
   }
   verifyingMfa.value = true;
@@ -340,13 +343,16 @@ const handleVerifyMfa = async () => {
 
     if (!isMounted.value) return;
     if (success) {
-      message.success("两步验证启用成功");
+      message.success(t("profile.mfaEnableSuccess"));
       mfaEnabled.value = true;
       mfaSetupContext.value = null;
       mfaCodeInput.value = "";
     }
   } catch (error) {
-    message.error("验证失败：" + ((error as Error).message || "验证码可能错误或已过期"));
+    message.error(
+      t("profile.mfaVerifyFailed") +
+        ((error as Error).message || t("profile.mfaVerifyHint"))
+    );
   } finally {
     verifyingMfa.value = false;
   }
@@ -354,7 +360,7 @@ const handleVerifyMfa = async () => {
 
 const handleDisableMfa = async () => {
   if (!mfaCodeInput.value) {
-    message.warning("请输入当前验证码以完成禁用");
+    message.warning(t("profile.enterOtpToDisable"));
     return;
   }
   disablingMfa.value = true;
@@ -363,12 +369,14 @@ const handleDisableMfa = async () => {
 
     if (!isMounted.value) return;
     if (success) {
-      message.success("已成功取消两步验证");
+      message.success(t("profile.mfaDisableSuccess"));
       mfaEnabled.value = false;
       mfaCodeInput.value = "";
     }
   } catch (error) {
-    message.error("取消失败：" + ((error as Error).message || "验证码可能错误"));
+    message.error(
+      t("profile.mfaDisableFailed") + ((error as Error).message || t("profile.mfaDisableHint"))
+    );
   } finally {
     disablingMfa.value = false;
   }

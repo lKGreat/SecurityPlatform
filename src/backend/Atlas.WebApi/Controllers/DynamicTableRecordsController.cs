@@ -114,7 +114,7 @@ public sealed class DynamicTableRecordsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -138,7 +138,7 @@ public sealed class DynamicTableRecordsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -160,7 +160,7 @@ public sealed class DynamicTableRecordsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -182,7 +182,7 @@ public sealed class DynamicTableRecordsController : ControllerBase
         {
             return Unauthorized(ApiResponse<object>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 
@@ -220,7 +220,7 @@ public sealed class DynamicTableRecordsController : ControllerBase
         {
             return Unauthorized(ApiResponse<DynamicTableApprovalSubmitResponse>.Fail(
                 ErrorCodes.Unauthorized,
-                "未登录",
+                ApiResponseLocalizer.T(HttpContext, "UserNotSignedIn"),
                 HttpContext.TraceIdentifier));
         }
 

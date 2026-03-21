@@ -4,6 +4,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 export interface StatusOption {
   value: unknown;
@@ -26,6 +29,6 @@ const matched = computed(() =>
   props.options.find((opt) => opt.value === props.value)
 );
 
-const label = computed(() => matched.value?.label ?? props.fallbackLabel ?? "未知");
+const label = computed(() => matched.value?.label ?? props.fallbackLabel ?? t("commonUi.unknown"));
 const color = computed(() => matched.value?.color ?? props.fallbackColor ?? "default");
 </script>

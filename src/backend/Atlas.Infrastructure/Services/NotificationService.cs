@@ -119,7 +119,7 @@ public sealed class NotificationService : INotificationQueryService, INotificati
     {
         ValidateRequest(request.Title, request.Content);
         var entity = await _notificationRepository.FindByIdAsync(tenantId, id, ct)
-            ?? throw new BusinessException("公告不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("AnnouncementNotFound", ErrorCodes.NotFound);
 
         entity.Update(
             request.Title.Trim(),
@@ -133,7 +133,7 @@ public sealed class NotificationService : INotificationQueryService, INotificati
     public async Task DeleteAsync(TenantId tenantId, long id, CancellationToken ct = default)
     {
         var entity = await _notificationRepository.FindByIdAsync(tenantId, id, ct)
-            ?? throw new BusinessException("公告不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("AnnouncementNotFound", ErrorCodes.NotFound);
 
         await _userNotificationRepository.DeleteByNotificationIdAsync(tenantId, id, ct);
         await _notificationRepository.DeleteAsync(tenantId, id, ct);
@@ -142,7 +142,7 @@ public sealed class NotificationService : INotificationQueryService, INotificati
     public async Task RevokeAsync(TenantId tenantId, long id, CancellationToken ct = default)
     {
         var entity = await _notificationRepository.FindByIdAsync(tenantId, id, ct)
-            ?? throw new BusinessException("公告不存在。", ErrorCodes.NotFound);
+            ?? throw new BusinessException("AnnouncementNotFound", ErrorCodes.NotFound);
 
         entity.Deactivate();
         await _notificationRepository.UpdateAsync(entity, ct);
@@ -179,12 +179,12 @@ public sealed class NotificationService : INotificationQueryService, INotificati
     {
         if (string.IsNullOrWhiteSpace(title))
         {
-            throw new BusinessException("公告标题不能为空。", ErrorCodes.ValidationError);
+            throw new BusinessException("AnnouncementTitleRequired", ErrorCodes.ValidationError);
         }
 
         if (string.IsNullOrWhiteSpace(content))
         {
-            throw new BusinessException("公告内容不能为空。", ErrorCodes.ValidationError);
+            throw new BusinessException("AnnouncementContentRequired", ErrorCodes.ValidationError);
         }
     }
 

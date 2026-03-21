@@ -61,7 +61,7 @@ public sealed class ProjectsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<IReadOnlyList<ProjectListItem>>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<IReadOnlyList<ProjectListItem>>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var items = await _queryService.QueryMyProjectsAsync(tenantId, currentUser.UserId, cancellationToken);
@@ -78,7 +78,7 @@ public sealed class ProjectsController : ControllerBase
         var currentUser = _currentUserAccessor.GetCurrentUser();
         if (currentUser is null)
         {
-            return Unauthorized(ApiResponse<PagedResult<ProjectListItem>>.Fail(ErrorCodes.Unauthorized, "未登录", HttpContext.TraceIdentifier));
+            return Unauthorized(ApiResponse<PagedResult<ProjectListItem>>.Fail(ErrorCodes.Unauthorized, ApiResponseLocalizer.T(HttpContext, "Unauthorized"), HttpContext.TraceIdentifier));
         }
 
         var result = await _queryService.QueryMyProjectsPagedAsync(request, tenantId, currentUser.UserId, cancellationToken);

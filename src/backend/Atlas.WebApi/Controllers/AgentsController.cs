@@ -64,7 +64,7 @@ public sealed class AgentsController : ControllerBase
         var result = await _queryService.GetByIdAsync(tenantId, id, cancellationToken);
         if (result is null)
         {
-            return NotFound(ApiResponse<AgentDetail>.Fail(ErrorCodes.NotFound, "Agent 不存在", HttpContext.TraceIdentifier));
+            return NotFound(ApiResponse<AgentDetail>.Fail(ErrorCodes.NotFound, ApiResponseLocalizer.T(HttpContext, "AgentNotFound"), HttpContext.TraceIdentifier));
         }
 
         return Ok(ApiResponse<AgentDetail>.Ok(result, HttpContext.TraceIdentifier));

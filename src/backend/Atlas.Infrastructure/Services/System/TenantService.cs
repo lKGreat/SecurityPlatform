@@ -26,7 +26,7 @@ public sealed class TenantService : ITenantService
             
         if (exists)
         {
-            throw new BusinessException("VALIDATION_ERROR", $"租户编码 '{request.Code}' 已存在");
+            throw new BusinessException("VALIDATION_ERROR", $"TenantCodeExists");
         }
 
         var id = _idGenerator.NextId();
@@ -51,14 +51,14 @@ public sealed class TenantService : ITenantService
     public async Task UpdateAsync(long userId, TenantUpdateRequest request, CancellationToken cancellationToken = default)
     {
         var tenant = await _db.Queryable<Tenant>().InSingleAsync(request.Id)
-            ?? throw new BusinessException("NOT_FOUND", "租户不存在");
+            ?? throw new BusinessException("NOT_FOUND", "TenantNotFound");
 
         var exists = await _db.Queryable<Tenant>()
             .AnyAsync(x => x.Code == request.Code && x.Id != request.Id, cancellationToken);
             
         if (exists)
         {
-            throw new BusinessException("VALIDATION_ERROR", $"租户编码 '{request.Code}' 已存在");
+            throw new BusinessException("VALIDATION_ERROR", $"TenantCodeExists");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -75,7 +75,7 @@ public sealed class TenantService : ITenantService
     public async Task ToggleStatusAsync(long userId, long id, bool isActive, CancellationToken cancellationToken = default)
     {
         var tenant = await _db.Queryable<Tenant>().InSingleAsync(id)
-            ?? throw new BusinessException("NOT_FOUND", "租户不存在");
+            ?? throw new BusinessException("NOT_FOUND", "TenantNotFound");
 
         var now = DateTimeOffset.UtcNow;
         tenant.ToggleStatus(isActive, userId, now);
@@ -88,11 +88,11 @@ public sealed class TenantService : ITenantService
         // 核心租户不允许删除
         if (id == 1 || id == 10000) 
         {
-            throw new BusinessException("FORBIDDEN", "内置核心租户不允许删除");
+            throw new BusinessException("FORBIDDEN", "CoreTenantCannotDelete");
         }
 
         var tenant = await _db.Queryable<Tenant>().InSingleAsync(id)
-            ?? throw new BusinessException("NOT_FOUND", "租户不存在");
+            ?? throw new BusinessException("NOT_FOUND", "TenantNotFound");
 
         await _db.Deleteable(tenant).ExecuteCommandAsync(cancellationToken);
     }
@@ -150,7 +150,7 @@ public sealed class TenantService : ITenantService
     public async Task RenewAsync(long userId, long tenantId, DateTimeOffset newExpiredAt, CancellationToken cancellationToken = default)
     {
         var tenant = await _db.Queryable<Tenant>().FirstAsync(x => x.Id == tenantId, cancellationToken)
-            ?? throw new BusinessException("NOT_FOUND", $"租户 {tenantId} 不存在");
+            ?? throw new BusinessException("NOT_FOUND", "TenantNotFound");
 
         tenant.Renew(newExpiredAt, userId, DateTimeOffset.UtcNow);
         await _db.Updateable(tenant).ExecuteCommandAsync(cancellationToken);
