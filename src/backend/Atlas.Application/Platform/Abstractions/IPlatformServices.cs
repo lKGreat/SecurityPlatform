@@ -15,7 +15,13 @@ public interface IPlatformQueryService
 
 public interface IAppManifestQueryService
 {
-    Task<PagedResult<AppManifestResponse>> QueryAsync(TenantId tenantId, PagedRequest request, CancellationToken cancellationToken = default);
+    Task<PagedResult<AppManifestResponse>> QueryAsync(
+        TenantId tenantId,
+        PagedRequest request,
+        string? status = null,
+        string? category = null,
+        string? appKey = null,
+        CancellationToken cancellationToken = default);
     Task<AppManifestResponse?> GetByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default);
     Task<WorkspaceOverviewResponse> GetWorkspaceOverviewAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default);
     Task<PagedResult<object>> GetWorkspacePagesAsync(TenantId tenantId, long id, PagedRequest request, CancellationToken cancellationToken = default);
@@ -35,7 +41,7 @@ public interface IAppManifestCommandService
 public interface IAppReleaseCommandService
 {
     Task<long> CreateReleaseAsync(TenantId tenantId, long userId, long manifestId, string? releaseNote, CancellationToken cancellationToken = default);
-    Task RollbackAsync(TenantId tenantId, long userId, long manifestId, long releaseId, CancellationToken cancellationToken = default);
+    Task<ReleaseRollbackResult> RollbackAsync(TenantId tenantId, long userId, long manifestId, long releaseId, CancellationToken cancellationToken = default);
 }
 
 public interface IRuntimeRouteQueryService
@@ -49,7 +55,13 @@ public interface IRuntimeRouteQueryService
 
 public interface IApplicationCatalogQueryService
 {
-    Task<PagedResult<ApplicationCatalogListItem>> QueryAsync(TenantId tenantId, PagedRequest request, CancellationToken cancellationToken = default);
+    Task<PagedResult<ApplicationCatalogListItem>> QueryAsync(
+        TenantId tenantId,
+        PagedRequest request,
+        string? status = null,
+        string? category = null,
+        string? appKey = null,
+        CancellationToken cancellationToken = default);
     Task<ApplicationCatalogDetail?> GetByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken = default);
 }
 
@@ -58,6 +70,7 @@ public interface ITenantApplicationQueryService
     Task<PagedResult<TenantApplicationListItem>> QueryAsync(
         TenantId tenantId,
         PagedRequest request,
+        string? status = null,
         CancellationToken cancellationToken = default);
 
     Task<TenantApplicationDetail?> GetByIdAsync(
@@ -184,6 +197,11 @@ public interface ITenantAppRoleQueryService
         long appId,
         long roleId,
         CancellationToken cancellationToken = default);
+
+    Task<TenantAppRoleGovernanceOverview> GetGovernanceOverviewAsync(
+        TenantId tenantId,
+        long appId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ITenantAppRoleCommandService
@@ -261,6 +279,39 @@ public interface IRuntimeExecutionQueryService
         CancellationToken cancellationToken = default);
 }
 
+public interface IRuntimeExecutionCommandService
+{
+    Task<RuntimeExecutionOperationResult> CancelAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        long executionId,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeExecutionOperationResult> RetryAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        long executionId,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeExecutionOperationResult> ResumeAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        long executionId,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeExecutionOperationResult> DebugAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        long executionId,
+        RuntimeExecutionDebugRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeExecutionTimeoutDiagnosis?> GetTimeoutDiagnosisAsync(
+        TenantId tenantId,
+        long executionId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IResourceCenterQueryService
 {
     Task<IReadOnlyList<ResourceCenterGroupItem>> GetGroupsAsync(
@@ -272,14 +323,48 @@ public interface IResourceCenterQueryService
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceCenterCommandService
+{
+    Task<ResourceCenterRepairResult> DisableInvalidBindingAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        DisableInvalidBindingRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceCenterRepairResult> SwitchPrimaryBindingAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        SwitchPrimaryBindingRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceCenterRepairResult> UnbindOrphanBindingAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        UnbindOrphanBindingRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IReleaseCenterQueryService
 {
     Task<PagedResult<ReleaseCenterListItem>> QueryAsync(
         TenantId tenantId,
         PagedRequest request,
+        string? status = null,
+        string? appKey = null,
+        long? manifestId = null,
         CancellationToken cancellationToken = default);
 
     Task<ReleaseCenterDetail?> GetByIdAsync(
+        TenantId tenantId,
+        long releaseId,
+        CancellationToken cancellationToken = default);
+
+    Task<ReleaseDiffSummary?> GetDiffAsync(
+        TenantId tenantId,
+        long releaseId,
+        CancellationToken cancellationToken = default);
+
+    Task<ReleaseImpactSummary?> GetImpactAsync(
         TenantId tenantId,
         long releaseId,
         CancellationToken cancellationToken = default);

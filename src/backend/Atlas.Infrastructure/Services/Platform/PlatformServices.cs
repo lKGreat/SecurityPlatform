@@ -12,6 +12,7 @@ using Atlas.Domain.Identity.Entities;
 using Atlas.Domain.LowCode.Entities;
 using Atlas.Domain.Platform.Entities;
 using SqlSugar;
+using System.Text.Json;
 
 namespace Atlas.Infrastructure.Services.Platform;
 
@@ -111,15 +112,40 @@ public sealed class AppManifestQueryService : IAppManifestQueryService
         _db = db;
     }
 
-    public async Task<PagedResult<AppManifestResponse>> QueryAsync(TenantId tenantId, PagedRequest request, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<AppManifestResponse>> QueryAsync(
+        TenantId tenantId,
+        PagedRequest request,
+        string? status = null,
+        string? category = null,
+        string? appKey = null,
+        CancellationToken cancellationToken = default)
     {
+        var tenantValue = tenantId.Value;
         var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
         var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
-        var query = _db.Queryable<AppManifest>();
+        var query = _db.Queryable<AppManifest>()
+            .Where(item => item.TenantIdValue == tenantValue);
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             var keyword = request.Keyword.Trim();
             query = query.Where(x => x.Name.Contains(keyword) || x.AppKey.Contains(keyword));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<AppManifestStatus>(status, true, out var statusValue))
+        {
+            query = query.Where(item => item.Status == statusValue);
+        }
+
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            var categoryValue = category.Trim();
+            query = query.Where(item => item.Category.Contains(categoryValue));
+        }
+
+        if (!string.IsNullOrWhiteSpace(appKey))
+        {
+            var appKeyValue = appKey.Trim();
+            query = query.Where(item => item.AppKey.Contains(appKeyValue));
         }
 
         var total = await query.CountAsync(cancellationToken);
@@ -361,9 +387,13 @@ public sealed class AppReleaseCommandService : IAppReleaseCommandService
         var manifest = await _db.Queryable<AppManifest>()
             .FirstAsync(x => x.TenantIdValue == tenantId.Value && x.Id == manifestId, cancellationToken)
             ?? throw new InvalidOperationException("应用不存在");
+        var runtimeRoutes = await _db.Queryable<RuntimeRoute>()
+            .Where(item => item.TenantIdValue == tenantId.Value && item.ManifestId == manifestId)
+            .ToListAsync(cancellationToken);
         var now = DateTimeOffset.UtcNow;
         manifest.Publish(userId, now);
-        var release = new AppRelease(tenantId, _idGenerator.NextId(), manifestId, manifest.Version, "{}", userId, now);
+        var snapshotJson = BuildReleaseSnapshotJson(manifest, runtimeRoutes, now);
+        var release = new AppRelease(tenantId, _idGenerator.NextId(), manifestId, manifest.Version, snapshotJson, userId, now);
         release.MarkReleased(releaseNote);
 
         var transaction = await _db.Ado.UseTranAsync(async () =>
@@ -379,7 +409,12 @@ public sealed class AppReleaseCommandService : IAppReleaseCommandService
         return release.Id;
     }
 
-    public async Task RollbackAsync(TenantId tenantId, long userId, long manifestId, long releaseId, CancellationToken cancellationToken = default)
+    public async Task<ReleaseRollbackResult> RollbackAsync(
+        TenantId tenantId,
+        long userId,
+        long manifestId,
+        long releaseId,
+        CancellationToken cancellationToken = default)
     {
         var tenantValue = tenantId.Value;
         var manifest = await _db.Queryable<AppManifest>()
@@ -395,7 +430,16 @@ public sealed class AppReleaseCommandService : IAppReleaseCommandService
             ?? throw new InvalidOperationException("当前发布版本不存在");
         if (currentRelease.Id == rollbackTarget.Id)
         {
-            return;
+            return new ReleaseRollbackResult(
+                manifestId.ToString(),
+                rollbackTarget.Id.ToString(),
+                rollbackTarget.Version,
+                currentRelease.Id.ToString(),
+                currentRelease.Version,
+                false,
+                0,
+                "NoOp",
+                "目标版本已是当前生效版本。");
         }
 
         var runtimeRoutes = await _db.Queryable<RuntimeRoute>()
@@ -420,12 +464,20 @@ public sealed class AppReleaseCommandService : IAppReleaseCommandService
             $"Release:{rollbackTarget.Id}",
             null,
             null);
+        var switchAudit = new AuditRecord(
+            tenantId,
+            userId.ToString(),
+            "release.switch",
+            "Success",
+            $"Release:{currentRelease.Id}->{rollbackTarget.Id}",
+            null,
+            null);
         var routeAudit = new AuditRecord(
             tenantId,
             userId.ToString(),
             "runtime.route.rebind",
             "Success",
-            $"AppManifest:{manifestId}",
+            $"AppManifest:{manifestId}/routes:{runtimeRoutes.Count}",
             null,
             null);
 
@@ -439,13 +491,61 @@ public sealed class AppReleaseCommandService : IAppReleaseCommandService
                 await _db.Updateable(runtimeRoutes).ExecuteCommandAsync(cancellationToken);
             }
 
-            await _db.Insertable(new[] { rollbackAudit, routeAudit }).ExecuteCommandAsync(cancellationToken);
+            await _db.Insertable(new[] { rollbackAudit, switchAudit, routeAudit }).ExecuteCommandAsync(cancellationToken);
         });
 
         if (!transaction.IsSuccess)
         {
             throw transaction.ErrorException ?? new InvalidOperationException("回滚发布记录失败");
         }
+
+        return new ReleaseRollbackResult(
+            manifestId.ToString(),
+            rollbackTarget.Id.ToString(),
+            rollbackTarget.Version,
+            currentRelease.Id.ToString(),
+            currentRelease.Version,
+            true,
+            runtimeRoutes.Count,
+            "Switched",
+            null);
+    }
+
+    private static string BuildReleaseSnapshotJson(
+        AppManifest manifest,
+        IReadOnlyCollection<RuntimeRoute> runtimeRoutes,
+        DateTimeOffset generatedAt)
+    {
+        var snapshot = new
+        {
+            manifest = new
+            {
+                manifest.Id,
+                manifest.AppKey,
+                manifest.Name,
+                manifest.Description,
+                manifest.Category,
+                manifest.Icon,
+                manifest.ConfigJson,
+                manifest.DataSourceId,
+                manifest.Version,
+                Status = manifest.Status.ToString()
+            },
+            runtimeRoutes = runtimeRoutes
+                .OrderBy(item => item.PageKey)
+                .Select(item => new
+                {
+                    item.Id,
+                    item.AppKey,
+                    item.PageKey,
+                    item.SchemaVersion,
+                    item.IsActive,
+                    item.EnvironmentCode
+                })
+                .ToArray(),
+            generatedAt = generatedAt.ToString("O")
+        };
+        return JsonSerializer.Serialize(snapshot);
     }
 }
 

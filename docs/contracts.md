@@ -179,8 +179,10 @@
 #### v2 最小读接口（P0 占位基线）
 
 - `GET /api/v2/application-catalogs`
+  - 支持筛选参数：`status`（`Draft/Published/Disabled/Archived`）、`category`、`appKey`。
 - `GET /api/v2/application-catalogs/{id}`
 - `GET /api/v2/tenant-applications`
+  - 支持筛选参数：`status`（`Provisioning/Active/Disabled/Archived`）。
 - `GET /api/v2/tenant-applications/{id}`
 - `GET /api/v2/tenant-app-instances`
 - `GET /api/v2/tenant-app-instances/{id}`
@@ -197,7 +199,8 @@
   - `appIds` 可选；未传时返回当前租户全部实例绑定。
   - 响应字段补充：`bindingId`、`bindingType`、`bindingActive`、`boundAt`、`source`（`BindingTable` / `LegacyLowCodeApp.DataSourceId` / `Unbound`）。
 - `GET /api/v2/resource-center/groups`
-  - 返回资源中心分组聚合（`catalogs`/`instances`/`datasources`）。
+  - 返回资源中心分组聚合（`catalogs` / `tenant-applications` / `instances` / `releases` / `runtime-contexts` / `runtime-executions` / `datasources` / `audit-summary` / `debug-entries`）。
+  - `ResourceCenterGroupEntry` 补充导航关联字段：`navigationPath`、`relatedCatalogId`、`relatedInstanceId`、`relatedReleaseId`、`relatedRuntimeContextId`、`relatedExecutionId`。
   - 要求服务端采用批量查询 + 内存聚合，禁止循环内数据库访问。
 - `GET /api/v2/resource-center/datasource-consumption`
   - 返回数据源双层消费模型：
@@ -205,7 +208,14 @@
     - 应用级数据源（`AppScoped`）
     - 未绑定数据源的租户应用实例清单
   - 响应包含每个数据源的绑定应用数量、绑定应用列表与 `bindingRelations`（绑定关系明细：`bindingId/tenantAppInstanceId/dataSourceId/bindingType/isActive/boundAt/updatedAt/source`）。
+  - 响应补充治理字段：`isOrphan/isDuplicate/isInvalid/isUnbound/impactScope/repairSuggestion`。
   - 服务端实现必须通过批量查询 + 字典聚合完成，禁止循环内数据库访问。
+- `POST /api/v2/resource-center/datasource-consumption/repair/disable-invalid-binding`
+- `POST /api/v2/resource-center/datasource-consumption/repair/switch-primary-binding`
+- `POST /api/v2/resource-center/datasource-consumption/repair/unbind-orphan-binding`
+  - 三个修复接口统一要求 `Idempotency-Key` + `X-CSRF-TOKEN`。
+  - 返回 `ResourceCenterRepairResult`（`action/resourceId/success/message`）。
+  - 修复动作需写入审计日志：`resource.datasource-binding.disable-invalid`、`resource.datasource-binding.switch-primary`、`resource.datasource-binding.unbind-orphan`。
 
 #### v2 P1 扩展写接口（TenantAppInstance）
 
@@ -241,6 +251,8 @@
   - 授权策略：GET 要求 `apps:members:view`，写接口要求 `apps:members:update`
 - 应用角色（`UseSharedRoles=false` 时启用）：
   - `GET /api/v2/tenant-app-instances/{appId}/roles`
+  - `GET /api/v2/tenant-app-instances/{appId}/roles/governance-overview`
+    - 返回 `TenantAppRoleGovernanceOverview`（总角色数、系统/自定义角色数、成员覆盖数、权限覆盖率、角色治理项列表）。
   - `GET /api/v2/tenant-app-instances/{appId}/roles/{roleId}`
   - `POST /api/v2/tenant-app-instances/{appId}/roles`
   - `PUT /api/v2/tenant-app-instances/{appId}/roles/{roleId}`
@@ -259,26 +271,44 @@
 #### v2 P2 发布闭环接口（首批）
 
 - `GET /api/v2/release-center/releases`
+  - 支持筛选参数：`status`（`Pending/Released/RolledBack`）、`appKey`、`manifestId`。
 - `GET /api/v2/release-center/releases/{releaseId}`
+- `GET /api/v2/release-center/releases/{releaseId}/diff`
+  - 返回 `ReleaseDiffSummary`：`baselineReleaseId`、`addedCount/removedCount/changedCount` 与字段路径列表（`addedKeys/removedKeys/changedKeys`）。
+- `GET /api/v2/release-center/releases/{releaseId}/impact`
+  - 返回 `ReleaseImpactSummary`：运行路由数量、激活路由数量、运行上下文数量、近 24 小时执行次数、运行中/失败执行数量。
 - `POST /api/v2/release-center/releases/{releaseId}/rollback`
   - 回滚请求按写接口统一要求 `Idempotency-Key` + `X-CSRF-TOKEN`。
   - 服务端必须基于当前租户上下文校验发布记录归属后再执行回滚。
+  - 回滚响应返回 `ReleaseRollbackResult`（目标版本、原版本、是否发生切换、重绑路由数量、结果说明）。
   - 回滚后要求同步落库：
     - 原当前版本标记 `RolledBack`
     - 目标版本切回 `Released`
     - `RuntimeRoute` 按目标发布版本重绑 `SchemaVersion`
-    - 审计记录写入 `release.rollback` 与 `runtime.route.rebind`
+    - 审计记录写入 `release.rollback`、`release.switch` 与 `runtime.route.rebind`
 - `GET /api/v2/runtime-executions/{executionId}/audit-trails`
   - 通过执行ID关联审计轨迹，支持分页与关键字检索。
   - 审计目标匹配口径包含：`WorkflowExecution:{executionId}`、`RuntimeExecution:{executionId}`，以及执行记录上的 `ReleaseId` / `RuntimeContextId` / `AppId` 派生目标（`Release:*`、`RuntimeContext:*`、`AppManifest:*`）。
 - `GET /api/v2/runtime-executions`
   - 支持多条件筛选参数：`appId`、`status`、`startedFrom`、`startedTo`（ISO8601）。
   - `status` 取值口径与 `ExecutionStatus` 对齐（`Pending/Running/Completed/Failed/Cancelled/Interrupted`）。
+- `POST /api/v2/runtime-executions/{executionId}/cancel`
+- `POST /api/v2/runtime-executions/{executionId}/retry`
+- `POST /api/v2/runtime-executions/{executionId}/resume`
+- `POST /api/v2/runtime-executions/{executionId}/debug`
+  - 写接口统一要求 `Idempotency-Key` + `X-CSRF-TOKEN`。
+  - 统一返回 `RuntimeExecutionOperationResult`（`action/executionId/status/message/newExecutionId`）。
+  - 审计动作：`runtime.execution.cancel`、`runtime.execution.retry`、`runtime.execution.resume`、`runtime.execution.debug`。
+- `GET /api/v2/runtime-executions/{executionId}/timeout-diagnosis`
+  - 返回 `RuntimeExecutionTimeoutDiagnosis`（耗时、风险标记、诊断结论、建议列表）。
 - `GET /api/v2/coze-mappings/overview`
   - 返回 Coze 六层映射总览（目录/实例/发布/上下文/执行/审计）。
 - `GET /api/v2/debug-layer/embed-metadata`
   - 返回调试层嵌入元数据（tenant/app/project + 资源权限列表）。
   - 访问策略：接口需 `debug:view`；资源项按当前用户已授权权限动态裁剪（`debug:view` / `debug:run` / `debug:manage`）。
+- `GET /api/v2/migration-governance/overview`
+  - 返回迁移治理指标总览（`legacyRouteHits`、`rewriteHits`、`notFoundCount/notFoundRate`、`fallbackCount`、`v1EntryHits`、`v2EntryHits`、`newEntryCoverageRate`）。
+  - 指标由 `ApiVersionRewriteMiddleware` 运行时采集，覆盖窗口起点由服务启动时间定义（`windowStartedAt`）。
 
 #### 前端主路径约定与弃用窗口（SEC-92）
 
@@ -2253,6 +2283,7 @@ V2 工作流 API 采用 Coze 风格的 DAG 执行引擎，与 V1（`api/v1/ai-wo
 |---|---|---|---|
 | POST | `/` | 创建工作流 | `ai-workflow:create` |
 | GET | `/` | 工作流列表（分页） | `ai-workflow:view` |
+| GET | `/published` | 已发布工作流列表（分页） | `ai-workflow:view` |
 | GET | `/{id}` | 工作流详情（含 Draft） | `ai-workflow:view` |
 | PUT | `/{id}/meta` | 更新元信息 | `ai-workflow:update` |
 | PUT | `/{id}/draft` | 保存草稿 | `ai-workflow:update` |
@@ -2264,7 +2295,10 @@ V2 工作流 API 采用 Coze 风格的 DAG 执行引擎，与 V1（`api/v1/ai-wo
 | POST | `/{id}/stream` | SSE 流式运行 | `ai-workflow:execute` |
 | POST | `/executions/{id}/cancel` | 取消执行 | `ai-workflow:execute` |
 | POST | `/executions/{id}/resume` | 恢复执行 | `ai-workflow:execute` |
+| GET | `/executions/{id}/checkpoint` | 获取执行检查点 | `ai-workflow:view` |
+| POST | `/executions/{id}/recover` | 基于检查点恢复执行 | `ai-workflow:execute` |
 | GET | `/executions/{id}/process` | 执行进度 | `ai-workflow:view` |
+| GET | `/executions/{id}/debug-view` | 执行调试聚合视图 | `ai-workflow:view` |
 | GET | `/executions/{id}/nodes/{key}` | 节点执行详情 | `ai-workflow:view` |
 | POST | `/{id}/debug-node` | 单节点调试 | `ai-workflow:debug` |
 | GET | `/node-types` | 节点类型列表 | `ai-workflow:view` |
@@ -2364,6 +2398,24 @@ interface WorkflowV2NodeExecutionDto {
   startedAt?: string;
   completedAt?: string;
   durationMs?: number;
+}
+
+interface WorkflowV2ExecutionCheckpointDto {
+  executionId: number;
+  workflowId: number;
+  status: number;
+  lastNodeKey?: string;
+  startedAt: string;
+  completedAt?: string;
+  inputsJson?: string;
+  outputsJson?: string;
+  errorMessage?: string;
+}
+
+interface WorkflowV2ExecutionDebugViewDto {
+  execution: WorkflowV2ExecutionDto;
+  focusNode?: WorkflowV2NodeExecutionDto;
+  focusReason: string;
 }
 ```
 

@@ -24,13 +24,28 @@ GET {{baseUrl}}/api/v2/release-center/releases?pageIndex=1&pageSize=10
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 按状态/AppKey/目录ID筛选发布列表
+GET {{baseUrl}}/api/v2/release-center/releases?pageIndex=1&pageSize=10&status=Released&appKey=demo&manifestId=1
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### 查询发布详情
 GET {{baseUrl}}/api/v2/release-center/releases/1
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 查询发布差异摘要
+GET {{baseUrl}}/api/v2/release-center/releases/1/diff
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
+### 查询发布影响范围
+GET {{baseUrl}}/api/v2/release-center/releases/1/impact
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### 回滚发布版本（写接口需幂等与防伪）
-# 回滚后应可在 RuntimeExecutions-V2 / Runtime audit-trails 中追溯到 release.rollback 与 runtime.route.rebind 审计
+# 回滚后应可在 RuntimeExecutions-V2 / Runtime audit-trails 中追溯到 release.rollback、release.switch 与 runtime.route.rebind 审计
 POST {{baseUrl}}/api/v2/release-center/releases/1/rollback
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}

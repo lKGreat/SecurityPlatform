@@ -4,6 +4,7 @@ using Atlas.Application.AiPlatform.Repositories;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.AiPlatform.Entities;
+using Atlas.Domain.AiPlatform.Enums;
 using Atlas.Infrastructure.Services.WorkflowEngine;
 
 namespace Atlas.Infrastructure.Services.AiPlatform;
@@ -41,6 +42,20 @@ public sealed class WorkflowV2QueryService : IWorkflowV2QueryService
         return new PagedResult<WorkflowV2ListItem>(dtos, total, pageIndex, pageSize);
     }
 
+    public async Task<PagedResult<WorkflowV2ListItem>> ListPublishedAsync(
+        TenantId tenantId, string? keyword, int pageIndex, int pageSize, CancellationToken cancellationToken)
+    {
+        var (items, total) = await _metaRepo.GetPagedByStatusAsync(
+            tenantId,
+            WorkflowLifecycleStatus.Published,
+            keyword,
+            pageIndex,
+            pageSize,
+            cancellationToken);
+        var dtos = items.Select(MapListItem).ToList();
+        return new PagedResult<WorkflowV2ListItem>(dtos, total, pageIndex, pageSize);
+    }
+
     public async Task<WorkflowV2DetailDto?> GetAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
     {
         var meta = await _metaRepo.FindActiveByIdAsync(tenantId, id, cancellationToken);
@@ -65,6 +80,61 @@ public sealed class WorkflowV2QueryService : IWorkflowV2QueryService
 
         var nodeExecutions = await _nodeExecutionRepo.ListByExecutionIdAsync(tenantId, executionId, cancellationToken);
         return MapExecution(execution, nodeExecutions);
+    }
+
+    public async Task<WorkflowV2ExecutionCheckpointDto?> GetExecutionCheckpointAsync(
+        TenantId tenantId, long executionId, CancellationToken cancellationToken)
+    {
+        var execution = await _executionRepo.FindByIdAsync(tenantId, executionId, cancellationToken);
+        if (execution is null)
+        {
+            return null;
+        }
+
+        var nodeExecutions = await _nodeExecutionRepo.ListByExecutionIdAsync(tenantId, executionId, cancellationToken);
+        var lastNode = nodeExecutions
+            .OrderByDescending(node => node.CompletedAt ?? node.StartedAt ?? DateTime.MinValue)
+            .FirstOrDefault();
+
+        return new WorkflowV2ExecutionCheckpointDto(
+            execution.Id,
+            execution.WorkflowId,
+            execution.Status,
+            lastNode?.NodeKey,
+            execution.StartedAt,
+            execution.CompletedAt,
+            execution.InputsJson,
+            execution.OutputsJson,
+            execution.ErrorMessage);
+    }
+
+    public async Task<WorkflowV2ExecutionDebugViewDto?> GetExecutionDebugViewAsync(
+        TenantId tenantId, long executionId, CancellationToken cancellationToken)
+    {
+        var execution = await _executionRepo.FindByIdAsync(tenantId, executionId, cancellationToken);
+        if (execution is null)
+        {
+            return null;
+        }
+
+        var nodeExecutions = await _nodeExecutionRepo.ListByExecutionIdAsync(tenantId, executionId, cancellationToken);
+        var executionDto = MapExecution(execution, nodeExecutions);
+        var focusNode = executionDto.NodeExecutions
+            .Where(node => node.Status is ExecutionStatus.Failed or ExecutionStatus.Interrupted)
+            .OrderByDescending(node => node.CompletedAt ?? node.StartedAt ?? DateTime.MinValue)
+            .FirstOrDefault()
+            ?? executionDto.NodeExecutions
+                .OrderByDescending(node => node.CompletedAt ?? node.StartedAt ?? DateTime.MinValue)
+                .FirstOrDefault();
+        var reason = focusNode is null
+            ? "暂无节点执行记录。"
+            : focusNode.Status is ExecutionStatus.Failed
+                ? "聚焦失败节点，便于快速定位错误。"
+                : focusNode.Status is ExecutionStatus.Interrupted
+                    ? "聚焦中断节点，便于恢复执行。"
+                    : "聚焦最近执行节点。";
+
+        return new WorkflowV2ExecutionDebugViewDto(executionDto, focusNode, reason);
     }
 
     public async Task<WorkflowV2NodeExecutionDto?> GetNodeExecutionDetailAsync(

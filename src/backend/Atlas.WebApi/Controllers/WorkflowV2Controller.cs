@@ -4,6 +4,7 @@ using Atlas.Application.AiPlatform.Models;
 using Atlas.Core.Identity;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
+using Atlas.Domain.AiPlatform.Enums;
 using Atlas.WebApi.Authorization;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
@@ -135,6 +136,16 @@ public sealed class WorkflowV2Controller : ControllerBase
         return Ok(ApiResponse<PagedResult<WorkflowV2ListItem>>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("published")]
+    [Authorize(Policy = PermissionPolicies.AiWorkflowView)]
+    public async Task<ActionResult<ApiResponse<PagedResult<WorkflowV2ListItem>>>> ListPublished(
+        [FromQuery] PagedRequest request, [FromQuery] string? keyword = null, CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.ListPublishedAsync(tenantId, keyword, request.PageIndex, request.PageSize, cancellationToken);
+        return Ok(ApiResponse<PagedResult<WorkflowV2ListItem>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("{id:long}")]
     [Authorize(Policy = PermissionPolicies.AiWorkflowView)]
     public async Task<ActionResult<ApiResponse<WorkflowV2DetailDto>>> GetById(long id, CancellationToken cancellationToken)
@@ -236,6 +247,66 @@ public sealed class WorkflowV2Controller : ControllerBase
         }
 
         return Ok(ApiResponse<WorkflowV2ExecutionDto>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("executions/{execId:long}/checkpoint")]
+    [Authorize(Policy = PermissionPolicies.AiWorkflowView)]
+    public async Task<ActionResult<ApiResponse<WorkflowV2ExecutionCheckpointDto>>> GetCheckpoint(
+        long execId, CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.GetExecutionCheckpointAsync(tenantId, execId, cancellationToken);
+        if (result is null)
+        {
+            return NotFound(ApiResponse<WorkflowV2ExecutionCheckpointDto>.Fail(ErrorCodes.NotFound, "执行实例不存在", HttpContext.TraceIdentifier));
+        }
+
+        return Ok(ApiResponse<WorkflowV2ExecutionCheckpointDto>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("executions/{execId:long}/recover")]
+    [Authorize(Policy = PermissionPolicies.AiWorkflowExecute)]
+    public async Task<ActionResult<ApiResponse<WorkflowV2RunResult>>> Recover(
+        long execId, CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var checkpoint = await _queryService.GetExecutionCheckpointAsync(tenantId, execId, cancellationToken);
+        if (checkpoint is null)
+        {
+            return NotFound(ApiResponse<WorkflowV2RunResult>.Fail(ErrorCodes.NotFound, "执行实例不存在", HttpContext.TraceIdentifier));
+        }
+
+        if (checkpoint.Status is not (ExecutionStatus.Failed or ExecutionStatus.Cancelled or ExecutionStatus.Interrupted))
+        {
+            return BadRequest(ApiResponse<WorkflowV2RunResult>.Fail(
+                ErrorCodes.ValidationError,
+                "仅失败、取消或中断状态允许恢复。",
+                HttpContext.TraceIdentifier));
+        }
+
+        var userId = _currentUserAccessor.GetCurrentUserOrThrow().UserId;
+        var result = await _executionService.AsyncRunAsync(
+            tenantId,
+            checkpoint.WorkflowId,
+            userId,
+            new WorkflowV2RunRequest(checkpoint.InputsJson),
+            cancellationToken);
+        return Ok(ApiResponse<WorkflowV2RunResult>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("executions/{execId:long}/debug-view")]
+    [Authorize(Policy = PermissionPolicies.AiWorkflowView)]
+    public async Task<ActionResult<ApiResponse<WorkflowV2ExecutionDebugViewDto>>> GetDebugView(
+        long execId, CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var result = await _queryService.GetExecutionDebugViewAsync(tenantId, execId, cancellationToken);
+        if (result is null)
+        {
+            return NotFound(ApiResponse<WorkflowV2ExecutionDebugViewDto>.Fail(ErrorCodes.NotFound, "执行实例不存在", HttpContext.TraceIdentifier));
+        }
+
+        return Ok(ApiResponse<WorkflowV2ExecutionDebugViewDto>.Ok(result, HttpContext.TraceIdentifier));
     }
 
     [HttpGet("executions/{execId:long}/nodes/{nodeKey}")]

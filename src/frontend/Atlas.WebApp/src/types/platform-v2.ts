@@ -99,6 +99,41 @@ export interface TenantAppRoleDetail extends TenantAppRoleListItem {
   updatedAt: string;
 }
 
+export interface TenantAppRoleGovernanceItem {
+  roleId: string;
+  roleCode: string;
+  roleName: string;
+  isSystem: boolean;
+  memberCount: number;
+  permissionCount: number;
+  hasPermissionCoverage: boolean;
+}
+
+export interface TenantAppRoleGovernanceOverview {
+  appId: string;
+  totalRoles: number;
+  systemRoleCount: number;
+  customRoleCount: number;
+  totalMembers: number;
+  coveredMembers: number;
+  uncoveredMembers: number;
+  permissionCoverageRate: number;
+  roles: TenantAppRoleGovernanceItem[];
+}
+
+export interface MigrationGovernanceOverview {
+  windowStartedAt: string;
+  totalApiHits: number;
+  legacyRouteHits: number;
+  rewriteHits: number;
+  v1EntryHits: number;
+  v2EntryHits: number;
+  notFoundCount: number;
+  fallbackCount: number;
+  notFoundRate: number;
+  newEntryCoverageRate: number;
+}
+
 export interface TenantAppRoleCreateRequest {
   code: string;
   name: string;
@@ -132,6 +167,12 @@ export interface ResourceCenterGroupEntry {
   resourceType: string;
   status?: string;
   description?: string;
+  navigationPath?: string;
+  relatedCatalogId?: string;
+  relatedInstanceId?: string;
+  relatedReleaseId?: string;
+  relatedRuntimeContextId?: string;
+  relatedExecutionId?: string;
 }
 
 export interface ResourceCenterGroupItem {
@@ -161,6 +202,12 @@ export interface TenantDataSourceConsumptionItem {
   bindingRelations: TenantDataSourceBindingRelationItem[];
   lastTestedAt?: string;
   lastTestMessage?: string;
+  isOrphan: boolean;
+  isDuplicate: boolean;
+  isInvalid: boolean;
+  isUnbound: boolean;
+  impactScope: string;
+  repairSuggestion: string;
 }
 
 export interface TenantDataSourceBindingRelationItem {
@@ -183,6 +230,13 @@ export interface ResourceCenterDataSourceConsumptionResponse {
   unboundTenantApps: TenantAppConsumerItem[];
 }
 
+export interface ResourceCenterRepairResult {
+  action: string;
+  resourceId: string;
+  success: boolean;
+  message: string;
+}
+
 export interface ReleaseCenterListItem {
   releaseId: string;
   applicationCatalogId: string;
@@ -196,6 +250,40 @@ export interface ReleaseCenterListItem {
 
 export interface ReleaseCenterDetail extends ReleaseCenterListItem {
   snapshotJson: string;
+}
+
+export interface ReleaseDiffSummary {
+  releaseId: string;
+  baselineReleaseId?: string;
+  addedCount: number;
+  removedCount: number;
+  changedCount: number;
+  addedKeys: string[];
+  removedKeys: string[];
+  changedKeys: string[];
+}
+
+export interface ReleaseImpactSummary {
+  releaseId: string;
+  appKey: string;
+  runtimeRouteCount: number;
+  activeRuntimeRouteCount: number;
+  runtimeContextCount: number;
+  recentExecutionCount: number;
+  runningExecutionCount: number;
+  failedExecutionCount: number;
+}
+
+export interface ReleaseRollbackResult {
+  manifestId: string;
+  targetReleaseId: string;
+  targetVersion: number;
+  previousReleaseId?: string;
+  previousVersion?: number;
+  switched: boolean;
+  reboundRouteCount: number;
+  result: string;
+  message?: string;
 }
 
 export interface RuntimeExecutionAuditTrailItem {
@@ -222,6 +310,30 @@ export interface RuntimeExecutionListItem {
 export interface RuntimeExecutionDetail extends RuntimeExecutionListItem {
   inputsJson?: string;
   outputsJson?: string;
+}
+
+export interface RuntimeExecutionDebugRequest {
+  nodeKey: string;
+  inputsJson?: string;
+}
+
+export interface RuntimeExecutionOperationResult {
+  action: string;
+  executionId: string;
+  status: string;
+  message: string;
+  newExecutionId?: string;
+}
+
+export interface RuntimeExecutionTimeoutDiagnosis {
+  executionId: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string;
+  elapsedSeconds: number;
+  timeoutRisk: boolean;
+  diagnosis: string;
+  suggestions: string[];
 }
 
 export interface CozeLayerMappingItem {

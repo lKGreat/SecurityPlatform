@@ -1,5 +1,6 @@
 using Atlas.Core.Tenancy;
 using Atlas.Domain.AiPlatform.Entities;
+using Atlas.Domain.AiPlatform.Enums;
 
 namespace Atlas.Application.AiPlatform.Repositories;
 
@@ -7,6 +8,13 @@ public interface IWorkflowMetaRepository
 {
     Task<WorkflowMeta?> FindActiveByIdAsync(TenantId tenantId, long id, CancellationToken cancellationToken);
     Task<(List<WorkflowMeta> Items, long Total)> GetPagedAsync(TenantId tenantId, string? keyword, int pageIndex, int pageSize, CancellationToken cancellationToken);
+    Task<(List<WorkflowMeta> Items, long Total)> GetPagedByStatusAsync(
+        TenantId tenantId,
+        WorkflowLifecycleStatus status,
+        string? keyword,
+        int pageIndex,
+        int pageSize,
+        CancellationToken cancellationToken);
     Task AddAsync(WorkflowMeta entity, CancellationToken cancellationToken);
     Task UpdateAsync(WorkflowMeta entity, CancellationToken cancellationToken);
 }

@@ -28,6 +28,7 @@ const ResourceCenterPage = () => import("@/pages/console/ResourceCenterPage.vue"
 const DataSourceConsumptionPage = () => import("@/pages/console/DataSourceConsumptionPage.vue");
 const ReleaseCenterPage = () => import("@/pages/console/ReleaseCenterPage.vue");
 const CozeDebugPage = () => import("@/pages/console/CozeDebugPage.vue");
+const MigrationGovernancePage = () => import("@/pages/console/MigrationGovernancePage.vue");
 const AppDashboardPage = () => import("@/pages/apps/AppDashboardPage.vue");
 const AppSettingsPage = () => import("@/pages/apps/AppSettingsPage.vue");
 const AppPagesPage = () => import("@/pages/apps/AppPagesPage.vue");
@@ -36,6 +37,7 @@ const AppFlowsPage = () => import("@/pages/ApprovalFlowsPage.vue");
 const AppDataPage = () => import("@/pages/dynamic/DynamicTablesPage.vue");
 const DynamicTableCrudPage = () => import("@/pages/dynamic/DynamicTableCrudPage.vue");
 const AppUsersPage = () => import("@/pages/apps/AppUsersPage.vue");
+const AppRolesPage = () => import("@/pages/apps/AppRolesPage.vue");
 const AppPermissionsPage = () => import("@/pages/system/PermissionsPage.vue");
 const ModelConfigsPage = () => import("@/pages/ai/ModelConfigsPage.vue");
 const AiVariablesPage = () => import("@/pages/ai/AiVariablesPage.vue");
@@ -119,6 +121,7 @@ const router = createRouter({
     { path: "/console/resources/datasource-consumption", name: "console-datasource-consumption", component: DataSourceConsumptionPage, meta: { requiresAuth: true, title: "数据源消费分析", titleKey: "route.consoleDatasourceConsumption", requiresPermission: "apps:view" } },
     { path: "/console/releases", name: "console-releases", component: ReleaseCenterPage, meta: { requiresAuth: true, title: "发布中心", titleKey: "route.consoleReleases", requiresPermission: "apps:view" } },
     { path: "/console/debug", name: "console-debug-layer", component: CozeDebugPage, meta: { requiresAuth: true, title: "调试层", titleKey: "route.consoleDebugLayer", requiresPermission: "apps:view" } },
+    { path: "/console/migration-governance", name: "console-migration-governance", component: MigrationGovernancePage, meta: { requiresAuth: true, title: "迁移治理", titleKey: "route.consoleMigrationGovernance", requiresPermission: "apps:view" } },
     { path: "/console/tools", name: "console-tools", component: ToolsAuthorizationPage, meta: { requiresAuth: true, title: "工具授权中心", titleKey: "route.consoleTools", requiresPermission: "system:admin" } },
     {
       path: "/console/datasources",
@@ -163,6 +166,7 @@ const router = createRouter({
     { path: "/apps/:appId/data", name: "app-workspace-data", component: AppDataPage, meta: { requiresAuth: true, title: "数据管理", titleKey: "route.dataManage", requiresPermission: "apps:view" } },
     { path: "/apps/:appId/data/:tableKey", name: "app-workspace-data-crud", component: DynamicTableCrudPage, meta: { requiresAuth: true, title: "动态数据管理", titleKey: "route.dataManage", requiresPermission: "apps:view" } },
     { path: "/apps/:appId/users", name: "app-workspace-users", component: AppUsersPage, meta: { requiresAuth: true, title: "应用成员", titleKey: "route.appUsers", requiresPermission: "apps:members:view" } },
+    { path: "/apps/:appId/roles", name: "app-workspace-roles", component: AppRolesPage, meta: { requiresAuth: true, title: "应用角色", titleKey: "route.appRoles", requiresPermission: "apps:roles:view" } },
     { path: "/apps/:appId/permissions", name: "app-workspace-permissions", component: AppPermissionsPage, meta: { requiresAuth: true, title: "权限入口", titleKey: "route.permissionsEntry", requiresPermission: "apps:view" } },
     {
       path: "/apps/:appId/run/:pageKey",

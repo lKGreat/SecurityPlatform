@@ -129,6 +129,38 @@ public sealed record TenantAppRoleDetail(
     int MemberCount,
     IReadOnlyList<string> PermissionCodes);
 
+public sealed record TenantAppRoleGovernanceItem(
+    string RoleId,
+    string RoleCode,
+    string RoleName,
+    bool IsSystem,
+    int MemberCount,
+    int PermissionCount,
+    bool HasPermissionCoverage);
+
+public sealed record TenantAppRoleGovernanceOverview(
+    string AppId,
+    int TotalRoles,
+    int SystemRoleCount,
+    int CustomRoleCount,
+    int TotalMembers,
+    int CoveredMembers,
+    int UncoveredMembers,
+    decimal PermissionCoverageRate,
+    IReadOnlyList<TenantAppRoleGovernanceItem> Roles);
+
+public sealed record MigrationGovernanceOverview(
+    string WindowStartedAt,
+    long TotalApiHits,
+    long LegacyRouteHits,
+    long RewriteHits,
+    long V1EntryHits,
+    long V2EntryHits,
+    long NotFoundCount,
+    long FallbackCount,
+    decimal NotFoundRate,
+    decimal NewEntryCoverageRate);
+
 public sealed record TenantAppRoleCreateRequest(
     string Code,
     string Name,
@@ -182,12 +214,39 @@ public sealed record RuntimeExecutionDetail(
     string? OutputsJson,
     string? ErrorMessage);
 
+public sealed record RuntimeExecutionDebugRequest(
+    string NodeKey,
+    string? InputsJson);
+
+public sealed record RuntimeExecutionOperationResult(
+    string Action,
+    string ExecutionId,
+    string Status,
+    string Message,
+    string? NewExecutionId);
+
+public sealed record RuntimeExecutionTimeoutDiagnosis(
+    string ExecutionId,
+    string Status,
+    string StartedAt,
+    string? CompletedAt,
+    double ElapsedSeconds,
+    bool TimeoutRisk,
+    string Diagnosis,
+    IReadOnlyList<string> Suggestions);
+
 public sealed record ResourceCenterGroupEntry(
     string ResourceId,
     string ResourceName,
     string ResourceType,
     string? Status,
-    string? Description);
+    string? Description,
+    string? NavigationPath = null,
+    string? RelatedCatalogId = null,
+    string? RelatedInstanceId = null,
+    string? RelatedReleaseId = null,
+    string? RelatedRuntimeContextId = null,
+    string? RelatedExecutionId = null);
 
 public sealed record ResourceCenterGroupItem(
     string GroupKey,
@@ -223,7 +282,13 @@ public sealed record TenantDataSourceConsumptionItem(
     IReadOnlyList<TenantAppConsumerItem> BoundTenantApps,
     IReadOnlyList<TenantDataSourceBindingRelationItem> BindingRelations,
     string? LastTestedAt,
-    string? LastTestMessage);
+    string? LastTestMessage,
+    bool IsOrphan,
+    bool IsDuplicate,
+    bool IsInvalid,
+    bool IsUnbound,
+    string ImpactScope,
+    string RepairSuggestion);
 
 public sealed record ResourceCenterDataSourceConsumptionResponse(
     int PlatformDataSourceTotal,
@@ -232,6 +297,23 @@ public sealed record ResourceCenterDataSourceConsumptionResponse(
     IReadOnlyList<TenantDataSourceConsumptionItem> PlatformDataSources,
     IReadOnlyList<TenantDataSourceConsumptionItem> AppScopedDataSources,
     IReadOnlyList<TenantAppConsumerItem> UnboundTenantApps);
+
+public sealed record DisableInvalidBindingRequest(
+    string BindingId);
+
+public sealed record SwitchPrimaryBindingRequest(
+    string TenantAppInstanceId,
+    string TargetDataSourceId,
+    string? Note);
+
+public sealed record UnbindOrphanBindingRequest(
+    string BindingId);
+
+public sealed record ResourceCenterRepairResult(
+    string Action,
+    string ResourceId,
+    bool Success,
+    string Message);
 
 public sealed record ReleaseCenterListItem(
     string ReleaseId,
@@ -253,6 +335,37 @@ public sealed record ReleaseCenterDetail(
     string ReleasedAt,
     string? ReleaseNote,
     string SnapshotJson);
+
+public sealed record ReleaseDiffSummary(
+    string ReleaseId,
+    string? BaselineReleaseId,
+    int AddedCount,
+    int RemovedCount,
+    int ChangedCount,
+    IReadOnlyList<string> AddedKeys,
+    IReadOnlyList<string> RemovedKeys,
+    IReadOnlyList<string> ChangedKeys);
+
+public sealed record ReleaseImpactSummary(
+    string ReleaseId,
+    string AppKey,
+    int RuntimeRouteCount,
+    int ActiveRuntimeRouteCount,
+    int RuntimeContextCount,
+    int RecentExecutionCount,
+    int RunningExecutionCount,
+    int FailedExecutionCount);
+
+public sealed record ReleaseRollbackResult(
+    string ManifestId,
+    string TargetReleaseId,
+    int TargetVersion,
+    string? PreviousReleaseId,
+    int? PreviousVersion,
+    bool Switched,
+    int ReboundRouteCount,
+    string Result,
+    string? Message);
 
 public sealed record RuntimeExecutionAuditTrailItem(
     string AuditId,

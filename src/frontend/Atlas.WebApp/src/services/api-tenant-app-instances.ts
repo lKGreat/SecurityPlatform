@@ -15,7 +15,8 @@ import type {
   TenantAppInstanceListItem,
   TenantAppDataSourceBinding,
   ResourceCenterGroupItem,
-  ResourceCenterDataSourceConsumptionResponse
+  ResourceCenterDataSourceConsumptionResponse,
+  ResourceCenterRepairResult
 } from "@/types/platform-v2";
 import { requestApi, requestApiBlob } from "@/services/api-core";
 
@@ -228,6 +229,62 @@ export async function getResourceCenterDataSourceConsumption(): Promise<Resource
   );
   if (!response.data) {
     throw new Error(response.message || "查询数据源消费模型失败");
+  }
+
+  return response.data;
+}
+
+export async function disableInvalidBinding(bindingId: string): Promise<ResourceCenterRepairResult> {
+  const response = await requestApi<ApiResponse<ResourceCenterRepairResult>>(
+    `${RESOURCE_CENTER_BASE}/datasource-consumption/repair/disable-invalid-binding`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bindingId })
+    }
+  );
+  if (!response.data) {
+    throw new Error(response.message || "禁用无效绑定失败");
+  }
+
+  return response.data;
+}
+
+export async function switchPrimaryBinding(
+  tenantAppInstanceId: string,
+  targetDataSourceId: string,
+  note?: string
+): Promise<ResourceCenterRepairResult> {
+  const response = await requestApi<ApiResponse<ResourceCenterRepairResult>>(
+    `${RESOURCE_CENTER_BASE}/datasource-consumption/repair/switch-primary-binding`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenantAppInstanceId,
+        targetDataSourceId,
+        note
+      })
+    }
+  );
+  if (!response.data) {
+    throw new Error(response.message || "切换主绑定失败");
+  }
+
+  return response.data;
+}
+
+export async function unbindOrphanBinding(bindingId: string): Promise<ResourceCenterRepairResult> {
+  const response = await requestApi<ApiResponse<ResourceCenterRepairResult>>(
+    `${RESOURCE_CENTER_BASE}/datasource-consumption/repair/unbind-orphan-binding`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bindingId })
+    }
+  );
+  if (!response.data) {
+    throw new Error(response.message || "解绑孤儿绑定失败");
   }
 
   return response.data;

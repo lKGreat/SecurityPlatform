@@ -1,3 +1,5 @@
+using Atlas.Application.AiPlatform.Abstractions;
+using Atlas.Application.AiPlatform.Models;
 using Atlas.Application.LowCode.Abstractions;
 using Atlas.Application.Identity;
 using Atlas.Application.LowCode.Models;
@@ -5,6 +7,7 @@ using Atlas.Application.Platform.Abstractions;
 using Atlas.Application.Platform.Models;
 using Atlas.Application.System.Abstractions;
 using Atlas.Application.System.Models;
+using Atlas.Core.Abstractions;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 using Atlas.Domain.AiPlatform.Entities;
@@ -16,6 +19,7 @@ using Atlas.Domain.LowCode.Enums;
 using Atlas.Domain.Platform.Entities;
 using Atlas.Domain.System.Entities;
 using SqlSugar;
+using System.Text.Json;
 using TenantAppDataSourceBindingDto = Atlas.Application.Platform.Models.TenantAppDataSourceBinding;
 using TenantAppDataSourceBindingEntity = Atlas.Domain.System.Entities.TenantAppDataSourceBinding;
 
@@ -33,9 +37,18 @@ public sealed class ApplicationCatalogQueryService : IApplicationCatalogQuerySer
     public async Task<PagedResult<ApplicationCatalogListItem>> QueryAsync(
         TenantId tenantId,
         PagedRequest request,
+        string? status = null,
+        string? category = null,
+        string? appKey = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await _appManifestQueryService.QueryAsync(tenantId, request, cancellationToken);
+        var result = await _appManifestQueryService.QueryAsync(
+            tenantId,
+            request,
+            status,
+            category,
+            appKey,
+            cancellationToken);
         var items = result.Items
             .Select(item => new ApplicationCatalogListItem(
                 item.Id,
@@ -89,6 +102,7 @@ public sealed class TenantApplicationQueryService : ITenantApplicationQueryServi
     public async Task<PagedResult<TenantApplicationListItem>> QueryAsync(
         TenantId tenantId,
         PagedRequest request,
+        string? status = null,
         CancellationToken cancellationToken = default)
     {
         var tenantValue = tenantId.Value;
@@ -103,13 +117,18 @@ public sealed class TenantApplicationQueryService : ITenantApplicationQueryServi
             query = query.Where(item => item.AppKey.Contains(keyword) || item.Name.Contains(keyword));
         }
 
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<TenantApplicationStatus>(status, true, out var statusValue))
+        {
+            query = query.Where(item => item.Status == statusValue);
+        }
+
         var total = await query.CountAsync(cancellationToken);
         var rows = await query
             .OrderByDescending(item => item.UpdatedAt)
             .ToPageListAsync(pageIndex, pageSize, cancellationToken);
         if (rows.Count == 0)
         {
-            return await BuildFallbackResultAsync(tenantId, request, cancellationToken);
+            return await BuildFallbackResultAsync(tenantId, request, status, cancellationToken);
         }
 
         var catalogIds = rows.Select(item => item.CatalogId).Distinct().ToArray();
@@ -175,6 +194,7 @@ public sealed class TenantApplicationQueryService : ITenantApplicationQueryServi
     private async Task<PagedResult<TenantApplicationListItem>> BuildFallbackResultAsync(
         TenantId tenantId,
         PagedRequest request,
+        string? status,
         CancellationToken cancellationToken)
     {
         var tenantValue = tenantId.Value;
@@ -187,6 +207,22 @@ public sealed class TenantApplicationQueryService : ITenantApplicationQueryServi
         {
             var keyword = request.Keyword.Trim();
             appQuery = appQuery.Where(item => item.AppKey.Contains(keyword) || item.Name.Contains(keyword));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<TenantApplicationStatus>(status, true, out var statusValue))
+        {
+            if (statusValue == TenantApplicationStatus.Provisioning)
+            {
+                return new PagedResult<TenantApplicationListItem>(Array.Empty<TenantApplicationListItem>(), 0, pageIndex, pageSize);
+            }
+
+            var appStatus = statusValue switch
+            {
+                TenantApplicationStatus.Disabled => LowCodeAppStatus.Disabled,
+                TenantApplicationStatus.Archived => LowCodeAppStatus.Archived,
+                _ => LowCodeAppStatus.Published
+            };
+            appQuery = appQuery.Where(item => item.Status == appStatus);
         }
 
         var total = await appQuery.CountAsync(cancellationToken);
@@ -886,6 +922,225 @@ public sealed class RuntimeExecutionQueryService : IRuntimeExecutionQueryService
     }
 }
 
+public sealed class RuntimeExecutionCommandService : IRuntimeExecutionCommandService
+{
+    private readonly ISqlSugarClient _db;
+    private readonly IWorkflowV2ExecutionService _workflowExecutionService;
+
+    public RuntimeExecutionCommandService(
+        ISqlSugarClient db,
+        IWorkflowV2ExecutionService workflowExecutionService)
+    {
+        _db = db;
+        _workflowExecutionService = workflowExecutionService;
+    }
+
+    public async Task<RuntimeExecutionOperationResult> CancelAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        long executionId,
+        CancellationToken cancellationToken = default)
+    {
+        var execution = await GetExecutionAsync(tenantId, executionId, cancellationToken);
+        if (execution.Status is ExecutionStatus.Completed or ExecutionStatus.Failed or ExecutionStatus.Cancelled)
+        {
+            return new RuntimeExecutionOperationResult(
+                "cancel",
+                executionId.ToString(),
+                execution.Status.ToString(),
+                "当前执行状态不支持取消。",
+                null);
+        }
+
+        await _workflowExecutionService.CancelAsync(tenantId, executionId, cancellationToken);
+        await WriteAuditAsync(tenantId, operatorUserId, "runtime.execution.cancel", $"RuntimeExecution:{executionId}", cancellationToken);
+        return new RuntimeExecutionOperationResult("cancel", executionId.ToString(), ExecutionStatus.Cancelled.ToString(), "执行已取消。", null);
+    }
+
+    public async Task<RuntimeExecutionOperationResult> RetryAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        long executionId,
+        CancellationToken cancellationToken = default)
+    {
+        var execution = await GetExecutionAsync(tenantId, executionId, cancellationToken);
+        if (execution.Status is not (ExecutionStatus.Failed or ExecutionStatus.Cancelled or ExecutionStatus.Interrupted))
+        {
+            return new RuntimeExecutionOperationResult(
+                "retry",
+                executionId.ToString(),
+                execution.Status.ToString(),
+                "仅失败/取消/中断状态支持重试。",
+                null);
+        }
+
+        var runResult = await _workflowExecutionService.AsyncRunAsync(
+            tenantId,
+            execution.WorkflowId,
+            operatorUserId,
+            new WorkflowV2RunRequest(execution.InputsJson),
+            cancellationToken);
+        await WriteAuditAsync(
+            tenantId,
+            operatorUserId,
+            "runtime.execution.retry",
+            $"RuntimeExecution:{executionId}->{runResult.ExecutionId}",
+            cancellationToken);
+
+        return new RuntimeExecutionOperationResult(
+            "retry",
+            executionId.ToString(),
+            runResult.Status?.ToString() ?? ExecutionStatus.Pending.ToString(),
+            "已发起重试执行。",
+            runResult.ExecutionId);
+    }
+
+    public async Task<RuntimeExecutionOperationResult> ResumeAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        long executionId,
+        CancellationToken cancellationToken = default)
+    {
+        var execution = await GetExecutionAsync(tenantId, executionId, cancellationToken);
+        if (execution.Status != ExecutionStatus.Interrupted)
+        {
+            return new RuntimeExecutionOperationResult(
+                "resume",
+                executionId.ToString(),
+                execution.Status.ToString(),
+                "仅中断状态支持恢复。",
+                null);
+        }
+
+        await _workflowExecutionService.ResumeAsync(tenantId, executionId, cancellationToken);
+        await WriteAuditAsync(tenantId, operatorUserId, "runtime.execution.resume", $"RuntimeExecution:{executionId}", cancellationToken);
+        return new RuntimeExecutionOperationResult("resume", executionId.ToString(), ExecutionStatus.Running.ToString(), "执行已恢复。", null);
+    }
+
+    public async Task<RuntimeExecutionOperationResult> DebugAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        long executionId,
+        RuntimeExecutionDebugRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var execution = await GetExecutionAsync(tenantId, executionId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(request.NodeKey))
+        {
+            throw new InvalidOperationException("NodeKey 不能为空。");
+        }
+
+        var debugRequest = new WorkflowV2NodeDebugRequest(request.NodeKey.Trim(), request.InputsJson ?? execution.InputsJson);
+        var debugResult = await _workflowExecutionService.DebugNodeAsync(
+            tenantId,
+            execution.WorkflowId,
+            operatorUserId,
+            debugRequest,
+            cancellationToken);
+        await WriteAuditAsync(
+            tenantId,
+            operatorUserId,
+            "runtime.execution.debug",
+            $"RuntimeExecution:{executionId}->{debugResult.ExecutionId}",
+            cancellationToken);
+
+        return new RuntimeExecutionOperationResult(
+            "debug",
+            executionId.ToString(),
+            debugResult.Status?.ToString() ?? ExecutionStatus.Pending.ToString(),
+            "单节点调试执行已完成。",
+            debugResult.ExecutionId);
+    }
+
+    public async Task<RuntimeExecutionTimeoutDiagnosis?> GetTimeoutDiagnosisAsync(
+        TenantId tenantId,
+        long executionId,
+        CancellationToken cancellationToken = default)
+    {
+        var execution = await _db.Queryable<WorkflowExecution>()
+            .FirstAsync(item => item.TenantIdValue == tenantId.Value && item.Id == executionId, cancellationToken);
+        if (execution is null)
+        {
+            return null;
+        }
+
+        var completedAt = execution.CompletedAt;
+        var elapsed = (completedAt ?? DateTime.UtcNow) - execution.StartedAt;
+        var elapsedSeconds = Math.Max(0, elapsed.TotalSeconds);
+        var timeoutRisk = execution.Status == ExecutionStatus.Running && elapsedSeconds >= 300;
+        var diagnosis = timeoutRisk
+            ? "执行运行时间超过 5 分钟，存在超时风险。"
+            : execution.Status switch
+            {
+                ExecutionStatus.Failed => $"执行失败：{execution.ErrorMessage ?? "未记录异常信息"}",
+                ExecutionStatus.Interrupted => $"执行中断：{execution.InterruptType}",
+                ExecutionStatus.Cancelled => "执行已取消。",
+                _ => "执行状态正常。"
+            };
+
+        var suggestions = new List<string>();
+        if (timeoutRisk)
+        {
+            suggestions.Add("检查外部依赖（数据库/API）响应时间。");
+            suggestions.Add("考虑对执行进行 cancel 后 retry，或拆分长耗时节点。");
+        }
+
+        if (execution.Status == ExecutionStatus.Failed)
+        {
+            suggestions.Add("查看 ErrorMessage 并定位失败节点。");
+            suggestions.Add("修复后执行 retry。");
+        }
+
+        if (execution.Status == ExecutionStatus.Interrupted)
+        {
+            suggestions.Add("确认中断原因并执行 resume。");
+        }
+
+        if (suggestions.Count == 0)
+        {
+            suggestions.Add("当前无需额外处理。");
+        }
+
+        return new RuntimeExecutionTimeoutDiagnosis(
+            execution.Id.ToString(),
+            execution.Status.ToString(),
+            execution.StartedAt.ToString("O"),
+            completedAt?.ToString("O"),
+            elapsedSeconds,
+            timeoutRisk,
+            diagnosis,
+            suggestions);
+    }
+
+    private async Task<WorkflowExecution> GetExecutionAsync(
+        TenantId tenantId,
+        long executionId,
+        CancellationToken cancellationToken)
+    {
+        return await _db.Queryable<WorkflowExecution>()
+            .FirstAsync(item => item.TenantIdValue == tenantId.Value && item.Id == executionId, cancellationToken)
+            ?? throw new InvalidOperationException("执行实例不存在。");
+    }
+
+    private async Task WriteAuditAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        string action,
+        string target,
+        CancellationToken cancellationToken)
+    {
+        var audit = new AuditRecord(
+            tenantId,
+            operatorUserId.ToString(),
+            action,
+            "Success",
+            target,
+            null,
+            null);
+        await _db.Insertable(audit).ExecuteCommandAsync(cancellationToken);
+    }
+}
+
 public sealed class ResourceCenterQueryService : IResourceCenterQueryService
 {
     private readonly ISqlSugarClient _db;
@@ -906,6 +1161,10 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             .Where(item => item.TenantIdValue == tenantIdValue)
             .OrderByDescending(item => item.UpdatedAt)
             .ToListAsync(cancellationToken);
+        var tenantApplicationsTask = _db.Queryable<TenantApplication>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.UpdatedAt)
+            .ToListAsync(cancellationToken);
         var appInstancesTask = _db.Queryable<LowCodeApp>()
             .Where(item => item.TenantIdValue == tenantIdValue)
             .OrderByDescending(item => item.UpdatedAt)
@@ -914,38 +1173,169 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
             .Where(item => item.TenantIdValue == tenantIdText)
             .OrderByDescending(item => item.UpdatedAt)
             .ToListAsync(cancellationToken);
-        await Task.WhenAll(catalogsTask, appInstancesTask, dataSourcesTask);
+        var releasesTask = _db.Queryable<AppRelease>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.ReleasedAt)
+            .ToListAsync(cancellationToken);
+        var runtimeContextsTask = _db.Queryable<RuntimeRoute>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.Id)
+            .ToListAsync(cancellationToken);
+        var runtimeExecutionsTask = _db.Queryable<WorkflowExecution>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.StartedAt)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+        var auditsTask = _db.Queryable<AuditRecord>()
+            .Where(item => item.TenantIdValue == tenantIdValue)
+            .OrderByDescending(item => item.OccurredAt)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+        await Task.WhenAll(
+            catalogsTask,
+            tenantApplicationsTask,
+            appInstancesTask,
+            dataSourcesTask,
+            releasesTask,
+            runtimeContextsTask,
+            runtimeExecutionsTask,
+            auditsTask);
 
-        var catalogItems = catalogsTask.Result
+        var catalogs = catalogsTask.Result;
+        var tenantApplications = tenantApplicationsTask.Result;
+        var appInstances = appInstancesTask.Result;
+        var dataSources = dataSourcesTask.Result;
+        var releases = releasesTask.Result;
+        var runtimeContexts = runtimeContextsTask.Result;
+        var runtimeExecutions = runtimeExecutionsTask.Result;
+        var audits = auditsTask.Result;
+
+        var catalogById = catalogs.ToDictionary(item => item.Id);
+        var appInstanceById = appInstances.ToDictionary(item => item.Id);
+
+        var catalogItems = catalogs
             .Select(item => new ResourceCenterGroupEntry(
                 item.Id.ToString(),
                 item.Name,
                 "ApplicationCatalog",
                 item.Status.ToString(),
-                item.Description))
+                item.Description,
+                $"/console/application-catalogs?catalogId={item.Id}",
+                item.Id.ToString()))
             .ToArray();
-        var appInstanceItems = appInstancesTask.Result
+        var tenantApplicationItems = tenantApplications
+            .Select(item => new ResourceCenterGroupEntry(
+                item.Id.ToString(),
+                item.Name,
+                "TenantApplication",
+                item.Status.ToString(),
+                $"AppKey={item.AppKey}",
+                $"/console/tenant-applications?applicationId={item.Id}",
+                item.CatalogId.ToString(),
+                item.AppInstanceId.ToString()))
+            .ToArray();
+        var appInstanceItems = appInstances
             .Select(item => new ResourceCenterGroupEntry(
                 item.Id.ToString(),
                 item.Name,
                 "TenantAppInstance",
                 item.Status.ToString(),
-                item.Description))
+                item.Description,
+                $"/console/tenant-app-instances?instanceId={item.Id}",
+                null,
+                item.Id.ToString()))
             .ToArray();
-        var dataSourceItems = dataSourcesTask.Result
+        var dataSourceItems = dataSources
             .Select(item => new ResourceCenterGroupEntry(
                 item.Id.ToString(),
                 item.Name,
                 "TenantDataSource",
                 item.IsActive ? "Active" : "Disabled",
-                item.LastTestMessage))
+                item.LastTestMessage,
+                $"/console/datasource-consumption?dataSourceId={item.Id}",
+                null,
+                item.AppId?.ToString()))
+            .ToArray();
+        var releaseItems = releases
+            .Select(item =>
+            {
+                var manifest = catalogById.TryGetValue(item.ManifestId, out var manifestValue) ? manifestValue : null;
+                return new ResourceCenterGroupEntry(
+                    item.Id.ToString(),
+                    $"v{item.Version}",
+                    "Release",
+                    item.Status.ToString(),
+                    manifest is null ? item.ReleaseNote : $"{manifest.Name} / {manifest.AppKey}",
+                    $"/console/releases?releaseId={item.Id}",
+                    item.ManifestId.ToString(),
+                    null,
+                    item.Id.ToString());
+            })
+            .ToArray();
+        var runtimeContextItems = runtimeContexts
+            .Select(item => new ResourceCenterGroupEntry(
+                item.Id.ToString(),
+                $"{item.AppKey}/{item.PageKey}",
+                "RuntimeContext",
+                item.IsActive ? "Active" : "Inactive",
+                $"SchemaVersion={item.SchemaVersion}, Env={item.EnvironmentCode}",
+                $"/console/runtime-contexts?contextId={item.Id}",
+                item.ManifestId.ToString(),
+                null,
+                null,
+                item.Id.ToString()))
+            .ToArray();
+        var runtimeExecutionItems = runtimeExecutions
+            .Select(item => new ResourceCenterGroupEntry(
+                item.Id.ToString(),
+                $"Workflow:{item.WorkflowId}",
+                "RuntimeExecution",
+                item.Status.ToString(),
+                $"StartedAt={item.StartedAt:O}",
+                $"/console/runtime-executions?executionId={item.Id}",
+                null,
+                item.AppId?.ToString(),
+                item.ReleaseId?.ToString(),
+                item.RuntimeContextId?.ToString(),
+                item.Id.ToString()))
+            .ToArray();
+        var auditSummaryItems = audits
+            .GroupBy(item => new { item.Action, item.Result })
+            .OrderByDescending(group => group.Count())
+            .Take(20)
+            .Select(group => new ResourceCenterGroupEntry(
+                $"{group.Key.Action}:{group.Key.Result}",
+                group.Key.Action,
+                "AuditSummary",
+                group.Key.Result,
+                $"近200条记录命中 {group.Count()} 次",
+                $"/audit?keyword={Uri.EscapeDataString(group.Key.Action)}"))
+            .ToArray();
+        var debugEntryItems = audits
+            .Where(item =>
+                item.Action.Contains("debug", StringComparison.OrdinalIgnoreCase) ||
+                item.Target.Contains("debug", StringComparison.OrdinalIgnoreCase))
+            .Take(20)
+            .Select(item => new ResourceCenterGroupEntry(
+                $"{item.Action}:{item.OccurredAt:yyyyMMddHHmmssfff}",
+                item.Action,
+                "DebugEntry",
+                item.Result,
+                $"{item.Target} @ {item.OccurredAt:O}",
+                "/console/debug"))
             .ToArray();
 
         return
         [
             new ResourceCenterGroupItem("catalogs", "应用目录", catalogItems.Length, catalogItems),
+            new ResourceCenterGroupItem("tenant-applications", "租户开通关系", tenantApplicationItems.Length, tenantApplicationItems),
             new ResourceCenterGroupItem("instances", "租户应用实例", appInstanceItems.Length, appInstanceItems),
-            new ResourceCenterGroupItem("datasources", "租户数据源", dataSourceItems.Length, dataSourceItems)
+            new ResourceCenterGroupItem("releases", "发布记录", releaseItems.Length, releaseItems),
+            new ResourceCenterGroupItem("runtime-contexts", "运行上下文", runtimeContextItems.Length, runtimeContextItems),
+            new ResourceCenterGroupItem("runtime-executions", "运行执行", runtimeExecutionItems.Length, runtimeExecutionItems),
+            new ResourceCenterGroupItem("datasources", "租户数据源", dataSourceItems.Length, dataSourceItems),
+            new ResourceCenterGroupItem("audit-summary", "审计汇总", auditSummaryItems.Length, auditSummaryItems),
+            new ResourceCenterGroupItem("debug-entries", "调试记录", debugEntryItems.Length, debugEntryItems)
         ];
     }
 
@@ -1015,6 +1405,13 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
                     .ThenBy(item => item.BindingType)
                     .ThenByDescending(item => item.UpdatedAt ?? item.BoundAt ?? DateTimeOffset.MinValue)
                     .ToArray());
+        var duplicateCountByKey = dataSources
+            .GroupBy(item =>
+            {
+                var scope = item.AppId.HasValue ? "app" : "platform";
+                return $"{scope}:{item.AppId?.ToString() ?? "0"}:{item.DbType}:{item.Name}".ToLowerInvariant();
+            })
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
 
         TenantDataSourceConsumptionItem MapDataSource(TenantDataSource dataSource)
         {
@@ -1053,6 +1450,29 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
                 scopeAppId = dataSource.AppId.Value.ToString();
             }
 
+            var duplicateScopeKey = dataSource.AppId.HasValue ? "app" : "platform";
+            var duplicateKey = $"{duplicateScopeKey}:{dataSource.AppId?.ToString() ?? "0"}:{dataSource.DbType}:{dataSource.Name}".ToLowerInvariant();
+            var isDuplicate = duplicateCountByKey.TryGetValue(duplicateKey, out var duplicateCount) && duplicateCount > 1;
+            var isOrphan = dataSource.AppId.HasValue && !appInstanceById.ContainsKey(dataSource.AppId.Value);
+            var isUnbound = boundApps.Length == 0;
+            var testMessage = dataSource.LastTestMessage ?? string.Empty;
+            var isInvalid = !dataSource.IsActive
+                || testMessage.Contains("失败", StringComparison.OrdinalIgnoreCase)
+                || testMessage.Contains("error", StringComparison.OrdinalIgnoreCase)
+                || testMessage.Contains("exception", StringComparison.OrdinalIgnoreCase);
+            var impactScope = scope == "Platform"
+                ? $"Platform / BoundApps:{boundApps.Length}"
+                : $"AppScoped:{scopeAppName ?? scopeAppId ?? "-"} / BoundApps:{boundApps.Length}";
+            var repairSuggestion = isOrphan
+                ? "建议执行“解绑孤儿绑定”"
+                : isInvalid
+                    ? "建议执行“禁用无效绑定”"
+                    : isDuplicate
+                        ? "建议执行“切换主绑定”并清理重复绑定"
+                        : isUnbound
+                            ? "建议执行“切换主绑定”补齐有效绑定"
+                            : "无需修复";
+
             return new TenantDataSourceConsumptionItem(
                 dataSource.Id.ToString(),
                 dataSource.Name,
@@ -1065,7 +1485,13 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
                 boundApps,
                 bindingRelations,
                 dataSource.LastTestedAt?.ToString("O"),
-                dataSource.LastTestMessage);
+                dataSource.LastTestMessage,
+                isOrphan,
+                isDuplicate,
+                isInvalid,
+                isUnbound,
+                impactScope,
+                repairSuggestion);
         }
 
         var platformDataSources = dataSources
@@ -1110,6 +1536,228 @@ public sealed class ResourceCenterQueryService : IResourceCenterQueryService
         string Source);
 }
 
+public sealed class ResourceCenterCommandService : IResourceCenterCommandService
+{
+    private readonly ISqlSugarClient _db;
+    private readonly IIdGeneratorAccessor _idGenerator;
+
+    public ResourceCenterCommandService(ISqlSugarClient db, IIdGeneratorAccessor idGenerator)
+    {
+        _db = db;
+        _idGenerator = idGenerator;
+    }
+
+    public async Task<ResourceCenterRepairResult> DisableInvalidBindingAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        DisableInvalidBindingRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!long.TryParse(request.BindingId, out var bindingId) || bindingId <= 0)
+        {
+            throw new InvalidOperationException("BindingId 无效。");
+        }
+
+        var tenantValue = tenantId.Value;
+        var binding = await _db.Queryable<TenantAppDataSourceBindingEntity>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == bindingId, cancellationToken)
+            ?? throw new InvalidOperationException("绑定关系不存在。");
+        if (!binding.IsActive)
+        {
+            return new ResourceCenterRepairResult("disable-invalid-binding", request.BindingId, true, "绑定已处于禁用状态。");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        binding.Deactivate(operatorUserId, now, "resource-center:disable-invalid-binding");
+        var audit = new AuditRecord(
+            tenantId,
+            operatorUserId.ToString(),
+            "resource.datasource-binding.disable-invalid",
+            "Success",
+            $"Binding:{binding.Id}",
+            null,
+            null);
+
+        var transaction = await _db.Ado.UseTranAsync(async () =>
+        {
+            await _db.Updateable(binding).ExecuteCommandAsync(cancellationToken);
+            await _db.Insertable(audit).ExecuteCommandAsync(cancellationToken);
+        });
+
+        if (!transaction.IsSuccess)
+        {
+            throw transaction.ErrorException ?? new InvalidOperationException("禁用无效绑定失败。");
+        }
+
+        return new ResourceCenterRepairResult("disable-invalid-binding", binding.Id.ToString(), true, "已禁用无效绑定。");
+    }
+
+    public async Task<ResourceCenterRepairResult> SwitchPrimaryBindingAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        SwitchPrimaryBindingRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!long.TryParse(request.TenantAppInstanceId, out var appInstanceId) || appInstanceId <= 0)
+        {
+            throw new InvalidOperationException("TenantAppInstanceId 无效。");
+        }
+
+        if (!long.TryParse(request.TargetDataSourceId, out var targetDataSourceId) || targetDataSourceId <= 0)
+        {
+            throw new InvalidOperationException("TargetDataSourceId 无效。");
+        }
+
+        var tenantValue = tenantId.Value;
+        var tenantText = tenantValue.ToString();
+
+        var app = await _db.Queryable<LowCodeApp>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == appInstanceId, cancellationToken)
+            ?? throw new InvalidOperationException("应用实例不存在。");
+        var targetDataSource = await _db.Queryable<TenantDataSource>()
+            .FirstAsync(item => item.TenantIdValue == tenantText && item.Id == targetDataSourceId, cancellationToken)
+            ?? throw new InvalidOperationException("目标数据源不存在。");
+        var bindings = await _db.Queryable<TenantAppDataSourceBindingEntity>()
+            .Where(item => item.TenantIdValue == tenantValue && item.TenantAppInstanceId == appInstanceId)
+            .ToListAsync(cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+        var updates = new List<TenantAppDataSourceBindingEntity>();
+        foreach (var binding in bindings.Where(item =>
+                     item.IsActive
+                     && item.BindingType == TenantAppDataSourceBindingType.Primary
+                     && item.DataSourceId != targetDataSourceId))
+        {
+            binding.Deactivate(operatorUserId, now, "resource-center:switch-primary-binding");
+            updates.Add(binding);
+        }
+
+        var targetBinding = bindings.FirstOrDefault(item => item.DataSourceId == targetDataSourceId);
+        TenantAppDataSourceBindingEntity? newTargetBinding = null;
+        if (targetBinding is null)
+        {
+            newTargetBinding = new TenantAppDataSourceBindingEntity(
+                tenantId,
+                appInstanceId,
+                targetDataSourceId,
+                TenantAppDataSourceBindingType.Primary,
+                operatorUserId,
+                _idGenerator.NextId(),
+                now,
+                request.Note);
+            targetBinding = newTargetBinding;
+        }
+        else
+        {
+            targetBinding.Rebind(
+                targetDataSourceId,
+                TenantAppDataSourceBindingType.Primary,
+                operatorUserId,
+                now,
+                request.Note);
+            updates.Add(targetBinding);
+        }
+
+        app.Update(app.Name, app.Description, app.Category, app.Icon, targetDataSource.Id, operatorUserId, now);
+        var audit = new AuditRecord(
+            tenantId,
+            operatorUserId.ToString(),
+            "resource.datasource-binding.switch-primary",
+            "Success",
+            $"App:{app.Id}/DataSource:{targetDataSource.Id}",
+            null,
+            null);
+
+        var transaction = await _db.Ado.UseTranAsync(async () =>
+        {
+            if (updates.Count > 0)
+            {
+                await _db.Updateable(updates).ExecuteCommandAsync(cancellationToken);
+            }
+
+            if (newTargetBinding is not null)
+            {
+                await _db.Insertable(newTargetBinding).ExecuteCommandAsync(cancellationToken);
+            }
+
+            await _db.Updateable(app).ExecuteCommandAsync(cancellationToken);
+            await _db.Insertable(audit).ExecuteCommandAsync(cancellationToken);
+        });
+
+        if (!transaction.IsSuccess)
+        {
+            throw transaction.ErrorException ?? new InvalidOperationException("切换主绑定失败。");
+        }
+
+        return new ResourceCenterRepairResult(
+            "switch-primary-binding",
+            targetBinding.Id.ToString(),
+            true,
+            $"应用 {app.Name} 已切换到数据源 {targetDataSource.Name}。");
+    }
+
+    public async Task<ResourceCenterRepairResult> UnbindOrphanBindingAsync(
+        TenantId tenantId,
+        long operatorUserId,
+        UnbindOrphanBindingRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!long.TryParse(request.BindingId, out var bindingId) || bindingId <= 0)
+        {
+            throw new InvalidOperationException("BindingId 无效。");
+        }
+
+        var tenantValue = tenantId.Value;
+        var tenantText = tenantValue.ToString();
+        var binding = await _db.Queryable<TenantAppDataSourceBindingEntity>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == bindingId, cancellationToken)
+            ?? throw new InvalidOperationException("绑定关系不存在。");
+        var app = await _db.Queryable<LowCodeApp>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == binding.TenantAppInstanceId, cancellationToken);
+        var dataSourceExists = await _db.Queryable<TenantDataSource>()
+            .AnyAsync(item => item.TenantIdValue == tenantText && item.Id == binding.DataSourceId, cancellationToken);
+        var isOrphan = app is null || !dataSourceExists;
+        if (!isOrphan)
+        {
+            return new ResourceCenterRepairResult("unbind-orphan-binding", request.BindingId, true, "绑定不是孤儿关系，无需解绑。");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        binding.Deactivate(operatorUserId, now, "resource-center:unbind-orphan-binding");
+        if (app is not null && app.DataSourceId == binding.DataSourceId)
+        {
+            app.Update(app.Name, app.Description, app.Category, app.Icon, null, operatorUserId, now);
+        }
+
+        var audit = new AuditRecord(
+            tenantId,
+            operatorUserId.ToString(),
+            "resource.datasource-binding.unbind-orphan",
+            "Success",
+            $"Binding:{binding.Id}",
+            null,
+            null);
+
+        var transaction = await _db.Ado.UseTranAsync(async () =>
+        {
+            await _db.Updateable(binding).ExecuteCommandAsync(cancellationToken);
+            if (app is not null)
+            {
+                await _db.Updateable(app).ExecuteCommandAsync(cancellationToken);
+            }
+
+            await _db.Insertable(audit).ExecuteCommandAsync(cancellationToken);
+        });
+
+        if (!transaction.IsSuccess)
+        {
+            throw transaction.ErrorException ?? new InvalidOperationException("解绑孤儿绑定失败。");
+        }
+
+        return new ResourceCenterRepairResult("unbind-orphan-binding", binding.Id.ToString(), true, "孤儿绑定已解绑。");
+    }
+}
+
 public sealed class ReleaseCenterQueryService : IReleaseCenterQueryService
 {
     private readonly ISqlSugarClient _db;
@@ -1122,6 +1770,9 @@ public sealed class ReleaseCenterQueryService : IReleaseCenterQueryService
     public async Task<PagedResult<ReleaseCenterListItem>> QueryAsync(
         TenantId tenantId,
         PagedRequest request,
+        string? status = null,
+        string? appKey = null,
+        long? manifestId = null,
         CancellationToken cancellationToken = default)
     {
         var tenantValue = tenantId.Value;
@@ -1140,6 +1791,31 @@ public sealed class ReleaseCenterQueryService : IReleaseCenterQueryService
         {
             var keyword = request.Keyword.Trim();
             query = query.Where(item => item.ReleaseNote.Contains(keyword));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<AppReleaseStatus>(status, true, out var statusValue))
+        {
+            query = query.Where(item => item.Status == statusValue);
+        }
+
+        if (manifestId.HasValue && manifestId.Value > 0)
+        {
+            query = query.Where(item => item.ManifestId == manifestId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(appKey))
+        {
+            var appKeyValue = appKey.Trim();
+            var manifestIds = manifestList
+                .Where(item => item.AppKey.Contains(appKeyValue, StringComparison.OrdinalIgnoreCase))
+                .Select(item => item.Id)
+                .ToArray();
+            if (manifestIds.Length == 0)
+            {
+                return new PagedResult<ReleaseCenterListItem>(Array.Empty<ReleaseCenterListItem>(), 0, pageIndex, pageSize);
+            }
+
+            query = query.Where(item => SqlFunc.ContainsArray(manifestIds, item.ManifestId));
         }
 
         var total = await query.CountAsync(cancellationToken);
@@ -1192,6 +1868,176 @@ public sealed class ReleaseCenterQueryService : IReleaseCenterQueryService
             release.ReleasedAt.ToString("O"),
             release.ReleaseNote,
             release.SnapshotJson);
+    }
+
+    public async Task<ReleaseDiffSummary?> GetDiffAsync(
+        TenantId tenantId,
+        long releaseId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantValue = tenantId.Value;
+        var release = await _db.Queryable<AppRelease>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == releaseId, cancellationToken);
+        if (release is null)
+        {
+            return null;
+        }
+
+        var baselineRelease = await _db.Queryable<AppRelease>()
+            .Where(item => item.TenantIdValue == tenantValue && item.ManifestId == release.ManifestId && item.Id != releaseId)
+            .OrderByDescending(item => item.ReleasedAt)
+            .FirstAsync(cancellationToken);
+
+        var currentSnapshot = FlattenSnapshot(release.SnapshotJson);
+        var baselineSnapshot = baselineRelease is null
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : FlattenSnapshot(baselineRelease.SnapshotJson);
+
+        var addedKeys = currentSnapshot.Keys
+            .Where(key => !baselineSnapshot.ContainsKey(key))
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var removedKeys = baselineSnapshot.Keys
+            .Where(key => !currentSnapshot.ContainsKey(key))
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var changedKeys = currentSnapshot.Keys
+            .Where(key =>
+                baselineSnapshot.TryGetValue(key, out var baselineValue) &&
+                !string.Equals(currentSnapshot[key], baselineValue, StringComparison.Ordinal))
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return new ReleaseDiffSummary(
+            release.Id.ToString(),
+            baselineRelease?.Id.ToString(),
+            addedKeys.Length,
+            removedKeys.Length,
+            changedKeys.Length,
+            addedKeys,
+            removedKeys,
+            changedKeys);
+    }
+
+    public async Task<ReleaseImpactSummary?> GetImpactAsync(
+        TenantId tenantId,
+        long releaseId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantValue = tenantId.Value;
+        var release = await _db.Queryable<AppRelease>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == releaseId, cancellationToken);
+        if (release is null)
+        {
+            return null;
+        }
+
+        var manifest = await _db.Queryable<AppManifest>()
+            .FirstAsync(item => item.TenantIdValue == tenantValue && item.Id == release.ManifestId, cancellationToken);
+        if (manifest is null)
+        {
+            return null;
+        }
+
+        var routeQuery = _db.Queryable<RuntimeRoute>()
+            .Where(item => item.TenantIdValue == tenantValue && item.ManifestId == release.ManifestId);
+        var executionQuery = _db.Queryable<WorkflowExecution>()
+            .Where(item => item.TenantIdValue == tenantValue && item.ReleaseId == release.Id);
+        var since = DateTime.UtcNow.AddHours(-24);
+
+        var runtimeRouteCountTask = routeQuery.CountAsync(cancellationToken);
+        var activeRuntimeRouteCountTask = routeQuery.CountAsync(item => item.IsActive, cancellationToken);
+        var recentExecutionCountTask = executionQuery.CountAsync(item => item.StartedAt >= since, cancellationToken);
+        var runningExecutionCountTask = executionQuery.CountAsync(item => item.Status == ExecutionStatus.Running, cancellationToken);
+        var failedExecutionCountTask = executionQuery.CountAsync(item => item.Status == ExecutionStatus.Failed, cancellationToken);
+
+        await Task.WhenAll(
+            runtimeRouteCountTask,
+            activeRuntimeRouteCountTask,
+            recentExecutionCountTask,
+            runningExecutionCountTask,
+            failedExecutionCountTask);
+
+        var runtimeRouteCount = runtimeRouteCountTask.Result;
+        return new ReleaseImpactSummary(
+            release.Id.ToString(),
+            manifest.AppKey,
+            runtimeRouteCount,
+            activeRuntimeRouteCountTask.Result,
+            runtimeRouteCount,
+            recentExecutionCountTask.Result,
+            runningExecutionCountTask.Result,
+            failedExecutionCountTask.Result);
+    }
+
+    private static Dictionary<string, string> FlattenSnapshot(string snapshotJson)
+    {
+        if (string.IsNullOrWhiteSpace(snapshotJson))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(snapshotJson);
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            PopulateSnapshotFields(document.RootElement, "$", result);
+            return result;
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["$"] = snapshotJson
+            };
+        }
+    }
+
+    private static void PopulateSnapshotFields(
+        JsonElement element,
+        string path,
+        IDictionary<string, string> output)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    var childPath = $"{path}.{property.Name}";
+                    PopulateSnapshotFields(property.Value, childPath, output);
+                }
+
+                break;
+            }
+            case JsonValueKind.Array:
+            {
+                var index = 0;
+                foreach (var item in element.EnumerateArray())
+                {
+                    var childPath = $"{path}[{index}]";
+                    PopulateSnapshotFields(item, childPath, output);
+                    index++;
+                }
+
+                break;
+            }
+            case JsonValueKind.String:
+                output[path] = element.GetString() ?? string.Empty;
+                break;
+            case JsonValueKind.Number:
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                output[path] = element.ToString();
+                break;
+            case JsonValueKind.Null:
+            case JsonValueKind.Undefined:
+                output[path] = string.Empty;
+                break;
+            default:
+                output[path] = element.ToString();
+                break;
+        }
     }
 }
 

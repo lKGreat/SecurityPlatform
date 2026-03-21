@@ -28,11 +28,13 @@ public static class PlatformServiceRegistration
         services.AddScoped<ITenantAppRoleQueryService, TenantAppRoleQueryService>();
         services.AddScoped<ITenantAppRoleCommandService, TenantAppRoleCommandService>();
         services.AddScoped<IResourceCenterQueryService, ResourceCenterQueryService>();
+        services.AddScoped<IResourceCenterCommandService, ResourceCenterCommandService>();
         services.AddScoped<IReleaseCenterQueryService, ReleaseCenterQueryService>();
         services.AddScoped<ICozeMappingQueryService, CozeMappingQueryService>();
         services.AddScoped<IDebugLayerQueryService, DebugLayerQueryService>();
         services.AddScoped<IRuntimeContextQueryService, RuntimeContextQueryService>();
         services.AddScoped<IRuntimeExecutionQueryService, RuntimeExecutionQueryService>();
+        services.AddScoped<IRuntimeExecutionCommandService, RuntimeExecutionCommandService>();
         services.AddScoped<IRuntimeRouteQueryService, RuntimeRouteQueryService>();
         return services;
     }
