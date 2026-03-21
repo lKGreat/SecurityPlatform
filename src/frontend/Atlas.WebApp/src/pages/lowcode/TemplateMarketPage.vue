@@ -104,14 +104,14 @@ const handleCreateFromTemplate = async () => {
     const createdApp = await createLowCodeApp({
       appKey: createForm.appKey.trim(),
       name: createForm.name.trim(),
-      category: "通用",
+      category: "\u901a\u7528",
       description: t("lowcode.template.descFromTemplate", { name: selectedTemplate.value.name })
     });
 
     if (!isMounted.value) return;
     await createLowCodePage(createdApp.id, {
       pageKey: "index",
-      name: "首页",
+      name: "\u9996\u9875",
       pageType: "Form",
       schemaJson: instantiated.schemaJson,
       routePath: "/",

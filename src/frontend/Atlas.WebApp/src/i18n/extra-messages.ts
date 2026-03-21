@@ -201,6 +201,11 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       mfaRequired: "请输入 6 位动态验证码",
       mfaHelp: "该账号已启用两步验证",
       rememberMe: "记住我",
+      ariaUsername: "用户名",
+      ariaPassword: "密码",
+      ariaCaptcha: "验证码",
+      ariaMfa: "MFA 校验码",
+      ariaSubmitLogin: "登录",
       licenseEditionUnknown: "未知版本",
       licenseTenantUnknown: "未识别组织",
       license: {
@@ -423,6 +428,11 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       mfaRequired: "Please enter the 6-digit verification code",
       mfaHelp: "Two-factor authentication is enabled for this account",
       rememberMe: "Remember me",
+      ariaUsername: "Username",
+      ariaPassword: "Password",
+      ariaCaptcha: "Captcha",
+      ariaMfa: "MFA verification code",
+      ariaSubmitLogin: "Sign in",
       licenseEditionUnknown: "Unknown edition",
       licenseTenantUnknown: "Unknown organization",
       license: {

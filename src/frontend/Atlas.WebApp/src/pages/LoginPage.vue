@@ -115,13 +115,13 @@
 
                 <a-form layout="vertical" :model="form" class="login-form" :disabled="loading" @finish="handleSubmit">
                   <a-form-item name="username" :rules="[{ required: true, message: t('authPage.usernameRequired') }]">
-                    <a-input ref="usernameInputRef" v-model:value="form.username" size="large" :placeholder="t('authPage.usernamePlaceholder')" allow-clear autocomplete="username" @focus="errorMessage = ''" aria-label="用户名">
+                    <a-input ref="usernameInputRef" v-model:value="form.username" size="large" :placeholder="t('authPage.usernamePlaceholder')" allow-clear autocomplete="username" @focus="errorMessage = ''" :aria-label="t('authPage.ariaUsername')">
                       <template #prefix><user-outlined class="input-icon" /></template>
                     </a-input>
                   </a-form-item>
 
                   <a-form-item name="password" :rules="[{ required: true, message: t('authPage.passwordRequired') }]">
-                    <a-input-password v-model:value="form.password" size="large" :placeholder="t('authPage.passwordPlaceholder')" autocomplete="current-password" aria-label="密码" @keydown="handleCapsLockEvent" @keyup="handleCapsLockEvent" @blur="capsLockOn = false" @focus="errorMessage = ''">
+                    <a-input-password v-model:value="form.password" size="large" :placeholder="t('authPage.passwordPlaceholder')" autocomplete="current-password" :aria-label="t('authPage.ariaPassword')" @keydown="handleCapsLockEvent" @keyup="handleCapsLockEvent" @blur="capsLockOn = false" @focus="errorMessage = ''">
                       <template #prefix><lock-outlined class="input-icon" /></template>
                     </a-input-password>
                     <div v-if="capsLockOn" class="caps-tip">{{ t("authPage.capsLockOn") }}</div>
@@ -129,7 +129,7 @@
 
                   <a-form-item v-if="needsCaptcha" name="captchaCode" :rules="[{ required: true, message: t('authPage.captchaRequired') }]">
                     <div class="captcha-row">
-                      <a-input v-model:value="form.captchaCode" size="large" :placeholder="t('authPage.captchaPlaceholder')" autocomplete="off" @focus="errorMessage = ''" aria-label="验证码">
+                      <a-input v-model:value="form.captchaCode" size="large" :placeholder="t('authPage.captchaPlaceholder')" autocomplete="off" @focus="errorMessage = ''" :aria-label="t('authPage.ariaCaptcha')">
                         <template #prefix><safety-certificate-outlined class="input-icon" /></template>
                       </a-input>
                       <div class="captcha-img-wrap">
@@ -140,7 +140,7 @@
                   </a-form-item>
 
                   <a-form-item v-if="needsMfa" name="totpCode" :rules="[{ required: true, message: t('authPage.mfaRequired') }]" :help="t('authPage.mfaHelp')">
-                    <a-input v-model:value="form.totpCode" size="large" :placeholder="t('authPage.mfaPlaceholder')" :maxlength="6" autocomplete="off" @focus="errorMessage = ''" aria-label="MFA校验码">
+                    <a-input v-model:value="form.totpCode" size="large" :placeholder="t('authPage.mfaPlaceholder')" :maxlength="6" autocomplete="off" @focus="errorMessage = ''" :aria-label="t('authPage.ariaMfa')">
                       <template #prefix><safety-certificate-outlined class="input-icon" /></template>
                     </a-input>
                   </a-form-item>
@@ -149,7 +149,7 @@
                     <a-checkbox v-model:checked="form.rememberMe">{{ t("authPage.rememberMe") }}</a-checkbox>
                   </div>
 
-                  <a-button type="primary" block html-type="submit" size="large" :loading="loading" :disabled="isSubmitDisabled" class="submit-btn" aria-label="登录">
+                  <a-button type="primary" block html-type="submit" size="large" :loading="loading" :disabled="isSubmitDisabled" class="submit-btn" :aria-label="t('authPage.ariaSubmitLogin')">
                     <span v-if="!loading">{{ cooldownSeconds > 0 ? t("authPage.submitWaiting", { seconds: cooldownSeconds }) : t("auth.login") }}</span>
                     <span v-else>{{ t("authPage.submitting") }}</span>
                   </a-button>

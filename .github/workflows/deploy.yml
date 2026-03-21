@@ -17,7 +17,7 @@ env:
 
 jobs:
   deploy:
-    # 使用您在阿里云 ECS 上配置好的自托管运行器
+    # 核心：使用您在阿里云 ECS 上配置好的自托管运行器
     runs-on: self-hosted
 
     steps:
@@ -28,7 +28,7 @@ jobs:
       - name: Backend Build & Publish
         run: |
           echo "Using local dotnet version: $(dotnet --version)"
-          # 创建发布目录（如果不存在）
+          # 确保发布目录存在
           sudo mkdir -p ${{ env.BACKEND_PUBLISH_DIR }}
           # 编译并发布到指定目录
           dotnet publish ${{ env.BACKEND_PROJECT }} \
@@ -41,12 +41,13 @@ jobs:
         working-directory: ${{ env.FRONTEND_DIR }}
         run: |
           echo "Using local node version: $(node -v)"
-          # 使用国内镜像加速依赖安装
+          # 关键修复：使用 npm install 替代 npm ci 以解决依赖冲突，并使用国内镜像加速
           npm install --registry=https://registry.npmmirror.com
           npm run build
           
       - name: Sync Frontend Files
         run: |
+          # 确保前端发布目录存在
           sudo mkdir -p ${{ env.FRONTEND_PUBLISH_DIR }}
           # 清理旧文件并拷贝新构建产物
           sudo rm -rf ${{ env.FRONTEND_PUBLISH_DIR }}/*
@@ -55,8 +56,11 @@ jobs:
       # --- 第三部分：服务重启与权限加固 ---
       - name: Restart & Permissions
         run: |
-          # 重启后端服务
+          # 1. 重启后端 Systemd 服务
           sudo systemctl restart ${{ env.BACKEND_SERVICE }}
-          # 统一设置权限（确保 Nginx 有权访问 ）
+          
+          # 2. 统一设置权限（确保 Nginx 能够访问静态资源 ）
+          # 已在服务器上为您创建了 www-data 用户以保持脚本兼容
           sudo chown -R www-data:www-data /home/www/security-platform
+          
           echo "Deployment Completed Successfully!"

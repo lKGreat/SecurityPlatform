@@ -283,6 +283,12 @@ export default {
     publishFailed: "Publish failed",
     deleteSuccess: "Deleted",
     deleteFailed: "Delete failed",
+    noEditPerm: "No permission to edit apps",
+    exportSuccess: "Exported",
+    exportFailed: "Export failed",
+    importSkipped: "Target app exists; import skipped per policy",
+    importSuccessWithKey: "Imported: {key}",
+    importFailed: "Import failed",
     wizard: {
       step1Title: "Basic Info",
       step2Title: "Data Source",

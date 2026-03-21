@@ -20,15 +20,15 @@
         >
           <span class="page-icon">{{ pageTypeIcon(page.pageType) }}</span>
           <span class="page-name" :style="{ paddingLeft: `${(pageDepthMap[page.id] ?? 0) * 12}px` }">{{ page.name }}</span>
-          <a-tag v-if="page.isPublished" color="green" size="small">已发布</a-tag>
+          <a-tag v-if="page.isPublished" color="green" size="small">{{ t("lowcode.builderExtra.published") }}</a-tag>
           <a-dropdown trigger="click" @click.stop>
             <a-button type="text" size="small">...</a-button>
             <template #overlay>
               <a-menu>
-                <a-menu-item key="edit" @click="handleEditPage(page)">编辑信息</a-menu-item>
-                <a-menu-item key="versions" @click="handleOpenVersionHistory(page)">版本历史</a-menu-item>
-                <a-menu-item v-if="!page.isPublished" key="publish" @click="handlePublishPage(page.id)">发布</a-menu-item>
-                <a-menu-item key="delete" danger @click="handleDeletePage(page.id)">删除</a-menu-item>
+                <a-menu-item key="edit" @click="handleEditPage(page)">{{ t("lowcode.builderExtra.editInfo") }}</a-menu-item>
+                <a-menu-item key="versions" @click="handleOpenVersionHistory(page)">{{ t("lowcode.builderExtra.pageVersions") }}</a-menu-item>
+                <a-menu-item v-if="!page.isPublished" key="publish" @click="handlePublishPage(page.id)">{{ t("lowcode.builderExtra.publishBtn") }}</a-menu-item>
+                <a-menu-item key="delete" danger @click="handleDeletePage(page.id)">{{ t("lowcode.builderExtra.delete") }}</a-menu-item>
               </a-menu>
             </template>
           </a-dropdown>
@@ -50,13 +50,13 @@
               style="width: 180px"
               :options="environmentOptions"
               allow-clear
-              placeholder="预览环境"
+              :placeholder="t('lowcode.builderExtra.phPreviewEnv')"
               @change="handleEnvironmentChange"
             />
-            <a-button @click="openEnvironmentManager">环境管理</a-button>
-            <a-button @click="handleSaveAsTemplate">保存为模板</a-button>
-            <a-button :loading="saving" @click="handleSavePageSchema">保存</a-button>
-            <a-button type="primary" :loading="publishing" @click="handlePublishPage(selectedPageId!)">发布</a-button>
+            <a-button @click="openEnvironmentManager">{{ t("lowcode.builderExtra.envManager") }}</a-button>
+            <a-button @click="handleSaveAsTemplate">{{ t("lowcode.builderExtra.saveAsTemplate") }}</a-button>
+            <a-button :loading="saving" @click="handleSavePageSchema">{{ t("lowcode.builderExtra.save") }}</a-button>
+            <a-button type="primary" :loading="publishing" @click="handlePublishPage(selectedPageId!)">{{ t("lowcode.builderExtra.publishBtn") }}</a-button>
           </div>
         </div>
         <AmisEditor
@@ -167,7 +167,7 @@
     <!-- 页面版本历史 -->
     <a-modal
       v-model:open="versionModalVisible"
-      title="页面版本历史"
+      :title="t('lowcode.appBuilder.pageVerTitle')"
       :footer="null"
       width="680px"
     >
@@ -178,12 +178,12 @@
         row-key="id"
         size="small"
       >
-        <a-table-column key="snapshotVersion" title="版本号" data-index="snapshotVersion" width="120px" />
-        <a-table-column key="createdAt" title="发布时间" data-index="createdAt" width="220px" />
-        <a-table-column key="createdBy" title="发布人" data-index="createdBy" width="120px" />
-        <a-table-column key="action" title="操作" width="140px">
+        <a-table-column key="snapshotVersion" :title="t('lowcode.appBuilder.colVerNo')" data-index="snapshotVersion" width="120px" />
+        <a-table-column key="createdAt" :title="t('lowcode.appBuilder.colPublishedAt')" data-index="createdAt" width="220px" />
+        <a-table-column key="createdBy" :title="t('lowcode.appBuilder.colPublisher')" data-index="createdBy" width="120px" />
+        <a-table-column key="action" :title="t('common.actions')" width="140px">
           <template #default="{ record }">
-            <a-button size="small" @click="handleRollbackPageVersion(record.id)">回滚到此版本</a-button>
+            <a-button size="small" @click="handleRollbackPageVersion(record.id)">{{ t("lowcode.appBuilder.rollbackThis") }}</a-button>
           </template>
         </a-table-column>
       </a-table>
@@ -191,12 +191,12 @@
 
     <a-modal
       v-model:open="environmentModalVisible"
-      title="环境管理"
+      :title="t('lowcode.appBuilder.envTitle')"
       :footer="null"
       width="760px"
     >
       <div style="margin-bottom: 12px;">
-        <a-button type="primary" @click="openEnvironmentForm('create')">新建环境</a-button>
+        <a-button type="primary" @click="openEnvironmentForm('create')">{{ t("lowcode.appBuilder.newEnv") }}</a-button>
       </div>
       <a-table
         :data-source="environments"
@@ -205,25 +205,27 @@
         row-key="id"
         size="small"
       >
-        <a-table-column key="name" title="名称" data-index="name" width="160px" />
-        <a-table-column key="code" title="编码" data-index="code" width="120px" />
-        <a-table-column key="isDefault" title="默认" width="80px">
+        <a-table-column key="name" :title="t('lowcode.appBuilder.colEnvName')" data-index="name" width="160px" />
+        <a-table-column key="code" :title="t('lowcode.appBuilder.colEnvCode')" data-index="code" width="120px" />
+        <a-table-column key="isDefault" :title="t('lowcode.appBuilder.colIsDefault')" width="80px">
           <template #default="{ record }">
-            <a-tag v-if="record.isDefault" color="green">默认</a-tag>
+            <a-tag v-if="record.isDefault" color="green">{{ t("lowcode.appBuilder.tagDefault") }}</a-tag>
             <span v-else>-</span>
           </template>
         </a-table-column>
-        <a-table-column key="isActive" title="状态" width="80px">
+        <a-table-column key="isActive" :title="t('lowcode.appBuilder.colEnvStatus')" width="80px">
           <template #default="{ record }">
-            <a-tag :color="record.isActive ? 'blue' : 'default'">{{ record.isActive ? "启用" : "停用" }}</a-tag>
+            <a-tag :color="record.isActive ? 'blue' : 'default'">{{
+              record.isActive ? t("lowcode.appBuilder.envEnabled") : t("lowcode.appBuilder.envDisabled")
+            }}</a-tag>
           </template>
         </a-table-column>
-        <a-table-column key="description" title="描述" data-index="description" />
-        <a-table-column key="action" title="操作" width="180px">
+        <a-table-column key="description" :title="t('lowcode.appBuilder.colEnvDesc')" data-index="description" />
+        <a-table-column key="action" :title="t('common.actions')" width="180px">
           <template #default="{ record }">
             <a-space size="small">
-              <a-button type="link" size="small" @click="openEnvironmentForm('edit', record)">编辑</a-button>
-              <a-button type="link" size="small" danger @click="handleDeleteEnvironment(record.id)">删除</a-button>
+              <a-button type="link" size="small" @click="openEnvironmentForm('edit', record)">{{ t("lowcode.appBuilder.envEdit") }}</a-button>
+              <a-button type="link" size="small" danger @click="handleDeleteEnvironment(record.id)">{{ t("lowcode.appBuilder.envDelete") }}</a-button>
             </a-space>
           </template>
         </a-table-column>
@@ -232,28 +234,28 @@
 
     <a-modal
       v-model:open="environmentFormVisible"
-      :title="environmentFormMode === 'create' ? '新建环境' : '编辑环境'"
-      ok-text="确定"
-      cancel-text="取消"
+      :title="environmentFormMode === 'create' ? t('lowcode.appBuilder.modalEnvCreate') : t('lowcode.appBuilder.modalEnvEdit')"
+      :ok-text="t('lowcode.appBuilder.ok')"
+      :cancel-text="t('common.cancel')"
       @ok="submitEnvironmentForm"
     >
       <a-form layout="vertical">
-        <a-form-item label="环境名称" required>
+        <a-form-item :label="t('lowcode.appBuilder.labelEnvName')" required>
           <a-input v-model:value="environmentForm.name" />
         </a-form-item>
-        <a-form-item label="环境编码" required>
+        <a-form-item :label="t('lowcode.appBuilder.labelEnvCode')" required>
           <a-input v-model:value="environmentForm.code" :disabled="environmentFormMode === 'edit'" />
         </a-form-item>
-        <a-form-item label="变量 JSON" required>
+        <a-form-item :label="t('lowcode.appBuilder.labelVarJson')" required>
           <a-textarea v-model:value="environmentForm.variablesJson" :rows="6" />
         </a-form-item>
-        <a-form-item label="描述">
+        <a-form-item :label="t('lowcode.appBuilder.labelDesc')">
           <a-textarea v-model:value="environmentForm.description" :rows="2" />
         </a-form-item>
-        <a-form-item label="状态">
+        <a-form-item :label="t('lowcode.appBuilder.labelStatus')">
           <a-switch v-model:checked="environmentForm.isActive" />
         </a-form-item>
-        <a-form-item label="默认环境">
+        <a-form-item :label="t('lowcode.appBuilder.labelDefaultEnv')">
           <a-switch v-model:checked="environmentForm.isDefault" />
         </a-form-item>
       </a-form>
@@ -262,12 +264,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
-
-const isMounted = ref(false);
-onMounted(() => { isMounted.value = true; });
-onUnmounted(() => { isMounted.value = false; });
-
+import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { message, Modal } from "ant-design-vue";
 import { useI18n } from "vue-i18n";
@@ -304,8 +301,13 @@ import { createTemplate } from "@/services/templates";
 
 const route = useRoute();
 const router = useRouter();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const appId = computed(() => String(route.params.id ?? route.params.appId ?? ""));
+
+const isMounted = ref(false);
+onUnmounted(() => {
+  isMounted.value = false;
+});
 
 const loading = ref(true);
 const saving = ref(false);
@@ -401,6 +403,9 @@ const resolveTemplateCategory = (pageType: string): number => {
 };
 
 const generateDefaultSchema = (pageType: string, pageName: string): Record<string, unknown> => {
+  const statTitle = t("lowcode.appBuilder.statCardTitle");
+  const loadingText = t("lowcode.appBuilder.loadingData");
+  const nameLabel = t("lowcode.appBuilder.fieldName");
   switch (pageType) {
     case "List":
       return {
@@ -411,7 +416,7 @@ const generateDefaultSchema = (pageType: string, pageName: string): Record<strin
           api: "/api/v1/dynamic-tables",
           columns: [
             { name: "id", label: "ID" },
-            { name: "name", label: "名称" }
+            { name: "name", label: nameLabel }
           ]
         }]
       };
@@ -423,7 +428,7 @@ const generateDefaultSchema = (pageType: string, pageName: string): Record<strin
           type: "form",
           api: "/api/v1/dynamic-tables",
           body: [
-            { type: "input-text", name: "name", label: "名称", required: true }
+            { type: "input-text", name: "name", label: nameLabel, required: true }
           ]
         }]
       };
@@ -434,8 +439,8 @@ const generateDefaultSchema = (pageType: string, pageName: string): Record<strin
         body: [{
           type: "grid",
           columns: [
-            { body: [{ type: "card", header: { title: "统计卡片" }, body: "数据加载中..." }] },
-            { body: [{ type: "card", header: { title: "统计卡片" }, body: "数据加载中..." }] }
+            { body: [{ type: "card", header: { title: statTitle }, body: loadingText }] },
+            { body: [{ type: "card", header: { title: statTitle }, body: loadingText }] }
           ]
         }]
       };
@@ -639,34 +644,35 @@ const handleSavePageSchema = async () => {
 
 const handleSaveAsTemplate = async () => {
   if (!selectedPageId.value) {
-    message.warning("请先选择页面");
+    message.warning(t("lowcode.appBuilder.warnSelectPage"));
     return;
   }
   const page = pages.value.find((item) => item.id === selectedPageId.value);
   if (!page) {
-    message.warning("页面不存在");
+    message.warning(t("lowcode.appBuilder.warnNoPage"));
     return;
   }
   const schemaToSave = pageEditorRef.value?.getSchema() ?? pageSchemas.value[selectedPageId.value];
   if (!schemaToSave) {
-    message.warning("当前页面没有可保存的 Schema");
+    message.warning(t("lowcode.appBuilder.warnNoSchema"));
     return;
   }
 
   try {
+    const appName = appDetail.value?.name ?? t("lowcode.appBuilder.appFallback");
     await createTemplate({
-      name: `${appDetail.value?.name ?? "应用"}-${page.name}-模板`,
+      name: t("lowcode.appBuilder.templateNameTpl", { app: appName, page: page.name }),
       category: resolveTemplateCategory(page.pageType),
       schemaJson: JSON.stringify(schemaToSave),
-      description: `由应用 ${appDetail.value?.name ?? ""} 的页面 ${page.name} 保存`,
+      description: t("lowcode.appBuilder.templateDescTpl", { app: appDetail.value?.name ?? "", page: page.name }),
       tags: `lowcode,page,${page.pageType.toLowerCase()}`,
       version: "1.0.0"
     });
 
     if (!isMounted.value) return;
-    message.success("模板已保存到模板市场");
+    message.success(t("lowcode.appBuilder.templateSaved"));
   } catch (error) {
-    message.error((error as Error).message || "保存模板失败");
+    message.error((error as Error).message || t("lowcode.appBuilder.saveTemplateFailed"));
   }
 };
 
@@ -697,7 +703,7 @@ const handleOpenVersionHistory = async (page: LowCodePageListItem) => {
     if (!isMounted.value) return;
   } catch (error) {
     pageVersions.value = [];
-    message.error((error as Error).message || "加载版本历史失败");
+    message.error((error as Error).message || t("lowcode.appBuilder.loadVerFailed"));
   } finally {
     pageVersionLoading.value = false;
   }
@@ -709,15 +715,15 @@ const handleRollbackPageVersion = async (versionId: string) => {
   }
 
   Modal.confirm({
-    title: "确认回滚",
-    content: "回滚后将以历史版本生成新的已发布版本，是否继续？",
-    okText: "确认回滚",
-    cancelText: "取消",
+    title: t("lowcode.appBuilder.rollbackModalTitle"),
+    content: t("lowcode.appBuilder.rollbackModalContent"),
+    okText: t("lowcode.appBuilder.rollbackConfirmBtn"),
+    cancelText: t("common.cancel"),
     onOk: async () => {
       await rollbackLowCodePage(versionTargetPageId.value!, versionId);
 
       if (!isMounted.value) return;
-      message.success("回滚成功");
+      message.success(t("lowcode.appBuilder.rollbackSuccess"));
       versionModalVisible.value = false;
       pageSchemas.value = {};
       await loadApp();
@@ -750,7 +756,7 @@ const openEnvironmentManager = async () => {
 
     if (!isMounted.value) return;
   } catch (error) {
-    message.error((error as Error).message || "加载环境失败");
+    message.error((error as Error).message || t("lowcode.appBuilder.loadEnvFailed"));
   } finally {
     environmentLoading.value = false;
   }
@@ -771,7 +777,7 @@ const openEnvironmentForm = async (mode: "create" | "edit", item?: LowCodeEnviro
       environmentForm.isDefault = detail.isDefault;
       environmentForm.isActive = detail.isActive;
     } catch (error) {
-      message.error((error as Error).message || "加载环境详情失败");
+      message.error((error as Error).message || t("lowcode.appBuilder.loadEnvDetailFailed"));
       return;
     }
   } else {
@@ -787,14 +793,14 @@ const openEnvironmentForm = async (mode: "create" | "edit", item?: LowCodeEnviro
 
 const submitEnvironmentForm = async () => {
   if (!environmentForm.name.trim() || !environmentForm.code.trim()) {
-    message.warning("请填写环境名称和编码");
+    message.warning(t("lowcode.appBuilder.warnEnvNameCode"));
     return;
   }
 
   try {
     JSON.parse(environmentForm.variablesJson);
   } catch {
-    message.warning("变量 JSON 格式不正确");
+    message.warning(t("lowcode.appBuilder.warnVarJson"));
     return;
   }
 
@@ -809,7 +815,7 @@ const submitEnvironmentForm = async () => {
       });
 
       if (!isMounted.value) return;
-      message.success("环境创建成功");
+      message.success(t("lowcode.appBuilder.envCreateOk"));
     } else if (editingEnvironmentId.value) {
       await updateLowCodeEnvironment(editingEnvironmentId.value, {
         name: environmentForm.name,
@@ -820,7 +826,7 @@ const submitEnvironmentForm = async () => {
       });
 
       if (!isMounted.value) return;
-      message.success("环境更新成功");
+      message.success(t("lowcode.appBuilder.envUpdateOk"));
     }
 
     environmentFormVisible.value = false;
@@ -837,21 +843,21 @@ const submitEnvironmentForm = async () => {
       if (!isMounted.value) return;
     }
   } catch (error) {
-    message.error((error as Error).message || "环境保存失败");
+    message.error((error as Error).message || t("lowcode.appBuilder.envSaveFailed"));
   }
 };
 
 const handleDeleteEnvironment = (id: string) => {
   Modal.confirm({
-    title: "确认删除环境",
-    content: "删除后无法恢复，是否继续？",
-    okText: "删除",
-    cancelText: "取消",
+    title: t("lowcode.appBuilder.deleteEnvTitle"),
+    content: t("lowcode.appBuilder.deleteEnvContent"),
+    okText: t("lowcode.appBuilder.envDelete"),
+    cancelText: t("common.cancel"),
     onOk: async () => {
       await deleteLowCodeEnvironment(id);
 
       if (!isMounted.value) return;
-      message.success("环境已删除");
+      message.success(t("lowcode.appBuilder.envDeleted"));
       environments.value = await getLowCodeEnvironments(appId.value);
 
       if (!isMounted.value) return;
@@ -937,7 +943,8 @@ const handleRollbackAppVersion = async (versionId: string) => {
 
 const formatTime = (time: string) => {
   try {
-    return new Date(time).toLocaleString("zh-CN");
+    const loc = locale.value === "en-US" ? "en-US" : "zh-CN";
+    return new Date(time).toLocaleString(loc);
   } catch {
     return time;
   }
@@ -948,6 +955,7 @@ const goBack = () => {
 };
 
 onMounted(() => {
+  isMounted.value = true;
   loadApp();
 });
 </script>

@@ -12,9 +12,9 @@
         />
       </div>
       <div class="page-header-right">
-        <a-button v-if="canManageApps" @click="handleImportClick">导入应用</a-button>
-        <a-button v-if="canManageApps" @click="handleCreateFromTemplate">从模板创建</a-button>
-        <a-button v-if="canManageApps" type="primary" @click="handleCreate">新建应用</a-button>
+        <a-button v-if="canManageApps" @click="handleImportClick">{{ t("lowcode.appListExtra.importApp") }}</a-button>
+        <a-button v-if="canManageApps" @click="handleCreateFromTemplate">{{ t("lowcode.appListExtra.fromTemplate") }}</a-button>
+        <a-button v-if="canManageApps" type="primary" @click="handleCreate">{{ t("lowcode.appListExtra.newApp") }}</a-button>
       </div>
     </div>
 
@@ -45,10 +45,10 @@
             <a-button type="text" size="small">...</a-button>
             <template #overlay>
               <a-menu>
-                <a-menu-item key="edit" @click="handleEdit(app)">编辑</a-menu-item>
-                <a-menu-item key="export" @click="handleExport(app)">导出</a-menu-item>
-                <a-menu-item v-if="app.status === 'Draft'" key="publish" @click="handlePublish(app.id)">发布</a-menu-item>
-                <a-menu-item key="delete" danger @click="handleDelete(app.id)">删除</a-menu-item>
+                <a-menu-item key="edit" @click="handleEdit(app)">{{ t("lowcode.appListExtra.edit") }}</a-menu-item>
+                <a-menu-item key="export" @click="handleExport(app)">{{ t("lowcode.appListExtra.export") }}</a-menu-item>
+                <a-menu-item v-if="app.status === 'Draft'" key="publish" @click="handlePublish(app.id)">{{ t("lowcode.appListExtra.publish") }}</a-menu-item>
+                <a-menu-item key="delete" danger @click="handleDelete(app.id)">{{ t("lowcode.appListExtra.delete") }}</a-menu-item>
               </a-menu>
             </template>
           </a-dropdown>
@@ -245,7 +245,7 @@ const handleEditSubmit = async () => {
 
 const handleOpenApp = (id: string) => {
   if (!canManageApps) {
-    message.warning("当前账号无应用编辑权限");
+    message.warning(t("lowcodeApp.noEditPerm"));
     return;
   }
   router.push(`/apps/${id}`);
@@ -286,9 +286,9 @@ const handleExport = async (app: TenantAppInstanceListItem) => {
     anchor.download = `${app.appKey}-export.json`;
     anchor.click();
     URL.revokeObjectURL(url);
-    message.success("导出成功");
+    message.success(t("lowcodeApp.exportSuccess"));
   } catch (error) {
-    message.error((error as Error).message || "导出失败");
+    message.error((error as Error).message || t("lowcodeApp.exportFailed"));
   }
 };
 
@@ -320,15 +320,15 @@ const handleImportFileChange = async (event: Event) => {
 
     if (!isMounted.value) return;
     if (result.skipped) {
-      message.info("目标应用已存在，已按策略跳过导入");
+      message.info(t("lowcodeApp.importSkipped"));
     } else {
-      message.success(`导入成功：${result.appKey}`);
+      message.success(t("lowcodeApp.importSuccessWithKey", { key: result.appKey }));
     }
     await fetchData();
 
     if (!isMounted.value) return;
   } catch (error) {
-    message.error((error as Error).message || "导入失败");
+    message.error((error as Error).message || t("lowcodeApp.importFailed"));
   } finally {
     importing.value = false;
     input.value = "";

@@ -283,6 +283,12 @@ export default {
     publishFailed: "发布失败",
     deleteSuccess: "已删除",
     deleteFailed: "删除失败",
+    noEditPerm: "当前账号无应用编辑权限",
+    exportSuccess: "导出成功",
+    exportFailed: "导出失败",
+    importSkipped: "目标应用已存在，已按策略跳过导入",
+    importSuccessWithKey: "导入成功：{key}",
+    importFailed: "导入失败",
     wizard: {
       step1Title: "基本信息",
       step2Title: "数据源",

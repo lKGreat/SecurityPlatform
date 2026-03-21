@@ -390,7 +390,7 @@ const handleRollback = async (versionId: string) => {
 
     if (!isMounted.value) return;
 
-    // 刷新当前页面 Schema
+    // Apply rolled-back schema to editor
     try {
       schema.value = JSON.parse(versionDetail.schemaJson) as Record<string, unknown>;
     } catch {
@@ -400,6 +400,7 @@ const handleRollback = async (versionId: string) => {
     formVersion.value += 1;
     versionHistoryVisible.value = false;
     message.success(t("lowcode.formDesigner.rollbackOk", { version: versionDetail.snapshotVersion }));
+    // Reload version list after rollback
     versionList.value = await getFormDefinitionVersions(formId);
 
     if (!isMounted.value) return;
