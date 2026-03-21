@@ -12,14 +12,15 @@ import type {
   DynamicRecordListResult
 } from "@/types/dynamic-tables";
 import { requestApi } from "@/services/api-core";
+import type { RequestOptions } from "@/services/api-core";
 
-export async function getDynamicTablesPaged(pagedRequest: PagedRequest) {
+export async function getDynamicTablesPaged(pagedRequest: PagedRequest, options?: RequestInit & RequestOptions) {
   const query = new URLSearchParams({
     PageIndex: pagedRequest.pageIndex.toString(),
     PageSize: pagedRequest.pageSize.toString(),
     Keyword: pagedRequest.keyword ?? ""
   }).toString();
-  const response = await requestApi<ApiResponse<PagedResult<DynamicTableListItem>>>(`/dynamic-tables?${query}`);
+  const response = await requestApi<ApiResponse<PagedResult<DynamicTableListItem>>>(`/dynamic-tables?${query}`, options);
   if (!response.data) {
     throw new Error(response.message || "查询失败");
   }

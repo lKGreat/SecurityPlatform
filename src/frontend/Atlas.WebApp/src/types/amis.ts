@@ -19,6 +19,7 @@ export interface AmisEnv {
   notify: (type: "info" | "success" | "warning" | "error", msg: string) => void;
   alert: (msg: string) => void;
   confirm: (msg: string) => Promise<boolean>;
+  updateLocation?: (location: string, replace?: boolean) => void;
   locale?: string;
 }
 

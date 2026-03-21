@@ -157,6 +157,9 @@ export function createAmisEnv(): AmisEnv {
     notify,
     alert,
     confirm,
+    updateLocation: (location: string, replace?: boolean) => {
+      console.debug('[AMIS] updateLocation:', location, replace);
+    },
     locale: getAmisLocale()
   };
 }

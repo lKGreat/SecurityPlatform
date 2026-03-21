@@ -9,7 +9,7 @@
 
     <div class="panel-content">
       <a-spin :spinning="loading">
-        <a-tabs v-model:activeKey="activeTab">
+        <a-tabs v-model:active-key="activeTab">
           <a-tab-pane v-if="canAssignPermissions" key="permissions" :tab="t('systemRoles.permissionTab')">
             <a-alert
               :message="t('systemRoles.permissionTabHint')"
@@ -17,17 +17,21 @@
               show-icon
               style="margin-bottom: 12px"
             />
-            <a-select
-              v-model:value="assignModel.permissionIds"
-              mode="multiple"
-              style="width: 100%"
-              :placeholder="t('systemRoles.permissionSelectPlaceholder')"
-              :options="permissionOptions"
-              :loading="permissionLoading"
-              :filter-option="false"
-              show-search
-              @search="handlePermissionSearch"
-              @focus="() => loadPermissionOptions()"
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <a-space>
+                <a-button size="small" @click="selectAllPermissions">{{ t('systemRoles.selectAll', '全选') }}</a-button>
+                <a-button size="small" @click="clearAllPermissions">{{ t('systemRoles.clearAll', '清空') }}</a-button>
+              </a-space>
+              <a-switch v-model:checked="permissionsCheckStrictly" :checked-children="t('systemRoles.independentSelection')" :un-checked-children="t('systemRoles.parentChildLinkage')" />
+            </div>
+            <a-tree
+              v-model:checked-keys="permissionCheckedKeys"
+              checkable
+              :check-strictly="permissionsCheckStrictly"
+              :tree-data="permissionTreeData"
+              :selectable="false"
+              default-expand-all
+              style="max-height: 400px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; background: #fafafa;"
             />
           </a-tab-pane>
           
@@ -38,17 +42,21 @@
               show-icon
               style="margin-bottom: 12px"
             />
-            <a-select
-              v-model:value="assignModel.menuIds"
-              mode="multiple"
-              style="width: 100%"
-              :placeholder="t('systemRoles.menuSelectPlaceholder')"
-              :options="menuOptions"
-              :loading="menuLoading"
-              :filter-option="false"
-              show-search
-              @search="handleMenuSearch"
-              @focus="() => loadMenuOptions()"
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <a-space>
+                <a-button size="small" @click="selectAllMenus">{{ t('systemRoles.selectAll', '全选') }}</a-button>
+                <a-button size="small" @click="clearAllMenus">{{ t('systemRoles.clearAll', '清空') }}</a-button>
+              </a-space>
+              <a-switch v-model:checked="menusCheckStrictly" :checked-children="t('systemRoles.independentSelection')" :un-checked-children="t('systemRoles.parentChildLinkage')" />
+            </div>
+            <a-tree
+              v-model:checked-keys="menuCheckedKeys"
+              checkable
+              :check-strictly="menusCheckStrictly"
+              :tree-data="menuTreeData"
+              :selectable="false"
+              default-expand-all
+              style="max-height: 400px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; background: #fafafa;"
             />
           </a-tab-pane>
 
@@ -81,7 +89,13 @@
                 :scroll="{ y: 'calc(100vh - 350px)' }"
               >
                 <a-table-column key="label" :title="t('systemRoles.fieldColumnLabel')" data-index="label" />
-                <a-table-column key="canView" :title="t('systemRoles.fieldColumnCanView')" width="80" align="center">
+                <a-table-column key="canView" data-index="canView" align="center" width="100">
+                  <template #title>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                      <span>{{ t('systemRoles.fieldColumnCanView') }}</span>
+                      <a-switch size="small" :checked="isAllViewChecked" @change="toggleAllView" />
+                    </div>
+                  </template>
                   <template #default="{ record }">
                     <a-switch
                       :checked="record.canView"
@@ -90,7 +104,13 @@
                     />
                   </template>
                 </a-table-column>
-                <a-table-column key="canEdit" :title="t('systemRoles.fieldColumnCanEdit')" width="80" align="center">
+                <a-table-column key="canEdit" data-index="canEdit" align="center" width="100">
+                  <template #title>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                      <span>{{ t('systemRoles.fieldColumnCanEdit') }}</span>
+                      <a-switch size="small" :checked="isAllEditChecked" @change="toggleAllEdit" />
+                    </div>
+                  </template>
                   <template #default="{ record }">
                     <a-switch
                       :checked="record.canEdit"
@@ -126,17 +146,16 @@
             </a-radio-group>
 
             <div v-if="assignModel.dataScope === 2" style="margin-top: 12px;">
-              <a-select
+              <a-tree-select
                 v-model:value="assignModel.deptIds"
-                mode="multiple"
+                tree-checkable
+                tree-default-expand-all
+                :tree-data="departmentTreeData"
+                allow-clear
                 style="width: 100%"
                 :placeholder="t('systemRoles.departmentSelectPlaceholder')"
-                :options="departmentOptions"
-                :loading="departmentLoading"
-                :filter-option="false"
-                show-search
-                @search="handleDepartmentSearch"
-                @focus="() => loadDepartmentOptions()"
+                :dropdown-style="{ maxHeight: '400px', overflow: 'auto' }"
+                :show-checked-strategy="'SHOW_ALL'"
               />
             </div>
             <a-alert
@@ -170,8 +189,8 @@ import {
   updateRoleMenus,
   setRoleDataScope,
   getPermissionsPaged,
-  getMenusPaged,
-  getDepartmentsPaged
+  getMenusAll,
+  getDepartmentsAll
 } from '@/services/api';
 import {
   getDynamicTablesPaged,
@@ -179,7 +198,8 @@ import {
   getDynamicFieldPermissions,
   setDynamicFieldPermissions
 } from '@/services/dynamic-tables';
-import { debounce, type SelectOption } from '@/utils/common';
+import { debounce, handleTree, type SelectOption } from '@/utils/common';
+import type { DataNode } from 'ant-design-vue/es/tree';
 import { getProjectScopeEnabled } from "@/utils/auth";
 
 const { t } = useI18n();
@@ -229,6 +249,97 @@ const assignModel = reactive({
   deptIds: [] as number[]
 });
 
+const permissionTreeData = ref<DataNode[]>([]);
+const permissionCheckedKeys = ref<(number | string)[] | { checked: (number | string)[]; halfChecked: (number | string)[] }>([]);
+const permissionsCheckStrictly = ref(true);
+
+const menuTreeData = ref<DataNode[]>([]);
+const menuCheckedKeys = ref<(number | string)[] | { checked: (number | string)[]; halfChecked: (number | string)[] }>([]);
+const menusCheckStrictly = ref(true);
+
+const departmentTreeData = ref<DataNode[]>([]);
+
+const isAllViewChecked = computed(() => {
+  if (fieldPermissionRows.value.length === 0) return false;
+  return fieldPermissionRows.value.every(row => row.canView);
+});
+
+const isAllEditChecked = computed(() => {
+  if (fieldPermissionRows.value.length === 0) return false;
+  return fieldPermissionRows.value.every(row => row.canEdit);
+});
+
+const toggleAllView = (checked: boolean) => {
+  fieldPermissionRows.value.forEach(row => {
+    row.canView = checked;
+    if (!checked) row.canEdit = false;
+  });
+};
+
+const toggleAllEdit = (checked: boolean) => {
+  fieldPermissionRows.value.forEach(row => {
+    row.canEdit = checked;
+    if (checked) row.canView = true;
+  });
+};
+
+const filterNumericKeys = (keys: (number | string)[]) => keys.filter((k): k is number => typeof k === 'number' && !isNaN(k));
+
+const collectTreeKeys = (nodes: DataNode[]): (number | string)[] => {
+  let keys: (number | string)[] = [];
+  for (const node of nodes) {
+    keys.push(node.key as (number | string));
+    if (node.children && node.children.length > 0) {
+      keys = keys.concat(collectTreeKeys(node.children));
+    }
+  }
+  return keys;
+};
+
+const selectAllPermissions = () => {
+  permissionCheckedKeys.value = collectTreeKeys(permissionTreeData.value);
+};
+
+const clearAllPermissions = () => {
+  permissionCheckedKeys.value = [];
+};
+
+const selectAllMenus = () => {
+  menuCheckedKeys.value = collectTreeKeys(menuTreeData.value);
+};
+
+const clearAllMenus = () => {
+  menuCheckedKeys.value = [];
+};
+
+watch(permissionCheckedKeys, (val) => {
+  if (Array.isArray(val)) {
+    assignModel.permissionIds = filterNumericKeys(val);
+  } else if (val && val.checked) {
+    assignModel.permissionIds = filterNumericKeys(val.checked);
+  }
+});
+
+watch(menuCheckedKeys, (val) => {
+  if (Array.isArray(val)) {
+    assignModel.menuIds = filterNumericKeys(val);
+  } else if (val && val.checked) {
+    assignModel.menuIds = filterNumericKeys(val.checked);
+  }
+});
+
+watch(() => assignModel.permissionIds, (newVal) => {
+  if (Array.isArray(newVal) && (!Array.isArray(permissionCheckedKeys.value) || newVal.join(',') !== (permissionCheckedKeys.value as number[]).join(','))) {
+    permissionCheckedKeys.value = [...newVal];
+  }
+});
+
+watch(() => assignModel.menuIds, (newVal) => {
+  if (Array.isArray(newVal) && (!Array.isArray(menuCheckedKeys.value) || newVal.join(',') !== (menuCheckedKeys.value as number[]).join(','))) {
+    menuCheckedKeys.value = [...newVal];
+  }
+});
+
 const permissionOptions = ref<SelectOption[]>([]);
 const menuOptions = ref<SelectOption[]>([]);
 const departmentOptions = ref<SelectOption[]>([]);
@@ -271,18 +382,30 @@ const loadPermissionOptions = async (keyword?: string) => {
   try {
     const result = await getPermissionsPaged({
       pageIndex: 1,
-      pageSize: 20,
+      pageSize: 100,
       keyword: keyword?.trim() || undefined
     });
     if (!isMounted.value) return;
-    permissionOptions.value = result.items.map((item) => ({
-      label: `${item.name} (${item.code})`,
-      value: Number(item.id)
-    }));
+    const items = result.items;
+    const rootNodes: Record<string, any> = {};
+    items.forEach((item: any) => {
+      const parts = item.code.split(':');
+      const moduleCode = parts[0] || '默认';
+      if (!rootNodes[moduleCode]) {
+         rootNodes[moduleCode] = {
+           key: `module_${moduleCode}`,
+           title: moduleCode.toUpperCase(),
+           children: []
+         };
+      }
+      rootNodes[moduleCode].children.push({
+        key: Number(item.id),
+        title: `${item.name} (${item.code})`
+      });
+    });
+    permissionTreeData.value = Object.values(rootNodes);
   } catch (error) {
-    if (isMounted.value) {
-      message.error((error as Error).message || "加载权限失败");
-    }
+    // console.error(error);
   } finally {
     if (isMounted.value) {
       permissionLoading.value = false;
@@ -294,20 +417,21 @@ const loadMenuOptions = async (keyword?: string) => {
   if (!isMounted.value) return;
   menuLoading.value = true;
   try {
-    const result = await getMenusPaged({
-      pageIndex: 1,
-      pageSize: 20,
-      keyword: keyword?.trim() || undefined
-    });
+    const items = await getMenusAll();
     if (!isMounted.value) return;
-    menuOptions.value = result.items.map((item) => ({
-      label: `${item.name} (${item.path})`,
-      value: Number(item.id)
+    const formatted = items.map((item: any) => ({
+      ...item,
+      key: Number(item.id),
+      value: Number(item.id),
+      title: `${item.name}`,
+      id: Number(item.id),
+      parentId: item.parentId ? Number(item.parentId) : 0
     }));
+    const keywordTrimmed = keyword?.trim().toLowerCase();
+    const filtered = keywordTrimmed ? formatted.filter((f: any) => f.title.toLowerCase().includes(keywordTrimmed)) : formatted;
+    menuTreeData.value = handleTree(filtered, "id", "parentId", "children");
   } catch (error) {
-    if (isMounted.value) {
-      message.error((error as Error).message || "加载菜单失败");
-    }
+    // console.error(error);
   } finally {
     if (isMounted.value) {
       menuLoading.value = false;
@@ -322,20 +446,21 @@ const loadDepartmentOptions = async (keyword?: string) => {
   if (!isMounted.value) return;
   departmentLoading.value = true;
   try {
-    const result = await getDepartmentsPaged({
-      pageIndex: 1,
-      pageSize: 20,
-      keyword: keyword?.trim() || undefined
-    });
+    const items = await getDepartmentsAll();
     if (!isMounted.value) return;
-    departmentOptions.value = result.items.map((item) => ({
-      label: `${item.name} (${item.code})`,
-      value: Number(item.id)
+    const formatted = items.map((item: any) => ({
+      ...item,
+      key: Number(item.id),
+      value: Number(item.id),
+      title: `${item.name}`,
+      id: Number(item.id),
+      parentId: item.parentId ? Number(item.parentId) : 0
     }));
+    const keywordTrimmed = keyword?.trim().toLowerCase();
+    const filtered = keywordTrimmed ? formatted.filter((f: any) => f.title.toLowerCase().includes(keywordTrimmed)) : formatted;
+    departmentTreeData.value = handleTree(filtered, "id", "parentId", "children");
   } catch (error) {
-    if (isMounted.value) {
-      message.error((error as Error).message || "加载部门失败");
-    }
+    // console.error(error);
   } finally {
     if (isMounted.value) {
       departmentLoading.value = false;
@@ -351,17 +476,20 @@ const loadDynamicTableOptions = async (search?: string) => {
   try {
     const result = await getDynamicTablesPaged({
       pageIndex: 1,
-      pageSize: 20,
+      pageSize: 100,
       keyword: search?.trim() || undefined
-    });
+    }, { suppressErrorMessage: true });
     if (!isMounted.value) return;
     dynamicTableOptions.value = result.items.map((item) => ({
       label: `${item.displayName} (${item.tableKey})`,
       value: item.tableKey
     }));
-  } catch (error) {
+  } catch (error: any) {
     if (isMounted.value) {
-      message.error((error as Error).message || "加载动态表失败");
+      const isMissingAppCtx = error.payload?.code === 'APP_CONTEXT_REQUIRED' || error.message?.includes('APP_CONTEXT_REQUIRED');
+      if (!isMissingAppCtx) {
+        // error tracking
+      }
     }
   } finally {
     if (isMounted.value) {
