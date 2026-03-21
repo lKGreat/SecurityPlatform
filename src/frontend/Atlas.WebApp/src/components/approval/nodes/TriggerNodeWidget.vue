@@ -7,14 +7,17 @@
         <CloseOutlined class="close-btn" @click.stop="handleDelete" />
       </div>
       <div class="content">
-        <span class="text">{{ node.triggerType === 'immediate' ? '立即触发' : '定时触发' }}</span>
+        <span class="text">{{ node.triggerType === 'immediate' ? t('approvalDesigner.propsTriggerImmediate') : t('approvalDesigner.propsTriggerScheduled') }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import { ThunderboltOutlined, CloseOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { TriggerNode } from '@/types/approval-tree';
 
 const props = defineProps<{

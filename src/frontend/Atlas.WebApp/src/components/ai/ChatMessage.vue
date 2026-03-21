@@ -27,6 +27,7 @@
 import { computed } from "vue";
 import MarkdownRenderer from "./MarkdownRenderer.vue";
 import type { StreamChatMessage } from "@/composables/useStreamChat";
+import { getActiveLocale } from "@/i18n";
 
 const props = defineProps<{
   message: StreamChatMessage;
@@ -38,7 +39,8 @@ const userInitial = computed(() => props.userInitial || "U");
 function formatTime(iso: string): string {
   try {
     const date = new Date(iso);
-    return date.toLocaleTimeString("zh-CN", {
+    const loc = getActiveLocale() === "en-US" ? "en-US" : "zh-CN";
+    return date.toLocaleTimeString(loc, {
       hour: "2-digit",
       minute: "2-digit"
     });

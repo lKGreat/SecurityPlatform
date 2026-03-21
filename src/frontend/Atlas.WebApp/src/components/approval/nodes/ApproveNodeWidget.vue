@@ -8,15 +8,18 @@
       </div>
       <div class="content">
         <span class="text" v-if="node.assigneeValue || !needsAssigneeValue(node.assigneeType)">{{ getAssigneeLabel(node) }}</span>
-        <span class="placeholder" v-else>请选择审批人</span>
+        <span class="placeholder" v-else>{{ t('approvalDesigner.shapePickApprover') }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import { UserOutlined, CloseOutlined } from '@ant-design/icons-vue';
 import type { ApproveNode } from '@/types/approval-tree';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   node: ApproveNode;
@@ -35,24 +38,41 @@ const handleDelete = () => {
   emit('delete', props.node.id);
 };
 
-const getAssigneeLabel = (node: ApproveNode) => {
-  const typeMap: Record<ApproveNode['assigneeType'], string> = {
-    0: '指定用户',
-    1: '角色',
-    2: '部门负责人',
-    3: '逐级领导',
-    4: '指定层级',
-    5: '直属领导',
-    6: '发起人',
-    7: 'HRBP',
-    8: '发起人自选',
-    9: '业务字段取人',
-    10: '外部传入人员'
-  };
-  if (!node.assigneeValue) {
-    return typeMap[node.assigneeType];
+const assigneeTypeName = (type: ApproveNode['assigneeType']): string => {
+  switch (type) {
+    case 0:
+      return t('approvalDesigner.widgetAssigneeUser');
+    case 1:
+      return t('approvalDesigner.widgetAssigneeRole');
+    case 2:
+      return t('approvalDesigner.assigneeDeptLeader');
+    case 3:
+      return t('approvalDesigner.assigneeEscalation');
+    case 4:
+      return t('approvalDesigner.assigneeLevel');
+    case 5:
+      return t('approvalDesigner.assigneeDirectLeader');
+    case 6:
+      return t('approvalDesigner.assigneeInitiator');
+    case 7:
+      return t('approvalDesigner.assigneeHrbp');
+    case 8:
+      return t('approvalDesigner.assigneeInitiatorPick');
+    case 9:
+      return t('approvalDesigner.assigneeBizField');
+    case 10:
+      return t('approvalDesigner.assigneeExternal');
+    default:
+      return t('approvalDesigner.widgetAssigneeUser');
   }
-  return `${typeMap[node.assigneeType]}: ${node.assigneeValue}`;
+};
+
+const getAssigneeLabel = (node: ApproveNode) => {
+  const name = assigneeTypeName(node.assigneeType);
+  if (!node.assigneeValue) {
+    return name;
+  }
+  return `${name}: ${node.assigneeValue}`;
 };
 
 const needsAssigneeValue = (assigneeType: ApproveNode['assigneeType']): boolean => {

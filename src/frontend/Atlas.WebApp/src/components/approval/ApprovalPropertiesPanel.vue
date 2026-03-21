@@ -11,14 +11,14 @@
           v-model:value="formData.nodeName"
           class="dd-props-header__name"
           :bordered="false"
-          placeholder="节点名称"
+          :placeholder="t('approvalDesigner.propsPhNodeName')"
         />
         <a-input
           v-else-if="'branchName' in formData"
           v-model:value="(formData as BranchForm).branchName"
           class="dd-props-header__name"
           :bordered="false"
-          placeholder="分支名称"
+          :placeholder="t('approvalDesigner.propsPhBranchName')"
         />
       </div>
       <button class="dd-props-header__close" @click="handleClose">
@@ -30,7 +30,7 @@
       v-if="props.node && 'error' in props.node && props.node.error"
       type="error"
       show-icon
-      message="该节点存在配置错误，请检查并修复后再发布"
+      :message="t('approvalDesigner.propsNodeConfigError')"
       style="margin: 0 12px 8px"
       banner
     />
@@ -41,9 +41,9 @@
       <template v-if="approveForm">
         <a-tabs v-model:activeKey="activeTab" size="small" class="dd-props-tabs">
           <!-- Tab 1: 审批设置 -->
-          <a-tab-pane key="approver" tab="审批设置">
+          <a-tab-pane key="approver" :tab="t('approvalDesigner.propsTabApprover')">
             <a-form layout="vertical" class="dd-props-form">
-              <a-form-item label="审批人类型">
+              <a-form-item :label="t('approvalDesigner.propsLabelAssigneeType')">
                 <a-select v-model:value="approveForm.assigneeType" @change="onApproverTypeChange">
                   <a-select-option
                     v-for="option in assigneeTypeOptions"
@@ -56,51 +56,51 @@
               </a-form-item>
 
               <a-form-item
-                label="选择审批人"
+                :label="t('approvalDesigner.propsLabelPickApprover')"
                 v-if="isPickerAssigneeType(approveForm.assigneeType)"
               >
                 <UserRolePicker
                   v-if="approveForm.assigneeType === 0"
                   mode="user"
                   v-model:value="approverTargets"
-                  placeholder="请选择审批人"
+                  :placeholder="t('approvalDesigner.propsPhPickUser')"
                 />
                 <UserRolePicker
                   v-else
                   mode="role"
                   v-model:value="approverTargets"
-                  placeholder="请选择角色"
+                  :placeholder="t('approvalDesigner.propsPhPickRole')"
                 />
               </a-form-item>
 
-              <a-form-item label="逐级审批上限" v-else-if="approveForm.assigneeType === 3">
+              <a-form-item :label="t('approvalDesigner.propsLabelEscalationMax')" v-else-if="approveForm.assigneeType === 3">
                 <a-input-number
                   v-model:value="assigneeLevel"
                   :min="1"
                   :max="20"
                   style="width: 100%"
-                  placeholder="最多向上查找层级"
+                  :placeholder="t('approvalDesigner.propsPhEscalationMax')"
                 />
-                <div class="dd-form-hint">系统会沿组织架构逐级向上查找审批人，直到指定层级。</div>
+                <div class="dd-form-hint">{{ t('approvalDesigner.propsHintEscalationLoop') }}</div>
               </a-form-item>
 
-              <a-form-item label="审批层级" v-else-if="approveForm.assigneeType === 4">
+              <a-form-item :label="t('approvalDesigner.propsLabelApproveLevel')" v-else-if="approveForm.assigneeType === 4">
                 <a-input-number
                   v-model:value="assigneeLevel"
                   :min="1"
                   :max="20"
                   style="width: 100%"
-                  placeholder="请输入向上审批层级"
+                  :placeholder="t('approvalDesigner.propsPhApproveLevel')"
                 />
-                <div class="dd-form-hint">指定固定层级的领导作为审批人。</div>
+                <div class="dd-form-hint">{{ t('approvalDesigner.propsHintApproveLevelFixed') }}</div>
               </a-form-item>
 
               <template v-else-if="approveForm.assigneeType === 9">
-                <a-form-item label="人员字段">
+                <a-form-item :label="t('approvalDesigner.propsLabelPersonField')">
                   <a-select
                     v-if="formFields && formFields.length > 0"
                     v-model:value="assigneeExpression"
-                    placeholder="选择包含审批人信息的表单字段"
+                    :placeholder="t('approvalDesigner.propsPhPersonFieldSelect')"
                     allow-clear
                     show-search
                   >
@@ -115,21 +115,21 @@
                   <a-input
                     v-else
                     v-model:value="assigneeExpression"
-                    placeholder="示例：formData.ownerId"
+                    :placeholder="t('approvalDesigner.propsPhPersonFieldExample')"
                   />
-                  <div class="dd-form-hint">从提交表单中动态提取审批人信息。</div>
+                  <div class="dd-form-hint">{{ t('approvalDesigner.propsHintPersonField') }}</div>
                 </a-form-item>
               </template>
 
               <a-form-item
-                label="外部人员字段"
+                :label="t('approvalDesigner.propsLabelExternalField')"
                 v-else-if="approveForm.assigneeType === 10"
               >
                 <a-input
                   v-model:value="assigneeExpression"
-                  placeholder="示例：externalApprovers"
+                  :placeholder="t('approvalDesigner.propsPhExternalField')"
                 />
-                <div class="dd-form-hint">从外部系统传入的审批人标识字段。</div>
+                <div class="dd-form-hint">{{ t('approvalDesigner.propsHintExternalField') }}</div>
               </a-form-item>
 
               <a-alert
@@ -140,45 +140,45 @@
                 style="margin-bottom: 16px"
               />
 
-              <a-form-item label="多人审批方式">
+              <a-form-item :label="t('approvalDesigner.propsLabelMultiMode')">
                 <div class="dd-radio-cards">
                   <div
                     class="dd-radio-card"
                     :class="{ active: approveForm.approvalMode === 'all' }"
                     @click="approveForm.approvalMode = 'all'"
                   >
-                    <div class="dd-radio-card__title">会签</div>
-                    <div class="dd-radio-card__desc">需所有审批人同意</div>
+                    <div class="dd-radio-card__title">{{ t('approvalDesigner.propsModeAllTitle') }}</div>
+                    <div class="dd-radio-card__desc">{{ t('approvalDesigner.propsModeAllDesc') }}</div>
                   </div>
                   <div
                     class="dd-radio-card"
                     :class="{ active: approveForm.approvalMode === 'any' }"
                     @click="approveForm.approvalMode = 'any'"
                   >
-                    <div class="dd-radio-card__title">或签</div>
-                    <div class="dd-radio-card__desc">一人同意即可</div>
+                    <div class="dd-radio-card__title">{{ t('approvalDesigner.propsModeAnyTitle') }}</div>
+                    <div class="dd-radio-card__desc">{{ t('approvalDesigner.propsModeAnyDesc') }}</div>
                   </div>
                   <div
                     class="dd-radio-card"
                     :class="{ active: approveForm.approvalMode === 'sequential' }"
                     @click="approveForm.approvalMode = 'sequential'"
                   >
-                    <div class="dd-radio-card__title">顺序签</div>
-                    <div class="dd-radio-card__desc">按顺序依次审批</div>
+                    <div class="dd-radio-card__title">{{ t('approvalDesigner.propsModeSeqTitle') }}</div>
+                    <div class="dd-radio-card__desc">{{ t('approvalDesigner.propsModeSeqDesc') }}</div>
                   </div>
                   <div
                     class="dd-radio-card"
                     :class="{ active: approveForm.approvalMode === 'vote' }"
                     @click="approveForm.approvalMode = 'vote'"
                   >
-                    <div class="dd-radio-card__title">票签</div>
-                    <div class="dd-radio-card__desc">按权重投票</div>
+                    <div class="dd-radio-card__title">{{ t('approvalDesigner.propsModeVoteTitle') }}</div>
+                    <div class="dd-radio-card__desc">{{ t('approvalDesigner.propsModeVoteDesc') }}</div>
                   </div>
                 </div>
               </a-form-item>
 
               <template v-if="approveForm.approvalMode === 'vote'">
-                <a-form-item label="节点票权重">
+                <a-form-item :label="t('approvalDesigner.propsLabelVoteWeight')">
                   <a-input-number
                     v-model:value="approveForm.voteWeight"
                     :min="1"
@@ -187,106 +187,106 @@
                     style="width: 100%"
                   />
                 </a-form-item>
-                <a-form-item label="票签通过率 (%)">
+                <a-form-item :label="t('approvalDesigner.propsLabelVotePassRate')">
                   <a-slider v-model:value="approveForm.votePassRate" :min="1" :max="100" />
                 </a-form-item>
               </template>
 
-              <a-form-item label="审批人为空时">
+              <a-form-item :label="t('approvalDesigner.propsLabelNoHeader')">
                 <a-select v-model:value="approveForm.noHeaderAction">
-                  <a-select-option :value="0">不允许发起</a-select-option>
-                  <a-select-option :value="1">自动跳过</a-select-option>
-                  <a-select-option :value="2">转交管理员</a-select-option>
+                  <a-select-option :value="0">{{ t('approvalDesigner.propsNoHeader0') }}</a-select-option>
+                  <a-select-option :value="1">{{ t('approvalDesigner.propsNoHeader1') }}</a-select-option>
+                  <a-select-option :value="2">{{ t('approvalDesigner.propsNoHeader2') }}</a-select-option>
                 </a-select>
               </a-form-item>
 
-              <a-form-item label="审批人与发起人为同一人时">
+              <a-form-item :label="t('approvalDesigner.propsLabelApproveSelf')">
                 <a-select v-model:value="approveForm.approveSelf" :default-value="0">
-                  <a-select-option :value="0">由发起人自己审批</a-select-option>
-                  <a-select-option :value="1">自动跳过</a-select-option>
-                  <a-select-option :value="2">转交直属上级</a-select-option>
-                  <a-select-option :value="3">转交部门负责人</a-select-option>
+                  <a-select-option :value="0">{{ t('approvalDesigner.propsApproveSelf0') }}</a-select-option>
+                  <a-select-option :value="1">{{ t('approvalDesigner.propsApproveSelf1') }}</a-select-option>
+                  <a-select-option :value="2">{{ t('approvalDesigner.propsApproveSelf2') }}</a-select-option>
+                  <a-select-option :value="3">{{ t('approvalDesigner.propsApproveSelf3') }}</a-select-option>
                 </a-select>
               </a-form-item>
             </a-form>
           </a-tab-pane>
 
           <!-- Tab 2: 高级设置 -->
-          <a-tab-pane key="advanced" tab="高级设置">
+          <a-tab-pane key="advanced" :tab="t('approvalDesigner.propsTabAdvanced')">
             <a-form layout="vertical" class="dd-props-form">
-              <a-form-item label="超时处理">
+              <a-form-item :label="t('approvalDesigner.propsLabelTimeout')">
                 <a-switch v-model:checked="approveForm.timeoutEnabled" />
-                <span class="dd-switch-label">开启超时自动处理</span>
+                <span class="dd-switch-label">{{ t('approvalDesigner.propsTimeoutSwitch') }}</span>
               </a-form-item>
               
               <template v-if="approveForm.timeoutEnabled">
-                <a-form-item label="超时时间">
+                <a-form-item :label="t('approvalDesigner.propsLabelTimeoutDuration')">
                   <a-input-group compact>
                     <a-input-number v-model:value="approveForm.timeoutHours" :min="0" style="width: 80px" />
-                    <span class="dd-input-addon">小时</span>
+                    <span class="dd-input-addon">{{ t('approvalDesigner.propsUnitHour') }}</span>
                     <a-input-number v-model:value="approveForm.timeoutMinutes" :min="0" :max="59" style="width: 80px" />
-                    <span class="dd-input-addon">分钟</span>
+                    <span class="dd-input-addon">{{ t('approvalDesigner.propsUnitMinute') }}</span>
                   </a-input-group>
                 </a-form-item>
                 
-                <a-form-item label="超时策略">
+                <a-form-item :label="t('approvalDesigner.propsLabelTimeoutAction')">
                   <a-select v-model:value="approveForm.timeoutAction">
-                    <a-select-option value="none">仅提醒</a-select-option>
-                    <a-select-option value="autoApprove">自动通过</a-select-option>
-                    <a-select-option value="autoReject">自动驳回</a-select-option>
-                    <a-select-option value="autoSkip">自动跳过</a-select-option>
+                    <a-select-option value="none">{{ t('approvalDesigner.propsTimeoutNone') }}</a-select-option>
+                    <a-select-option value="autoApprove">{{ t('approvalDesigner.propsTimeoutAutoApprove') }}</a-select-option>
+                    <a-select-option value="autoReject">{{ t('approvalDesigner.propsTimeoutAutoReject') }}</a-select-option>
+                    <a-select-option value="autoSkip">{{ t('approvalDesigner.propsTimeoutAutoSkip') }}</a-select-option>
                   </a-select>
                 </a-form-item>
               </template>
 
               <a-divider />
 
-              <a-form-item label="去重策略">
+              <a-form-item :label="t('approvalDesigner.propsLabelDeduplication')">
                 <a-select v-model:value="approveForm.deduplicationType">
-                  <a-select-option value="none">不去重</a-select-option>
-                  <a-select-option value="skipSame">连续审批人相同时自动跳过</a-select-option>
-                  <a-select-option value="global">流程内自动去重</a-select-option>
+                  <a-select-option value="none">{{ t('approvalDesigner.propsDedupNone') }}</a-select-option>
+                  <a-select-option value="skipSame">{{ t('approvalDesigner.propsDedupSkipSame') }}</a-select-option>
+                  <a-select-option value="global">{{ t('approvalDesigner.propsDedupGlobal') }}</a-select-option>
                 </a-select>
               </a-form-item>
 
-              <a-form-item label="驳回策略">
+              <a-form-item :label="t('approvalDesigner.propsLabelRejectStrategy')">
                 <a-select v-model:value="approveForm.rejectStrategy">
-                  <a-select-option value="toPrevious">退回上一步</a-select-option>
-                  <a-select-option value="toInitiator">退回发起人</a-select-option>
-                  <a-select-option value="toAnyNode">退回任意节点</a-select-option>
-                  <a-select-option value="terminateApproval">终止审批流程</a-select-option>
-                  <a-select-option value="toParentNode">退回父级审批节点</a-select-option>
+                  <a-select-option value="toPrevious">{{ t('approvalDesigner.propsRejectToPrevious') }}</a-select-option>
+                  <a-select-option value="toInitiator">{{ t('approvalDesigner.propsRejectToInitiator') }}</a-select-option>
+                  <a-select-option value="toAnyNode">{{ t('approvalDesigner.propsRejectToAny') }}</a-select-option>
+                  <a-select-option value="terminateApproval">{{ t('approvalDesigner.propsRejectTerminate') }}</a-select-option>
+                  <a-select-option value="toParentNode">{{ t('approvalDesigner.propsRejectToParent') }}</a-select-option>
                 </a-select>
               </a-form-item>
 
-              <a-form-item label="重新审批策略">
+              <a-form-item :label="t('approvalDesigner.propsLabelReapprove')">
                 <a-select v-model:value="approveForm.reApproveStrategy">
-                  <a-select-option value="continue">从驳回节点继续往后执行</a-select-option>
-                  <a-select-option value="backToRejectNode">重新从驳回目标节点开始审批</a-select-option>
+                  <a-select-option value="continue">{{ t('approvalDesigner.propsReapproveContinue') }}</a-select-option>
+                  <a-select-option value="backToRejectNode">{{ t('approvalDesigner.propsReapproveBackToReject') }}</a-select-option>
                 </a-select>
               </a-form-item>
 
-              <a-form-item label="分组策略">
+              <a-form-item :label="t('approvalDesigner.propsLabelGroupStrategy')">
                 <a-select v-model:value="approveForm.groupStrategy">
-                  <a-select-option value="claim">认领模式</a-select-option>
-                  <a-select-option value="allParticipate">全员审批</a-select-option>
+                  <a-select-option value="claim">{{ t('approvalDesigner.propsGroupClaim') }}</a-select-option>
+                  <a-select-option value="allParticipate">{{ t('approvalDesigner.propsGroupAll') }}</a-select-option>
                 </a-select>
               </a-form-item>
 
               <a-divider />
 
-              <a-form-item label="AI 智能审批">
+              <a-form-item :label="t('approvalDesigner.propsLabelAi')">
                 <a-switch v-model:checked="approveForm.callAi" />
-                <span class="dd-switch-label">启用 AI 辅助决策</span>
+                <span class="dd-switch-label">{{ t('approvalDesigner.propsAiSwitch') }}</span>
               </a-form-item>
 
               <template v-if="approveForm.callAi">
-                <a-form-item label="AI 配置 (JSON)">
+                <a-form-item :label="t('approvalDesigner.propsLabelAiJson')">
                   <a-textarea 
                     :value="approveForm.aiConfig"
                     @update:value="(val: string) => { if (approveForm) approveForm.aiConfig = val }"
                     :rows="4" 
-                    placeholder="请输入 AI 配置 JSON"
+                    :placeholder="t('approvalDesigner.propsAiJsonPh')"
                   />
                 </a-form-item>
               </template>
@@ -294,14 +294,14 @@
           </a-tab-pane>
 
           <!-- Tab 3: 表单权限 -->
-          <a-tab-pane key="form-perm" tab="表单权限">
+          <a-tab-pane key="form-perm" :tab="t('approvalDesigner.propsTabFormPerm')">
             <div v-if="!formFields || formFields.length === 0" class="dd-empty-state">
-              请先在表单设计步骤添加字段
+              {{ t('approvalDesigner.propsEmptyFormFields') }}
             </div>
             <div v-else class="dd-perm-table">
               <div class="dd-perm-header">
-                <div class="dd-perm-col name">字段名称</div>
-                <div class="dd-perm-col perm">权限</div>
+                <div class="dd-perm-col name">{{ t('approvalDesigner.propsPermColName') }}</div>
+                <div class="dd-perm-col perm">{{ t('approvalDesigner.propsPermColPerm') }}</div>
               </div>
               <div v-for="field in formFields" :key="field.id || field.fieldId" class="dd-perm-row">
                 <div class="dd-perm-col name">{{ field.label || field.fieldName }}</div>
@@ -311,9 +311,9 @@
                     size="small"
                     button-style="solid"
                   >
-                    <a-radio-button value="E">编辑</a-radio-button>
-                    <a-radio-button value="R">只读</a-radio-button>
-                    <a-radio-button value="H">隐藏</a-radio-button>
+                    <a-radio-button value="E">{{ t('approvalDesigner.propsPermEdit') }}</a-radio-button>
+                    <a-radio-button value="R">{{ t('approvalDesigner.propsPermRead') }}</a-radio-button>
+                    <a-radio-button value="H">{{ t('approvalDesigner.propsPermHide') }}</a-radio-button>
                   </a-radio-group>
                 </div>
               </div>
@@ -321,23 +321,23 @@
           </a-tab-pane>
 
           <!-- Tab 4: 通知设置 -->
-          <a-tab-pane key="notice" tab="通知设置">
+          <a-tab-pane key="notice" :tab="t('approvalDesigner.propsTabNotice')">
              <a-form layout="vertical" class="dd-props-form">
-              <a-form-item label="通知渠道">
+              <a-form-item :label="t('approvalDesigner.propsLabelNoticeChannels')">
                 <a-checkbox-group v-model:value="noticeChannels">
                   <a-row>
-                    <a-col :span="12"><a-checkbox :value="1">站内信</a-checkbox></a-col>
-                    <a-col :span="12"><a-checkbox :value="2">邮件</a-checkbox></a-col>
-                    <a-col :span="12"><a-checkbox :value="3">短信</a-checkbox></a-col>
-                    <a-col :span="12"><a-checkbox :value="4">企业微信</a-checkbox></a-col>
-                    <a-col :span="12"><a-checkbox :value="5">钉钉</a-checkbox></a-col>
+                    <a-col :span="12"><a-checkbox :value="1">{{ t('approvalDesigner.propsChannelInbox') }}</a-checkbox></a-col>
+                    <a-col :span="12"><a-checkbox :value="2">{{ t('approvalDesigner.propsChannelEmail') }}</a-checkbox></a-col>
+                    <a-col :span="12"><a-checkbox :value="3">{{ t('approvalDesigner.propsChannelSms') }}</a-checkbox></a-col>
+                    <a-col :span="12"><a-checkbox :value="4">{{ t('approvalDesigner.propsChannelWecom') }}</a-checkbox></a-col>
+                    <a-col :span="12"><a-checkbox :value="5">{{ t('approvalDesigner.propsChannelDing') }}</a-checkbox></a-col>
                   </a-row>
                 </a-checkbox-group>
               </a-form-item>
-              <a-form-item label="通知模板">
-                <a-select v-model:value="noticeTemplateId" placeholder="请选择模板">
-                  <a-select-option value="default">默认模板</a-select-option>
-                  <a-select-option value="urgent">加急模板</a-select-option>
+              <a-form-item :label="t('approvalDesigner.propsLabelNoticeTemplate')">
+                <a-select v-model:value="noticeTemplateId" :placeholder="t('approvalDesigner.propsPhNoticeTemplate')">
+                  <a-select-option value="default">{{ t('approvalDesigner.propsTemplateDefault') }}</a-select-option>
+                  <a-select-option value="urgent">{{ t('approvalDesigner.propsTemplateUrgent') }}</a-select-option>
                 </a-select>
               </a-form-item>
             </a-form>
@@ -348,22 +348,22 @@
       <!-- ═══ 抄送节点 ═══ -->
       <template v-else-if="copyForm">
         <a-form layout="vertical" class="dd-props-form">
-          <a-form-item label="抄送人">
+          <a-form-item :label="t('approvalDesigner.propsCopyRecipients')">
             <UserRolePicker
               mode="user"
               v-model:value="copyForm.copyToUsers"
-              placeholder="请选择抄送人"
+              :placeholder="t('approvalDesigner.propsPhCopyRecipients')"
             />
           </a-form-item>
           <a-divider />
-          <div class="dd-section-title">表单权限</div>
+          <div class="dd-section-title">{{ t('approvalDesigner.propsSectionFormPerm') }}</div>
           <div v-if="!formFields || formFields.length === 0" class="dd-empty-state">
-            请先在表单设计步骤添加字段
+            {{ t('approvalDesigner.propsEmptyFormFields') }}
           </div>
           <div v-else class="dd-perm-table">
              <div class="dd-perm-header">
-                <div class="dd-perm-col name">字段名称</div>
-                <div class="dd-perm-col perm">权限</div>
+                <div class="dd-perm-col name">{{ t('approvalDesigner.propsPermColName') }}</div>
+                <div class="dd-perm-col perm">{{ t('approvalDesigner.propsPermColPerm') }}</div>
               </div>
               <div v-for="field in formFields" :key="field.id || field.fieldId" class="dd-perm-row">
                 <div class="dd-perm-col name">{{ field.label || field.fieldName }}</div>
@@ -373,8 +373,8 @@
                     size="small"
                     button-style="solid"
                   >
-                    <a-radio-button value="R">只读</a-radio-button>
-                    <a-radio-button value="H">隐藏</a-radio-button>
+                    <a-radio-button value="R">{{ t('approvalDesigner.propsPermRead') }}</a-radio-button>
+                    <a-radio-button value="H">{{ t('approvalDesigner.propsPermHide') }}</a-radio-button>
                   </a-radio-group>
                 </div>
               </div>
@@ -385,16 +385,16 @@
       <!-- ═══ 条件分支 ═══ -->
       <template v-else-if="branchForm">
         <a-form layout="vertical" class="dd-props-form">
-          <a-form-item label="是否默认分支">
+          <a-form-item :label="t('approvalDesigner.propsBranchDefault')">
             <a-switch v-model:checked="branchForm.isDefault" />
             <span class="dd-switch-hint" v-if="branchForm.isDefault">
-              其他条件均不满足时，默认走此分支
+              {{ t('approvalDesigner.propsBranchDefaultHint') }}
             </span>
           </a-form-item>
 
           <template v-if="!branchForm.isDefault">
-            <a-divider>条件规则</a-divider>
-            <a-form-item label="CEL 表达式（可选）">
+            <a-divider>{{ t('approvalDesigner.propsDividerConditionRules') }}</a-divider>
+            <a-form-item :label="t('approvalDesigner.propsLabelCelExpr')">
               <ExpressionEditorCel
                 :model-value="branchForm.conditionExpr ?? ''"
                 @update:model-value="(v: string) => { if (branchForm) branchForm.conditionExpr = v }"
@@ -413,14 +413,10 @@
       <!-- ═══ 包容分支 ═══ -->
       <template v-else-if="inclusiveForm">
         <a-form layout="vertical" class="dd-props-form">
-          <a-alert message="包容分支会同时执行所有满足条件的分支" type="info" show-icon style="margin-bottom: 16px" />
-          <a-divider>条件规则</a-divider>
-          <!-- 包容分支通常是多条路径，每条路径有条件。这里的 inclusiveForm 对应的是 InclusiveNode，它包含 conditionNodes -->
-          <!-- 但 PropertiesPanel 是针对单个节点的。如果是 InclusiveNode，我们可能需要展示它的分支列表？ -->
-          <!-- 或者，如果选中的是 InclusiveNode 下的某个分支（ConditionBranch），则展示分支配置（同 branchForm） -->
-          <!-- 这里假设 inclusiveForm 是 InclusiveNode 本身，通常不需要配置太多，主要是分支的条件 -->
+          <a-alert :message="t('approvalDesigner.propsInclusiveAlert')" type="info" show-icon style="margin-bottom: 16px" />
+          <a-divider>{{ t('approvalDesigner.propsDividerConditionRules') }}</a-divider>
           <div class="dd-empty-state">
-            请点击具体的分支线条进行条件配置
+            {{ t('approvalDesigner.propsInclusiveHint') }}
           </div>
         </a-form>
       </template>
@@ -428,8 +424,8 @@
       <!-- ═══ 路由分支 ═══ -->
       <template v-else-if="routeForm">
         <a-form layout="vertical" class="dd-props-form">
-          <a-form-item label="目标节点ID">
-            <a-input v-model:value="routeForm.routeTargetNodeId" placeholder="请输入目标节点ID" />
+          <a-form-item :label="t('approvalDesigner.propsRouteTargetId')">
+            <a-input v-model:value="routeForm.routeTargetNodeId" :placeholder="t('approvalDesigner.propsPhRouteTargetId')" />
           </a-form-item>
         </a-form>
       </template>
@@ -437,13 +433,13 @@
       <!-- ═══ 子流程节点 ═══ -->
       <template v-else-if="callProcessForm">
         <a-form layout="vertical" class="dd-props-form">
-          <a-form-item label="子流程定义ID">
-            <a-input v-model:value="callProcessForm.callProcessId" placeholder="请输入子流程定义ID" />
+          <a-form-item :label="t('approvalDesigner.propsSubflowDefId')">
+            <a-input v-model:value="callProcessForm.callProcessId" :placeholder="t('approvalDesigner.propsPhSubflowDefId')" />
           </a-form-item>
-          <a-form-item label="执行方式">
+          <a-form-item :label="t('approvalDesigner.propsCallExecMode')">
             <a-radio-group v-model:value="callProcessForm.callAsync">
-              <a-radio :value="false">同步（等待子流程结束）</a-radio>
-              <a-radio :value="true">异步（不等待）</a-radio>
+              <a-radio :value="false">{{ t('approvalDesigner.propsCallSync') }}</a-radio>
+              <a-radio :value="true">{{ t('approvalDesigner.propsCallAsync') }}</a-radio>
             </a-radio-group>
           </a-form-item>
         </a-form>
@@ -452,16 +448,16 @@
       <!-- ═══ 定时器节点 ═══ -->
       <template v-else-if="timerForm && timerForm.timerConfig">
         <a-form layout="vertical" class="dd-props-form">
-          <a-form-item label="定时类型">
+          <a-form-item :label="t('approvalDesigner.propsTimerType')">
             <a-select v-model:value="timerForm.timerConfig.type">
-              <a-select-option value="duration">等待时长</a-select-option>
-              <a-select-option value="date">指定时间</a-select-option>
+              <a-select-option value="duration">{{ t('approvalDesigner.propsTimerDurationOpt') }}</a-select-option>
+              <a-select-option value="date">{{ t('approvalDesigner.propsTimerDateOpt') }}</a-select-option>
             </a-select>
           </a-form-item>
-          <a-form-item label="等待时长（秒）" v-if="timerForm.timerConfig.type === 'duration'">
+          <a-form-item :label="t('approvalDesigner.propsLabelWaitSeconds')" v-if="timerForm.timerConfig.type === 'duration'">
             <a-input-number v-model:value="timerForm.timerConfig.duration" :min="0" style="width: 100%" />
           </a-form-item>
-          <a-form-item label="指定时间" v-if="timerForm.timerConfig.type === 'date'">
+          <a-form-item :label="t('approvalDesigner.propsLabelSpecifiedTime')" v-if="timerForm.timerConfig.type === 'date'">
             <a-date-picker v-model:value="timerForm.timerConfig.date" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
           </a-form-item>
         </a-form>
@@ -470,16 +466,16 @@
       <!-- ═══ 触发器节点 ═══ -->
       <template v-else-if="triggerForm">
         <a-form layout="vertical" class="dd-props-form">
-          <a-form-item label="触发类型">
+          <a-form-item :label="t('approvalDesigner.propsTriggerType')">
             <a-select v-model:value="triggerForm.triggerType">
-              <a-select-option value="immediate">立即触发</a-select-option>
-              <a-select-option value="scheduled">定时触发</a-select-option>
+              <a-select-option value="immediate">{{ t('approvalDesigner.propsTriggerImmediate') }}</a-select-option>
+              <a-select-option value="scheduled">{{ t('approvalDesigner.propsTriggerScheduled') }}</a-select-option>
             </a-select>
           </a-form-item>
-          <a-form-item label="触发器配置 (JSON)">
+          <a-form-item :label="t('approvalDesigner.propsTriggerConfigJson')">
             <a-textarea 
               :value="JSON.stringify(triggerForm.triggerConfig, null, 2)"
-              @update:value="(val: string) => applyJsonConfig(val, '触发器配置', (v) => { if (triggerForm) triggerForm.triggerConfig = v as TriggerNode['triggerConfig'] })"
+              @update:value="(val: string) => applyJsonConfig(val, t('approvalDesigner.propsTriggerConfigJson'), (v) => { if (triggerForm) triggerForm.triggerConfig = v as TriggerNode['triggerConfig'] })"
               :rows="4" 
             />
           </a-form-item>
@@ -489,8 +485,8 @@
       <!-- ═══ 发起人节点 ═══ -->
       <template v-else-if="startForm">
         <a-form layout="vertical" class="dd-props-form">
-          <a-form-item label="发起条件">
-            <a-alert message="所有人都可以作为发起人" type="info" show-icon />
+          <a-form-item :label="t('approvalDesigner.propsStartCondition')">
+            <a-alert :message="t('approvalDesigner.propsStartEveryone')" type="info" show-icon />
           </a-form-item>
         </a-form>
       </template>
@@ -498,13 +494,14 @@
 
     <!-- 底部按钮 -->
     <div class="dd-props-footer" v-if="formData">
-      <a-button type="primary" block @click="handleSave">确 定</a-button>
+      <a-button type="primary" block @click="handleSave">{{ t('approvalDesigner.propsFooterOk') }}</a-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
   CloseOutlined,
   PlusOutlined,
@@ -538,6 +535,8 @@ import type {
 } from '@/types/approval-tree';
 import type { LfFormField } from '@/types/approval-definition';
 import { ASSIGNEE_TYPE_OPTIONS } from '@/constants/approval';
+
+const { t } = useI18n();
 import {
   isApproveNode,
   isCopyNode,
@@ -598,7 +597,39 @@ const noticeChannels = ref<number[]>([]);
 const noticeTemplateId = ref<string | undefined>(undefined);
 const formPermMap = ref<Record<string, 'R' | 'E' | 'H'>>({});
 const expressionValid = ref(true);
-const assigneeTypeOptions = ASSIGNEE_TYPE_OPTIONS;
+
+function assigneeTypeLabel(v: ApproveNode['assigneeType']): string {
+  switch (v) {
+    case 0:
+      return t('approvalDesigner.assigneeUser');
+    case 1:
+      return t('approvalDesigner.assigneeRole');
+    case 2:
+      return t('approvalDesigner.assigneeDeptLeader');
+    case 3:
+      return t('approvalDesigner.assigneeOptLoop');
+    case 4:
+      return t('approvalDesigner.assigneeOptLevel');
+    case 5:
+      return t('approvalDesigner.assigneeDirectLeader');
+    case 6:
+      return t('approvalDesigner.assigneeInitiator');
+    case 7:
+      return t('approvalDesigner.assigneeHrbp');
+    case 8:
+      return t('approvalDesigner.assigneeInitiatorPick');
+    case 9:
+      return t('approvalDesigner.assigneeBizField');
+    case 10:
+      return t('approvalDesigner.assigneeExternal');
+    default:
+      return String(v);
+  }
+}
+
+const assigneeTypeOptions = computed(() =>
+  ASSIGNEE_TYPE_OPTIONS.map((o) => ({ value: o.value, label: assigneeTypeLabel(o.value) })),
+);
 
 // ── 计算属性 ──
 const iconClass = computed(() => {
@@ -709,7 +740,7 @@ function handleSave() {
   // 如果是分支，合并回 formData
   if (branchForm.value) {
     if (!expressionValid.value) {
-      message.warning('请先修复 CEL 表达式错误');
+      message.warning(t('approvalDesigner.propsWarnFixCel'));
       return;
     }
     const branch = formData.value as ConditionBranch;
@@ -750,7 +781,7 @@ function applyJsonConfig(text: string, label: string, setter: (v: unknown) => vo
     setter(JSON.parse(text));
     return true;
   } catch {
-    message.error(`${label} JSON 格式不正确`);
+    message.error(t('approvalDesigner.propsJsonInvalid', { label }));
     return false;
   }
 }
@@ -788,19 +819,19 @@ function extractConditionExpr(conditionRule: unknown): string | undefined {
 function getAssigneeTypeHint(type: ApproveNode['assigneeType']): string {
   switch (type) {
     case 2:
-      return '系统会自动解析发起人所在部门负责人作为审批人。';
+      return t('approvalDesigner.propsHintAssignee2');
     case 3:
-      return '系统会沿组织架构逐级向上查找审批人。';
+      return t('approvalDesigner.propsHintAssignee3');
     case 5:
-      return '系统会自动解析发起人的直属领导。';
+      return t('approvalDesigner.propsHintAssignee5');
     case 6:
-      return '当前流程发起人将作为审批人。';
+      return t('approvalDesigner.propsHintAssignee6');
     case 7:
-      return '系统会自动匹配当前组织下配置的 HRBP。';
+      return t('approvalDesigner.propsHintAssignee7');
     case 8:
-      return '由发起人在提交时手动选择审批人。';
+      return t('approvalDesigner.propsHintAssignee8');
     default:
-      return '请根据审批场景配置该类型的参数。';
+      return t('approvalDesigner.propsHintAssigneeDefault');
   }
 }
 

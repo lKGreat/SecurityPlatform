@@ -8,18 +8,21 @@
       </div>
       <div class="content">
         <template v-if="node.timerConfig">
-          <span class="text" v-if="node.timerConfig.type === 'duration'">等待 {{ node.timerConfig.duration }} 秒</span>
-          <span class="text" v-else-if="node.timerConfig.type === 'date'">至 {{ node.timerConfig.date }}</span>
-          <span class="placeholder" v-else>请配置时间</span>
+          <span class="text" v-if="node.timerConfig.type === 'duration'">{{ t('approvalDesigner.shapeTimerWait', { seconds: node.timerConfig.duration }) }}</span>
+          <span class="text" v-else-if="node.timerConfig.type === 'date'">{{ t('approvalDesigner.shapeTimerUntil', { date: node.timerConfig.date }) }}</span>
+          <span class="placeholder" v-else>{{ t('approvalDesigner.shapeTimerConfigure') }}</span>
         </template>
-        <span class="placeholder" v-else>请配置时间</span>
+        <span class="placeholder" v-else>{{ t('approvalDesigner.shapeTimerConfigure') }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import { ClockCircleOutlined, CloseOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { TimerNode } from '@/types/approval-tree';
 
 const props = defineProps<{

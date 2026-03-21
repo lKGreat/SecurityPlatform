@@ -6,12 +6,12 @@
   >
     <div class="dd-node__header dd-node__header--route">
       <SwapOutlined class="dd-node__icon" />
-      <span class="dd-node__title">{{ data.nodeName || '路由节点' }}</span>
+      <span class="dd-node__title">{{ data.nodeName || t('approvalDesigner.shapeRouteDefault') }}</span>
       <CloseOutlined class="dd-node__delete" @click.stop="handleDelete" />
     </div>
     <div class="dd-node__body">
-      <span v-if="data.routeTargetNodeId" class="dd-node__text">跳转至: {{ data.routeTargetNodeId }}</span>
-      <span v-else class="dd-node__placeholder">请选择目标节点</span>
+      <span v-if="data.routeTargetNodeId" class="dd-node__text">{{ t('approvalDesigner.shapeJumpTo', { id: data.routeTargetNodeId }) }}</span>
+      <span v-else class="dd-node__placeholder">{{ t('approvalDesigner.shapePickRouteTarget') }}</span>
       <RightOutlined class="dd-node__arrow" />
     </div>
   </div>
@@ -19,7 +19,10 @@
 
 <script setup lang="ts">
 import { inject, ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { SwapOutlined, CloseOutlined, RightOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { Node } from '@antv/x6';
 
 const getNode = inject<() => Node>('getNode')!;

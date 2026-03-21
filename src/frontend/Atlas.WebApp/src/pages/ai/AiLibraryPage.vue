@@ -1,17 +1,17 @@
 <template>
-  <a-card title="AI 资源库" :bordered="false">
+  <a-card :title="t('ai.library.pageTitle')" :bordered="false">
     <div class="toolbar">
       <a-space wrap>
         <a-input-search
           v-model:value="keyword"
-          placeholder="搜索资源名称/描述"
+          :placeholder="t('ai.library.searchPlaceholder')"
           style="width: 260px"
           @search="loadData"
         />
         <a-select
           v-model:value="resourceType"
           allow-clear
-          placeholder="资源类型"
+          :placeholder="t('ai.library.resourceTypePlaceholder')"
           style="width: 180px"
           :options="resourceTypeOptions"
           @change="loadData"
@@ -46,7 +46,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onUnmounted } from "vue";
+import { computed, onMounted, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -65,20 +68,20 @@ const pageSize = ref(20);
 const keyword = ref("");
 const resourceType = ref<string | undefined>(undefined);
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name" },
-  { title: "类型", key: "type", width: 140 },
-  { title: "描述", dataIndex: "description", key: "description" },
-  { title: "更新时间", dataIndex: "updatedAt", key: "updatedAt", width: 180 }
-];
+const columns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name" },
+  { title: t("ai.search.colType"), key: "type", width: 140 },
+  { title: t("ai.promptLib.labelDescription"), dataIndex: "description", key: "description" },
+  { title: t("ai.workflow.colUpdatedAt"), dataIndex: "updatedAt", key: "updatedAt", width: 180 }
+]);
 
-const resourceTypeOptions = [
-  { label: "Agent", value: "agent" },
-  { label: "知识库", value: "knowledge-base" },
-  { label: "工作流", value: "workflow" },
-  { label: "应用", value: "app" },
-  { label: "Prompt", value: "prompt" }
-];
+const resourceTypeOptions = computed(() => [
+  { label: t("ai.library.typeAgent"), value: "agent" },
+  { label: t("ai.library.typeKb"), value: "knowledge-base" },
+  { label: t("ai.library.typeWorkflow"), value: "workflow" },
+  { label: t("ai.library.typeApp"), value: "app" },
+  { label: t("ai.library.typePrompt"), value: "prompt" }
+]);
 
 async function loadData() {
   loading.value = true;
@@ -97,7 +100,7 @@ async function loadData() {
     }));
     total.value = Number(result.total);
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载资源库失败");
+    message.error((error as Error).message || t("ai.library.loadFailed"));
   } finally {
     loading.value = false;
   }

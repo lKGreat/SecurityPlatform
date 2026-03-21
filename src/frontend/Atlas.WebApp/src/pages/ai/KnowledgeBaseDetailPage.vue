@@ -2,19 +2,19 @@
   <a-card :bordered="false">
     <template #title>
       <a-space>
-        <a-button type="link" @click="goBack">返回</a-button>
+        <a-button type="link" @click="goBack">{{ t("ai.knowledgeBase.back") }}</a-button>
         <span>{{ title }}</span>
       </a-space>
     </template>
 
     <a-tabs v-model:activeKey="activeTab">
-      <a-tab-pane key="documents" tab="文档">
+      <a-tab-pane key="documents" :tab="t('ai.knowledgeBase.tabDocuments')">
         <div class="toolbar">
           <a-space wrap>
-            <a-input-number v-model:value="uploadFileId" :min="1" placeholder="输入已上传 fileId" />
-            <a-button type="primary" @click="handleAddDocument">添加文档</a-button>
+            <a-input-number v-model:value="uploadFileId" :min="1" :placeholder="t('ai.knowledgeBase.fileIdPlaceholder')" />
+            <a-button type="primary" @click="handleAddDocument">{{ t("ai.knowledgeBase.addDocument") }}</a-button>
             <a-upload :show-upload-list="false" :custom-request="handleUploadDocument">
-              <a-button>上传并添加文档</a-button>
+              <a-button>{{ t("ai.knowledgeBase.uploadAndAdd") }}</a-button>
             </a-upload>
           </a-space>
         </div>
@@ -25,10 +25,10 @@
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" @click="loadChunks(record.id)">查看分片</a-button>
-                <a-button type="link" @click="handleResegment(record.id)">重分段</a-button>
-                <a-popconfirm title="确认删除该文档？" @confirm="handleDeleteDocument(record.id)">
-                  <a-button type="link" danger>删除</a-button>
+                <a-button type="link" @click="loadChunks(record.id)">{{ t("ai.knowledgeBase.viewChunks") }}</a-button>
+                <a-button type="link" @click="handleResegment(record.id)">{{ t("ai.knowledgeBase.resegment") }}</a-button>
+                <a-popconfirm :title="t('ai.knowledgeBase.deleteDocConfirm')" @confirm="handleDeleteDocument(record.id)">
+                  <a-button type="link" danger>{{ t("common.delete") }}</a-button>
                 </a-popconfirm>
               </a-space>
             </template>
@@ -36,25 +36,25 @@
         </a-table>
       </a-tab-pane>
 
-      <a-tab-pane key="chunks" tab="分片">
+      <a-tab-pane key="chunks" :tab="t('ai.knowledgeBase.tabChunks')">
         <div class="toolbar">
           <a-space wrap>
-            <a-input-number v-model:value="newChunk.documentId" :min="1" placeholder="文档ID" />
-            <a-input-number v-model:value="newChunk.chunkIndex" :min="0" placeholder="索引" />
-            <a-input v-model:value="newChunk.content" placeholder="分片内容" style="width: 300px" />
-            <a-button type="primary" @click="handleCreateChunk">新增分片</a-button>
+            <a-input-number v-model:value="newChunk.documentId" :min="1" :placeholder="t('ai.knowledgeBase.docIdPlaceholder')" />
+            <a-input-number v-model:value="newChunk.chunkIndex" :min="0" :placeholder="t('ai.knowledgeBase.indexPlaceholder')" />
+            <a-input v-model:value="newChunk.content" :placeholder="t('ai.knowledgeBase.chunkContentPlaceholder')" style="width: 300px" />
+            <a-button type="primary" @click="handleCreateChunk">{{ t("ai.knowledgeBase.newChunk") }}</a-button>
           </a-space>
         </div>
         <a-table row-key="id" :columns="chunkColumns" :data-source="chunks" :pagination="false" :loading="loadingChunks">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'hasEmbedding'">
-              <a-tag :color="record.hasEmbedding ? 'green' : 'default'">{{ record.hasEmbedding ? "是" : "否" }}</a-tag>
+              <a-tag :color="record.hasEmbedding ? 'green' : 'default'">{{ record.hasEmbedding ? t("ai.yes") : t("ai.no") }}</a-tag>
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" @click="openChunkEdit(record)">编辑</a-button>
-                <a-popconfirm title="确认删除该分片？" @confirm="handleDeleteChunk(record.id)">
-                  <a-button type="link" danger>删除</a-button>
+                <a-button type="link" @click="openChunkEdit(record)">{{ t("common.edit") }}</a-button>
+                <a-popconfirm :title="t('ai.knowledgeBase.deleteChunkConfirm')" @confirm="handleDeleteChunk(record.id)">
+                  <a-button type="link" danger>{{ t("common.delete") }}</a-button>
                 </a-popconfirm>
               </a-space>
             </template>
@@ -65,13 +65,13 @@
 
     <a-modal
       v-model:open="chunkModalVisible"
-      title="编辑分片"
+      :title="t('ai.knowledgeBase.editChunkTitle')"
       :confirm-loading="chunkModalLoading"
       @ok="submitChunkEdit"
       @cancel="closeChunkModal"
     >
       <a-form layout="vertical">
-        <a-form-item label="内容">
+        <a-form-item :label="t('ai.knowledgeBase.labelContent')">
           <a-textarea v-model:value="editingChunk.content" :rows="4" />
         </a-form-item>
         <a-form-item label="StartOffset">
@@ -86,7 +86,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -113,7 +116,7 @@ const route = useRoute();
 const router = useRouter();
 const knowledgeBaseId = Number(route.params["id"]);
 
-const title = ref("知识库详情");
+const title = ref("");
 const activeTab = ref("documents");
 const uploadFileId = ref<number | null>(null);
 
@@ -122,23 +125,23 @@ const chunks = ref<DocumentChunkDto[]>([]);
 const loadingDocs = ref(false);
 const loadingChunks = ref(false);
 
-const docColumns = [
-  { title: "ID", dataIndex: "id", key: "id", width: 90 },
-  { title: "文件名", dataIndex: "fileName", key: "fileName" },
-  { title: "状态", dataIndex: "status", key: "status", width: 110 },
-  { title: "分片数", dataIndex: "chunkCount", key: "chunkCount", width: 100 },
-  { title: "错误", dataIndex: "errorMessage", key: "errorMessage", width: 240 },
-  { title: "操作", key: "action", width: 220 }
-];
+const docColumns = computed(() => [
+  { title: t("ai.knowledgeBase.colId"), dataIndex: "id", key: "id", width: 90 },
+  { title: t("ai.knowledgeBase.colFileName"), dataIndex: "fileName", key: "fileName" },
+  { title: t("ai.knowledgeBase.colStatus"), dataIndex: "status", key: "status", width: 110 },
+  { title: t("ai.knowledgeBase.colChunkCount"), dataIndex: "chunkCount", key: "chunkCount", width: 100 },
+  { title: t("ai.knowledgeBase.colError"), dataIndex: "errorMessage", key: "errorMessage", width: 240 },
+  { title: t("ai.colActions"), key: "action", width: 220 }
+]);
 
-const chunkColumns = [
-  { title: "ID", dataIndex: "id", key: "id", width: 90 },
-  { title: "文档ID", dataIndex: "documentId", key: "documentId", width: 100 },
-  { title: "索引", dataIndex: "chunkIndex", key: "chunkIndex", width: 80 },
-  { title: "内容", dataIndex: "content", key: "content" },
-  { title: "向量化", dataIndex: "hasEmbedding", key: "hasEmbedding", width: 90 },
-  { title: "操作", key: "action", width: 160 }
-];
+const chunkColumns = computed(() => [
+  { title: t("ai.knowledgeBase.colId"), dataIndex: "id", key: "id", width: 90 },
+  { title: t("ai.knowledgeBase.colDocId"), dataIndex: "documentId", key: "documentId", width: 100 },
+  { title: t("ai.knowledgeBase.colIndex"), dataIndex: "chunkIndex", key: "chunkIndex", width: 80 },
+  { title: t("ai.knowledgeBase.colContent"), dataIndex: "content", key: "content" },
+  { title: t("ai.knowledgeBase.colEmbedding"), dataIndex: "hasEmbedding", key: "hasEmbedding", width: 90 },
+  { title: t("ai.colActions"), key: "action", width: 160 }
+]);
 
 const newChunk = reactive({
   documentId: null as number | null,
@@ -164,10 +167,10 @@ interface UploadRequestOptions {
 }
 
 function statusLabel(status: number) {
-  if (status === 1) return "处理中";
-  if (status === 2) return "完成";
-  if (status === 3) return "失败";
-  return "待处理";
+  if (status === 1) return t("ai.knowledgeBase.statusProcessing");
+  if (status === 2) return t("ai.knowledgeBase.statusDone");
+  if (status === 3) return t("ai.knowledgeBase.statusFailed");
+  return t("ai.knowledgeBase.statusPending");
 }
 
 function statusColor(status: number) {
@@ -186,9 +189,13 @@ async function loadBase() {
     const detail  = await getKnowledgeBaseById(knowledgeBaseId);
 
     if (!isMounted.value) return;
-    title.value = `${detail.name}（${detail.documentCount} 文档 / ${detail.chunkCount} 分片）`;
+    title.value = t("ai.knowledgeBase.detailTitleFmt", {
+      name: detail.name,
+      docCount: detail.documentCount,
+      chunkCount: detail.chunkCount
+    });
   } catch (err: unknown) {
-    message.error((err as Error).message || "加载知识库详情失败");
+    message.error((err as Error).message || t("ai.knowledgeBase.loadDetailFailed"));
   }
 }
 
@@ -200,7 +207,7 @@ async function loadDocuments() {
     if (!isMounted.value) return;
     documents.value = result.items;
   } catch (err: unknown) {
-    message.error((err as Error).message || "加载文档失败");
+    message.error((err as Error).message || t("ai.knowledgeBase.loadDocsFailed"));
   } finally {
     loadingDocs.value = false;
   }
@@ -220,7 +227,7 @@ async function loadChunks(documentId?: number) {
     chunks.value = result.items;
     activeTab.value = "chunks";
   } catch (err: unknown) {
-    message.error((err as Error).message || "加载分片失败");
+    message.error((err as Error).message || t("ai.knowledgeBase.loadChunksFailed"));
   } finally {
     loadingChunks.value = false;
   }
@@ -228,27 +235,27 @@ async function loadChunks(documentId?: number) {
 
 async function handleAddDocument() {
   if (!uploadFileId.value || uploadFileId.value <= 0) {
-    message.warning("请先输入 fileId");
+    message.warning(t("ai.knowledgeBase.warnFileId"));
     return;
   }
   try {
     await createKnowledgeDocument(knowledgeBaseId, { fileId: uploadFileId.value });
 
     if (!isMounted.value) return;
-    message.success("文档已加入处理队列");
+    message.success(t("ai.knowledgeBase.docQueued"));
     uploadFileId.value = null;
     await Promise.all([loadDocuments(), loadBase()]);
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "添加文档失败");
+    message.error((err as Error).message || t("ai.knowledgeBase.addDocFailed"));
   }
 }
 
 async function handleUploadDocument(options: UploadRequestOptions) {
   const file = options.file;
   if (!file) {
-    options.onError?.(new Error("未选择文件"));
+    options.onError?.(new Error(t("ai.knowledgeBase.noFileSelected")));
     return;
   }
 
@@ -256,15 +263,15 @@ async function handleUploadDocument(options: UploadRequestOptions) {
     await createKnowledgeDocumentByFile(knowledgeBaseId, file);
 
     if (!isMounted.value) return;
-    message.success("文档上传成功，已加入处理队列");
+    message.success(t("ai.knowledgeBase.uploadQueued"));
     options.onSuccess?.({}, new XMLHttpRequest());
     await Promise.all([loadDocuments(), loadBase()]);
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    const uploadError = err instanceof Error ? err : new Error("上传失败");
+    const uploadError = err instanceof Error ? err : new Error(t("ai.knowledgeBase.uploadFailed"));
     options.onError?.(uploadError);
-    message.error(uploadError.message || "上传失败");
+    message.error(uploadError.message || t("ai.knowledgeBase.uploadFailed"));
   }
 }
 
@@ -273,7 +280,7 @@ async function handleDeleteDocument(documentId: number) {
     await deleteKnowledgeDocument(knowledgeBaseId, documentId);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await Promise.all([loadDocuments(), loadBase()]);
 
     if (!isMounted.value) return;
@@ -281,7 +288,7 @@ async function handleDeleteDocument(documentId: number) {
       chunks.value = chunks.value.filter((x) => x.documentId !== documentId);
     }
   } catch (err: unknown) {
-    message.error((err as Error).message || "删除失败");
+    message.error((err as Error).message || t("crud.deleteFailed"));
   }
 }
 
@@ -290,18 +297,18 @@ async function handleResegment(documentId: number) {
     await resegmentDocument(knowledgeBaseId, documentId, { chunkSize: 500, overlap: 50 });
 
     if (!isMounted.value) return;
-    message.success("已提交重分段任务");
+    message.success(t("ai.knowledgeBase.resegmentSubmitted"));
     await loadDocuments();
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "重分段失败");
+    message.error((err as Error).message || t("ai.knowledgeBase.resegmentFailed"));
   }
 }
 
 async function handleCreateChunk() {
   if (!newChunk.documentId || !newChunk.content.trim()) {
-    message.warning("请填写文档ID和内容");
+    message.warning(t("ai.knowledgeBase.warnDocContent"));
     return;
   }
   try {
@@ -314,13 +321,13 @@ async function handleCreateChunk() {
     });
 
     if (!isMounted.value) return;
-    message.success("新增分片成功");
+    message.success(t("ai.knowledgeBase.chunkCreated"));
     Object.assign(newChunk, { documentId: null, chunkIndex: 0, content: "", startOffset: 0, endOffset: 0 });
     await Promise.all([loadChunks(), loadBase()]);
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "新增分片失败");
+    message.error((err as Error).message || t("ai.knowledgeBase.chunkCreateFailed"));
   }
 }
 
@@ -348,13 +355,13 @@ async function submitChunkEdit() {
     });
 
     if (!isMounted.value) return;
-    message.success("更新成功");
+    message.success(t("crud.updateSuccess"));
     chunkModalVisible.value = false;
     await loadChunks();
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "更新失败");
+    message.error((err as Error).message || t("ai.knowledgeBase.updateRecordFailed"));
   } finally {
     chunkModalLoading.value = false;
   }
@@ -365,16 +372,17 @@ async function handleDeleteChunk(chunkId: number) {
     await deleteChunk(knowledgeBaseId, chunkId);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await Promise.all([loadChunks(), loadBase()]);
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "删除失败");
+    message.error((err as Error).message || t("crud.deleteFailed"));
   }
 }
 
 onMounted(async () => {
+  title.value = t("ai.knowledgeBase.detailTitle");
   await Promise.all([loadBase(), loadDocuments()]);
 
   if (!isMounted.value) return;

@@ -1,9 +1,9 @@
 <template>
   <a-modal
     v-model:open="visible"
-    :title="popup?.title || '欢迎使用 AI 平台'"
-    ok-text="我知道了"
-    cancel-text="稍后提醒"
+    :title="popup?.title || t('ai.onboarding.defaultTitle')"
+    :ok-text="t('ai.onboarding.ok')"
+    :cancel-text="t('ai.onboarding.remindLater')"
     @ok="dismiss(true)"
     @cancel="dismiss(false)"
   >
@@ -20,11 +20,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, onUnmounted } from "vue";
-
-const isMounted = ref(false);
-onMounted(() => { isMounted.value = true; });
-onUnmounted(() => { isMounted.value = false; });
-
+import { useI18n } from "vue-i18n";
 import { message } from "ant-design-vue";
 import {
   dismissAiOnboardingPopup,
@@ -32,6 +28,12 @@ import {
   type AiBotPopupInfoDto,
   type AiShortcutCommandItem
 } from "@/services/api-ai-shortcut";
+
+const { t } = useI18n();
+
+const isMounted = ref(false);
+onMounted(() => { isMounted.value = true; });
+onUnmounted(() => { isMounted.value = false; });
 
 const props = defineProps<{
   shortcuts: AiShortcutCommandItem[];
@@ -47,7 +49,7 @@ async function loadPopup() {
     if (!isMounted.value) return;
     visible.value = !popup.value.dismissed;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载引导失败");
+    message.error((error as Error).message || t("ai.onboarding.loadFailed"));
   }
 }
 
@@ -62,7 +64,7 @@ async function dismiss(value: boolean) {
     if (!isMounted.value) return;
     visible.value = false;
   } catch (error: unknown) {
-    message.error((error as Error).message || "更新引导状态失败");
+    message.error((error as Error).message || t("ai.onboarding.updateFailed"));
   }
 }
 

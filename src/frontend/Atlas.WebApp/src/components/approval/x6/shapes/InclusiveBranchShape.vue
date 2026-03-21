@@ -5,15 +5,15 @@
     @click="handleClick"
   >
     <div class="dd-node__header dd-node__header--inclusive">
-      <span class="dd-node__title">{{ data.branchName || '包容分支' }}</span>
-      <span class="dd-node__priority" v-if="!data.isDefault">优先级{{ branchIndex }}</span>
-      <span class="dd-node__priority" v-else>默认</span>
+      <span class="dd-node__title">{{ data.branchName || t('approvalDesigner.shapeInclusiveDefault') }}</span>
+      <span class="dd-node__priority" v-if="!data.isDefault">{{ t('approvalDesigner.shapePriority', { index: branchIndex }) }}</span>
+      <span class="dd-node__priority" v-else>{{ t('approvalDesigner.shapeDefaultBranch') }}</span>
       <CloseOutlined class="dd-node__delete" @click.stop="handleDelete" />
     </div>
     <div class="dd-node__body">
       <span v-if="conditionLabel" class="dd-node__text">{{ conditionLabel }}</span>
-      <span v-else-if="data.isDefault" class="dd-node__placeholder">其他条件均不满足时进入此分支</span>
-      <span v-else class="dd-node__placeholder">请设置条件</span>
+      <span v-else-if="data.isDefault" class="dd-node__placeholder">{{ t('approvalDesigner.shapeBranchFallbackHint') }}</span>
+      <span v-else class="dd-node__placeholder">{{ t('approvalDesigner.shapeSetConditionHint') }}</span>
       <RightOutlined class="dd-node__arrow" />
     </div>
   </div>
@@ -21,8 +21,27 @@
 
 <script setup lang="ts">
 import { inject, ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { CloseOutlined, RightOutlined } from '@ant-design/icons-vue';
 import type { Node } from '@antv/x6';
+
+const { t } = useI18n();
+
+function operatorLabel(op: string): string {
+  const map: Record<string, string> = {
+    equals: t('approvalDesigner.condOpEquals'),
+    notEquals: t('approvalDesigner.condOpNotEquals'),
+    greaterThan: t('approvalDesigner.condOpGreaterThan'),
+    lessThan: t('approvalDesigner.condOpLessThan'),
+    contains: t('approvalDesigner.condOpContains'),
+    greaterThanOrEqual: t('approvalDesigner.condOpGreaterOrEqual'),
+    lessThanOrEqual: t('approvalDesigner.condOpLessOrEqual'),
+    in: t('approvalDesigner.condOpInList'),
+    startsWith: t('approvalDesigner.condOpStartsWith'),
+    endsWith: t('approvalDesigner.condOpEndsWith'),
+  };
+  return map[op] || op;
+}
 
 const getNode = inject<() => Node>('getNode')!;
 const data = ref<Record<string, unknown>>({});
@@ -49,7 +68,7 @@ const conditionLabel = computed(() => {
   const groups = Array.isArray(groupsRaw) ? (groupsRaw as ConditionGroupView[]) : undefined;
   if (groups && groups.length > 0) {
     const count = groups.reduce((acc, g) => acc + (g.conditions?.length || 0), 0);
-    return `${groups.length}个条件组, 共${count}个条件`;
+    return t('approvalDesigner.condGroupSummary', { groups: groups.length, count });
   }
 
   // 旧版兼容
@@ -57,19 +76,7 @@ const conditionLabel = computed(() => {
     | { field: string; operator: string; value: unknown }
     | undefined;
   if (!rule || !rule.field) return '';
-  const opMap: Record<string, string> = {
-    equals: '等于',
-    notEquals: '不等于',
-    greaterThan: '大于',
-    lessThan: '小于',
-    contains: '包含',
-    greaterThanOrEqual: '大于等于',
-    lessThanOrEqual: '小于等于',
-    in: '在列表中',
-    startsWith: '开头是',
-    endsWith: '结尾是',
-  };
-  return `${rule.field} ${opMap[rule.operator] || rule.operator} ${rule.value}`;
+  return `${rule.field} ${operatorLabel(rule.operator)} ${rule.value}`;
 });
 
 const handleClick = () => {

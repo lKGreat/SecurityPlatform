@@ -5,10 +5,10 @@
     <div class="canvas-area">
       <div class="editor-toolbar">
         <a-space>
-          <a-button @click="goBack">返回列表</a-button>
-          <a-button type="primary" :loading="saving" @click="saveWorkflow">保存</a-button>
-          <a-button :loading="validating" @click="validateWorkflow">校验</a-button>
-          <a-button @click="openVersionHistory">版本历史</a-button>
+          <a-button @click="goBack">{{ t("ai.workflow.editorBack") }}</a-button>
+          <a-button type="primary" :loading="saving" @click="saveWorkflow">{{ t("ai.workflow.save") }}</a-button>
+          <a-button :loading="validating" @click="validateWorkflow">{{ t("ai.workflow.validate") }}</a-button>
+          <a-button @click="openVersionHistory">{{ t("ai.workflow.versionHistory") }}</a-button>
         </a-space>
       </div>
 
@@ -37,7 +37,7 @@
     </div>
 
     <div class="config-panel">
-      <h4>节点配置</h4>
+      <h4>{{ t("ai.workflow.nodeConfigTitle") }}</h4>
       <template v-if="selectedNode">
         <p class="node-name">{{ selectedNode.data?.label || selectedNode.id }}</p>
         <LlmNodeConfig
@@ -49,18 +49,17 @@
           v-model="selectedNodeConfig"
         />
       </template>
-      <a-empty v-else description="请选择一个节点" />
+      <a-empty v-else :description="t('ai.workflow.selectNode')" />
     </div>
 
-    <!-- 版本历史抽屉 -->
     <a-drawer
       v-model:open="versionDrawerOpen"
-      title="版本历史"
+      :title="t('ai.workflow.drawerVersionTitle')"
       width="640"
       :destroy-on-close="false"
     >
       <a-spin :spinning="versionLoading">
-        <a-empty v-if="versionList.length === 0 && !versionLoading" description="暂无发布版本记录" />
+        <a-empty v-if="versionList.length === 0 && !versionLoading" :description="t('ai.workflow.noVersions')" />
         <a-list
           v-else
           :data-source="versionList"
@@ -78,7 +77,7 @@
                   </a-space>
                 </template>
                 <template #description>
-                  发布时间：{{ formatDate(item.publishedAt) }}
+                  {{ t("ai.workflow.publishedAt", { time: formatDate(item.publishedAt) }) }}
                 </template>
               </a-list-item-meta>
               <template #actions>
@@ -87,22 +86,22 @@
                   size="small"
                   @click="loadDiff(diffBaseVersion!, item.version)"
                 >
-                  与 v{{ diffBaseVersion }} 对比
+                  {{ t("ai.workflow.diffWith", { version: diffBaseVersion }) }}
                 </a-button>
                 <a-button
                   size="small"
                   :type="diffBaseVersion === item.version ? 'primary' : 'default'"
                   @click="setDiffBase(item.version)"
                 >
-                  {{ diffBaseVersion === item.version ? '已选为对比基准' : '选为对比基准' }}
+                  {{ diffBaseVersion === item.version ? t("ai.workflow.diffBaseSelected") : t("ai.workflow.setDiffBase") }}
                 </a-button>
                 <a-popconfirm
-                  :title="`确认回滚到 v${item.version}？此操作将创建新版本 v${currentPublishVersion + 1}。`"
-                  ok-text="确认回滚"
-                  cancel-text="取消"
+                  :title="t('ai.workflow.rollbackConfirm', { version: item.version, next: currentPublishVersion + 1 })"
+                  :ok-text="t('ai.workflow.rollbackOk')"
+                  :cancel-text="t('common.cancel')"
                   @confirm="doRollback(item.version)"
                 >
-                  <a-button size="small" danger :loading="rollingBack">回滚</a-button>
+                  <a-button size="small" danger :loading="rollingBack">{{ t("ai.workflow.rollback") }}</a-button>
                 </a-popconfirm>
               </template>
             </a-list-item>
@@ -110,29 +109,28 @@
         </a-list>
       </a-spin>
 
-      <!-- Diff 结果面板 -->
       <template v-if="diffResult">
-        <a-divider>版本差异：v{{ diffResult.fromVersion }} → v{{ diffResult.toVersion }}</a-divider>
+        <a-divider>{{ t("ai.workflow.diffDivider", { from: diffResult.fromVersion, to: diffResult.toVersion }) }}</a-divider>
         <a-row :gutter="[12, 12]">
           <a-col :span="8">
-            <a-statistic title="新增节点" :value="diffResult.addedNodeIds.length" />
+            <a-statistic :title="t('ai.workflow.statNodesAdded')" :value="diffResult.addedNodeIds.length" />
             <a-tag v-for="nid in diffResult.addedNodeIds" :key="nid" color="success">{{ nid }}</a-tag>
           </a-col>
           <a-col :span="8">
-            <a-statistic title="移除节点" :value="diffResult.removedNodeIds.length" />
+            <a-statistic :title="t('ai.workflow.statNodesRemoved')" :value="diffResult.removedNodeIds.length" />
             <a-tag v-for="nid in diffResult.removedNodeIds" :key="nid" color="error">{{ nid }}</a-tag>
           </a-col>
           <a-col :span="8">
-            <a-statistic title="变更节点" :value="diffResult.modifiedNodeIds.length" />
+            <a-statistic :title="t('ai.workflow.statNodesModified')" :value="diffResult.modifiedNodeIds.length" />
             <a-tag v-for="nid in diffResult.modifiedNodeIds" :key="nid" color="warning">{{ nid }}</a-tag>
           </a-col>
         </a-row>
         <a-row :gutter="[12, 12]" style="margin-top:12px">
           <a-col :span="12">
-            <a-statistic title="新增连线" :value="diffResult.addedEdges" />
+            <a-statistic :title="t('ai.workflow.statEdgesAdded')" :value="diffResult.addedEdges" />
           </a-col>
           <a-col :span="12">
-            <a-statistic title="移除连线" :value="diffResult.removedEdges" />
+            <a-statistic :title="t('ai.workflow.statEdgesRemoved')" :value="diffResult.removedEdges" />
           </a-col>
         </a-row>
       </template>
@@ -142,6 +140,9 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -194,7 +195,6 @@ const executionStatus = ref<string | null>(null);
 const currentPublishVersion = ref(0);
 let progressPollTimer: number | null = null;
 
-// 版本历史抽屉
 const versionDrawerOpen = ref(false);
 const versionLoading = ref(false);
 const versionList = ref<AiWorkflowVersionItem[]>([]);
@@ -227,7 +227,7 @@ async function loadNodeTypes() {
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "加载节点类型失败");
+    message.error((err as Error).message || t("ai.workflow.loadNodeTypesFailed"));
   }
 }
 
@@ -243,7 +243,7 @@ async function loadWorkflow() {
     }
     currentPublishVersion.value = detail.publishVersion;
   } catch (err: unknown) {
-    message.error((err as Error).message || "加载工作流失败");
+    message.error((err as Error).message || t("ai.workflow.loadEditorFailed"));
   }
 }
 
@@ -279,10 +279,10 @@ async function saveWorkflow(options?: { silent?: boolean }) {
 
     if (!isMounted.value) return;
     if (!options?.silent) {
-      message.success("保存成功");
+      message.success(t("ai.workflow.saveSuccess"));
     }
   } catch (err: unknown) {
-    message.error((err as Error).message || "保存失败");
+    message.error((err as Error).message || t("ai.workflow.saveFailed"));
     throw err;
   } finally {
     saving.value = false;
@@ -299,13 +299,13 @@ async function validateWorkflow() {
 
     if (!isMounted.value) return;
     if (result.isValid) {
-      message.success("校验通过");
+      message.success(t("ai.workflow.validateOk"));
       return;
     }
 
-    message.error(`校验失败: ${result.errors.join("；")}`);
+    message.error(t("ai.workflow.validateFailed", { errors: result.errors.join("; ") }));
   } catch (err: unknown) {
-    message.error((err as Error).message || "校验失败");
+    message.error((err as Error).message || t("ai.workflow.validateError"));
   } finally {
     validating.value = false;
   }
@@ -321,9 +321,9 @@ async function runWorkflow(inputs: Record<string, unknown>) {
 
     if (!isMounted.value) return;
     executionId.value = result.executionId;
-    message.success("已启动执行");
+    message.success(t("ai.workflow.runStarted"));
   } catch (err: unknown) {
-    message.error((err as Error).message || "执行失败");
+    message.error((err as Error).message || t("ai.workflow.runFailed"));
   } finally {
     running.value = false;
   }
@@ -334,14 +334,12 @@ async function cancelExecution(id: string) {
     await cancelAiWorkflowExecution(id);
 
     if (!isMounted.value) return;
-    message.success("已取消执行");
+    message.success(t("ai.workflow.cancelOk"));
     executionStatus.value = "Terminated";
   } catch (err: unknown) {
-    message.error((err as Error).message || "取消失败");
+    message.error((err as Error).message || t("ai.workflow.cancelFailed"));
   }
 }
-
-// ── 版本历史相关 ──
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString();
@@ -357,7 +355,7 @@ async function openVersionHistory() {
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "加载版本历史失败");
+    message.error((err as Error).message || t("ai.workflow.loadVersionsFailed"));
   } finally {
     versionLoading.value = false;
   }
@@ -379,7 +377,7 @@ async function loadDiff(fromVer: number, toVer: number) {
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "加载版本差异失败");
+    message.error((err as Error).message || t("ai.workflow.loadDiffFailed"));
   }
 }
 
@@ -389,14 +387,14 @@ async function doRollback(targetVersion: number) {
     const result  = await rollbackAiWorkflow(workflowId, targetVersion);
 
     if (!isMounted.value) return;
-    message.success(`已回滚到 v${targetVersion}，新版本为 v${result.newVersion}`);
+    message.success(t("ai.workflow.rollbackSuccess", { version: targetVersion, newVersion: result.newVersion }));
     currentPublishVersion.value = result.newVersion;
     versionDrawerOpen.value = false;
     await loadWorkflow();
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "版本回滚失败");
+    message.error((err as Error).message || t("ai.workflow.rollbackFailed"));
   } finally {
     rollingBack.value = false;
   }

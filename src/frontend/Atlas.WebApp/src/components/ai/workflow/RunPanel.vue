@@ -1,14 +1,14 @@
 <template>
   <div class="run-panel">
     <a-form layout="inline">
-      <a-form-item label="Input(JSON)">
+      <a-form-item :label="t('ai.runPanel.inputJson')">
         <a-input v-model:value="inputJson" style="width: 260px" />
       </a-form-item>
       <a-form-item>
-        <a-button type="primary" :loading="running" @click="run">执行</a-button>
+        <a-button type="primary" :loading="running" @click="run">{{ t("ai.runPanel.run") }}</a-button>
       </a-form-item>
       <a-form-item v-if="executionId">
-        <a-button danger @click="$emit('cancel', executionId)">取消</a-button>
+        <a-button danger @click="$emit('cancel', executionId)">{{ t("ai.runPanel.cancel") }}</a-button>
       </a-form-item>
     </a-form>
     <div class="run-meta" v-if="executionId">
@@ -20,7 +20,10 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { message } from "ant-design-vue";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   running: boolean;
@@ -40,7 +43,7 @@ function run() {
     const parsed = JSON.parse(inputJson.value || "{}") as Record<string, unknown>;
     emit("run", parsed);
   } catch {
-    message.error("Input 必须是合法 JSON");
+    message.error(t("ai.runPanel.invalidJson"));
   }
 }
 </script>

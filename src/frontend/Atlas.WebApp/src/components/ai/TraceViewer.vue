@@ -1,9 +1,9 @@
 <template>
-  <a-card size="small" title="Trace Viewer">
+  <a-card size="small" :title="t('ai.traceViewer.title')">
     <a-timeline>
       <a-timeline-item v-for="(item, idx) in traces" :key="`${idx}-${item.step}`" :color="item.success ? 'green' : 'red'">
         <div class="trace-step">{{ item.step }}</div>
-        <div class="trace-duration">耗时 {{ item.durationMs }} ms</div>
+        <div class="trace-duration">{{ t("ai.traceViewer.duration", { ms: item.durationMs }) }}</div>
         <pre class="trace-output">{{ item.output }}</pre>
       </a-timeline-item>
     </a-timeline>
@@ -11,6 +11,10 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
+
 export interface TraceItem {
   step: string;
   durationMs: number;

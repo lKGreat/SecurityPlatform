@@ -1,6 +1,6 @@
 <template>
   <a-space direction="vertical" style="width: 100%" :size="16">
-    <a-card title="AI 工作台" :bordered="false">
+    <a-card :title="t('ai.workspace.pageTitle')" :bordered="false">
       <WorkspaceSwitcher
         :name="workspace.name"
         :theme="workspace.theme"
@@ -8,12 +8,12 @@
       />
       <a-divider />
       <a-descriptions :column="2" size="small" bordered>
-        <a-descriptions-item label="上次访问">{{ workspace.lastVisitedPath }}</a-descriptions-item>
-        <a-descriptions-item label="收藏资源数">{{ workspace.favoriteResourceIds.length }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.workspace.lastVisited')">{{ workspace.lastVisitedPath }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.workspace.favoriteCount')">{{ workspace.favoriteResourceIds.length }}</a-descriptions-item>
       </a-descriptions>
     </a-card>
 
-    <a-card title="常用资源（最近更新）" :bordered="false">
+    <a-card :title="t('ai.workspace.frequentResources')" :bordered="false">
       <a-list :data-source="libraryItems" :loading="loading">
         <template #renderItem="{ item }">
           <a-list-item>
@@ -31,6 +31,9 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -49,7 +52,7 @@ import {
 const router = useRouter();
 const loading = ref(false);
 const workspace = reactive({
-  name: "我的 AI 工作台",
+  name: "",
   theme: "light",
   lastVisitedPath: "/ai/workspace",
   favoriteResourceIds: [] as number[]
@@ -61,6 +64,9 @@ async function loadWorkspace() {
 
   if (!isMounted.value) return;
   Object.assign(workspace, data);
+  if (!workspace.name) {
+    workspace.name = t("ai.workspace.defaultName");
+  }
 }
 
 async function loadLibrary() {
@@ -89,9 +95,9 @@ async function handleWorkspaceSave(payload: { name: string; theme: string }) {
 
     if (!isMounted.value) return;
     Object.assign(workspace, updated);
-    message.success("工作台配置已保存");
+    message.success(t("ai.workspace.saveSuccess"));
   } catch (error: unknown) {
-    message.error((error as Error).message || "保存失败");
+    message.error((error as Error).message || t("ai.workspace.saveFailed"));
   }
 }
 

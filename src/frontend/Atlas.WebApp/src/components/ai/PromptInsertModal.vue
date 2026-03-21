@@ -1,16 +1,16 @@
 <template>
   <a-modal
     :open="open"
-    title="插入 Prompt 模板"
+    :title="t('ai.promptLib.insertModalTitle')"
     width="760px"
-    ok-text="插入"
+    :ok-text="t('ai.promptLib.insertOk')"
     @ok="handleInsert"
     @cancel="emit('cancel')"
   >
     <a-space direction="vertical" style="width: 100%">
       <a-input-search
         v-model:value="keyword"
-        placeholder="搜索 Prompt 名称"
+        :placeholder="t('ai.promptLib.searchPlaceholder')"
         @search="loadData"
       />
       <a-table
@@ -24,7 +24,7 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'content'">
-            <a-typography-paragraph :ellipsis="{ rows: 2, expandable: true, symbol: '展开' }">
+            <a-typography-paragraph :ellipsis="{ rows: 2, expandable: true, symbol: t('ai.expand') }">
               {{ record.content }}
             </a-typography-paragraph>
           </template>
@@ -36,8 +36,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { message } from "ant-design-vue";
 import { getAiPromptTemplatesPaged, type AiPromptTemplateListItem } from "@/services/api-ai-prompt";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   open: boolean;
@@ -54,11 +57,11 @@ const loading = ref(false);
 const selectedRowKeys = ref<number[]>([]);
 const selectedPrompt = computed(() => list.value.find((x) => x.id === selectedRowKeys.value[0]));
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name", width: 220 },
-  { title: "分类", dataIndex: "category", key: "category", width: 120 },
-  { title: "内容", key: "content" }
-];
+const columns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 220 },
+  { title: t("ai.promptLib.colCategory"), dataIndex: "category", key: "category", width: 120 },
+  { title: t("ai.promptLib.colContent"), key: "content" }
+]);
 
 const rowSelection = computed(() => ({
   type: "radio" as const,
@@ -74,7 +77,7 @@ async function loadData() {
     const result = await getAiPromptTemplatesPaged({ pageIndex: 1, pageSize: 20, keyword: keyword.value || undefined });
     list.value = result.items;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载 Prompt 模板失败");
+    message.error((error as Error).message || t("ai.promptLib.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -82,7 +85,7 @@ async function loadData() {
 
 function handleInsert() {
   if (!selectedPrompt.value) {
-    message.warning("请先选择一个 Prompt 模板");
+    message.warning(t("ai.promptLib.selectPromptFirst"));
     return;
   }
 

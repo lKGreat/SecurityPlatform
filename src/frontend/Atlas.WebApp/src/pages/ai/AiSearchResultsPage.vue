@@ -1,13 +1,13 @@
 <template>
   <a-space direction="vertical" style="width: 100%" :size="16">
-    <a-card title="统一搜索" :bordered="false">
+    <a-card :title="t('ai.search.unifiedTitle')" :bordered="false">
       <GlobalSearchBar @search="handleSearch" />
       <template #extra>
-        <a-button @click="reload">刷新</a-button>
+        <a-button @click="reload">{{ t("ai.search.refresh") }}</a-button>
       </template>
     </a-card>
 
-    <a-card title="搜索结果" :bordered="false">
+    <a-card :title="t('ai.search.resultsTitle')" :bordered="false">
       <a-table row-key="key" :columns="resultColumns" :data-source="resultRows" :loading="loading" :pagination="false">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'title'">
@@ -22,13 +22,13 @@
             <a-tag color="blue">{{ record.resourceType }}</a-tag>
           </template>
           <template v-if="column.key === 'action'">
-            <a-button type="link" @click="goPath(record.path)">打开</a-button>
+            <a-button type="link" @click="goPath(record.path)">{{ t("ai.search.open") }}</a-button>
           </template>
         </template>
       </a-table>
     </a-card>
 
-    <a-card title="最近编辑" :bordered="false">
+    <a-card :title="t('ai.search.recentTitle')" :bordered="false">
       <a-list :data-source="recentRows" :loading="recentLoading">
         <template #renderItem="{ item }">
           <a-list-item>
@@ -40,7 +40,7 @@
               <span class="description-text">{{ item.updatedAt }}</span>
             </a-space>
             <template #actions>
-              <a-button type="link" danger @click="handleDeleteRecent(item.id)">删除</a-button>
+              <a-button type="link" danger @click="handleDeleteRecent(item.id)">{{ t("common.delete") }}</a-button>
             </template>
           </a-list-item>
         </template>
@@ -50,7 +50,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onUnmounted } from "vue";
+import { computed, onMounted, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -74,12 +77,12 @@ const keyword = ref("");
 const resultRows = ref<AiSearchResultItem[]>([]);
 const recentRows = ref<AiRecentEditItem[]>([]);
 
-const resultColumns = [
-  { title: "标题", key: "title" },
-  { title: "类型", key: "type", width: 120 },
-  { title: "更新时间", dataIndex: "updatedAt", key: "updatedAt", width: 180 },
-  { title: "操作", key: "action", width: 100 }
-];
+const resultColumns = computed(() => [
+  { title: t("ai.search.colTitle"), key: "title" },
+  { title: t("ai.search.colType"), key: "type", width: 120 },
+  { title: t("ai.workflow.colUpdatedAt"), dataIndex: "updatedAt", key: "updatedAt", width: 180 },
+  { title: t("ai.colActions"), key: "action", width: 100 }
+]);
 
 async function loadSearchResult() {
   loading.value = true;
@@ -92,7 +95,7 @@ async function loadSearchResult() {
       recentRows.value = response.recentEdits;
     }
   } catch (error: unknown) {
-    message.error((error as Error).message || "搜索失败");
+    message.error((error as Error).message || t("ai.globalSearch.searchFailed"));
   } finally {
     loading.value = false;
   }
@@ -105,7 +108,7 @@ async function loadRecent() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载最近编辑失败");
+    message.error((error as Error).message || t("ai.search.loadRecentFailed"));
   } finally {
     recentLoading.value = false;
   }
@@ -130,12 +133,12 @@ async function handleDeleteRecent(id: number) {
     await deleteAiRecentEdit(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadRecent();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("crud.deleteFailed"));
   }
 }
 

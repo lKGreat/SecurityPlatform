@@ -1,29 +1,62 @@
-name: .NET Core Local Deploy on ECS
+name: Optimized Full Stack Deploy (ECS Native)
 
 on:
   push:
     branches: [ "master" ]
+  workflow_dispatch:
+
+env:
+  # 1. 后端配置
+  BACKEND_PROJECT: 'src/backend/Atlas.WebApi/Atlas.WebApi.csproj'
+  BACKEND_PUBLISH_DIR: '/home/www/security-platform/backend'
+  BACKEND_SERVICE: 'security-platform.service'
+
+  # 2. 前端配置
+  FRONTEND_DIR: 'src/frontend/Atlas.WebApp'
+  FRONTEND_PUBLISH_DIR: '/home/www/security-platform/frontend'
 
 jobs:
   deploy:
-    # 关键点：指定在您自己的 ECS Runner 上运行
+    # 使用您在阿里云 ECS 上配置好的自托管运行器
     runs-on: self-hosted
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Build and Publish
+      # --- 第一部分：后端部署 (直接使用本地 .NET 10) ---
+      - name: Backend Build & Publish
         run: |
-          dotnet restore src/backend/Atlas.WebApi/Atlas.WebApi.csproj
-          # 直接发布到服务器的本地部署目录
-          dotnet publish src/backend/Atlas.WebApi/Atlas.WebApi.csproj -c Release -o /home/www/security-platform
+          echo "Using local dotnet version: $(dotnet --version)"
+          # 创建发布目录（如果不存在）
+          sudo mkdir -p ${{ env.BACKEND_PUBLISH_DIR }}
+          # 编译并发布到指定目录
+          dotnet publish ${{ env.BACKEND_PROJECT }} \
+            -c Release \
+            -o ${{ env.BACKEND_PUBLISH_DIR }} \
+            --no-self-contained
 
-      - name: Restart Application Service
+      # --- 第二部分：前端部署 (直接使用本地 Node.js 20) ---
+      - name: Frontend Build
+        working-directory: ${{ env.FRONTEND_DIR }}
         run: |
-          # 因为 Runner 就在本地，直接执行重启命令即可
-          sudo systemctl restart security-platform.service
+          echo "Using local node version: $(node -v)"
+          # 使用国内镜像加速依赖安装
+          npm install --registry=https://registry.npmmirror.com
+          npm run build
+          
+      - name: Sync Frontend Files
+        run: |
+          sudo mkdir -p ${{ env.FRONTEND_PUBLISH_DIR }}
+          # 清理旧文件并拷贝新构建产物
+          sudo rm -rf ${{ env.FRONTEND_PUBLISH_DIR }}/*
+          sudo cp -r ${{ env.FRONTEND_DIR }}/dist/* ${{ env.FRONTEND_PUBLISH_DIR }}/
+
+      # --- 第三部分：服务重启与权限加固 ---
+      - name: Restart & Permissions
+        run: |
+          # 重启后端服务
+          sudo systemctl restart ${{ env.BACKEND_SERVICE }}
+          # 统一设置权限（确保 Nginx 有权访问 ）
+          sudo chown -R www-data:www-data /home/www/security-platform
+          echo "Deployment Completed Successfully!"

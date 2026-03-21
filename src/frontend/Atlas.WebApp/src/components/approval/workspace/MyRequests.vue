@@ -365,7 +365,7 @@ const handleViewDetail = async (id: string) => {
         const parsed = JSON.parse(instance.dataJson);
         if (typeof parsed === "object" && parsed !== null) {
           businessData.value = Object.entries(parsed)
-            .filter(([key]) => !key.startsWith("_")) // 排除内部字段
+            .filter(([key]) => !key.startsWith("_")) // exclude internal keys
             .map(([field, value]) => ({
               field,
               value: value != null ? String(value) : null
@@ -377,7 +377,7 @@ const handleViewDetail = async (id: string) => {
     }
 
   } catch (err) {
-    message.error(err instanceof Error ? err.message : "加载详情失败");
+    message.error(err instanceof Error ? err.message : t("approvalWorkspace.myRequests.loadDetailFailed"));
   } finally {
     taskLoading.value = false;
   }

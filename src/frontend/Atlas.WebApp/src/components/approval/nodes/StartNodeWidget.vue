@@ -5,14 +5,17 @@
         <span class="name">{{ node.nodeName }}</span>
       </div>
       <div class="content">
-        <span class="text">所有人</span>
+        <span class="text">{{ t('approvalDesigner.shapeEveryone') }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import type { StartNode } from '@/types/approval-tree';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   node: StartNode;

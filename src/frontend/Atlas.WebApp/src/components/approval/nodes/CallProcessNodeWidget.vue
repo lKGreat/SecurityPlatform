@@ -7,10 +7,10 @@
         <CloseOutlined class="close-btn" @click.stop="handleDelete" />
       </div>
       <div class="content">
-        <span class="text" v-if="node.callProcessId">流程ID: {{ node.callProcessId }}</span>
-        <span class="placeholder" v-else>请配置子流程</span>
+        <span class="text" v-if="node.callProcessId">{{ t('approvalDesigner.shapeCallProcessId', { id: node.callProcessId }) }}</span>
+        <span class="placeholder" v-else>{{ t('approvalDesigner.shapeConfigureCallProcess') }}</span>
         <div class="sub-text" v-if="node.callProcessId">
-          {{ node.callAsync ? '异步执行' : '同步等待' }}
+          {{ node.callAsync ? t('approvalDesigner.shapeExecAsync') : t('approvalDesigner.shapeExecSync') }}
         </div>
       </div>
     </div>
@@ -18,7 +18,10 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import { SubnodeOutlined, CloseOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { CallProcessNode } from '@/types/approval-tree';
 
 const props = defineProps<{

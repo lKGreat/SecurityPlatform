@@ -7,15 +7,18 @@
         <CloseOutlined class="close-btn" @click.stop="handleDelete" />
       </div>
       <div class="content">
-        <span class="text" v-if="node.routeTargetNodeId">跳转至: {{ node.routeTargetNodeId }}</span>
-        <span class="placeholder" v-else>请选择目标节点</span>
+        <span class="text" v-if="node.routeTargetNodeId">{{ t('approvalDesigner.shapeJumpTo', { id: node.routeTargetNodeId }) }}</span>
+        <span class="placeholder" v-else>{{ t('approvalDesigner.shapePickRouteTarget') }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import { SwapOutlined, CloseOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { RouteNode } from '@/types/approval-tree';
 
 const props = defineProps<{

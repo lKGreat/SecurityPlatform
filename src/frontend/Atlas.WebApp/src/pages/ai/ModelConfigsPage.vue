@@ -1,10 +1,10 @@
 <template>
   <CrudPageLayout
     v-model:keyword="keyword"
-    title="模型配置"
-    search-placeholder="搜索名称 / Provider / 模型"
+    :title="t('ai.modelConfig.pageTitle')"
+    :search-placeholder="t('ai.modelConfig.searchPlaceholder')"
     :drawer-open="drawerVisible"
-    :drawer-title="editingId ? '编辑模型配置' : '新建模型配置'"
+    :drawer-title="drawerTitle"
     :drawer-width="560"
     :submit-loading="submitting"
     :submit-disabled="submitting"
@@ -17,7 +17,7 @@
     <template #toolbar-actions>
       <a-button type="primary" @click="openCreate">
         <template #icon><PlusOutlined /></template>
-        新建模型
+        {{ t("ai.modelConfig.newModel") }}
       </a-button>
     </template>
 
@@ -27,25 +27,25 @@
         <a-col :span="6">
           <div class="stat-card">
             <div class="stat-value">{{ stats.total }}</div>
-            <div class="stat-label">配置总数</div>
+            <div class="stat-label">{{ t("ai.modelConfig.statTotal") }}</div>
           </div>
         </a-col>
         <a-col :span="6">
           <div class="stat-card stat-card--success">
             <div class="stat-value">{{ stats.enabled }}</div>
-            <div class="stat-label">已启用</div>
+            <div class="stat-label">{{ t("ai.modelConfig.statEnabled") }}</div>
           </div>
         </a-col>
         <a-col :span="6">
           <div class="stat-card stat-card--warning">
             <div class="stat-value">{{ stats.disabled }}</div>
-            <div class="stat-label">已停用</div>
+            <div class="stat-label">{{ t("ai.modelConfig.statDisabled") }}</div>
           </div>
         </a-col>
         <a-col :span="6">
           <div class="stat-card stat-card--info">
             <div class="stat-value">{{ stats.embeddingCount }}</div>
-            <div class="stat-label">支持 Embedding</div>
+            <div class="stat-label">{{ t("ai.modelConfig.statEmbedding") }}</div>
           </div>
         </a-col>
       </a-row>
@@ -89,7 +89,10 @@
           </template>
 
           <template v-if="column.key === 'isEnabled'">
-            <a-badge :status="record.isEnabled ? 'success' : 'default'" :text="record.isEnabled ? '启用' : '停用'" />
+            <a-badge
+              :status="record.isEnabled ? 'success' : 'default'"
+              :text="record.isEnabled ? t('ai.modelConfig.enabled') : t('ai.modelConfig.disabled')"
+            />
           </template>
 
           <template v-if="column.key === 'createdAt'">
@@ -98,18 +101,18 @@
 
           <template v-if="column.key === 'actions'">
             <a-space>
-              <a-tooltip title="编辑">
+              <a-tooltip :title="t('ai.modelConfig.editTooltip')">
                 <a-button type="link" size="small" @click="openEdit(record)">
                   <template #icon><EditOutlined /></template>
                 </a-button>
               </a-tooltip>
               <a-popconfirm
-                title="确认删除该模型配置？"
-                ok-text="确认"
-                cancel-text="取消"
+                :title="t('ai.modelConfig.deleteConfirm')"
+                :ok-text="t('ai.modelConfig.ok')"
+                :cancel-text="t('common.cancel')"
                 @confirm="handleDelete(record.id)"
               >
-                <a-tooltip title="删除">
+                <a-tooltip :title="t('ai.modelConfig.deleteTooltip')">
                   <a-button type="link" danger size="small">
                     <template #icon><DeleteOutlined /></template>
                   </a-button>
@@ -124,13 +127,13 @@
     <template #form>
       <a-form ref="formRef" :model="form" layout="vertical" :rules="currentRules">
         <!-- 基本信息 -->
-        <a-divider orientation="left" style="margin-top: 0">基本信息</a-divider>
+        <a-divider orientation="left" style="margin-top: 0">{{ t("ai.modelConfig.sectionBasic") }}</a-divider>
 
-        <a-form-item label="配置名称" name="name">
-          <a-input v-model:value="form.name" placeholder="如：GPT-4o 生产环境" />
+        <a-form-item :label="t('ai.modelConfig.labelName')" name="name">
+          <a-input v-model:value="form.name" :placeholder="t('ai.modelConfig.namePlaceholder')" />
         </a-form-item>
 
-        <a-form-item label="Provider 类型" name="providerType">
+        <a-form-item :label="t('ai.modelConfig.labelProvider')" name="providerType">
           <a-select
             v-model:value="form.providerType"
             :options="providerOptions"
@@ -147,12 +150,12 @@
         </a-form-item>
 
         <!-- 连接配置 -->
-        <a-divider orientation="left">连接配置</a-divider>
+        <a-divider orientation="left">{{ t("ai.modelConfig.sectionConnection") }}</a-divider>
 
         <a-form-item label="API Key" name="apiKey">
           <a-input-password
             v-model:value="form.apiKey"
-            :placeholder="editingId ? '留空则不修改' : '输入 API Key'"
+            :placeholder="editingId ? t('ai.modelConfig.apiKeyPlaceholderEdit') : t('ai.modelConfig.apiKeyPlaceholderCreate')"
           />
           <template #extra>
             <span class="field-hint">{{ providerHints.apiKeyHint }}</span>
@@ -166,49 +169,49 @@
           </template>
         </a-form-item>
 
-        <a-form-item label="默认模型" name="defaultModel">
+        <a-form-item :label="t('ai.modelConfig.labelDefaultModel')" name="defaultModel">
           <a-auto-complete
             v-model:value="form.defaultModel"
             :options="suggestedModels"
-            placeholder="输入或选择模型名称"
+            :placeholder="t('ai.modelConfig.defaultModelPlaceholder')"
             :filter-option="filterModelOption"
           />
           <template #extra>
-            <span class="field-hint">可手动输入或从建议列表中选择</span>
+            <span class="field-hint">{{ t("ai.modelConfig.defaultModelHint") }}</span>
           </template>
         </a-form-item>
 
         <!-- 功能与状态 -->
-        <a-divider orientation="left">功能与状态</a-divider>
+        <a-divider orientation="left">{{ t("ai.modelConfig.sectionFeatures") }}</a-divider>
 
         <a-row :gutter="24">
           <a-col :span="12">
-            <a-form-item label="支持 Embedding">
+            <a-form-item :label="t('ai.modelConfig.labelEmbedding')">
               <a-switch v-model:checked="form.supportsEmbedding" />
-              <span class="switch-label">{{ form.supportsEmbedding ? "已开启" : "已关闭" }}</span>
+              <span class="switch-label">{{ form.supportsEmbedding ? t("ai.modelConfig.switchOn") : t("ai.modelConfig.switchOff") }}</span>
             </a-form-item>
           </a-col>
           <a-col v-if="editingId" :span="12">
-            <a-form-item label="启用状态">
+            <a-form-item :label="t('ai.modelConfig.labelEnabled')">
               <a-switch v-model:checked="form.isEnabled" />
-              <span class="switch-label">{{ form.isEnabled ? "已启用" : "已停用" }}</span>
+              <span class="switch-label">{{ form.isEnabled ? t("ai.modelConfig.enabledOn") : t("ai.modelConfig.enabledOff") }}</span>
             </a-form-item>
           </a-col>
         </a-row>
 
         <!-- 连接测试 -->
-        <a-divider orientation="left">连接测试</a-divider>
+        <a-divider orientation="left">{{ t("ai.modelConfig.sectionTest") }}</a-divider>
 
         <div class="test-section">
           <a-button type="default" :loading="testing" @click="handleTestConnection">
             <template #icon><ApiOutlined /></template>
-            测试连接
+            {{ t("ai.modelConfig.testConnection") }}
           </a-button>
 
           <a-alert
             v-if="testResult"
             :type="testResult.success ? 'success' : 'error'"
-            :message="testResult.success ? '连接成功' : '连接失败'"
+            :message="testResult.success ? t('ai.modelConfig.connectOk') : t('ai.modelConfig.connectFail')"
             :description="testResultDescription"
             show-icon
             closable
@@ -223,6 +226,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -261,6 +265,8 @@ interface ProviderInfo {
   icon: ReturnType<typeof CloudOutlined>;
 }
 
+const { t } = useI18n();
+
 const keyword = ref("");
 const dataList = ref<ModelConfigDto[]>([]);
 const loading = ref(false);
@@ -280,21 +286,21 @@ const pagination = reactive<TablePaginationConfig>({
   total: 0,
   showSizeChanger: true,
   pageSizeOptions: ["10", "20", "50"],
-  showTotal: (total: number) => `共 ${total} 条`
+  showTotal: (total: number) => t("crud.totalItems", { total })
 });
 
 const stats = computed(() => statsData.value);
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name", width: 200 },
-  { title: "Provider", dataIndex: "providerType", key: "providerType", width: 130 },
+const columns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 200 },
+  { title: t("ai.modelConfig.colProvider"), dataIndex: "providerType", key: "providerType", width: 130 },
   { title: "Base URL", dataIndex: "baseUrl", key: "baseUrl", ellipsis: true },
-  { title: "默认模型", dataIndex: "defaultModel", key: "defaultModel", width: 160 },
-  { title: "API Key", dataIndex: "apiKeyMasked", key: "apiKeyMasked", width: 120 },
-  { title: "状态", key: "isEnabled", width: 90 },
-  { title: "创建时间", dataIndex: "createdAt", key: "createdAt", width: 110 },
-  { title: "操作", key: "actions", width: 100, fixed: "right" as const }
-];
+  { title: t("ai.modelConfig.labelDefaultModel"), dataIndex: "defaultModel", key: "defaultModel", width: 160 },
+  { title: t("ai.modelConfig.colApiKey"), dataIndex: "apiKeyMasked", key: "apiKeyMasked", width: 120 },
+  { title: t("ai.knowledgeBase.colStatus"), key: "isEnabled", width: 90 },
+  { title: t("ai.knowledgeBase.colCreatedAt"), dataIndex: "createdAt", key: "createdAt", width: 110 },
+  { title: t("ai.colActions"), key: "actions", width: 100, fixed: "right" as const }
+]);
 
 const providerOptions = [
   { label: "OpenAI", value: "openai" },
@@ -332,23 +338,23 @@ const providerHints = computed(() => {
   const hints: Record<string, { baseUrlPlaceholder: string; baseUrlHint: string; apiKeyHint: string }> = {
     openai: {
       baseUrlPlaceholder: "https://api.openai.com/v1",
-      baseUrlHint: "OpenAI 官方 API 地址，也支持兼容代理地址",
-      apiKeyHint: "以 sk- 开头的 API Key"
+      baseUrlHint: t("ai.modelConfig.hintOpenaiBase"),
+      apiKeyHint: t("ai.modelConfig.hintOpenaiKey")
     },
     deepseek: {
       baseUrlPlaceholder: "https://api.deepseek.com/v1",
-      baseUrlHint: "DeepSeek 官方 API 地址",
-      apiKeyHint: "DeepSeek 平台颁发的 API Key"
+      baseUrlHint: t("ai.modelConfig.hintDeepseekBase"),
+      apiKeyHint: t("ai.modelConfig.hintDeepseekKey")
     },
     ollama: {
       baseUrlPlaceholder: "http://localhost:11434/v1",
-      baseUrlHint: "本地 Ollama 服务地址，通常为 localhost:11434",
-      apiKeyHint: "Ollama 本地部署通常无需 API Key，可留空"
+      baseUrlHint: t("ai.modelConfig.hintOllamaBase"),
+      apiKeyHint: t("ai.modelConfig.hintOllamaKey")
     },
     custom: {
       baseUrlPlaceholder: "https://your-api-endpoint.com/v1",
-      baseUrlHint: "兼容 OpenAI API 格式的自定义服务地址",
-      apiKeyHint: "按目标服务要求填写 API Key"
+      baseUrlHint: t("ai.modelConfig.hintCustomBase"),
+      apiKeyHint: t("ai.modelConfig.hintCustomKey")
     }
   };
   return hints[type] ?? hints["custom"];
@@ -364,6 +370,11 @@ function filterModelOption(input: string, option: { value: string }) {
 
 const drawerVisible = ref(false);
 const editingId = ref<number | null>(null);
+
+const drawerTitle = computed(() =>
+  editingId.value ? t("ai.modelConfig.drawerEdit") : t("ai.modelConfig.drawerCreate")
+);
+
 const formRef = ref<FormInstance>();
 const form = reactive({
   name: "",
@@ -376,19 +387,19 @@ const form = reactive({
 });
 const previousProviderType = ref(form.providerType);
 
-const baseRules = {
-  name: [{ required: true, message: "请输入配置名称" }],
-  providerType: [{ required: true, message: "请选择 Provider 类型" }],
-  baseUrl: [{ required: true, message: "请输入 Base URL" }],
-  defaultModel: [{ required: true, message: "请输入或选择默认模型" }]
-};
+const baseRules = computed(() => ({
+  name: [{ required: true, message: t("ai.modelConfig.ruleName") }],
+  providerType: [{ required: true, message: t("ai.modelConfig.ruleProvider") }],
+  baseUrl: [{ required: true, message: t("ai.modelConfig.ruleBaseUrl") }],
+  defaultModel: [{ required: true, message: t("ai.modelConfig.ruleDefaultModel") }]
+}));
 
-const createRules = {
-  ...baseRules,
-  apiKey: [{ required: true, message: "请输入 API Key" }]
-};
+const createRules = computed(() => ({
+  ...baseRules.value,
+  apiKey: [{ required: true, message: t("ai.modelConfig.ruleApiKey") }]
+}));
 
-const currentRules = computed(() => (editingId.value ? baseRules : createRules));
+const currentRules = computed(() => (editingId.value ? baseRules.value : createRules.value));
 
 function formatDate(dateStr: string) {
   if (!dateStr) return "-";
@@ -402,9 +413,9 @@ function formatDate(dateStr: string) {
 const testResultDescription = computed(() => {
   if (!testResult.value) return "";
   if (testResult.value.success) {
-    return `响应延迟 ${testResult.value.latencyMs ?? 0}ms`;
+    return t("ai.modelConfig.latency", { ms: testResult.value.latencyMs ?? 0 });
   }
-  return testResult.value.errorMessage || "无法连接到目标服务";
+  return testResult.value.errorMessage || t("ai.modelConfig.connectUnreachable");
 });
 
 function onProviderChange(value: string) {
@@ -450,7 +461,7 @@ async function loadData() {
     pagination.total = Number(pagedResult.total);
     statsData.value = statsResult;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载失败");
+    message.error((error as Error).message || t("crud.queryFailed"));
   } finally {
     loading.value = false;
   }
@@ -512,7 +523,7 @@ async function openEdit(record: ModelConfigDto) {
     testResult.value = null;
     drawerVisible.value = true;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载详情失败");
+    message.error((error as Error).message || t("crud.loadDetailFailed"));
   }
 }
 
@@ -548,7 +559,7 @@ async function submitForm() {
       });
 
       if (!isMounted.value) return;
-      message.success("更新成功");
+      message.success(t("crud.updateSuccess"));
     } else {
       const payload: ModelConfigCreateRequest = {
         name: form.name,
@@ -561,7 +572,7 @@ async function submitForm() {
       await createModelConfig(payload);
 
       if (!isMounted.value) return;
-      message.success("创建成功");
+      message.success(t("crud.createSuccess"));
     }
 
     drawerVisible.value = false;
@@ -569,7 +580,7 @@ async function submitForm() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "提交失败");
+    message.error((error as Error).message || t("crud.submitFailed"));
   } finally {
     submitting.value = false;
   }
@@ -580,12 +591,12 @@ async function handleDelete(id: number) {
     await deleteModelConfig(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadData();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("crud.deleteFailed"));
   }
 }
 
@@ -604,7 +615,7 @@ async function handleTestConnection() {
   } catch (error: unknown) {
     testResult.value = {
       success: false,
-      errorMessage: (error as Error).message || "连接测试失败"
+      errorMessage: (error as Error).message || t("ai.modelConfig.testFailed")
     };
   } finally {
     testing.value = false;

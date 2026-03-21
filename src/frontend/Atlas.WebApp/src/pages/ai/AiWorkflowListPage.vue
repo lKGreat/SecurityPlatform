@@ -1,14 +1,14 @@
 <template>
-  <a-card title="AI 工作流" :bordered="false">
+  <a-card :title="t('ai.workflow.listTitle')" :bordered="false">
     <div class="toolbar">
       <a-space wrap>
         <a-input-search
           v-model:value="keyword"
-          placeholder="搜索工作流名称"
+          :placeholder="t('ai.workflow.searchPlaceholder')"
           style="width: 260px"
           @search="loadData"
         />
-        <a-button type="primary" @click="openCreate">新建工作流</a-button>
+        <a-button type="primary" @click="openCreate">{{ t("ai.workflow.newWorkflow") }}</a-button>
       </a-space>
     </div>
 
@@ -19,11 +19,11 @@
         </template>
         <template v-if="column.key === 'action'">
           <a-space>
-            <a-button type="link" @click="goEditor(record.id)">编辑</a-button>
-            <a-button type="link" @click="handlePublish(record.id)">发布</a-button>
-            <a-button type="link" @click="handleCopy(record.id)">复制</a-button>
-            <a-popconfirm title="确认删除该工作流？" @confirm="handleDelete(record.id)">
-              <a-button type="link" danger>删除</a-button>
+            <a-button type="link" @click="goEditor(record.id)">{{ t("ai.workflow.edit") }}</a-button>
+            <a-button type="link" @click="handlePublish(record.id)">{{ t("ai.workflow.publish") }}</a-button>
+            <a-button type="link" @click="handleCopy(record.id)">{{ t("ai.workflow.copy") }}</a-button>
+            <a-popconfirm :title="t('ai.workflow.deleteConfirm')" @confirm="handleDelete(record.id)">
+              <a-button type="link" danger>{{ t("common.delete") }}</a-button>
             </a-popconfirm>
           </a-space>
         </template>
@@ -43,16 +43,16 @@
 
     <a-modal
       v-model:open="modalVisible"
-      title="新建工作流"
+      :title="t('ai.workflow.modalCreateTitle')"
       :confirm-loading="modalLoading"
       @ok="submitCreate"
       @cancel="closeModal"
     >
       <a-form ref="formRef" :model="form" layout="vertical" :rules="rules">
-        <a-form-item label="名称" name="name">
+        <a-form-item :label="t('ai.workflow.colName')" name="name">
           <a-input v-model:value="form.name" />
         </a-form-item>
-        <a-form-item label="描述">
+        <a-form-item :label="t('ai.workflow.labelDescription')">
           <a-textarea v-model:value="form.description" :rows="3" />
         </a-form-item>
       </a-form>
@@ -61,7 +61,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -87,13 +90,13 @@ const pageIndex = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name" },
-  { title: "状态", dataIndex: "status", key: "status", width: 120 },
-  { title: "版本", dataIndex: "publishVersion", key: "publishVersion", width: 100 },
-  { title: "更新时间", dataIndex: "updatedAt", key: "updatedAt", width: 220 },
-  { title: "操作", key: "action", width: 280 }
-];
+const columns = computed(() => [
+  { title: t("ai.workflow.colName"), dataIndex: "name", key: "name" },
+  { title: t("ai.workflow.colStatus"), dataIndex: "status", key: "status", width: 120 },
+  { title: t("ai.workflow.colVersion"), dataIndex: "publishVersion", key: "publishVersion", width: 100 },
+  { title: t("ai.workflow.colUpdatedAt"), dataIndex: "updatedAt", key: "updatedAt", width: 220 },
+  { title: t("ai.colActions"), key: "action", width: 280 }
+]);
 
 const modalVisible = ref(false);
 const modalLoading = ref(false);
@@ -103,9 +106,9 @@ const form = reactive({
   description: ""
 });
 
-const rules = {
-  name: [{ required: true, message: "请输入工作流名称" }]
-};
+const rules = computed(() => ({
+  name: [{ required: true, message: t("ai.workflow.ruleName") }]
+}));
 
 function normalizeStatus(status: number | string) {
   if (typeof status === "number") {
@@ -140,7 +143,7 @@ async function loadData() {
     list.value = result.items;
     total.value = Number(result.total);
   } catch (err: unknown) {
-    message.error((err as Error).message || "加载工作流失败");
+    message.error((err as Error).message || t("ai.workflow.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -179,14 +182,14 @@ async function submitCreate() {
     });
 
     if (!isMounted.value) return;
-    message.success("创建成功");
+    message.success(t("crud.createSuccess"));
     modalVisible.value = false;
     await loadData();
 
     if (!isMounted.value) return;
     goEditor(id);
   } catch (err: unknown) {
-    message.error((err as Error).message || "创建失败");
+    message.error((err as Error).message || t("ai.workflow.createFailed"));
   } finally {
     modalLoading.value = false;
   }
@@ -197,12 +200,12 @@ async function handleDelete(id: number) {
     await deleteAiWorkflow(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadData();
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "删除失败");
+    message.error((err as Error).message || t("crud.deleteFailed"));
   }
 }
 
@@ -211,12 +214,12 @@ async function handlePublish(id: number) {
     await publishAiWorkflow(id);
 
     if (!isMounted.value) return;
-    message.success("发布成功");
+    message.success(t("ai.workflow.publishSuccess"));
     await loadData();
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "发布失败");
+    message.error((err as Error).message || t("ai.workflow.publishFailed"));
   }
 }
 
@@ -225,12 +228,12 @@ async function handleCopy(id: number) {
     await copyAiWorkflow(id);
 
     if (!isMounted.value) return;
-    message.success("复制成功");
+    message.success(t("ai.workflow.copySuccess"));
     await loadData();
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "复制失败");
+    message.error((err as Error).message || t("ai.workflow.copyFailed"));
   }
 }
 

@@ -1,15 +1,15 @@
 <template>
-  <a-card title="数据库管理" :bordered="false">
+  <a-card :title="t('ai.database.listTitle')" :bordered="false">
     <div class="toolbar">
       <a-space wrap>
         <a-input-search
           v-model:value="keyword"
-          placeholder="搜索数据库名称"
+          :placeholder="t('ai.database.searchPlaceholder')"
           style="width: 260px"
           @search="loadData"
         />
-        <a-button @click="handleReset">重置</a-button>
-        <a-button type="primary" @click="openCreate">新建数据库</a-button>
+        <a-button @click="handleReset">{{ t("common.reset") }}</a-button>
+        <a-button type="primary" @click="openCreate">{{ t("ai.database.newDatabase") }}</a-button>
       </a-space>
     </div>
 
@@ -27,11 +27,11 @@
         </template>
         <template v-if="column.key === 'action'">
           <a-space>
-            <a-button type="link" @click="goDetail(record.id)">详情</a-button>
-            <a-button type="link" @click="openEdit(record.id)">编辑</a-button>
-            <a-button type="link" @click="openImport(record.id)">导入</a-button>
-            <a-popconfirm title="确认删除该数据库？" @confirm="handleDelete(record.id)">
-              <a-button type="link" danger>删除</a-button>
+            <a-button type="link" @click="goDetail(record.id)">{{ t("ai.plugin.detail") }}</a-button>
+            <a-button type="link" @click="openEdit(record.id)">{{ t("common.edit") }}</a-button>
+            <a-button type="link" @click="openImport(record.id)">{{ t("common.import") }}</a-button>
+            <a-popconfirm :title="t('ai.database.deleteConfirm')" @confirm="handleDelete(record.id)">
+              <a-button type="link" danger>{{ t("common.delete") }}</a-button>
             </a-popconfirm>
           </a-space>
         </template>
@@ -51,27 +51,27 @@
 
     <a-modal
       v-model:open="modalVisible"
-      :title="editingId ? '编辑数据库' : '新建数据库'"
+      :title="editingId ? t('ai.database.modalEdit') : t('ai.database.modalCreate')"
       :confirm-loading="modalLoading"
       width="760px"
       @ok="submitForm"
       @cancel="closeModal"
     >
       <a-form ref="formRef" :model="form" layout="vertical" :rules="rules">
-        <a-form-item label="名称" name="name">
+        <a-form-item :label="t('ai.promptLib.colName')" name="name">
           <a-input v-model:value="form.name" />
         </a-form-item>
-        <a-form-item label="描述" name="description">
+        <a-form-item :label="t('ai.promptLib.labelDescription')" name="description">
           <a-textarea v-model:value="form.description" :rows="3" />
         </a-form-item>
-        <a-form-item label="绑定 Bot ID" name="botId">
+        <a-form-item :label="t('ai.database.labelBotId')" name="botId">
           <a-input-number v-model:value="form.botId" :min="1" style="width: 100%" />
         </a-form-item>
-        <a-form-item label="Schema(JSON)" name="tableSchema">
+        <a-form-item :label="t('ai.database.labelSchema')" name="tableSchema">
           <a-textarea
             v-model:value="form.tableSchema"
             :rows="8"
-            placeholder='[{"name":"column1","type":"string"}]'
+            :placeholder="t('ai.database.schemaPlaceholder')"
           />
         </a-form-item>
       </a-form>
@@ -87,7 +87,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -114,14 +117,14 @@ const pageIndex = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name", width: 220 },
-  { title: "描述", dataIndex: "description", key: "description", ellipsis: true },
-  { title: "记录数", dataIndex: "recordCount", key: "recordCount", width: 100 },
-  { title: "Bot", key: "botId", width: 120 },
-  { title: "更新时间", dataIndex: "updatedAt", key: "updatedAt", width: 200 },
-  { title: "操作", key: "action", width: 260 }
-];
+const columns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 220 },
+  { title: t("ai.promptLib.labelDescription"), dataIndex: "description", key: "description", ellipsis: true },
+  { title: t("ai.database.colRecords"), dataIndex: "recordCount", key: "recordCount", width: 100 },
+  { title: t("ai.database.colBot"), key: "botId", width: 120 },
+  { title: t("ai.workflow.colUpdatedAt"), dataIndex: "updatedAt", key: "updatedAt", width: 200 },
+  { title: t("ai.colActions"), key: "action", width: 260 }
+]);
 
 const modalVisible = ref(false);
 const modalLoading = ref(false);
@@ -134,10 +137,10 @@ const form = reactive({
   tableSchema: '[{"name":"id","type":"string"},{"name":"value","type":"string"}]'
 });
 
-const rules = {
-  name: [{ required: true, message: "请输入数据库名称" }],
-  tableSchema: [{ required: true, message: "请输入 Schema" }]
-};
+const rules = computed(() => ({
+  name: [{ required: true, message: t("ai.database.ruleName") }],
+  tableSchema: [{ required: true, message: t("ai.database.ruleSchema") }]
+}));
 
 const importOpen = ref(false);
 const importDatabaseId = ref(0);
@@ -154,7 +157,7 @@ async function loadData() {
     list.value = result.items;
     total.value = Number(result.total);
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载数据库失败");
+    message.error((error as Error).message || t("ai.database.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -195,7 +198,7 @@ async function openEdit(id: number) {
     });
     modalVisible.value = true;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载详情失败");
+    message.error((error as Error).message || t("crud.loadDetailFailed"));
   }
 }
 
@@ -224,7 +227,7 @@ async function submitForm() {
       });
 
       if (!isMounted.value) return;
-      message.success("更新成功");
+      message.success(t("crud.updateSuccess"));
     } else {
       await createAiDatabase({
         name: form.name,
@@ -234,7 +237,7 @@ async function submitForm() {
       });
 
       if (!isMounted.value) return;
-      message.success("创建成功");
+      message.success(t("crud.createSuccess"));
     }
 
     modalVisible.value = false;
@@ -242,7 +245,7 @@ async function submitForm() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "提交失败");
+    message.error((error as Error).message || t("crud.submitFailed"));
   } finally {
     modalLoading.value = false;
   }
@@ -253,12 +256,12 @@ async function handleDelete(id: number) {
     await deleteAiDatabase(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadData();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("crud.deleteFailed"));
   }
 }
 

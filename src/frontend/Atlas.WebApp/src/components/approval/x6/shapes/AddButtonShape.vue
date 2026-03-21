@@ -13,13 +13,13 @@
               <div class="dd-add-popover__icon dd-add-popover__icon--approve">
                 <UserOutlined />
               </div>
-              <span>审批人</span>
+              <span>{{ t('approvalDesigner.palNodeApprove') }}</span>
             </div>
             <div class="dd-add-popover__item" @click="handleSelect('copy')">
               <div class="dd-add-popover__icon dd-add-popover__icon--copy">
                 <SendOutlined />
               </div>
-              <span>抄送人</span>
+              <span>{{ t('approvalDesigner.palNodeCopy') }}</span>
             </div>
           </div>
           <div class="dd-add-popover__divider"></div>
@@ -28,25 +28,25 @@
               <div class="dd-add-popover__icon dd-add-popover__icon--condition">
                 <BranchesOutlined />
               </div>
-              <span>条件分支</span>
+              <span>{{ t('approvalDesigner.palNodeCondition') }}</span>
             </div>
             <div class="dd-add-popover__item" @click="handleSelect('parallel')">
               <div class="dd-add-popover__icon dd-add-popover__icon--parallel">
                 <ApartmentOutlined />
               </div>
-              <span>并行分支</span>
+              <span>{{ t('approvalDesigner.palNodeParallel') }}</span>
             </div>
             <div class="dd-add-popover__item" @click="handleSelect('inclusive')">
               <div class="dd-add-popover__icon dd-add-popover__icon--inclusive">
                 <NodeIndexOutlined />
               </div>
-              <span>包容分支</span>
+              <span>{{ t('approvalDesigner.palNodeInclusive') }}</span>
             </div>
             <div class="dd-add-popover__item" @click="handleSelect('route')">
               <div class="dd-add-popover__icon dd-add-popover__icon--route">
                 <SwapOutlined />
               </div>
-              <span>路由</span>
+              <span>{{ t('approvalDesigner.nodeWidgetRoute') }}</span>
             </div>
           </div>
           <div class="dd-add-popover__divider"></div>
@@ -55,19 +55,19 @@
               <div class="dd-add-popover__icon dd-add-popover__icon--callProcess">
                 <SubnodeOutlined />
               </div>
-              <span>子流程</span>
+              <span>{{ t('approvalDesigner.palNodeSubflow') }}</span>
             </div>
             <div class="dd-add-popover__item" @click="handleSelect('timer')">
               <div class="dd-add-popover__icon dd-add-popover__icon--timer">
                 <ClockCircleOutlined />
               </div>
-              <span>定时器</span>
+              <span>{{ t('approvalDesigner.palNodeTimer') }}</span>
             </div>
             <div class="dd-add-popover__item" @click="handleSelect('trigger')">
               <div class="dd-add-popover__icon dd-add-popover__icon--trigger">
                 <ThunderboltOutlined />
               </div>
-              <span>触发器</span>
+              <span>{{ t('approvalDesigner.palNodeTrigger') }}</span>
             </div>
           </div>
         </div>
@@ -81,6 +81,9 @@
 
 <script setup lang="ts">
 import { inject, ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 import {
   PlusOutlined,
   UserOutlined,

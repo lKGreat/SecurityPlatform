@@ -1,39 +1,39 @@
 <template>
   <a-space direction="vertical" style="width: 100%" :size="16">
-    <a-card :title="`插件详情 #${pluginId}`" :bordered="false">
+    <a-card :title="t('ai.plugin.detailTitle', { id: pluginId })" :bordered="false">
       <template #extra>
         <a-space>
-          <a-button @click="goBack">返回</a-button>
-          <a-button :loading="publishing" @click="handlePublish">发布</a-button>
+          <a-button @click="goBack">{{ t("ai.plugin.back") }}</a-button>
+          <a-button :loading="publishing" @click="handlePublish">{{ t("ai.workflow.publish") }}</a-button>
           <a-button :loading="locking" @click="toggleLock">
-            {{ detail?.isLocked ? "解锁" : "锁定" }}
+            {{ detail?.isLocked ? t("ai.plugin.unlock") : t("ai.plugin.lock") }}
           </a-button>
         </a-space>
       </template>
 
       <a-descriptions :column="2" bordered size="small">
-        <a-descriptions-item label="名称">{{ detail?.name ?? "-" }}</a-descriptions-item>
-        <a-descriptions-item label="分类">{{ detail?.category ?? "-" }}</a-descriptions-item>
-        <a-descriptions-item label="类型">
-          {{ detail?.type === 1 ? "内置" : "自定义" }}
+        <a-descriptions-item :label="t('ai.promptLib.colName')">{{ detail?.name ?? "-" }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.promptLib.labelCategory')">{{ detail?.category ?? "-" }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.plugin.labelType')">
+          {{ detail?.type === 1 ? t("ai.plugin.typeBuiltIn") : t("ai.plugin.typeCustom") }}
         </a-descriptions-item>
-        <a-descriptions-item label="状态">
-          {{ detail?.status === 1 ? "已发布" : "草稿" }}
+        <a-descriptions-item :label="t('ai.workflow.colStatus')">
+          {{ detail?.status === 1 ? t("ai.plugin.statusPublished") : t("ai.plugin.statusDraft") }}
         </a-descriptions-item>
-        <a-descriptions-item label="描述" :span="2">
+        <a-descriptions-item :label="t('ai.promptLib.labelDescription')" :span="2">
           {{ detail?.description ?? "-" }}
         </a-descriptions-item>
       </a-descriptions>
 
-      <a-divider orientation="left">定义 JSON</a-divider>
+      <a-divider orientation="left">{{ t("ai.plugin.sectionDefinition") }}</a-divider>
       <pre class="json-block">{{ detail?.definitionJson }}</pre>
     </a-card>
 
-    <a-card title="接口列表" :bordered="false">
+    <a-card :title="t('ai.plugin.apiListTitle')" :bordered="false">
       <template #extra>
         <a-space>
-          <a-button @click="openOpenApiImport">导入 OpenAPI</a-button>
-          <a-button type="primary" @click="openCreateApi">新增接口</a-button>
+          <a-button @click="openOpenApiImport">{{ t("ai.plugin.importOpenApi") }}</a-button>
+          <a-button type="primary" @click="openCreateApi">{{ t("ai.plugin.newApi") }}</a-button>
         </a-space>
       </template>
 
@@ -44,15 +44,15 @@
           </template>
           <template v-if="column.key === 'enabled'">
             <a-tag :color="record.isEnabled ? 'green' : 'default'">
-              {{ record.isEnabled ? "启用" : "停用" }}
+              {{ record.isEnabled ? t("common.statusEnabled") : t("common.statusDisabled") }}
             </a-tag>
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" @click="openEditApi(record)">编辑</a-button>
-              <a-button type="link" @click="openDebug(record.id)">调试</a-button>
-              <a-popconfirm title="确认删除该接口？" @confirm="handleDeleteApi(record.id)">
-                <a-button type="link" danger>删除</a-button>
+              <a-button type="link" @click="openEditApi(record)">{{ t("common.edit") }}</a-button>
+              <a-button type="link" @click="openDebug(record.id)">{{ t("ai.plugin.debug") }}</a-button>
+              <a-popconfirm :title="t('ai.plugin.deleteApiConfirm')" @confirm="handleDeleteApi(record.id)">
+                <a-button type="link" danger>{{ t("common.delete") }}</a-button>
               </a-popconfirm>
             </a-space>
           </template>
@@ -62,17 +62,17 @@
 
     <a-modal
       v-model:open="apiModalOpen"
-      :title="editingApiId ? '编辑接口' : '新增接口'"
+      :title="editingApiId ? t('ai.plugin.modalApiEdit') : t('ai.plugin.modalApiCreate')"
       :confirm-loading="apiSubmitting"
       width="760px"
       @ok="submitApi"
       @cancel="closeApiModal"
     >
       <a-form ref="apiFormRef" :model="apiForm" layout="vertical" :rules="apiRules">
-        <a-form-item label="名称" name="name">
+        <a-form-item :label="t('ai.promptLib.colName')" name="name">
           <a-input v-model:value="apiForm.name" />
         </a-form-item>
-        <a-form-item label="描述" name="description">
+        <a-form-item :label="t('ai.promptLib.labelDescription')" name="description">
           <a-textarea v-model:value="apiForm.description" :rows="2" />
         </a-form-item>
         <a-form-item label="Method" name="method">
@@ -81,16 +81,16 @@
         <a-form-item label="Path" name="path">
           <a-input v-model:value="apiForm.path" />
         </a-form-item>
-        <a-form-item label="请求 Schema JSON" name="requestSchemaJson">
+        <a-form-item :label="t('ai.plugin.labelRequestSchema')" name="requestSchemaJson">
           <a-textarea v-model:value="apiForm.requestSchemaJson" :rows="4" />
         </a-form-item>
-        <a-form-item label="响应 Schema JSON" name="responseSchemaJson">
+        <a-form-item :label="t('ai.plugin.labelResponseSchema')" name="responseSchemaJson">
           <a-textarea v-model:value="apiForm.responseSchemaJson" :rows="4" />
         </a-form-item>
-        <a-form-item label="超时(秒)" name="timeoutSeconds">
+        <a-form-item :label="t('ai.plugin.labelTimeout')" name="timeoutSeconds">
           <a-input-number v-model:value="apiForm.timeoutSeconds" :min="1" :max="600" style="width: 100%" />
         </a-form-item>
-        <a-form-item v-if="editingApiId" label="启用状态" name="isEnabled">
+        <a-form-item v-if="editingApiId" :label="t('ai.plugin.labelEnabledState')" name="isEnabled">
           <a-switch v-model:checked="apiForm.isEnabled" />
         </a-form-item>
       </a-form>
@@ -98,28 +98,28 @@
 
     <a-modal
       v-model:open="openApiModalOpen"
-      title="导入 OpenAPI"
+      :title="t('ai.plugin.modalImportOpenApi')"
       :confirm-loading="openApiSubmitting"
       width="760px"
       @ok="submitOpenApiImport"
       @cancel="openApiModalOpen = false"
     >
       <a-form layout="vertical">
-        <a-form-item label="OpenAPI JSON">
+        <a-form-item :label="t('ai.plugin.labelOpenApiJson')">
           <a-textarea v-model:value="openApiJson" :rows="10" />
         </a-form-item>
         <a-form-item>
-          <a-checkbox v-model:checked="openApiOverwrite">覆盖已有接口</a-checkbox>
+          <a-checkbox v-model:checked="openApiOverwrite">{{ t("ai.plugin.overwriteApis") }}</a-checkbox>
         </a-form-item>
       </a-form>
     </a-modal>
 
     <a-modal
       v-model:open="debugModalOpen"
-      title="插件调试"
+      :title="t('ai.plugin.modalDebugTitle')"
       :confirm-loading="debugSubmitting"
       width="720px"
-      ok-text="执行调试"
+      :ok-text="t('ai.plugin.debugOk')"
       @ok="submitDebug"
       @cancel="debugModalOpen = false"
     >
@@ -136,6 +136,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -169,13 +172,13 @@ const apisLoading = ref(false);
 const publishing = ref(false);
 const locking = ref(false);
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name", width: 220 },
+const columns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 220 },
   { title: "Method", key: "method", width: 100 },
   { title: "Path", dataIndex: "path", key: "path" },
-  { title: "状态", key: "enabled", width: 100 },
-  { title: "操作", key: "action", width: 200 }
-];
+  { title: t("ai.workflow.colStatus"), key: "enabled", width: 100 },
+  { title: t("ai.colActions"), key: "action", width: 200 }
+]);
 
 const apiModalOpen = ref(false);
 const apiSubmitting = ref(false);
@@ -191,11 +194,11 @@ const apiForm = reactive({
   timeoutSeconds: 30,
   isEnabled: true
 });
-const apiRules = {
-  name: [{ required: true, message: "请输入接口名称" }],
-  method: [{ required: true, message: "请选择 Method" }],
-  path: [{ required: true, message: "请输入 Path" }]
-};
+const apiRules = computed(() => ({
+  name: [{ required: true, message: t("ai.plugin.ruleApiName") }],
+  method: [{ required: true, message: t("ai.plugin.ruleMethod") }],
+  path: [{ required: true, message: t("ai.plugin.rulePath") }]
+}));
 const methodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"].map((x) => ({
   label: x,
   value: x
@@ -231,7 +234,7 @@ async function loadDetail() {
     if (!isMounted.value) return;
     apis.value = detail.value.apis;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载插件详情失败");
+    message.error((error as Error).message || t("ai.plugin.loadDetailFailed"));
   }
 }
 
@@ -241,12 +244,12 @@ async function handlePublish() {
     await publishAiPlugin(pluginId.value);
 
     if (!isMounted.value) return;
-    message.success("发布成功");
+    message.success(t("ai.plugin.publishSuccess"));
     await loadDetail();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "发布失败");
+    message.error((error as Error).message || t("ai.plugin.publishFailed"));
   } finally {
     publishing.value = false;
   }
@@ -262,12 +265,12 @@ async function toggleLock() {
     await setAiPluginLock(pluginId.value, !detail.value.isLocked);
 
     if (!isMounted.value) return;
-    message.success("锁状态更新成功");
+    message.success(t("ai.plugin.lockUpdateOk"));
     await loadDetail();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "更新锁状态失败");
+    message.error((error as Error).message || t("ai.plugin.lockUpdateFailed"));
   } finally {
     locking.value = false;
   }
@@ -335,12 +338,12 @@ async function submitApi() {
       });
 
       if (!isMounted.value) return;
-      message.success("接口更新成功");
+      message.success(t("ai.plugin.apiUpdateOk"));
     } else {
       await createAiPluginApi(pluginId.value, payload);
 
       if (!isMounted.value) return;
-      message.success("接口创建成功");
+      message.success(t("ai.plugin.apiCreateOk"));
     }
 
     apiModalOpen.value = false;
@@ -348,7 +351,7 @@ async function submitApi() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "提交接口失败");
+    message.error((error as Error).message || t("ai.plugin.apiSubmitFailed"));
   } finally {
     apiSubmitting.value = false;
   }
@@ -359,12 +362,12 @@ async function handleDeleteApi(apiId: number) {
     await deleteAiPluginApi(pluginId.value, apiId);
 
     if (!isMounted.value) return;
-    message.success("删除接口成功");
+    message.success(t("ai.plugin.apiDeleteOk"));
     await loadDetail();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除接口失败");
+    message.error((error as Error).message || t("ai.plugin.apiDeleteFailed"));
   }
 }
 
@@ -381,13 +384,13 @@ async function submitOpenApiImport() {
     });
 
     if (!isMounted.value) return;
-    message.success(`导入成功，共 ${result.importedCount} 个接口`);
+    message.success(t("ai.plugin.importOk", { count: result.importedCount }));
     openApiModalOpen.value = false;
     await loadDetail();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "导入 OpenAPI 失败");
+    message.error((error as Error).message || t("ai.plugin.importFailed"));
   } finally {
     openApiSubmitting.value = false;
   }
@@ -412,10 +415,10 @@ async function submitDebug() {
     if (!isMounted.value) return;
     debugOutputJson.value = result.outputJson;
     debugResultTitle.value = result.success
-      ? `调试成功（${result.durationMs}ms）`
-      : `调试失败（${result.durationMs}ms）`;
+      ? t("ai.plugin.debugOkFmt", { ms: result.durationMs })
+      : t("ai.plugin.debugFailFmt", { ms: result.durationMs });
   } catch (error: unknown) {
-    message.error((error as Error).message || "插件调试失败");
+    message.error((error as Error).message || t("ai.plugin.debugFailed"));
   } finally {
     debugSubmitting.value = false;
   }

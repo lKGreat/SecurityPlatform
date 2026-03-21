@@ -1,8 +1,8 @@
 <template>
   <a-space direction="vertical" style="width: 100%" :size="16">
-    <a-card title="快捷命令" :bordered="false">
+    <a-card :title="t('ai.shortcuts.pageTitle')" :bordered="false">
       <template #extra>
-        <a-button type="primary" @click="openCreate">新建命令</a-button>
+        <a-button type="primary" @click="openCreate">{{ t("ai.shortcuts.newCommand") }}</a-button>
       </template>
 
       <a-table :columns="columns" :data-source="commands" :loading="loading" row-key="id" :pagination="false">
@@ -12,9 +12,9 @@
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" @click="openEdit(record)">编辑</a-button>
-              <a-popconfirm title="确认删除该命令？" @confirm="handleDelete(record.id)">
-                <a-button type="link" danger>删除</a-button>
+              <a-button type="link" @click="openEdit(record)">{{ t("common.edit") }}</a-button>
+              <a-popconfirm :title="t('ai.shortcuts.deleteConfirm')" @confirm="handleDelete(record.id)">
+                <a-button type="link" danger>{{ t("common.delete") }}</a-button>
               </a-popconfirm>
             </a-space>
           </template>
@@ -26,25 +26,25 @@
 
     <a-modal
       v-model:open="modalOpen"
-      :title="editingId ? '编辑快捷命令' : '新建快捷命令'"
+      :title="editingId ? t('ai.shortcuts.modalEdit') : t('ai.shortcuts.modalCreate')"
       :confirm-loading="submitting"
       @ok="submit"
       @cancel="closeModal"
     >
       <a-form ref="formRef" :model="form" layout="vertical" :rules="rules">
-        <a-form-item v-if="!editingId" label="命令编码" name="commandKey">
+        <a-form-item v-if="!editingId" :label="t('ai.shortcuts.labelCommandKey')" name="commandKey">
           <a-input v-model:value="form.commandKey" />
         </a-form-item>
-        <a-form-item label="名称" name="displayName">
+        <a-form-item :label="t('ai.promptLib.colName')" name="displayName">
           <a-input v-model:value="form.displayName" />
         </a-form-item>
-        <a-form-item label="目标路径" name="targetPath">
+        <a-form-item :label="t('ai.shortcuts.labelTargetPath')" name="targetPath">
           <a-input v-model:value="form.targetPath" />
         </a-form-item>
-        <a-form-item label="描述" name="description">
+        <a-form-item :label="t('ai.promptLib.labelDescription')" name="description">
           <a-input v-model:value="form.description" />
         </a-form-item>
-        <a-form-item label="排序" name="sortOrder">
+        <a-form-item :label="t('ai.shortcuts.labelSort')" name="sortOrder">
           <a-input-number v-model:value="form.sortOrder" :min="0" style="width: 100%" />
         </a-form-item>
       </a-form>
@@ -53,7 +53,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -84,20 +87,20 @@ const form = reactive({
   sortOrder: 10
 });
 
-const columns = [
-  { title: "命令编码", dataIndex: "commandKey", key: "commandKey", width: 180 },
-  { title: "名称", dataIndex: "displayName", key: "displayName", width: 180 },
-  { title: "目标路径", dataIndex: "targetPath", key: "targetPath" },
-  { title: "排序", dataIndex: "sortOrder", key: "sortOrder", width: 100 },
-  { title: "启用", key: "enabled", width: 100 },
-  { title: "操作", key: "action", width: 140 }
-];
+const columns = computed(() => [
+  { title: t("ai.shortcuts.colCommandKey"), dataIndex: "commandKey", key: "commandKey", width: 180 },
+  { title: t("ai.promptLib.colName"), dataIndex: "displayName", key: "displayName", width: 180 },
+  { title: t("ai.shortcuts.labelTargetPath"), dataIndex: "targetPath", key: "targetPath" },
+  { title: t("ai.shortcuts.labelSort"), dataIndex: "sortOrder", key: "sortOrder", width: 100 },
+  { title: t("ai.shortcuts.colEnabled"), key: "enabled", width: 100 },
+  { title: t("ai.colActions"), key: "action", width: 140 }
+]);
 
-const rules = {
-  commandKey: [{ required: true, message: "请输入命令编码" }],
-  displayName: [{ required: true, message: "请输入名称" }],
-  targetPath: [{ required: true, message: "请输入目标路径" }]
-};
+const rules = computed(() => ({
+  commandKey: [{ required: true, message: t("ai.shortcuts.ruleCommandKey") }],
+  displayName: [{ required: true, message: t("ai.shortcuts.ruleDisplayName") }],
+  targetPath: [{ required: true, message: t("ai.shortcuts.ruleTargetPath") }]
+}));
 
 async function loadCommands() {
   loading.value = true;
@@ -106,7 +109,7 @@ async function loadCommands() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载快捷命令失败");
+    message.error((error as Error).message || t("ai.shortcuts.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -163,7 +166,7 @@ async function submit() {
       });
 
       if (!isMounted.value) return;
-      message.success("更新成功");
+      message.success(t("crud.updateSuccess"));
     } else {
       await createAiShortcutCommand({
         commandKey: form.commandKey,
@@ -174,7 +177,7 @@ async function submit() {
       });
 
       if (!isMounted.value) return;
-      message.success("创建成功");
+      message.success(t("crud.createSuccess"));
     }
 
     modalOpen.value = false;
@@ -182,7 +185,7 @@ async function submit() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "保存失败");
+    message.error((error as Error).message || t("ai.shortcuts.saveFailed"));
   } finally {
     submitting.value = false;
   }
@@ -203,7 +206,7 @@ async function toggleEnabled(command: AiShortcutCommandItem, checked: boolean) {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "更新状态失败");
+    message.error((error as Error).message || t("ai.shortcuts.toggleFailed"));
   }
 }
 
@@ -212,12 +215,12 @@ async function handleDelete(id: number) {
     await deleteAiShortcutCommand(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadCommands();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("crud.deleteFailed"));
   }
 }
 

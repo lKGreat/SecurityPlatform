@@ -1,39 +1,42 @@
 <template>
-  <a-card :title="`AI 市场详情 #${productId}`" :bordered="false">
+  <a-card :title="t('ai.marketplace.detailTitle', { id: productId })" :bordered="false">
     <template #extra>
       <a-space>
-        <a-button @click="goBack">返回</a-button>
-        <a-button :loading="publishLoading" @click="handlePublish">发布</a-button>
-        <a-button :loading="downloadLoading" @click="handleMarkDownload">记录下载</a-button>
+        <a-button @click="goBack">{{ t("ai.plugin.back") }}</a-button>
+        <a-button :loading="publishLoading" @click="handlePublish">{{ t("ai.workflow.publish") }}</a-button>
+        <a-button :loading="downloadLoading" @click="handleMarkDownload">{{ t("ai.marketplace.recordDownload") }}</a-button>
         <a-button :loading="favoriteLoading" @click="toggleFavorite">
-          {{ detail?.isFavorited ? "取消收藏" : "收藏" }}
+          {{ detail?.isFavorited ? t("ai.marketplace.unfavorite") : t("ai.marketplace.favorite") }}
         </a-button>
       </a-space>
     </template>
 
     <a-spin :spinning="loading">
       <a-descriptions v-if="detail" :column="2" bordered size="small">
-        <a-descriptions-item label="名称">{{ detail.name }}</a-descriptions-item>
-        <a-descriptions-item label="分类">{{ detail.categoryName }}</a-descriptions-item>
-        <a-descriptions-item label="版本">{{ detail.version }}</a-descriptions-item>
-        <a-descriptions-item label="状态">{{ formatStatus(detail.status) }}</a-descriptions-item>
-        <a-descriptions-item label="下载数">{{ detail.downloadCount }}</a-descriptions-item>
-        <a-descriptions-item label="收藏数">{{ detail.favoriteCount }}</a-descriptions-item>
-        <a-descriptions-item label="摘要" :span="2">{{ detail.summary || "-" }}</a-descriptions-item>
-        <a-descriptions-item label="描述" :span="2">{{ detail.description || "-" }}</a-descriptions-item>
-        <a-descriptions-item label="标签" :span="2">
+        <a-descriptions-item :label="t('ai.promptLib.colName')">{{ detail.name }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.promptLib.labelCategory')">{{ detail.categoryName }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.marketplace.labelVersion')">{{ detail.version }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.workflow.colStatus')">{{ formatStatus(detail.status) }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.marketplace.colDownloads')">{{ detail.downloadCount }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.marketplace.colFavorites')">{{ detail.favoriteCount }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.marketplace.labelSummary')" :span="2">{{ detail.summary || "-" }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.promptLib.labelDescription')" :span="2">{{ detail.description || "-" }}</a-descriptions-item>
+        <a-descriptions-item :label="t('ai.promptLib.colTags')" :span="2">
           <a-space wrap>
             <a-tag v-for="tag in detail.tags" :key="tag">{{ tag }}</a-tag>
           </a-space>
         </a-descriptions-item>
       </a-descriptions>
-      <a-empty v-else description="商品不存在" />
+      <a-empty v-else :description="t('ai.marketplace.productMissing')" />
     </a-spin>
   </a-card>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -63,14 +66,14 @@ const downloadLoading = ref(false);
 
 function formatStatus(status: AiMarketplaceProductStatus) {
   if (status === 1) {
-    return "已发布";
+    return t("ai.marketplace.statusPublished");
   }
 
   if (status === 2) {
-    return "已归档";
+    return t("ai.marketplace.statusArchived");
   }
 
-  return "草稿";
+  return t("ai.marketplace.statusDraft");
 }
 
 async function loadDetail() {
@@ -80,7 +83,7 @@ async function loadDetail() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载市场商品失败");
+    message.error((error as Error).message || t("ai.marketplace.loadFailed"));
     detail.value = null;
   } finally {
     loading.value = false;
@@ -102,12 +105,12 @@ async function handlePublish() {
     await publishAiMarketplaceProduct(detail.value.id, { version });
 
     if (!isMounted.value) return;
-    message.success("发布成功");
+    message.success(t("ai.marketplace.publishSuccess"));
     await loadDetail();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "发布失败");
+    message.error((error as Error).message || t("ai.marketplace.publishFailed"));
   } finally {
     publishLoading.value = false;
   }
@@ -135,7 +138,7 @@ async function toggleFavorite() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "更新收藏状态失败");
+    message.error((error as Error).message || t("ai.marketplace.favoriteStateFailed"));
   } finally {
     favoriteLoading.value = false;
   }
@@ -151,12 +154,12 @@ async function handleMarkDownload() {
     await markAiMarketplaceProductDownloaded(detail.value.id);
 
     if (!isMounted.value) return;
-    message.success("已记录下载");
+    message.success(t("ai.marketplace.downloadRecorded"));
     await loadDetail();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "记录下载失败");
+    message.error((error as Error).message || t("ai.marketplace.downloadFailed"));
   } finally {
     downloadLoading.value = false;
   }

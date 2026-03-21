@@ -1,30 +1,30 @@
 <template>
-  <a-card title="Prompt 模板库" :bordered="false">
+  <a-card :title="t('ai.promptLib.pageTitle')" :bordered="false">
     <div class="toolbar">
       <a-space wrap>
         <a-input-search
           v-model:value="keyword"
-          placeholder="搜索 Prompt 名称"
+          :placeholder="t('ai.promptLib.searchPlaceholder')"
           style="width: 260px"
           @search="loadData"
         />
         <a-input
           v-model:value="category"
-          placeholder="分类筛选"
+          :placeholder="t('ai.promptLib.categoryFilter')"
           style="width: 180px"
           allow-clear
           @press-enter="loadData"
         />
-        <a-button @click="handleReset">重置</a-button>
-        <a-button @click="openInsertPreview">插入预览</a-button>
-        <a-button type="primary" @click="openCreate">新增模板</a-button>
+        <a-button @click="handleReset">{{ t("common.reset") }}</a-button>
+        <a-button @click="openInsertPreview">{{ t("ai.promptLib.insertPreview") }}</a-button>
+        <a-button type="primary" @click="openCreate">{{ t("ai.promptLib.newTemplate") }}</a-button>
       </a-space>
     </div>
 
     <a-table row-key="id" :columns="columns" :data-source="list" :loading="loading" :pagination="false">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'content'">
-          <a-typography-paragraph :ellipsis="{ rows: 2, expandable: true, symbol: '展开' }">
+          <a-typography-paragraph :ellipsis="{ rows: 2, expandable: true, symbol: t('ai.expand') }">
             {{ record.content }}
           </a-typography-paragraph>
         </template>
@@ -36,9 +36,9 @@
         </template>
         <template v-if="column.key === 'action'">
           <a-space>
-            <a-button type="link" @click="openEdit(record.id)">编辑</a-button>
-            <a-popconfirm title="确认删除该模板？" @confirm="handleDelete(record.id)">
-              <a-button type="link" danger :disabled="record.isSystem">删除</a-button>
+            <a-button type="link" @click="openEdit(record.id)">{{ t("common.edit") }}</a-button>
+            <a-popconfirm :title="t('ai.promptLib.deleteConfirm')" @confirm="handleDelete(record.id)">
+              <a-button type="link" danger :disabled="record.isSystem">{{ t("common.delete") }}</a-button>
             </a-popconfirm>
           </a-space>
         </template>
@@ -58,29 +58,29 @@
 
     <a-modal
       v-model:open="modalOpen"
-      :title="editingId ? '编辑 Prompt 模板' : '新增 Prompt 模板'"
+      :title="editingId ? t('ai.promptLib.modalEdit') : t('ai.promptLib.modalCreate')"
       :confirm-loading="modalLoading"
       width="760px"
       @ok="submitForm"
       @cancel="closeModal"
     >
       <a-form ref="formRef" :model="form" layout="vertical" :rules="rules">
-        <a-form-item label="名称" name="name">
+        <a-form-item :label="t('ai.promptLib.colName')" name="name">
           <a-input v-model:value="form.name" />
         </a-form-item>
-        <a-form-item label="描述" name="description">
+        <a-form-item :label="t('ai.promptLib.labelDescription')" name="description">
           <a-textarea v-model:value="form.description" :rows="2" />
         </a-form-item>
-        <a-form-item label="分类" name="category">
+        <a-form-item :label="t('ai.promptLib.labelCategory')" name="category">
           <a-input v-model:value="form.category" />
         </a-form-item>
-        <a-form-item label="标签（逗号分隔）" name="tags">
+        <a-form-item :label="t('ai.promptLib.labelTags')" name="tags">
           <a-input v-model:value="tagsText" />
         </a-form-item>
-        <a-form-item label="内容" name="content">
+        <a-form-item :label="t('ai.promptLib.labelContent')" name="content">
           <a-textarea v-model:value="form.content" :rows="10" />
         </a-form-item>
-        <a-form-item v-if="!editingId" label="系统模板">
+        <a-form-item v-if="!editingId" :label="t('ai.promptLib.labelSystem')">
           <a-switch v-model:checked="form.isSystem" />
         </a-form-item>
       </a-form>
@@ -94,7 +94,7 @@
 
     <a-modal
       v-model:open="insertPreviewOpen"
-      title="插入结果预览"
+      :title="t('ai.promptLib.previewTitle')"
       :footer="null"
       width="760px"
     >
@@ -104,7 +104,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -130,13 +133,13 @@ const pageIndex = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name", width: 220 },
-  { title: "分类", dataIndex: "category", key: "category", width: 140 },
-  { title: "标签", key: "tags", width: 220 },
-  { title: "内容", key: "content" },
-  { title: "操作", key: "action", width: 140 }
-];
+const columns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 220 },
+  { title: t("ai.promptLib.colCategory"), dataIndex: "category", key: "category", width: 140 },
+  { title: t("ai.promptLib.colTags"), key: "tags", width: 220 },
+  { title: t("ai.promptLib.colContent"), key: "content" },
+  { title: t("ai.colActions"), key: "action", width: 140 }
+]);
 
 const modalOpen = ref(false);
 const modalLoading = ref(false);
@@ -150,10 +153,10 @@ const form = reactive({
   isSystem: false
 });
 const tagsText = ref("");
-const rules = {
-  name: [{ required: true, message: "请输入名称" }],
-  content: [{ required: true, message: "请输入内容" }]
-};
+const rules = computed(() => ({
+  name: [{ required: true, message: t("ai.promptLib.ruleName") }],
+  content: [{ required: true, message: t("ai.promptLib.ruleContent") }]
+}));
 
 const insertModalOpen = ref(false);
 const insertPreviewOpen = ref(false);
@@ -171,7 +174,7 @@ async function loadData() {
     list.value = result.items;
     total.value = Number(result.total);
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载 Prompt 模板失败");
+    message.error((error as Error).message || t("ai.promptLib.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -213,7 +216,7 @@ async function openEdit(id: number) {
     tagsText.value = detail.tags.join(",");
     modalOpen.value = true;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载 Prompt 详情失败");
+    message.error((error as Error).message || t("ai.promptLib.loadDetailFailed"));
   }
 }
 
@@ -250,7 +253,7 @@ async function submitForm() {
       });
 
       if (!isMounted.value) return;
-      message.success("更新成功");
+      message.success(t("crud.updateSuccess"));
     } else {
       await createAiPromptTemplate({
         name: form.name,
@@ -262,7 +265,7 @@ async function submitForm() {
       });
 
       if (!isMounted.value) return;
-      message.success("创建成功");
+      message.success(t("crud.createSuccess"));
     }
 
     modalOpen.value = false;
@@ -270,7 +273,7 @@ async function submitForm() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "提交失败");
+    message.error((error as Error).message || t("crud.submitFailed"));
   } finally {
     modalLoading.value = false;
   }
@@ -281,12 +284,12 @@ async function handleDelete(id: number) {
     await deleteAiPromptTemplate(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadData();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("crud.deleteFailed"));
   }
 }
 

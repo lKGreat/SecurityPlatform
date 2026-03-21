@@ -5,10 +5,10 @@
     @click="handleClick"
   >
     <div class="dd-node__header dd-node__header--start">
-      <span class="dd-node__title">{{ data.nodeName || '发起人' }}</span>
+      <span class="dd-node__title">{{ data.nodeName || t('approvalDesigner.shapeInitiator') }}</span>
     </div>
     <div class="dd-node__body">
-      <span class="dd-node__text">所有人</span>
+      <span class="dd-node__text">{{ t('approvalDesigner.shapeEveryone') }}</span>
       <RightOutlined class="dd-node__arrow" />
     </div>
   </div>
@@ -16,7 +16,10 @@
 
 <script setup lang="ts">
 import { inject, ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { RightOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { Node } from '@antv/x6';
 
 const getNode = inject<() => Node>('getNode')!;

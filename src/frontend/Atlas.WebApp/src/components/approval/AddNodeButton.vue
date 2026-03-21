@@ -8,37 +8,37 @@
               <div class="item-wrapper">
                 <UserOutlined class="icon" style="color: #ff943e" />
               </div>
-              <p>审批人</p>
+              <p>{{ t('approvalDesigner.palNodeApprove') }}</p>
             </div>
             <div class="add-node-popover-item" @click="handleSelect('parallel')">
               <div class="item-wrapper">
                 <UserOutlined class="icon" style="color: #ff943e" />
               </div>
-              <p>并行审批</p>
+              <p>{{ t('approvalDesigner.addNodeParallelApprove') }}</p>
             </div>
             <div class="add-node-popover-item" @click="handleSelect('copy')">
               <div class="item-wrapper">
                 <SendOutlined class="icon" style="color: #3296fa" />
               </div>
-              <p>抄送人</p>
+              <p>{{ t('approvalDesigner.palNodeCopy') }}</p>
             </div>
             <div class="add-node-popover-item" @click="handleSelect('condition')">
               <div class="item-wrapper">
                 <BranchesOutlined class="icon" style="color: #15bc83" />
               </div>
-              <p>条件分支</p>
+              <p>{{ t('approvalDesigner.palNodeCondition') }}</p>
             </div>
             <div class="add-node-popover-item" @click="handleSelect('dynamicCondition')">
               <div class="item-wrapper">
                 <BranchesOutlined class="icon" style="color: #15bc83" />
               </div>
-              <p>动态条件</p>
+              <p>{{ t('approvalDesigner.nodeTypeLabelDynamicCondition') }}</p>
             </div>
             <div class="add-node-popover-item" @click="handleSelect('parallelCondition')">
               <div class="item-wrapper">
                 <BranchesOutlined class="icon" style="color: #15bc83" />
               </div>
-              <p>条件并行</p>
+              <p>{{ t('approvalDesigner.nodeTypeLabelParallelCondition') }}</p>
             </div>
           </div>
         </template>
@@ -52,7 +52,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { PlusOutlined, UserOutlined, SendOutlined, BranchesOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 
 const emit = defineEmits<{
   select: [nodeType: string];

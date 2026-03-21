@@ -1,10 +1,10 @@
 <template>
-  <a-card title="变量管理" :bordered="false">
+  <a-card :title="t('ai.variables.pageTitle')" :bordered="false">
     <div class="toolbar">
       <a-space wrap>
         <a-input-search
           v-model:value="keyword"
-          placeholder="搜索变量 Key"
+          :placeholder="t('ai.variables.searchPlaceholder')"
           style="width: 240px"
           @search="loadData"
         />
@@ -12,13 +12,13 @@
           v-model:value="scopeFilter"
           style="width: 140px"
           allow-clear
-          placeholder="作用域"
+          :placeholder="t('ai.variables.scopePlaceholder')"
           :options="scopeOptions"
           @change="loadData"
         />
-        <a-button @click="handleReset">重置</a-button>
-        <a-button @click="showSystemDefinitions">系统变量</a-button>
-        <a-button type="primary" @click="openCreate">新增变量</a-button>
+        <a-button @click="handleReset">{{ t("ai.variables.reset") }}</a-button>
+        <a-button @click="showSystemDefinitions">{{ t("ai.variables.systemVars") }}</a-button>
+        <a-button type="primary" @click="openCreate">{{ t("ai.variables.newVariable") }}</a-button>
       </a-space>
     </div>
 
@@ -30,15 +30,15 @@
           </a-tag>
         </template>
         <template v-if="column.key === 'value'">
-          <a-typography-paragraph :ellipsis="{ rows: 1, expandable: true, symbol: '展开' }">
+          <a-typography-paragraph :ellipsis="{ rows: 1, expandable: true, symbol: t('ai.expand') }">
             {{ record.value || "-" }}
           </a-typography-paragraph>
         </template>
         <template v-if="column.key === 'action'">
           <a-space>
-            <a-button type="link" @click="openEdit(record.id)">编辑</a-button>
-            <a-popconfirm title="确认删除该变量？" @confirm="handleDelete(record.id)">
-              <a-button type="link" danger>删除</a-button>
+            <a-button type="link" @click="openEdit(record.id)">{{ t("common.edit") }}</a-button>
+            <a-popconfirm :title="t('ai.variables.deleteConfirm')" @confirm="handleDelete(record.id)">
+              <a-button type="link" danger>{{ t("common.delete") }}</a-button>
             </a-popconfirm>
           </a-space>
         </template>
@@ -58,7 +58,7 @@
 
     <a-modal
       v-model:open="modalOpen"
-      :title="editingId ? '编辑变量' : '新增变量'"
+      :title="editingId ? t('ai.variables.modalEdit') : t('ai.variables.modalCreate')"
       :confirm-loading="modalLoading"
       @ok="submitForm"
       @cancel="closeModal"
@@ -70,10 +70,10 @@
         <a-form-item label="Value" name="value">
           <a-textarea v-model:value="form.value" :rows="4" />
         </a-form-item>
-        <a-form-item label="作用域" name="scope">
+        <a-form-item :label="t('ai.variables.labelScope')" name="scope">
           <a-select v-model:value="form.scope" :options="scopeOptions" />
         </a-form-item>
-        <a-form-item label="作用域ID" name="scopeId">
+        <a-form-item :label="t('ai.variables.labelScopeId')" name="scopeId">
           <a-input-number v-model:value="form.scopeId" :min="1" style="width: 100%" />
         </a-form-item>
       </a-form>
@@ -81,7 +81,7 @@
 
     <a-drawer
       v-model:open="systemDrawerOpen"
-      title="系统变量定义"
+      :title="t('ai.variables.drawerSystemTitle')"
       width="680"
     >
       <a-table row-key="key" :data-source="systemVariables" :columns="systemColumns" :pagination="false" />
@@ -90,7 +90,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -118,14 +121,14 @@ const pageIndex = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 
-const columns = [
-  { title: "Key", dataIndex: "key", key: "key", width: 220 },
-  { title: "Value", key: "value" },
-  { title: "作用域", key: "scope", width: 120 },
-  { title: "Scope ID", dataIndex: "scopeId", key: "scopeId", width: 120 },
-  { title: "更新时间", dataIndex: "updatedAt", key: "updatedAt", width: 200 },
-  { title: "操作", key: "action", width: 140 }
-];
+const columns = computed(() => [
+  { title: t("ai.variables.colKey"), dataIndex: "key", key: "key", width: 220 },
+  { title: t("ai.variables.colValue"), key: "value" },
+  { title: t("ai.variables.colScope"), key: "scope", width: 120 },
+  { title: t("ai.variables.colScopeId"), dataIndex: "scopeId", key: "scopeId", width: 120 },
+  { title: t("ai.workflow.colUpdatedAt"), dataIndex: "updatedAt", key: "updatedAt", width: 200 },
+  { title: t("ai.colActions"), key: "action", width: 140 }
+]);
 
 const scopeOptions = [
   { label: "System", value: 0 },
@@ -143,19 +146,19 @@ const form = reactive({
   scope: 0 as AiVariableScope,
   scopeId: undefined as number | undefined
 });
-const rules = {
-  key: [{ required: true, message: "请输入变量 Key" }],
-  scope: [{ required: true, message: "请选择作用域" }]
-};
+const rules = computed(() => ({
+  key: [{ required: true, message: t("ai.variables.ruleKey") }],
+  scope: [{ required: true, message: t("ai.variables.ruleScope") }]
+}));
 
 const systemDrawerOpen = ref(false);
 const systemVariables = ref<AiSystemVariableDefinition[]>([]);
-const systemColumns = [
-  { title: "Key", dataIndex: "key", key: "key", width: 200 },
-  { title: "名称", dataIndex: "name", key: "name", width: 150 },
-  { title: "描述", dataIndex: "description", key: "description" },
-  { title: "默认值", dataIndex: "defaultValue", key: "defaultValue", width: 150 }
-];
+const systemColumns = computed(() => [
+  { title: t("ai.variables.colKey"), dataIndex: "key", key: "key", width: 200 },
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 150 },
+  { title: t("ai.promptLib.labelDescription"), dataIndex: "description", key: "description" },
+  { title: t("ai.variables.colDefault"), dataIndex: "defaultValue", key: "defaultValue", width: 150 }
+]);
 
 async function loadData() {
   loading.value = true;
@@ -175,7 +178,7 @@ async function loadData() {
     list.value = result.items;
     total.value = Number(result.total);
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载变量失败");
+    message.error((error as Error).message || t("ai.variables.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -213,7 +216,7 @@ async function openEdit(id: number) {
     });
     modalOpen.value = true;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载变量详情失败");
+    message.error((error as Error).message || t("ai.variables.loadDetailFailed"));
   }
 }
 
@@ -244,12 +247,12 @@ async function submitForm() {
       await updateAiVariable(editingId.value, payload);
 
       if (!isMounted.value) return;
-      message.success("更新成功");
+      message.success(t("crud.updateSuccess"));
     } else {
       await createAiVariable(payload);
 
       if (!isMounted.value) return;
-      message.success("创建成功");
+      message.success(t("crud.createSuccess"));
     }
 
     modalOpen.value = false;
@@ -257,7 +260,7 @@ async function submitForm() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "提交失败");
+    message.error((error as Error).message || t("crud.submitFailed"));
   } finally {
     modalLoading.value = false;
   }
@@ -268,12 +271,12 @@ async function handleDelete(id: number) {
     await deleteAiVariable(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadData();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("crud.deleteFailed"));
   }
 }
 
@@ -284,7 +287,7 @@ async function showSystemDefinitions() {
     if (!isMounted.value) return;
     systemDrawerOpen.value = true;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载系统变量失败");
+    message.error((error as Error).message || t("ai.variables.loadSystemFailed"));
   }
 }
 

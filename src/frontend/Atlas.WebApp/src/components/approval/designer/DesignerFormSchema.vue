@@ -4,23 +4,26 @@
       type="info"
       show-icon
       style="margin-bottom: 12px"
-      message="请输入 AMIS Schema（JSON），系统会自动提取字段供条件与权限配置使用"
+      :message="t('approvalDesigner.schemaAlertAmis')"
     />
     <a-textarea
       v-model:value="localText"
       :rows="20"
-      placeholder='{"type":"form","body":[{"type":"input-text","name":"title","label":"标题"}]}'
+      :placeholder="t('approvalDesigner.schemaPhExample')"
     />
     <div style="margin-top: 8px; display: flex; gap: 8px">
-      <a-button size="small" @click="handleFormat">格式化 JSON</a-button>
-      <a-button size="small" type="primary" @click="handleApply">应用并提取字段</a-button>
+      <a-button size="small" @click="handleFormat">{{ t('approvalDesigner.schemaBtnFormat') }}</a-button>
+      <a-button size="small" type="primary" @click="handleApply">{{ t('approvalDesigner.schemaBtnApply') }}</a-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { message } from 'ant-design-vue';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   schemaText: string;
@@ -51,7 +54,7 @@ const handleFormat = () => {
     localText.value = formatted;
     emit('update:schemaText', formatted);
   } catch {
-    message.error('AMIS Schema JSON 格式不正确');
+    message.error(t('approvalDesigner.schemaMsgInvalidJson'));
   }
 };
 

@@ -1,6 +1,6 @@
 <template>
   <div class="node-palette">
-    <h4>节点面板</h4>
+    <h4>{{ t("ai.workflow.nodePaletteTitle") }}</h4>
     <div v-for="group in groupedNodeTypes" :key="group.category" class="palette-group">
       <div class="group-title">{{ group.category }}</div>
       <a-space direction="vertical" style="width: 100%">
@@ -19,7 +19,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { AiWorkflowNodeTypeDto } from "@/services/api-ai-workflow";
+
+const { t } = useI18n();
 
 const props = defineProps<{ nodeTypes: AiWorkflowNodeTypeDto[] }>();
 
@@ -30,7 +33,7 @@ defineEmits<{
 const groupedNodeTypes = computed(() => {
   const groups = new Map<string, AiWorkflowNodeTypeDto[]>();
   for (const nodeType of props.nodeTypes) {
-    const category = nodeType.category || "Other";
+    const category = nodeType.category || t("ai.otherCategory");
     const list = groups.get(category) ?? [];
     list.push(nodeType);
     groups.set(category, list);

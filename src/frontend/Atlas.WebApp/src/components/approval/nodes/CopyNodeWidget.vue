@@ -8,14 +8,17 @@
       </div>
       <div class="content">
         <span class="text" v-if="node.copyToUsers && node.copyToUsers.length > 0">{{ node.copyToUsers.join(', ') }}</span>
-        <span class="placeholder" v-else>请选择抄送人</span>
+        <span class="placeholder" v-else>{{ t('approvalDesigner.propsPhCopyRecipients') }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import { SendOutlined, CloseOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { CopyNode } from '@/types/approval-tree';
 
 const props = defineProps<{

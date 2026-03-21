@@ -2,14 +2,17 @@
   <div class="node-wrap">
     <div class="node-wrap-box end-node">
       <div class="content">
-        <span class="text">流程结束</span>
+        <span class="text">{{ t('approvalDesigner.shapeFlowEnd') }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import type { EndNode } from '@/types/approval-tree';
+
+const { t } = useI18n();
 
 defineProps<{
   node: EndNode;

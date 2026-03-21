@@ -6,16 +6,16 @@
   >
     <div class="dd-node__header dd-node__header--timer">
       <ClockCircleOutlined class="dd-node__icon" />
-      <span class="dd-node__title">{{ data.nodeName || '定时器' }}</span>
+      <span class="dd-node__title">{{ data.nodeName || t('approvalDesigner.shapeTimerDefaultName') }}</span>
       <CloseOutlined class="dd-node__delete" @click.stop="handleDelete" />
     </div>
     <div class="dd-node__body">
       <template v-if="data.timerConfig">
-        <span class="dd-node__text" v-if="timerConfig?.type === 'duration'">等待 {{ timerConfig.duration }} 秒</span>
-        <span class="dd-node__text" v-else-if="timerConfig?.type === 'date'">至 {{ timerConfig.date }}</span>
-        <span class="dd-node__placeholder" v-else>请配置时间</span>
+        <span class="dd-node__text" v-if="timerConfig?.type === 'duration'">{{ t('approvalDesigner.shapeTimerWait', { seconds: timerConfig.duration }) }}</span>
+        <span class="dd-node__text" v-else-if="timerConfig?.type === 'date'">{{ t('approvalDesigner.shapeTimerUntil', { date: timerConfig.date }) }}</span>
+        <span class="dd-node__placeholder" v-else>{{ t('approvalDesigner.shapeTimerConfigure') }}</span>
       </template>
-      <span class="dd-node__placeholder" v-else>请配置时间</span>
+      <span class="dd-node__placeholder" v-else>{{ t('approvalDesigner.shapeTimerConfigure') }}</span>
       <RightOutlined class="dd-node__arrow" />
     </div>
   </div>
@@ -23,7 +23,10 @@
 
 <script setup lang="ts">
 import { computed, inject, ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { ClockCircleOutlined, CloseOutlined, RightOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { Node } from '@antv/x6';
 
 const getNode = inject<() => Node>('getNode')!;

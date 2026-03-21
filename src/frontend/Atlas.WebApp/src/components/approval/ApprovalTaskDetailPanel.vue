@@ -2,32 +2,32 @@
   <div class="task-detail-panel">
     <div class="panel-header">
       <div class="header-title">
-        <span class="title-text">{{ task?.title || '任务详情' }}</span>
+        <span class="title-text">{{ task?.title || t('approvalTaskPanel.defaultTitle') }}</span>
         <a-tag :color="getStatusColor(task?.status)">{{ getStatusText(task?.status) }}</a-tag>
       </div>
       <div class="header-actions">
         <template v-if="task?.status === ApprovalTaskStatus.Pending">
-          <a-button type="primary" size="small" @click="showApproveModal">同意</a-button>
-          <a-button danger size="small" @click="showRejectModal">驳回</a-button>
+          <a-button type="primary" size="small" @click="showApproveModal">{{ t('approvalRuntime.actionsAgree') }}</a-button>
+          <a-button danger size="small" @click="showRejectModal">{{ t('approvalRuntime.actionsReject') }}</a-button>
           <a-dropdown>
             <template #overlay>
               <a-menu @click="handleMenuClick">
-                <a-menu-item key="transfer">转办</a-menu-item>
-                <a-menu-item key="delegate">委派</a-menu-item>
-                <a-menu-item key="jump">跳转</a-menu-item>
+                <a-menu-item key="transfer">{{ t('approvalRuntime.menuTransfer') }}</a-menu-item>
+                <a-menu-item key="delegate">{{ t('approvalRuntime.menuDelegate') }}</a-menu-item>
+                <a-menu-item key="jump">{{ t('approvalRuntime.menuJump') }}</a-menu-item>
               </a-menu>
             </template>
-            <a-button size="small">更多 <DownOutlined /></a-button>
+            <a-button size="small">{{ t('approvalTaskPanel.more') }} <DownOutlined /></a-button>
           </a-dropdown>
         </template>
-        <a-button size="small" type="text" @click="$emit('close')">关闭</a-button>
+        <a-button size="small" type="text" @click="$emit('close')">{{ t('approvalTaskPanel.close') }}</a-button>
       </div>
     </div>
 
     <div class="panel-body">
       <a-spin :spinning="loading">
         <a-tabs v-model:activeKey="activeTab" class="detail-tabs">
-          <a-tab-pane key="form" tab="表单信息">
+          <a-tab-pane key="form" :tab="t('approvalTaskPanel.tabForm')">
             <div class="form-container">
               <AmisRenderer
                 v-if="amisSchema"
@@ -42,8 +42,8 @@
               />
             </div>
           </a-tab-pane>
-          
-          <a-tab-pane key="history" tab="流转记录">
+
+          <a-tab-pane key="history" :tab="t('approvalTaskPanel.tabHistory')">
             <div class="history-container">
               <a-timeline v-if="historyItems.length > 0">
                 <a-timeline-item
@@ -54,28 +54,28 @@
                   <div class="timeline-title">{{ getEventLabel(item.eventType) }}</div>
                   <div class="timeline-meta">
                     {{ formatDateTime(item.occurredAt) }}
-                    <span v-if="item.actorUserId"> · 操作人: {{ item.actorUserId }}</span>
+                    <span v-if="item.actorUserId"> · {{ t('approvalRuntime.actorPrefix') }} {{ item.actorUserId }}</span>
                   </div>
                   <div v-if="item.fromNode || item.toNode" class="timeline-nodes">
-                    <span v-if="item.fromNode">从: {{ item.fromNode }}</span>
+                    <span v-if="item.fromNode">{{ t('approvalTaskPanel.nodeFrom') }} {{ item.fromNode }}</span>
                     <span v-if="item.fromNode && item.toNode"> → </span>
-                    <span v-if="item.toNode">到: {{ item.toNode }}</span>
+                    <span v-if="item.toNode">{{ t('approvalTaskPanel.nodeTo') }} {{ item.toNode }}</span>
                   </div>
                 </a-timeline-item>
               </a-timeline>
-              <a-empty v-else description="暂无流转记录" />
+              <a-empty v-else :description="t('approvalTaskPanel.emptyFlowHistory')" />
             </div>
           </a-tab-pane>
 
-          <a-tab-pane key="attachments" tab="附件与沟通">
+          <a-tab-pane key="attachments" :tab="t('approvalTaskPanel.tabAttachments')">
             <div class="attachments-container">
               <FileUploadPanel
                 v-model="attachmentFiles"
                 :disabled="task?.status !== ApprovalTaskStatus.Pending"
-                button-text="上传审批附件"
+                :button-text="t('approvalRuntime.attachmentButtonText')"
               />
               <a-divider />
-              <h4>沟通记录</h4>
+              <h4>{{ t('approvalTaskPanel.commHeading') }}</h4>
               <CommunicationPanel
                 v-if="task"
                 :task-id="task.id"
@@ -88,40 +88,36 @@
       </a-spin>
     </div>
 
-    <!-- 弹窗部分 (与原详情页一致) -->
-    <a-modal v-model:open="approveVisible" title="审批同意" @ok="handleApprove" :confirm-loading="submitting">
-      <a-textarea v-model:value="comment" placeholder="请输入审批意见（选填）" :rows="4" />
+    <a-modal v-model:open="approveVisible" :title="t('approvalRuntime.approveModalTitle')" @ok="handleApprove" :confirm-loading="submitting">
+      <a-textarea v-model:value="comment" :placeholder="t('approvalRuntime.approveCommentPlaceholder')" :rows="4" />
     </a-modal>
-    <a-modal v-model:open="rejectVisible" title="审批驳回" @ok="handleReject" :confirm-loading="submitting">
-      <a-form-item label="驳回原因" required>
-        <a-textarea v-model:value="comment" placeholder="请输入驳回原因" :rows="4" />
+    <a-modal v-model:open="rejectVisible" :title="t('approvalRuntime.rejectModalTitle')" @ok="handleReject" :confirm-loading="submitting">
+      <a-form-item :label="t('approvalRuntime.rejectReasonLabel')" required>
+        <a-textarea v-model:value="comment" :placeholder="t('approvalRuntime.rejectPlaceholder')" :rows="4" />
       </a-form-item>
     </a-modal>
-    <!-- 其他弹窗简化省略或保留... -->
-    <a-modal v-model:open="transferVisible" title="转办" @ok="handleTransfer" :confirm-loading="submitting">
+    <a-modal v-model:open="transferVisible" :title="t('approvalRuntime.transferModalTitle')" @ok="handleTransfer" :confirm-loading="submitting">
       <a-form layout="vertical">
-        <a-form-item label="转办给" required>
-          <UserRolePicker mode="user" v-model:value="transferTargetIds" placeholder="请选择转办人" style="width: 100%" />
+        <a-form-item :label="t('approvalRuntime.transferToLabel')" required>
+          <UserRolePicker mode="user" v-model:value="transferTargetIds" :placeholder="t('approvalRuntime.transferUserPlaceholder')" style="width: 100%" />
         </a-form-item>
-        <a-form-item label="备注">
-          <a-textarea v-model:value="transferComment" placeholder="请输入转办说明" :rows="3" />
+        <a-form-item :label="t('approvalRuntime.remarkLabel')">
+          <a-textarea v-model:value="transferComment" :placeholder="t('approvalTaskPanel.transferRemarkPlaceholder')" :rows="3" />
         </a-form-item>
       </a-form>
     </a-modal>
 
-    <!-- 委派弹窗 -->
-    <a-modal v-model:open="delegateVisible" title="委派" @ok="handleDelegate" :confirm-loading="submitting">
+    <a-modal v-model:open="delegateVisible" :title="t('approvalRuntime.delegateModalTitle')" @ok="handleDelegate" :confirm-loading="submitting">
       <a-form layout="vertical">
-        <a-form-item label="委派给" required>
-          <UserRolePicker mode="user" v-model:value="delegateTargetIds" placeholder="请选择被委派人" style="width: 100%" />
+        <a-form-item :label="t('approvalRuntime.delegateToLabel')" required>
+          <UserRolePicker mode="user" v-model:value="delegateTargetIds" :placeholder="t('approvalTaskPanel.delegatePlaceholderTarget')" style="width: 100%" />
         </a-form-item>
-        <a-form-item label="备注">
-          <a-textarea v-model:value="delegateComment" placeholder="请输入委派说明" :rows="3" />
+        <a-form-item :label="t('approvalRuntime.remarkLabel')">
+          <a-textarea v-model:value="delegateComment" :placeholder="t('approvalRuntime.delegateRemarkPlaceholder')" :rows="3" />
         </a-form-item>
       </a-form>
     </a-modal>
 
-    <!-- 跳转节点选择器 -->
     <JumpNodeSelector
       :visible="jumpVisible"
       :flow-definition="parsedDefinition"
@@ -133,13 +129,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
 onUnmounted(() => { isMounted.value = false; });
 
 import { message } from 'ant-design-vue';
-import { DownOutlined, CloseOutlined } from '@ant-design/icons-vue';
+import { DownOutlined } from '@ant-design/icons-vue';
 import {
   getApprovalTaskById, getApprovalInstanceById, getApprovalInstanceHistory,
   decideApprovalTask, transferTask, getApprovalFlowById, getCurrentUser
@@ -156,6 +153,8 @@ import type {
 } from '@/types/api';
 import type { ApprovalDefinitionJson, FormJson } from '@/types/approval-definition';
 import { ApprovalTaskStatus } from '@/types/api';
+
+const { t } = useI18n();
 
 const props = defineProps<{ taskId: string }>();
 const emit = defineEmits(['close', 'refresh']);
@@ -199,13 +198,13 @@ const fetchDetail = async () => {
     if (!isMounted.value) return;
     currentUserId.value = userResult.id;
     task.value = taskResult;
-    
+
     const [instanceResult, historyResult]  = await Promise.all([
       getApprovalInstanceById(taskResult.instanceId),
       getApprovalInstanceHistory(taskResult.instanceId, { pageIndex: 1, pageSize: 50 })
     ]);
 
-    
+
     if (!isMounted.value) return;
     instance.value = instanceResult;
     historyItems.value = historyResult.items;
@@ -217,7 +216,7 @@ const fetchDetail = async () => {
       try { parsedDefinition.value = JSON.parse(def.definitionJson); } catch { parsedDefinition.value = null; }
     }
   } catch {
-    message.error('获取任务详情失败');
+    message.error(t('approvalRuntime.loadTaskFailed'));
   } finally {
     loading.value = false;
   }
@@ -225,7 +224,7 @@ const fetchDetail = async () => {
 
 watch(() => props.taskId, fetchDetail, { immediate: true });
 
-const showApproveModal = () => { comment.value = '同意'; approveVisible.value = true; };
+const showApproveModal = () => { comment.value = t('approvalRuntime.defaultAgreeComment'); approveVisible.value = true; };
 const showRejectModal = () => { comment.value = ''; rejectVisible.value = true; };
 
 const handleApprove = async () => {
@@ -234,28 +233,28 @@ const handleApprove = async () => {
     await decideApprovalTask({ taskId: props.taskId, approved: true, comment: comment.value });
 
     if (!isMounted.value) return;
-    message.success('已同意');
+    message.success(t('approvalRuntime.approveSuccess'));
     approveVisible.value = false;
     emit('refresh');
   } catch {
-    message.error('审批失败');
+    message.error(t('approvalTaskPanel.approveFailed'));
   } finally {
     submitting.value = false;
   }
 };
 
 const handleReject = async () => {
-  if (!comment.value.trim()) { message.warning('请填写驳回原因'); return; }
+  if (!comment.value.trim()) { message.warning(t('approvalRuntime.rejectWarnReason')); return; }
   submitting.value = true;
   try {
     await decideApprovalTask({ taskId: props.taskId, approved: false, comment: comment.value });
 
     if (!isMounted.value) return;
-    message.success('已驳回');
+    message.success(t('approvalRuntime.rejectSuccess'));
     rejectVisible.value = false;
     emit('refresh');
   } catch {
-    message.error('驳回失败');
+    message.error(t('approvalTaskPanel.rejectFailed'));
   } finally {
     submitting.value = false;
   }
@@ -282,11 +281,11 @@ const handleDelegate = async () => {
     await delegateTask(props.taskId, delegateTargetIds.value[0], delegateComment.value || undefined);
 
     if (!isMounted.value) return;
-    message.success('委派成功');
+    message.success(t('approvalRuntime.delegateSuccess'));
     delegateVisible.value = false;
     emit('refresh');
   } catch {
-    message.error('委派失败');
+    message.error(t('approvalRuntime.delegateFailed'));
   } finally {
     submitting.value = false;
   }
@@ -302,11 +301,11 @@ const handleJump = async (targetNodeId: string) => {
     await jumpTask(String(instance.value.id), targetNodeId, props.taskId);
 
     if (!isMounted.value) return;
-    message.success('跳转成功');
+    message.success(t('approvalRuntime.jumpSuccess'));
     jumpVisible.value = false;
     emit('refresh');
   } catch {
-    message.error('跳转失败');
+    message.error(t('approvalRuntime.jumpFailed'));
   } finally {
     submitting.value = false;
   }
@@ -319,39 +318,40 @@ const handleTransfer = async () => {
     await transferTask(String(instance.value.id), props.taskId, transferTargetIds.value[0], transferComment.value || undefined);
 
     if (!isMounted.value) return;
-    message.success('转办成功');
+    message.success(t('approvalRuntime.transferSuccess'));
     transferVisible.value = false;
     emit('refresh');
   } catch {} finally { submitting.value = false; }
 };
 
 const getStatusColor = (status?: number) => status === ApprovalTaskStatus.Pending ? 'blue' : (status === ApprovalTaskStatus.Approved ? 'green' : 'default');
-const getStatusText = (status?: number) => status === ApprovalTaskStatus.Pending ? '待审批' : (status === ApprovalTaskStatus.Approved ? '已同意' : '已处理');
+const getStatusText = (status?: number) => {
+  if (status === ApprovalTaskStatus.Pending) return t('approvalTaskPanel.statusPending');
+  if (status === ApprovalTaskStatus.Approved) return t('approvalTaskPanel.statusApproved');
+  return t('approvalTaskPanel.statusProcessed');
+};
 const formatDateTime = (value: string) => new Date(value).toLocaleString();
 
-/** 历史事件类型的中文标签映射 */
-const EVENT_TYPE_LABELS: Record<string, string> = {
-  InstanceStarted: '流程发起',
-  InstanceCompleted: '流程完成',
-  InstanceRejected: '流程驳回',
-  InstanceCanceled: '流程取消',
-  InstanceSuspended: '流程挂起',
-  InstanceActivated: '流程激活',
-  InstanceTerminated: '流程终止',
-  TaskCreated: '任务创建',
-  TaskApproved: '审批通过',
-  TaskRejected: '审批驳回',
-  TaskTransferred: '任务转办',
-  TaskDelegated: '任务委派',
-  TaskClaimed: '任务认领',
-  TaskCanceled: '任务取消',
-  NodeEntered: '进入节点',
-  NodeCompleted: '节点完成',
-};
-
-/** 获取历史事件的显示文本 */
 const getEventLabel = (eventType: string): string => {
-  return EVENT_TYPE_LABELS[eventType] || eventType;
+  const map: Record<string, string> = {
+    InstanceStarted: t('approvalTaskPanel.historyEventInstanceStarted'),
+    InstanceCompleted: t('approvalTaskPanel.historyEventInstanceCompleted'),
+    InstanceRejected: t('approvalTaskPanel.historyEventInstanceRejected'),
+    InstanceCanceled: t('approvalTaskPanel.historyEventInstanceCanceled'),
+    InstanceSuspended: t('approvalTaskPanel.historyEventInstanceSuspended'),
+    InstanceActivated: t('approvalTaskPanel.historyEventInstanceActivated'),
+    InstanceTerminated: t('approvalTaskPanel.historyEventInstanceTerminated'),
+    TaskCreated: t('approvalTaskPanel.historyEventTaskCreated'),
+    TaskApproved: t('approvalTaskPanel.historyEventTaskApproved'),
+    TaskRejected: t('approvalTaskPanel.historyEventTaskRejected'),
+    TaskTransferred: t('approvalTaskPanel.historyEventTaskTransferred'),
+    TaskDelegated: t('approvalTaskPanel.historyEventTaskDelegated'),
+    TaskClaimed: t('approvalTaskPanel.historyEventTaskClaimed'),
+    TaskCanceled: t('approvalTaskPanel.historyEventTaskCanceled'),
+    NodeEntered: t('approvalTaskPanel.historyEventNodeEntered'),
+    NodeCompleted: t('approvalTaskPanel.historyEventNodeCompleted'),
+  };
+  return map[eventType] || eventType;
 };
 </script>
 

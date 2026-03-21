@@ -6,12 +6,12 @@
   >
     <div class="dd-node__header dd-node__header--copy">
       <SendOutlined class="dd-node__icon" />
-      <span class="dd-node__title">{{ data.nodeName || '抄送人' }}</span>
+      <span class="dd-node__title">{{ data.nodeName || t('approvalDesigner.shapeCopyDefault') }}</span>
       <CloseOutlined class="dd-node__delete" @click.stop="handleDelete" />
     </div>
     <div class="dd-node__body">
       <span v-if="copyLabel" class="dd-node__text">{{ copyLabel }}</span>
-      <span v-else class="dd-node__placeholder">请选择抄送人</span>
+      <span v-else class="dd-node__placeholder">{{ t('approvalDesigner.propsPhCopyRecipients') }}</span>
       <RightOutlined class="dd-node__arrow" />
     </div>
   </div>
@@ -19,7 +19,10 @@
 
 <script setup lang="ts">
 import { inject, ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { SendOutlined, CloseOutlined, RightOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { Node } from '@antv/x6';
 
 const getNode = inject<() => Node>('getNode')!;

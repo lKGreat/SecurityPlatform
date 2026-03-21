@@ -3,7 +3,7 @@
     v-model:value="keyword"
     :options="options"
     :style="{ width }"
-    :placeholder="placeholder"
+    :placeholder="placeholderText"
     @search="handleSearchInput"
     @select="handleSelect"
   >
@@ -12,8 +12,9 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { message } from "ant-design-vue";
 import { recordAiRecentEdit, searchAiGlobal } from "@/services/api-ai-search";
 
@@ -25,16 +26,19 @@ interface OptionItemMeta {
   resourceId: number;
 }
 
+const { t } = useI18n();
+
 const props = withDefaults(
   defineProps<{
     placeholder?: string;
     width?: string;
   }>(),
   {
-    placeholder: "搜索 Agent/知识库/插件/应用...",
     width: "420px"
   }
 );
+
+const placeholderText = computed(() => props.placeholder ?? t("ai.globalSearch.placeholder"));
 
 const emit = defineEmits<{
   (event: "search", keyword: string): void;
@@ -78,7 +82,7 @@ async function fetchOptions(searchKeyword: string) {
     });
     optionMetaMap.value = map;
   } catch (error: unknown) {
-    message.error((error as Error).message || "搜索失败");
+    message.error((error as Error).message || t("ai.globalSearch.searchFailed"));
   } finally {
     loading.value = false;
   }

@@ -9,21 +9,21 @@
 
     <!-- 缩放控制栏 -->
     <div class="dd-zoom-toolbar">
-      <button class="dd-zoom-btn" @click="zoomOut" title="缩小（Ctrl + -）">
+      <button class="dd-zoom-btn" @click="zoomOut" :title="t('approvalDesigner.ctxZoomOutTitle')">
         <MinusOutlined />
       </button>
       <span class="dd-zoom-value">{{ zoomPercent }}%</span>
-      <button class="dd-zoom-btn" @click="zoomIn" title="放大（Ctrl + +）">
+      <button class="dd-zoom-btn" @click="zoomIn" :title="t('approvalDesigner.ctxZoomInTitle')">
         <PlusOutlined />
       </button>
-      <button class="dd-zoom-btn" @click="zoomFit" title="适应画布（Ctrl + 0）">
+      <button class="dd-zoom-btn" @click="zoomFit" :title="t('approvalDesigner.ctxZoomFitTitle')">
         <CompressOutlined />
       </button>
       <button
         class="dd-zoom-btn"
         :class="{ 'dd-zoom-btn--active': minimapVisible }"
         @click="toggleMinimap"
-        title="缩略图"
+        :title="t('approvalDesigner.ctxMinimapTitle')"
       >
         <BlockOutlined />
       </button>
@@ -47,18 +47,18 @@
       <template #overlay>
         <a-menu @click="handleNodeMenuClick">
           <a-menu-item key="edit">
-            <EditOutlined /> 编辑节点
+            <EditOutlined /> {{ t('approvalDesigner.ctxMenuEditNode') }}
           </a-menu-item>
           <a-menu-item key="copy" :disabled="!contextNode">
-            <CopyOutlined /> 复制节点 <span class="menu-shortcut">Ctrl+C</span>
+            <CopyOutlined /> {{ t('approvalDesigner.ctxMenuCopyNode') }} <span class="menu-shortcut">Ctrl+C</span>
           </a-menu-item>
           <a-menu-divider />
           <a-menu-item key="delete" :disabled="!contextNode || contextNode.nodeType === 'start' || contextNode.nodeType === 'end'" danger>
-            <DeleteOutlined /> 删除节点 <span class="menu-shortcut">Delete</span>
+            <DeleteOutlined /> {{ t('approvalDesigner.ctxMenuDeleteNode') }} <span class="menu-shortcut">Delete</span>
           </a-menu-item>
           <a-menu-divider />
           <a-menu-item key="view-detail">
-            <EyeOutlined /> 查看详情
+            <EyeOutlined /> {{ t('approvalDesigner.ctxViewNodeDetailInfo') }}
           </a-menu-item>
         </a-menu>
       </template>
@@ -82,18 +82,18 @@
       <template #overlay>
         <a-menu @click="handleCanvasMenuClick">
           <a-menu-item key="paste" :disabled="!copiedNode">
-            <CodeOutlined /> 粘贴节点 <span class="menu-shortcut">Ctrl+V</span>
+            <CodeOutlined /> {{ t('approvalDesigner.ctxMenuPasteNode') }} <span class="menu-shortcut">Ctrl+V</span>
           </a-menu-item>
           <a-menu-item key="select-all">
-            <SelectOutlined /> 全选 <span class="menu-shortcut">Ctrl+A</span>
+            <SelectOutlined /> {{ t('approvalDesigner.ctxMenuSelectAll') }} <span class="menu-shortcut">Ctrl+A</span>
           </a-menu-item>
           <a-menu-divider />
           <a-menu-item key="export-json">
-            <ExportOutlined /> 导出JSON
+            <ExportOutlined /> {{ t('approvalDesigner.ctxMenuExportJson') }}
           </a-menu-item>
           <a-menu-divider />
           <a-menu-item key="clear" danger>
-            <ClearOutlined /> 清空画布
+            <ClearOutlined /> {{ t('approvalDesigner.ctxMenuClearCanvas') }}
           </a-menu-item>
         </a-menu>
       </template>
@@ -103,7 +103,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, computed, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { message, Modal } from 'ant-design-vue';
+
+const { t } = useI18n();
 import { Graph } from '@antv/x6';
 import { Snapline } from '@antv/x6-plugin-snapline';
 import { Selection } from '@antv/x6-plugin-selection';
@@ -248,19 +251,19 @@ function initGraph() {
         }
 
         if (sourceType === 'end') {
-          warnInvalidConnection('结束节点不能作为连线起点');
+          warnInvalidConnection(t('approvalDesigner.warnConnEndAsSource'));
           return false;
         }
         if (targetType === 'start') {
-          warnInvalidConnection('开始节点不能作为连线目标');
+          warnInvalidConnection(t('approvalDesigner.warnConnStartAsTarget'));
           return false;
         }
         if (sourceType !== 'route') {
-          warnInvalidConnection('当前仅支持路由节点通过连线设置目标节点');
+          warnInvalidConnection(t('approvalDesigner.warnConnRouteEdgeOnly'));
           return false;
         }
         if (targetType === 'route') {
-          warnInvalidConnection('路由节点不能跳转到另一个路由节点');
+          warnInvalidConnection(t('approvalDesigner.warnConnRouteToRoute'));
           return false;
         }
 
@@ -388,12 +391,12 @@ function initGraph() {
       return;
     }
     if (getCellNodeType(sourceId) !== 'route') {
-      warnInvalidConnection('当前仅支持路由节点通过连线设置目标节点');
+      warnInvalidConnection(t('approvalDesigner.warnConnRouteEdgeOnly'));
       return;
     }
 
     emit('updateRouteTarget', sourceId, targetId);
-    message.success('路由目标节点已更新');
+    message.success(t('approvalDesigner.msgRouteTargetUpdated'));
   });
 
   graphRef.value = graph;
@@ -517,7 +520,7 @@ function handleEditNode() {
   const node = resolveCurrentNode();
   if (node) {
     emit('selectNode', node);
-    message.success('已选中节点，可在右侧属性面板编辑');
+    message.success(t('approvalDesigner.msgNodeSelectedEditPanel'));
   }
 }
 
@@ -525,22 +528,22 @@ function handleCopyNode() {
   const node = resolveCurrentNode();
 
   if (!node) {
-    message.warning('请先选择要复制的节点');
+    message.warning(t('approvalDesigner.msgSelectNodeToCopy'));
     return;
   }
 
   if (isTreeNode(node) && (node.nodeType === 'start' || node.nodeType === 'end')) {
-    message.warning('开始和结束节点不能复制');
+    message.warning(t('approvalDesigner.msgStartEndCannotCopy'));
     return;
   }
 
   if (!isTreeNode(node)) {
-    message.warning('条件分支不支持复制');
+    message.warning(t('approvalDesigner.msgBranchCannotCopy'));
     return;
   }
 
   copiedNode.value = JSON.parse(JSON.stringify(node)) as TreeNode;
-  message.success('节点已复制');
+  message.success(t('approvalDesigner.msgNodeCopied'));
 }
 
 function findNodeById(nodeId: string): TreeNode | ConditionBranch | null {
@@ -568,7 +571,7 @@ function findNodeById(nodeId: string): TreeNode | ConditionBranch | null {
 
 function handlePasteNode() {
   if (!copiedNode.value) {
-    message.warning('剪贴板中没有节点');
+    message.warning(t('approvalDesigner.msgClipboardEmpty'));
     return;
   }
 
@@ -578,37 +581,37 @@ function handlePasteNode() {
   const parentId = props.selectedNodeId || props.flowTree.rootNode.id;
 
   emit('addNode', parentId, nodeType);
-  message.success('节点已粘贴');
+  message.success(t('approvalDesigner.msgNodePasted'));
 }
 
 function handleDeleteNode() {
   const node = resolveCurrentNode();
 
   if (!node) {
-    message.warning('请先选择要删除的节点');
+    message.warning(t('approvalDesigner.msgSelectNodeToDelete'));
     return;
   }
 
   if (isTreeNode(node) && (node.nodeType === 'start' || node.nodeType === 'end')) {
-    message.warning('开始和结束节点不能删除');
+    message.warning(t('approvalDesigner.msgStartEndCannotDelete'));
     return;
   }
 
   const nodeLabel = getNodeDisplayName(node);
 
   Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除节点"${nodeLabel}"吗？`,
-    okText: '删除',
+    title: t('approvalDesigner.modalDeleteNodeTitle'),
+    content: t('approvalDesigner.modalDeleteNodeContent', { name: nodeLabel }),
+    okText: t('approvalDesigner.btnDelete'),
     okType: 'danger',
-    cancelText: '取消',
+    cancelText: t('approvalDesigner.btnCancel'),
     onOk() {
       if (isConditionBranchNode(node)) {
         emit('deleteConditionBranch', node.id);
       } else {
         emit('deleteNode', node.id);
       }
-      message.success('节点已删除');
+      message.success(t('approvalDesigner.msgNodeDeleted'));
     },
   });
 }
@@ -617,7 +620,7 @@ function handleViewNodeDetail() {
   const node = resolveCurrentNode();
   if (node) {
     emit('selectNode', node);
-    message.info('查看节点详情');
+    message.info(t('approvalDesigner.msgViewNodeDetailInfo'));
   }
 }
 
@@ -635,9 +638,9 @@ function isConditionBranchNode(node: TreeNode | ConditionBranch): node is Condit
 
 function getNodeDisplayName(node: TreeNode | ConditionBranch): string {
   if (isConditionBranchNode(node)) {
-    return node.branchName || '条件分支';
+    return node.branchName || t('approvalDesigner.fallbackBranchName');
   }
-  return node.nodeName || '此节点';
+  return node.nodeName || t('approvalDesigner.fallbackNodeName');
 }
 
 function resolveCurrentNode(): TreeNode | ConditionBranch | null {
@@ -659,7 +662,7 @@ function handleSelectAll() {
   if (!graphRef.value || !selectionPlugin) return;
   const allNodes = graphRef.value.getNodes();
   if (allNodes.length === 0) {
-    message.info('当前没有可选节点');
+    message.info(t('approvalDesigner.msgNoJumpTargets'));
     return;
   }
   graphRef.value.select(allNodes);
@@ -674,20 +677,20 @@ function handleExportJson() {
   a.download = `approval-flow-${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  message.success('流程JSON已导出');
+  message.success(t('approvalDesigner.msgFlowJsonExported'));
 }
 
 function handleClearCanvas() {
   Modal.confirm({
-    title: '确认清空画布',
-    content: '清空画布将删除所有节点（开始和结束节点除外），此操作不可恢复！',
-    okText: '清空',
+    title: t('approvalDesigner.modalClearCanvasTitle'),
+    content: t('approvalDesigner.modalClearCanvasContent'),
+    okText: t('approvalDesigner.btnClear'),
     okType: 'danger',
-    cancelText: '取消',
+    cancelText: t('approvalDesigner.btnCancel'),
     onOk() {
       // 这里需要通过emit通知父组件清空画布
       // 由于当前架构限制，我们只能提示用户手动清空
-      message.warning('请通过删除各个节点来清空画布');
+      message.warning(t('approvalDesigner.msgClearCanvasManual'));
     },
   });
 }

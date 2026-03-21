@@ -1,7 +1,7 @@
 <template>
   <a-modal
     :open="open"
-    :title="result?.isValid ? '校验通过' : '校验结果'"
+    :title="modalTitle"
     :footer="null"
     width="520px"
     @update:open="emit('update:open', $event)"
@@ -10,12 +10,12 @@
       <a-alert
         v-if="result.isValid"
         type="success"
-        message="流程校验通过，可以发布"
+        :message="t('approvalDesigner.valPassMsg')"
         show-icon
         style="margin-bottom:12px"
       />
       <template v-else>
-        <a-alert type="error" message="校验不通过，请修正以下问题" show-icon style="margin-bottom:12px" />
+        <a-alert type="error" :message="t('approvalDesigner.valFailMsg')" show-icon style="margin-bottom:12px" />
         <div class="dd-validate-list">
           <div
             v-for="(issue, idx) in errorIssues"
@@ -26,7 +26,7 @@
           >
             <CloseCircleOutlined style="color:#ff4d4f;margin-right:6px" />
             <span>{{ issue.message }}</span>
-            <a-tag v-if="issue.nodeId" color="processing" style="margin-left: 8px">点击定位</a-tag>
+            <a-tag v-if="issue.nodeId" color="processing" style="margin-left: 8px">{{ t('approvalDesigner.valTagLocate') }}</a-tag>
           </div>
         </div>
       </template>
@@ -40,7 +40,7 @@
         >
           <ExclamationCircleOutlined style="color:#faad14;margin-right:6px" />
           <span>{{ issue.message }}</span>
-          <a-tag v-if="issue.nodeId" color="gold" style="margin-left: 8px">点击定位</a-tag>
+          <a-tag v-if="issue.nodeId" color="gold" style="margin-left: 8px">{{ t('approvalDesigner.valTagLocate') }}</a-tag>
         </div>
       </div>
     </div>
@@ -48,15 +48,23 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { CloseCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons-vue';
 import type { ApprovalFlowValidationIssue, ApprovalFlowValidationResult } from '@/types/api';
 
-defineProps<{
+const { t } = useI18n();
+
+const props = defineProps<{
   open: boolean;
   result: ApprovalFlowValidationResult | null;
   errorIssues: ApprovalFlowValidationIssue[];
   warningIssues: ApprovalFlowValidationIssue[];
 }>();
+
+const modalTitle = computed(() =>
+  props.result?.isValid ? t('approvalDesigner.valPanelTitleOk') : t('approvalDesigner.valPanelTitleResult'),
+);
 
 const emit = defineEmits<{
   'update:open': [value: boolean];

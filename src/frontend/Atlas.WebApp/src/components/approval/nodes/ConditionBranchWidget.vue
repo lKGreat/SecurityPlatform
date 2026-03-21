@@ -3,11 +3,11 @@
     <div class="branch-box" @click="handleClick">
       <div class="branch-title">
         <span class="name">{{ branch.branchName }}</span>
-        <span class="priority" v-if="branch.isDefault">默认</span>
+        <span class="priority" v-if="branch.isDefault">{{ t('approvalDesigner.branchTagDefault') }}</span>
         <CloseOutlined class="close-btn" @click.stop="handleDelete" v-if="!branch.isDefault" />
       </div>
       <div class="branch-content">
-        <span v-if="branch.isDefault">其他情况进入此流程</span>
+        <span v-if="branch.isDefault">{{ t('approvalDesigner.branchElseFlow') }}</span>
         <span v-else>{{ getConditionLabel(branch) }}</span>
       </div>
     </div>
@@ -15,8 +15,27 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import { CloseOutlined } from '@ant-design/icons-vue';
 import type { ConditionBranch } from '@/types/approval-tree';
+
+const { t } = useI18n();
+
+function operatorLabel(op: string): string {
+  const map: Record<string, string> = {
+    equals: t('approvalDesigner.condOpEquals'),
+    notEquals: t('approvalDesigner.condOpNotEquals'),
+    greaterThan: t('approvalDesigner.condOpGreaterThan'),
+    lessThan: t('approvalDesigner.condOpLessThan'),
+    contains: t('approvalDesigner.condOpContains'),
+    greaterThanOrEqual: t('approvalDesigner.condOpGreaterOrEqual'),
+    lessThanOrEqual: t('approvalDesigner.condOpLessOrEqual'),
+    in: t('approvalDesigner.condOpInList'),
+    startsWith: t('approvalDesigner.condOpStartsWith'),
+    endsWith: t('approvalDesigner.condOpEndsWith'),
+  };
+  return map[op] || op;
+}
 
 const props = defineProps<{
   branch: ConditionBranch;
@@ -36,8 +55,8 @@ const handleDelete = () => {
 };
 
 const getConditionLabel = (branch: ConditionBranch) => {
-  if (!branch.conditionRule) return '请设置条件';
-  return `${branch.conditionRule.field} ${branch.conditionRule.operator} ${branch.conditionRule.value}`;
+  if (!branch.conditionRule) return t('approvalDesigner.branchSetCondition');
+  return `${branch.conditionRule.field} ${operatorLabel(branch.conditionRule.operator)} ${branch.conditionRule.value}`;
 };
 </script>
 

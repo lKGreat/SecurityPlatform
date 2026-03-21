@@ -1,15 +1,15 @@
 <template>
   <a-form layout="vertical">
-    <a-form-item label="目标接口">
+    <a-form-item :label="t('ai.pluginDebug.targetApi')">
       <a-select
         :value="apiId"
         allow-clear
-        placeholder="不选择则按插件级调试"
+        :placeholder="t('ai.pluginDebug.apiPlaceholder')"
         :options="apiOptions"
         @update:value="onApiIdChange"
       />
     </a-form-item>
-    <a-form-item label="输入 JSON">
+    <a-form-item :label="t('ai.pluginDebug.inputJson')">
       <a-textarea
         :value="inputJson"
         :rows="5"
@@ -24,7 +24,11 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
+
+defineProps<{
   apiOptions: Array<{ label: string; value: number }>;
   apiId?: number;
   inputJson: string;

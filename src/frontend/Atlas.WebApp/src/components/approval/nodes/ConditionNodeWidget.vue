@@ -1,11 +1,14 @@
 <template>
   <div class="condition-node-box">
-    <button class="add-branch-btn" @click="handleAddBranch">添加条件</button>
+    <button class="add-branch-btn" @click="handleAddBranch">{{ t('approvalDesigner.condHeaderAddCondition') }}</button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import type { ConditionNode } from '@/types/approval-tree';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   node: ConditionNode;

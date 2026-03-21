@@ -1,131 +1,128 @@
 <template>
   <a-drawer
     :open="open"
-    title="节点属性"
+    :title="t('approvalDesigner.drawerPropsTitle')"
     placement="right"
     width="400"
     @close="handleClose"
   >
     <a-form :model="formData" layout="vertical" v-if="formData">
-      <a-form-item label="节点名称" v-if="'nodeName' in formData">
+      <a-form-item :label="t('approvalDesigner.propsPhNodeName')" v-if="'nodeName' in formData">
         <a-input v-model:value="formData.nodeName" />
       </a-form-item>
       
-      <!-- 审批节点属性 -->
       <template v-if="approveNode && approverConfig">
         <a-tabs>
-          <a-tab-pane key="approver" tab="审批设置">
-            <a-form-item label="审批人类型">
+          <a-tab-pane key="approver" :tab="t('approvalDesigner.propsTabApprover')">
+            <a-form-item :label="t('approvalDesigner.propsLabelAssigneeType')">
               <a-select v-model:value="approverConfig.setType">
-                <a-select-option :value="0">指定人员</a-select-option>
-                <a-select-option :value="1">指定角色</a-select-option>
-                <a-select-option :value="2">部门负责人</a-select-option>
-                <a-select-option :value="3">HRBP</a-select-option>
-                <a-select-option :value="4">直属领导</a-select-option>
-                <a-select-option :value="5">层级领导</a-select-option>
-                <a-select-option :value="6">发起人</a-select-option>
-                <a-select-option :value="7">发起人自选</a-select-option>
+                <a-select-option :value="0">{{ t('approvalDesigner.assigneeUser') }}</a-select-option>
+                <a-select-option :value="1">{{ t('approvalDesigner.assigneeRole') }}</a-select-option>
+                <a-select-option :value="2">{{ t('approvalDesigner.assigneeDeptLeader') }}</a-select-option>
+                <a-select-option :value="3">{{ t('approvalDesigner.assigneeHrbp') }}</a-select-option>
+                <a-select-option :value="4">{{ t('approvalDesigner.assigneeDirectLeader') }}</a-select-option>
+                <a-select-option :value="5">{{ t('approvalDesigner.drawerAssigneeLevelLeader') }}</a-select-option>
+                <a-select-option :value="6">{{ t('approvalDesigner.assigneeInitiator') }}</a-select-option>
+                <a-select-option :value="7">{{ t('approvalDesigner.assigneeInitiatorPick') }}</a-select-option>
               </a-select>
             </a-form-item>
-            <a-form-item label="审批人列表">
+            <a-form-item :label="t('approvalDesigner.drawerApproverList')">
               <a-select
                 mode="tags"
                 v-model:value="approverTargets"
-                placeholder="输入人员/角色/部门ID"
+                :placeholder="t('approvalDesigner.drawerPhApproverIds')"
                 @change="syncApproverTargets"
               />
             </a-form-item>
-            <a-form-item label="审批方式">
+            <a-form-item :label="t('approvalDesigner.drawerSignType')">
               <a-select v-model:value="approverConfig.signType">
-                <a-select-option :value="1">会签</a-select-option>
-                <a-select-option :value="2">或签</a-select-option>
-                <a-select-option :value="3">顺序会签</a-select-option>
+                <a-select-option :value="1">{{ t('approvalDesigner.propsModeAllTitle') }}</a-select-option>
+                <a-select-option :value="2">{{ t('approvalDesigner.propsModeAnyTitle') }}</a-select-option>
+                <a-select-option :value="3">{{ t('approvalDesigner.drawerSignSequential') }}</a-select-option>
               </a-select>
             </a-form-item>
-            <a-form-item label="无审批人策略">
+            <a-form-item :label="t('approvalDesigner.drawerNoHeaderPolicy')">
               <a-select v-model:value="approverConfig.noHeaderAction">
-                <a-select-option :value="0">不允许发起</a-select-option>
-                <a-select-option :value="1">跳过</a-select-option>
-                <a-select-option :value="2">转交管理员</a-select-option>
+                <a-select-option :value="0">{{ t('approvalDesigner.propsNoHeader0') }}</a-select-option>
+                <a-select-option :value="1">{{ t('approvalDesigner.drawerSkip') }}</a-select-option>
+                <a-select-option :value="2">{{ t('approvalDesigner.propsNoHeader2') }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-tab-pane>
-          <a-tab-pane key="permissions" tab="扩展配置">
-            <a-form-item label="按钮权限(JSON)">
+          <a-tab-pane key="permissions" :tab="t('approvalDesigner.drawerExtTab')">
+            <a-form-item :label="t('approvalDesigner.drawerBtnPermJson')">
               <a-textarea v-model:value="buttonPermissionText" :rows="4" />
             </a-form-item>
-            <a-form-item label="表单权限(JSON)">
+            <a-form-item :label="t('approvalDesigner.drawerFormPermJson')">
               <a-textarea v-model:value="formPermissionText" :rows="4" />
             </a-form-item>
-            <a-form-item label="通知配置(JSON)">
+            <a-form-item :label="t('approvalDesigner.drawerNoticeJson')">
               <a-textarea v-model:value="noticeConfigText" :rows="3" />
             </a-form-item>
           </a-tab-pane>
-          <a-tab-pane key="legacy" tab="兼容字段">
-            <a-form-item label="审批人类型(旧)">
+          <a-tab-pane key="legacy" :tab="t('approvalDesigner.drawerLegacyTab')">
+            <a-form-item :label="t('approvalDesigner.drawerLegacyAssigneeType')">
               <a-select v-model:value="approveNode.assigneeType">
-                <a-select-option :value="0">指定用户</a-select-option>
-                <a-select-option :value="1">按角色</a-select-option>
-                <a-select-option :value="2">部门负责人</a-select-option>
+                <a-select-option :value="0">{{ t('approvalDesigner.drawerSpecifyUser') }}</a-select-option>
+                <a-select-option :value="1">{{ t('approvalDesigner.drawerByRole') }}</a-select-option>
+                <a-select-option :value="2">{{ t('approvalDesigner.assigneeDeptLeader') }}</a-select-option>
               </a-select>
             </a-form-item>
-            <a-form-item label="审批人值(旧)">
-              <a-input v-model:value="approveNode.assigneeValue" placeholder="用户ID/角色代码/部门ID" />
+            <a-form-item :label="t('approvalDesigner.drawerLegacyAssigneeValue')">
+              <a-input v-model:value="approveNode.assigneeValue" :placeholder="t('approvalDesigner.drawerPhLegacyAssignee')" />
             </a-form-item>
-            <a-form-item label="审批模式(旧)">
+            <a-form-item :label="t('approvalDesigner.drawerLegacyMode')">
               <a-select v-model:value="approveNode.approvalMode">
-                <a-select-option value="all">会签（全部通过）</a-select-option>
-                <a-select-option value="any">或签（任一通过）</a-select-option>
-                <a-select-option value="sequential">顺序会签</a-select-option>
+                <a-select-option value="all">{{ t('approvalDesigner.drawerModeAllLong') }}</a-select-option>
+                <a-select-option value="any">{{ t('approvalDesigner.drawerModeAnyLong') }}</a-select-option>
+                <a-select-option value="sequential">{{ t('approvalDesigner.drawerModeSeqLong') }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-tab-pane>
         </a-tabs>
       </template>
 
-      <!-- 抄送节点属性 -->
       <template v-if="copyNode">
-        <a-form-item label="抄送人">
-           <a-select mode="tags" v-model:value="copyNode.copyToUsers" placeholder="输入用户ID" />
+        <a-form-item :label="t('approvalDesigner.propsCopyRecipients')">
+           <a-select mode="tags" v-model:value="copyNode.copyToUsers" :placeholder="t('approvalDesigner.drawerPhUserIds')" />
         </a-form-item>
       </template>
 
-      <!-- 条件分支属性 -->
       <template v-if="branchNode">
-         <a-form-item label="分支名称">
+         <a-form-item :label="t('approvalDesigner.drawerBranchName')">
             <a-input v-model:value="branchNode.branchName" />
          </a-form-item>
-         <a-form-item label="默认分支">
+         <a-form-item :label="t('approvalDesigner.drawerDefaultBranch')">
             <a-switch v-model:checked="branchNode.isDefault" />
          </a-form-item>
          <template v-if="!branchNode.isDefault">
-             <a-divider>条件规则</a-divider>
+             <a-divider>{{ t('approvalDesigner.propsDividerConditionRules') }}</a-divider>
              <div v-if="!branchNode.conditionRule">
-                 <a-button type="dashed" block @click="initConditionRule">添加规则</a-button>
+                 <a-button type="dashed" block @click="initConditionRule">{{ t('approvalDesigner.drawerAddRule') }}</a-button>
              </div>
              <div v-else>
-                 <a-form-item label="字段">
+                 <a-form-item :label="t('approvalDesigner.drawerField')">
                     <a-input v-model:value="branchNode.conditionRule.field" />
                  </a-form-item>
-                 <a-form-item label="运算符">
+                 <a-form-item :label="t('approvalDesigner.phOperator')">
                     <a-select v-model:value="branchNode.conditionRule.operator">
-                        <a-select-option value="equals">等于</a-select-option>
-                        <a-select-option value="notEquals">不等于</a-select-option>
-                        <a-select-option value="greaterThan">大于</a-select-option>
-                        <a-select-option value="lessThan">小于</a-select-option>
-                        <a-select-option value="contains">包含</a-select-option>
+                        <a-select-option value="equals">{{ t('approvalDesigner.condOpEquals') }}</a-select-option>
+                        <a-select-option value="notEquals">{{ t('approvalDesigner.condOpNotEquals') }}</a-select-option>
+                        <a-select-option value="greaterThan">{{ t('approvalDesigner.condOpGreaterThan') }}</a-select-option>
+                        <a-select-option value="lessThan">{{ t('approvalDesigner.condOpLessThan') }}</a-select-option>
+                        <a-select-option value="contains">{{ t('approvalDesigner.condOpContains') }}</a-select-option>
                     </a-select>
                  </a-form-item>
-                 <a-form-item label="值">
+                 <a-form-item :label="t('approvalDesigner.phCompareValue')">
                     <a-input v-model:value="branchNode.conditionRule.value" />
                  </a-form-item>
-                 <a-button type="link" danger @click="removeConditionRule">删除规则</a-button>
+                 <a-button type="link" danger @click="removeConditionRule">{{ t('approvalDesigner.drawerRemoveRule') }}</a-button>
              </div>
          </template>
       </template>
 
       <a-form-item>
-        <a-button type="primary" @click="handleSave">确定</a-button>
+        <a-button type="primary" @click="handleSave">{{ t('approvalDesigner.propsFooterOk') }}</a-button>
       </a-form-item>
     </a-form>
   </a-drawer>
@@ -133,9 +130,12 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { message } from 'ant-design-vue';
 import type { TreeNode, ConditionBranch, ApproveNode, CopyNode } from '@/types/approval-tree';
 import type { ButtonPermissionConfig, FormPermissionConfig, NoticeConfig } from '@/types/approval-definition';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   open: boolean;
@@ -231,16 +231,16 @@ const applyExtraConfigs = () => {
     try {
       return JSON.parse(text) as T;
     } catch {
-      message.error(`${label}JSON格式不正确`);
+      message.error(t('approvalDesigner.drawerJsonInvalid', { label }));
       return null;
     }
   };
 
-  const buttonConfig = parseJson<ButtonPermissionConfig>(buttonPermissionText.value, '按钮权限');
+  const buttonConfig = parseJson<ButtonPermissionConfig>(buttonPermissionText.value, t('approvalDesigner.drawerLabelButtonPerm'));
   if (buttonConfig === null) return false;
-  const formPermConfig = parseJson<FormPermissionConfig>(formPermissionText.value, '表单权限');
+  const formPermConfig = parseJson<FormPermissionConfig>(formPermissionText.value, t('approvalDesigner.drawerLabelFormPerm'));
   if (formPermConfig === null) return false;
-  const noticeConfig = parseJson<NoticeConfig>(noticeConfigText.value, '通知配置');
+  const noticeConfig = parseJson<NoticeConfig>(noticeConfigText.value, t('approvalDesigner.drawerLabelNoticeShort'));
   if (noticeConfig === null) return false;
 
   current.buttonPermissionConfig = buttonConfig;
@@ -267,6 +267,7 @@ const syncNodeRefs = () => {
   copyNode.value = current && isCopyNode(current) ? current : null;
   branchNode.value = current && isConditionBranch(current) ? current : null;
 };
+
 const initConditionRule = () => {
   const current = formData.value;
   if (!current || !isConditionBranch(current)) return;

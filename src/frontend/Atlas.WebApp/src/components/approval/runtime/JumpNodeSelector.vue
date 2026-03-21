@@ -1,7 +1,7 @@
 <template>
   <a-modal
     :open="visible"
-    title="选择跳转节点"
+    :title="t('approvalDesigner.jumpModalTitle')"
     @ok="handleOk"
     @cancel="handleCancel"
     width="600px"
@@ -25,6 +25,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   visible: boolean;
@@ -90,12 +93,19 @@ const flattenNodes = (node: unknown): SelectableNode[] => {
 
 const getTypeName = (type: string) => {
   const map: Record<string, string> = {
-    start: '开始',
-    approve: '审批',
-    copy: '抄送',
-    condition: '条件',
-    parallel: '并行',
-    end: '结束'
+    start: t('approvalDesigner.nodeTypeLabelStart'),
+    approve: t('approvalDesigner.nodeTypeLabelApprove'),
+    copy: t('approvalDesigner.nodeTypeLabelCopy'),
+    condition: t('approvalDesigner.nodeTypeLabelCondition'),
+    parallel: t('approvalDesigner.nodeTypeLabelParallel'),
+    end: t('approvalDesigner.nodeTypeLabelEnd'),
+    dynamicCondition: t('approvalDesigner.nodeTypeLabelDynamicCondition'),
+    parallelCondition: t('approvalDesigner.nodeTypeLabelParallelCondition'),
+    inclusive: t('approvalDesigner.nodeTypeLabelInclusive'),
+    route: t('approvalDesigner.nodeTypeLabelRoute'),
+    callProcess: t('approvalDesigner.nodeTypeLabelCallProcess'),
+    timer: t('approvalDesigner.nodeTypeLabelTimer'),
+    trigger: t('approvalDesigner.nodeTypeLabelTrigger'),
   };
   return map[type] || type;
 };

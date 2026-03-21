@@ -3,35 +3,35 @@
     <a-alert
       type="info"
       show-icon
-      message="LF 低代码表单设计（JSON 模式）"
-      description="当前使用 JSON 编辑模式，后续可替换为可视化表单设计器组件。"
+      :message="t('approvalDesigner.lfAlertJsonModeTitle')"
+      :description="t('approvalDesigner.lfAlertJsonModeDesc')"
     />
     <div class="designer-shell">
       <div class="designer-panel">
-        <div v-if="!vformReady" class="designer-loading">表单设计器加载中...</div>
+        <div v-if="!vformReady" class="designer-loading">{{ t('approvalDesigner.lfDesignerLoading') }}</div>
         <v-form-designer v-else ref="designerRef"></v-form-designer>
       </div>
       <div class="json-panel">
         <a-form layout="vertical" class="form-container">
-          <a-form-item label="表单 JSON">
+          <a-form-item :label="t('approvalDesigner.lfLabelFormJson')">
             <a-textarea
               v-model:value="formJsonText"
               :rows="14"
-              placeholder="请输入表单 JSON"
+              :placeholder="t('approvalDesigner.lfPhFormJson')"
             />
           </a-form-item>
           <a-space>
-            <a-button type="primary" @click="applyJson">导入 JSON</a-button>
-            <a-button @click="syncFromDesigner">同步字段</a-button>
-            <a-button @click="exportJson">导出 JSON</a-button>
-            <a-button @click="formatJson">格式化</a-button>
+            <a-button type="primary" @click="applyJson">{{ t('approvalDesigner.lfBtnImportJson') }}</a-button>
+            <a-button @click="syncFromDesigner">{{ t('approvalDesigner.lfBtnSyncFields') }}</a-button>
+            <a-button @click="exportJson">{{ t('approvalDesigner.lfBtnExportJson') }}</a-button>
+            <a-button @click="formatJson">{{ t('approvalDesigner.lfBtnFormatJson') }}</a-button>
           </a-space>
         </a-form>
       </div>
     </div>
     <a-divider />
     <div class="field-preview">
-      <div class="field-title">字段列表（用于条件与权限配置）</div>
+      <div class="field-title">{{ t('approvalDesigner.lfFieldListTitle') }}</div>
       <a-table
         :columns="columns"
         :data-source="formFields"
@@ -44,7 +44,10 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance, onMounted, ref, watch, onUnmounted } from 'vue';
+import { getCurrentInstance, onMounted, ref, watch, onUnmounted, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -67,12 +70,12 @@ const formFields = ref<LfFormField[]>([]);
 const designerRef = ref<VFormDesignerInstance | null>(null);
 const vformReady = ref(false);
 
-const columns = [
-  { title: '字段ID', dataIndex: 'fieldId' },
-  { title: '字段名称', dataIndex: 'fieldName' },
-  { title: '字段类型', dataIndex: 'fieldType' },
-  { title: '值类型', dataIndex: 'valueType' }
-];
+const columns = computed(() => [
+  { title: t('approvalDesigner.lfColFieldId'), dataIndex: 'fieldId' },
+  { title: t('approvalDesigner.lfColFieldName'), dataIndex: 'fieldName' },
+  { title: t('approvalDesigner.lfColFieldType'), dataIndex: 'fieldType' },
+  { title: t('approvalDesigner.lfColValueType'), dataIndex: 'valueType' }
+]);
 
 watch(
   () => props.modelValue,
@@ -101,7 +104,7 @@ const applyJson = () => {
 
   const parsed = parseFormJson(formJsonText.value);
   if (!parsed) {
-    message.error('表单 JSON 解析失败，请检查格式');
+    message.error(t('approvalDesigner.lfMsgJsonParseErr'));
     return;
   }
 
@@ -112,7 +115,7 @@ const applyJson = () => {
   if (designerRef.value) {
     designerRef.value.setFormJson(parsed);
   }
-  message.success('表单 JSON 已应用');
+  message.success(t('approvalDesigner.lfMsgJsonApplied'));
 };
 
 const exportJson = () => {
@@ -138,7 +141,7 @@ const formatJson = () => {
   if (!formJsonText.value.trim()) return;
   const parsed = parseFormJson(formJsonText.value);
   if (!parsed) {
-    message.error('格式化失败，请检查 JSON');
+    message.error(t('approvalDesigner.lfMsgFormatErr'));
     return;
   }
   formJsonText.value = JSON.stringify(parsed, null, 2);

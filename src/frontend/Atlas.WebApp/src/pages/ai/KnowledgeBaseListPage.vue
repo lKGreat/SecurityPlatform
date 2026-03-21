@@ -1,14 +1,14 @@
 <template>
-  <a-card title="知识库管理" :bordered="false">
+  <a-card :title="t('ai.knowledgeBase.listTitle')" :bordered="false">
     <div class="toolbar">
       <a-space wrap>
         <a-input-search
           v-model:value="keyword"
-          placeholder="搜索知识库名称"
+          :placeholder="t('ai.knowledgeBase.searchPlaceholder')"
           style="width: 260px"
           @search="loadData"
         />
-        <a-button type="primary" @click="openCreate">新建知识库</a-button>
+        <a-button type="primary" @click="openCreate">{{ t("ai.knowledgeBase.newKb") }}</a-button>
       </a-space>
     </div>
 
@@ -25,9 +25,9 @@
         </template>
         <template v-if="column.key === 'action'">
           <a-space>
-            <a-button type="link" @click="goDetail(record.id)">详情</a-button>
-            <a-popconfirm title="确认删除该知识库？" @confirm="handleDelete(record.id)">
-              <a-button type="link" danger>删除</a-button>
+            <a-button type="link" @click="goDetail(record.id)">{{ t("ai.knowledgeBase.detail") }}</a-button>
+            <a-popconfirm :title="t('ai.knowledgeBase.deleteKbConfirm')" @confirm="handleDelete(record.id)">
+              <a-button type="link" danger>{{ t("common.delete") }}</a-button>
             </a-popconfirm>
           </a-space>
         </template>
@@ -47,19 +47,19 @@
 
     <a-modal
       v-model:open="modalVisible"
-      title="新建知识库"
+      :title="t('ai.knowledgeBase.modalCreateTitle')"
       :confirm-loading="modalLoading"
       @ok="submitCreate"
       @cancel="closeModal"
     >
       <a-form ref="formRef" :model="form" layout="vertical" :rules="rules">
-        <a-form-item label="名称" name="name">
+        <a-form-item :label="t('ai.knowledgeBase.labelName')" name="name">
           <a-input v-model:value="form.name" />
         </a-form-item>
-        <a-form-item label="描述" name="description">
+        <a-form-item :label="t('ai.knowledgeBase.labelDescription')" name="description">
           <a-textarea v-model:value="form.description" :rows="3" />
         </a-form-item>
-        <a-form-item label="类型" name="type">
+        <a-form-item :label="t('ai.knowledgeBase.labelType')" name="type">
           <a-select v-model:value="form.type" :options="typeOptions" />
         </a-form-item>
       </a-form>
@@ -68,7 +68,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -84,6 +85,8 @@ import {
   type KnowledgeBaseDto
 } from "@/services/api-knowledge";
 
+const { t } = useI18n();
+
 const router = useRouter();
 const list = ref<KnowledgeBaseDto[]>([]);
 const loading = ref(false);
@@ -92,20 +95,20 @@ const pageIndex = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name" },
-  { title: "类型", dataIndex: "type", key: "type", width: 120 },
-  { title: "文档数", dataIndex: "documentCount", key: "documentCount", width: 120 },
-  { title: "分片数", dataIndex: "chunkCount", key: "chunkCount", width: 120 },
-  { title: "创建时间", dataIndex: "createdAt", key: "createdAt", width: 220 },
-  { title: "操作", key: "action", width: 180 }
-];
+const columns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name" },
+  { title: t("ai.knowledgeBase.labelType"), dataIndex: "type", key: "type", width: 120 },
+  { title: t("ai.knowledgeBase.colDocCount"), dataIndex: "documentCount", key: "documentCount", width: 120 },
+  { title: t("ai.knowledgeBase.colChunkCount"), dataIndex: "chunkCount", key: "chunkCount", width: 120 },
+  { title: t("ai.knowledgeBase.colCreatedAt"), dataIndex: "createdAt", key: "createdAt", width: 220 },
+  { title: t("ai.colActions"), key: "action", width: 180 }
+]);
 
-const typeOptions = [
-  { label: "文本", value: 0 },
-  { label: "表格", value: 1 },
-  { label: "图片", value: 2 }
-];
+const typeOptions = computed(() => [
+  { label: t("ai.knowledgeBase.typeText"), value: 0 },
+  { label: t("ai.knowledgeBase.typeTable"), value: 1 },
+  { label: t("ai.knowledgeBase.typeImage"), value: 2 }
+]);
 
 const modalVisible = ref(false);
 const modalLoading = ref(false);
@@ -116,14 +119,14 @@ const form = reactive({
   type: 0 as 0 | 1 | 2
 });
 
-const rules = {
-  name: [{ required: true, message: "请输入知识库名称" }]
-};
+const rules = computed(() => ({
+  name: [{ required: true, message: t("ai.knowledgeBase.ruleName") }]
+}));
 
 function typeLabel(type: number) {
-  if (type === 1) return "表格";
-  if (type === 2) return "图片";
-  return "文本";
+  if (type === 1) return t("ai.knowledgeBase.typeTable");
+  if (type === 2) return t("ai.knowledgeBase.typeImage");
+  return t("ai.knowledgeBase.typeText");
 }
 
 function typeColor(type: number) {
@@ -144,7 +147,7 @@ async function loadData() {
     list.value = result.items;
     total.value = Number(result.total);
   } catch (err: unknown) {
-    message.error((err as Error).message || "加载知识库失败");
+    message.error((err as Error).message || t("ai.knowledgeBase.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -182,13 +185,13 @@ async function submitCreate() {
     });
 
     if (!isMounted.value) return;
-    message.success("创建成功");
+    message.success(t("crud.createSuccess"));
     modalVisible.value = false;
     await loadData();
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "创建失败");
+    message.error((err as Error).message || t("crud.submitFailed"));
   } finally {
     modalLoading.value = false;
   }
@@ -199,12 +202,12 @@ async function handleDelete(id: number) {
     await deleteKnowledgeBase(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadData();
 
     if (!isMounted.value) return;
   } catch (err: unknown) {
-    message.error((err as Error).message || "删除失败");
+    message.error((err as Error).message || t("crud.deleteFailed"));
   }
 }
 

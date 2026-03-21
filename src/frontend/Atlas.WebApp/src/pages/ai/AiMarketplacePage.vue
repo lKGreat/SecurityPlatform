@@ -1,11 +1,11 @@
 <template>
   <a-space direction="vertical" style="width: 100%" :size="16">
-    <a-card title="AI 市场" :bordered="false">
+    <a-card :title="t('ai.marketplace.pageTitle')" :bordered="false">
       <template #extra>
         <a-space>
-          <a-button @click="openCategoryModal">分类管理</a-button>
-          <a-button @click="resetFilters">重置</a-button>
-          <a-button type="primary" @click="openCreateProduct">发布商品</a-button>
+          <a-button @click="openCategoryModal">{{ t("ai.marketplace.categoryManage") }}</a-button>
+          <a-button @click="resetFilters">{{ t("common.reset") }}</a-button>
+          <a-button type="primary" @click="openCreateProduct">{{ t("ai.marketplace.publishProduct") }}</a-button>
         </a-space>
       </template>
 
@@ -13,14 +13,14 @@
         <a-space wrap>
           <a-input-search
             v-model:value="filters.keyword"
-            placeholder="搜索商品名称/描述"
+            :placeholder="t('ai.marketplace.searchPlaceholder')"
             style="width: 260px"
             @search="loadProducts"
           />
           <a-select
             v-model:value="filters.categoryId"
             allow-clear
-            placeholder="分类"
+            :placeholder="t('ai.marketplace.placeholderCategory')"
             style="width: 180px"
             :options="categoryOptions"
             @change="loadProducts"
@@ -28,7 +28,7 @@
           <a-select
             v-model:value="filters.productType"
             allow-clear
-            placeholder="类型"
+            :placeholder="t('ai.marketplace.placeholderType')"
             style="width: 160px"
             :options="productTypeOptions"
             @change="loadProducts"
@@ -36,7 +36,7 @@
           <a-select
             v-model:value="filters.status"
             allow-clear
-            placeholder="状态"
+            :placeholder="t('ai.marketplace.placeholderStatus')"
             style="width: 160px"
             :options="statusOptions"
             @change="loadProducts"
@@ -56,17 +56,17 @@
             <a-space>
               <span>{{ record.favoriteCount }}</span>
               <a-button type="link" size="small" @click="toggleFavorite(record)">
-                {{ record.isFavorited ? "取消收藏" : "收藏" }}
+                {{ record.isFavorited ? t("ai.marketplace.unfavorite") : t("ai.marketplace.favorite") }}
               </a-button>
             </a-space>
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" @click="goDetail(record.id)">详情</a-button>
-              <a-button type="link" @click="openEditProduct(record.id)">编辑</a-button>
-              <a-button type="link" @click="handlePublish(record)">发布</a-button>
-              <a-popconfirm title="确认删除该商品？" @confirm="handleDeleteProduct(record.id)">
-                <a-button type="link" danger>删除</a-button>
+              <a-button type="link" @click="goDetail(record.id)">{{ t("ai.plugin.detail") }}</a-button>
+              <a-button type="link" @click="openEditProduct(record.id)">{{ t("common.edit") }}</a-button>
+              <a-button type="link" @click="handlePublish(record)">{{ t("ai.workflow.publish") }}</a-button>
+              <a-popconfirm :title="t('ai.marketplace.deleteProductConfirm')" @confirm="handleDeleteProduct(record.id)">
+                <a-button type="link" danger>{{ t("common.delete") }}</a-button>
               </a-popconfirm>
             </a-space>
           </template>
@@ -87,35 +87,35 @@
 
     <a-modal
       v-model:open="productModalOpen"
-      :title="editingProductId ? '编辑商品' : '发布商品'"
+      :title="editingProductId ? t('ai.marketplace.modalProductEdit') : t('ai.marketplace.modalProductCreate')"
       :confirm-loading="productSubmitting"
       width="760px"
       @ok="submitProduct"
       @cancel="closeProductModal"
     >
       <a-form ref="productFormRef" :model="productForm" layout="vertical" :rules="productRules">
-        <a-form-item label="分类" name="categoryId">
+        <a-form-item :label="t('ai.promptLib.labelCategory')" name="categoryId">
           <a-select v-model:value="productForm.categoryId" :options="categoryOptions" />
         </a-form-item>
-        <a-form-item label="名称" name="name">
+        <a-form-item :label="t('ai.promptLib.colName')" name="name">
           <a-input v-model:value="productForm.name" />
         </a-form-item>
-        <a-form-item label="摘要" name="summary">
+        <a-form-item :label="t('ai.marketplace.labelSummary')" name="summary">
           <a-input v-model:value="productForm.summary" />
         </a-form-item>
-        <a-form-item label="描述" name="description">
+        <a-form-item :label="t('ai.promptLib.labelDescription')" name="description">
           <a-textarea v-model:value="productForm.description" :rows="3" />
         </a-form-item>
-        <a-form-item label="图标 URL" name="icon">
+        <a-form-item :label="t('ai.marketplace.labelIconUrl')" name="icon">
           <a-input v-model:value="productForm.icon" />
         </a-form-item>
-        <a-form-item label="类型" name="productType">
+        <a-form-item :label="t('ai.plugin.labelType')" name="productType">
           <a-select v-model:value="productForm.productType" :options="productTypeOptions" />
         </a-form-item>
-        <a-form-item label="标签（逗号分隔）" name="tagsInput">
+        <a-form-item :label="t('ai.marketplace.labelTags')" name="tagsInput">
           <a-input v-model:value="productForm.tagsInput" />
         </a-form-item>
-        <a-form-item label="来源资源 ID" name="sourceResourceId">
+        <a-form-item :label="t('ai.marketplace.labelSourceId')" name="sourceResourceId">
           <a-input-number v-model:value="productForm.sourceResourceId" :min="1" style="width: 100%" />
         </a-form-item>
       </a-form>
@@ -123,23 +123,23 @@
 
     <a-modal
       v-model:open="categoryModalOpen"
-      title="分类管理"
+      :title="t('ai.marketplace.modalCategoryTitle')"
       :confirm-loading="categorySubmitting"
       width="680px"
       @ok="submitCategory"
       @cancel="closeCategoryModal"
     >
       <a-form ref="categoryFormRef" :model="categoryForm" layout="vertical" :rules="categoryRules">
-        <a-form-item label="名称" name="name">
+        <a-form-item :label="t('ai.promptLib.colName')" name="name">
           <a-input v-model:value="categoryForm.name" />
         </a-form-item>
-        <a-form-item label="编码" name="code">
+        <a-form-item :label="t('ai.marketplace.labelCode')" name="code">
           <a-input v-model:value="categoryForm.code" />
         </a-form-item>
-        <a-form-item label="描述" name="description">
+        <a-form-item :label="t('ai.promptLib.labelDescription')" name="description">
           <a-input v-model:value="categoryForm.description" />
         </a-form-item>
-        <a-form-item label="排序" name="sortOrder">
+        <a-form-item :label="t('ai.shortcuts.labelSort')" name="sortOrder">
           <a-input-number v-model:value="categoryForm.sortOrder" :min="0" style="width: 100%" />
         </a-form-item>
       </a-form>
@@ -149,9 +149,9 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" @click="fillCategoryForm(record)">编辑</a-button>
-              <a-popconfirm title="确认删除该分类？" @confirm="handleDeleteCategory(record.id)">
-                <a-button type="link" danger>删除</a-button>
+              <a-button type="link" @click="fillCategoryForm(record)">{{ t("common.edit") }}</a-button>
+              <a-popconfirm :title="t('ai.marketplace.deleteCategoryConfirm')" @confirm="handleDeleteCategory(record.id)">
+                <a-button type="link" danger>{{ t("common.delete") }}</a-button>
               </a-popconfirm>
             </a-space>
           </template>
@@ -163,6 +163,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -207,29 +210,30 @@ const filters = reactive({
   status: undefined as AiMarketplaceProductStatus | undefined
 });
 
-const productTypeOptions = [
-  { label: "Agent", value: 1 },
-  { label: "工作流", value: 2 },
-  { label: "Prompt", value: 3 },
-  { label: "插件", value: 4 },
-  { label: "应用", value: 5 }
-];
-const statusOptions = [
-  { label: "草稿", value: 0 },
-  { label: "已发布", value: 1 },
-  { label: "已归档", value: 2 }
-];
+const productTypeOptions = computed(() => [
+  { label: t("ai.marketplace.typeAgent"), value: 1 },
+  { label: t("ai.marketplace.typeWorkflow"), value: 2 },
+  { label: t("ai.marketplace.typePrompt"), value: 3 },
+  { label: t("ai.marketplace.typePlugin"), value: 4 },
+  { label: t("ai.marketplace.typeApp"), value: 5 }
+]);
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name", width: 200 },
-  { title: "分类", dataIndex: "categoryName", key: "categoryName", width: 140 },
-  { title: "类型", key: "productType", width: 100 },
-  { title: "状态", key: "status", width: 100 },
-  { title: "下载", dataIndex: "downloadCount", key: "downloadCount", width: 90 },
-  { title: "收藏", key: "favorite", width: 140 },
-  { title: "更新时间", dataIndex: "updatedAt", key: "updatedAt", width: 180 },
-  { title: "操作", key: "action", width: 220 }
-];
+const statusOptions = computed(() => [
+  { label: t("ai.marketplace.statusDraft"), value: 0 },
+  { label: t("ai.marketplace.statusPublished"), value: 1 },
+  { label: t("ai.marketplace.statusArchived"), value: 2 }
+]);
+
+const columns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 200 },
+  { title: t("ai.promptLib.labelCategory"), dataIndex: "categoryName", key: "categoryName", width: 140 },
+  { title: t("ai.plugin.labelType"), key: "productType", width: 100 },
+  { title: t("ai.workflow.colStatus"), key: "status", width: 100 },
+  { title: t("ai.marketplace.colDownload"), dataIndex: "downloadCount", key: "downloadCount", width: 90 },
+  { title: t("ai.marketplace.colFavorite"), key: "favorite", width: 140 },
+  { title: t("ai.workflow.colUpdatedAt"), dataIndex: "updatedAt", key: "updatedAt", width: 180 },
+  { title: t("ai.colActions"), key: "action", width: 220 }
+]);
 
 const productModalOpen = ref(false);
 const productSubmitting = ref(false);
@@ -245,10 +249,10 @@ const productForm = reactive({
   tagsInput: "",
   sourceResourceId: undefined as number | undefined
 });
-const productRules = {
-  categoryId: [{ required: true, message: "请选择分类" }],
-  name: [{ required: true, message: "请输入名称" }]
-};
+const productRules = computed(() => ({
+  categoryId: [{ required: true, message: t("ai.marketplace.ruleCategory") }],
+  name: [{ required: true, message: t("ai.marketplace.ruleName") }]
+}));
 
 const categoryModalOpen = ref(false);
 const categorySubmitting = ref(false);
@@ -260,23 +264,23 @@ const categoryForm = reactive({
   description: "",
   sortOrder: 10
 });
-const categoryRules = {
-  name: [{ required: true, message: "请输入分类名称" }],
-  code: [{ required: true, message: "请输入分类编码" }]
-};
-const categoryColumns = [
-  { title: "名称", dataIndex: "name", key: "name", width: 180 },
-  { title: "编码", dataIndex: "code", key: "code", width: 180 },
-  { title: "排序", dataIndex: "sortOrder", key: "sortOrder", width: 100 },
-  { title: "操作", key: "action", width: 140 }
-];
+const categoryRules = computed(() => ({
+  name: [{ required: true, message: t("ai.marketplace.ruleCategoryName") }],
+  code: [{ required: true, message: t("ai.marketplace.ruleCategoryCode") }]
+}));
+const categoryColumns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 180 },
+  { title: t("ai.marketplace.labelCode"), dataIndex: "code", key: "code", width: 180 },
+  { title: t("ai.shortcuts.labelSort"), dataIndex: "sortOrder", key: "sortOrder", width: 100 },
+  { title: t("ai.colActions"), key: "action", width: 140 }
+]);
 
 function formatProductType(type: AiMarketplaceProductType) {
-  return productTypeOptions.find((item) => item.value === type)?.label ?? "未知";
+  return productTypeOptions.value.find((item) => item.value === type)?.label ?? t("ai.unknown");
 }
 
 function formatStatus(status: AiMarketplaceProductStatus) {
-  return statusOptions.find((item) => item.value === status)?.label ?? "未知";
+  return statusOptions.value.find((item) => item.value === status)?.label ?? t("ai.unknown");
 }
 
 function statusColor(status: AiMarketplaceProductStatus) {
@@ -324,7 +328,7 @@ async function loadProducts() {
     products.value = result.items;
     total.value = Number(result.total);
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载市场商品失败");
+    message.error((error as Error).message || t("ai.marketplace.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -376,7 +380,7 @@ async function openEditProduct(id: number) {
     });
     productModalOpen.value = true;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载商品详情失败");
+    message.error((error as Error).message || t("ai.marketplace.loadDetailFailed"));
   }
 }
 
@@ -410,12 +414,12 @@ async function submitProduct() {
       await updateAiMarketplaceProduct(editingProductId.value, payload);
 
       if (!isMounted.value) return;
-      message.success("商品更新成功");
+      message.success(t("ai.marketplace.productUpdateOk"));
     } else {
       await createAiMarketplaceProduct(payload);
 
       if (!isMounted.value) return;
-      message.success("商品创建成功");
+      message.success(t("ai.marketplace.productCreateOk"));
     }
 
     productModalOpen.value = false;
@@ -423,7 +427,7 @@ async function submitProduct() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "提交商品失败");
+    message.error((error as Error).message || t("ai.marketplace.submitFailed"));
   } finally {
     productSubmitting.value = false;
   }
@@ -434,12 +438,12 @@ async function handleDeleteProduct(id: number) {
     await deleteAiMarketplaceProduct(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadProducts();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("crud.deleteFailed"));
   }
 }
 
@@ -449,12 +453,12 @@ async function handlePublish(record: AiMarketplaceProductListItem) {
     await publishAiMarketplaceProduct(record.id, { version });
 
     if (!isMounted.value) return;
-    message.success("发布成功");
+    message.success(t("ai.marketplace.publishSuccess"));
     await loadProducts();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "发布失败");
+    message.error((error as Error).message || t("ai.marketplace.publishFailed"));
   }
 }
 
@@ -475,7 +479,7 @@ async function toggleFavorite(record: AiMarketplaceProductListItem) {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "更新收藏失败");
+    message.error((error as Error).message || t("ai.marketplace.favoriteUpdateFailed"));
   }
 }
 
@@ -526,12 +530,12 @@ async function submitCategory() {
       await updateAiMarketplaceCategory(editingCategoryId.value, payload);
 
       if (!isMounted.value) return;
-      message.success("分类更新成功");
+      message.success(t("ai.marketplace.categoryUpdateOk"));
     } else {
       await createAiMarketplaceCategory(payload);
 
       if (!isMounted.value) return;
-      message.success("分类创建成功");
+      message.success(t("ai.marketplace.categoryCreateOk"));
     }
 
     editingCategoryId.value = null;
@@ -542,7 +546,7 @@ async function submitCategory() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "保存分类失败");
+    message.error((error as Error).message || t("ai.marketplace.saveCategoryFailed"));
   } finally {
     categorySubmitting.value = false;
   }
@@ -553,12 +557,12 @@ async function handleDeleteCategory(id: number) {
     await deleteAiMarketplaceCategory(id);
 
     if (!isMounted.value) return;
-    message.success("分类删除成功");
+    message.success(t("ai.marketplace.categoryDeleteOk"));
     await loadCategories();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除分类失败");
+    message.error((error as Error).message || t("ai.marketplace.deleteCategoryFailed"));
   }
 }
 

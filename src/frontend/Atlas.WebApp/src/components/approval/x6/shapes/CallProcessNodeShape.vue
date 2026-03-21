@@ -6,14 +6,14 @@
   >
     <div class="dd-node__header dd-node__header--call-process">
       <SubnodeOutlined class="dd-node__icon" />
-      <span class="dd-node__title">{{ data.nodeName || '子流程' }}</span>
+      <span class="dd-node__title">{{ data.nodeName || t('approvalDesigner.shapeCallProcessDefault') }}</span>
       <CloseOutlined class="dd-node__delete" @click.stop="handleDelete" />
     </div>
     <div class="dd-node__body">
-      <span v-if="data.callProcessId" class="dd-node__text">流程ID: {{ data.callProcessId }}</span>
-      <span v-else class="dd-node__placeholder">请配置子流程</span>
+      <span v-if="data.callProcessId" class="dd-node__text">{{ t('approvalDesigner.shapeCallProcessId', { id: data.callProcessId }) }}</span>
+      <span v-else class="dd-node__placeholder">{{ t('approvalDesigner.shapeConfigureCallProcess') }}</span>
       <div class="dd-node__sub-text" v-if="data.callProcessId">
-        {{ data.callAsync ? '异步执行' : '同步等待' }}
+        {{ data.callAsync ? t('approvalDesigner.shapeExecAsync') : t('approvalDesigner.shapeExecSync') }}
       </div>
       <RightOutlined class="dd-node__arrow" />
     </div>
@@ -22,7 +22,10 @@
 
 <script setup lang="ts">
 import { inject, ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { SubnodeOutlined, CloseOutlined, RightOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { Node } from '@antv/x6';
 
 const getNode = inject<() => Node>('getNode')!;

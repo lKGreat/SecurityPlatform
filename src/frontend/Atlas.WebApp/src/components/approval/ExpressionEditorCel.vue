@@ -3,7 +3,7 @@
     <a-textarea
       :value="modelValue"
       :rows="rows"
-      :placeholder="placeholder"
+      :placeholder="resolvedPlaceholder"
       @update:value="handleInput"
     />
     <div class="expr-toolbar">
@@ -15,7 +15,7 @@
           class="expr-var-tag"
           @click="insertVariable(v)"
         >{{ v }}</a-tag>
-        <a-tooltip v-if="serverVariables.length > 0" title="表达式中检测到的变量">
+        <a-tooltip v-if="serverVariables.length > 0" :title="t('approvalDesigner.celTooltipVars')">
           <a-tag
             v-for="sv in serverVariables"
             :key="`sv-${sv}`"
@@ -31,21 +31,20 @@
           size="small"
           :loading="tryRunning"
           @click="openTryRun"
-        >试运行</a-button>
+        >{{ t('approvalDesigner.celBtnTryRun') }}</a-button>
         <span class="expr-status" :class="{ invalid: !isValid }">{{ statusText }}</span>
       </a-space>
     </div>
 
-    <!-- 试运行 Modal -->
     <a-modal
       v-model:open="tryRunVisible"
-      title="表达式试运行"
+      :title="t('approvalDesigner.celModalTryTitle')"
       width="600px"
       :footer="null"
     >
       <div class="try-run-body">
         <div class="try-run-section">
-          <div class="try-run-label">模拟上下文 JSON（record 层）：</div>
+          <div class="try-run-label">{{ t('approvalDesigner.celTryContextLabel') }}</div>
           <a-textarea
             v-model:value="tryRunContext"
             :rows="5"
@@ -53,19 +52,19 @@
           />
         </div>
         <a-button type="primary" :loading="tryRunning" @click="runTryRun" style="margin-top: 12px">
-          执行
+          {{ t('approvalDesigner.celBtnExecute') }}
         </a-button>
         <div v-if="tryRunResult !== null" class="try-run-result">
           <a-divider />
           <div v-if="tryRunResult.success">
-            <a-tag color="green">成功</a-tag>
-            <span class="try-run-value">结果：{{ tryRunResult.resultValue }}</span>
+            <a-tag color="green">{{ t('approvalDesigner.celTrySuccess') }}</a-tag>
+            <span class="try-run-value">{{ t('approvalDesigner.celTryResultLabel') }}{{ tryRunResult.resultValue }}</span>
             <span v-if="tryRunResult.resultBool !== null" class="try-run-bool">
-              (布尔值：{{ tryRunResult.resultBool }})
+              {{ t('approvalDesigner.celTryBoolLabel', { value: tryRunResult.resultBool }) }}
             </span>
           </div>
           <div v-else>
-            <a-tag color="red">失败</a-tag>
+            <a-tag color="red">{{ t('approvalDesigner.celTryFail') }}</a-tag>
             <span class="try-run-error">{{ tryRunResult.error }}</span>
           </div>
         </div>
@@ -76,8 +75,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { validateExpression, evaluateExpression } from '@/services/api-expression'
 import type { ExpressionEvaluateResponse } from '@/services/api-expression'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -86,11 +88,13 @@ const props = withDefaults(defineProps<{
   variables?: string[]
   enableTryRun?: boolean
 }>(), {
-  placeholder: '请输入 CEL 表达式，例如：form.amount > 1000 && form.status == "approved"',
+  placeholder: undefined,
   rows: 4,
   variables: () => ['form', 'user', 'record', 'page', 'tenant'],
   enableTryRun: true,
 })
+
+const resolvedPlaceholder = computed(() => props.placeholder ?? t('approvalDesigner.celPhExpr'))
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -101,17 +105,17 @@ const forbiddenPatterns = [/javascript:/i, /eval\(/i, /function\(/i, /<script/i]
 
 const clientValidate = (value: string) => {
   const expr = value.trim()
-  if (!expr) return { valid: true, message: '空表达式（视为不启用）' }
-  if (expr.length > 4096) return { valid: false, message: '表达式长度超过 4096 字符限制' }
-  if (forbiddenPatterns.some((p) => p.test(expr))) return { valid: false, message: '表达式包含不安全内容' }
+  if (!expr) return { valid: true, message: t('approvalDesigner.celValidateEmpty') }
+  if (expr.length > 4096) return { valid: false, message: t('approvalDesigner.celValidateTooLong') }
+  if (forbiddenPatterns.some((p) => p.test(expr))) return { valid: false, message: t('approvalDesigner.celValidateUnsafe') }
   let balance = 0
   for (const ch of expr) {
     if (ch === '(') balance += 1
     if (ch === ')') balance -= 1
-    if (balance < 0) return { valid: false, message: '括号不匹配' }
+    if (balance < 0) return { valid: false, message: t('approvalDesigner.celValidateParen') }
   }
-  if (balance !== 0) return { valid: false, message: '括号不匹配' }
-  return { valid: true, message: '语法检查通过' }
+  if (balance !== 0) return { valid: false, message: t('approvalDesigner.celValidateParen') }
+  return { valid: true, message: t('approvalDesigner.celValidateOkLocal') }
 }
 
 const serverValidationMessage = ref('')
@@ -130,7 +134,7 @@ const runServerValidate = async (value: string) => {
     const res = await validateExpression({ expression: value })
     serverValid.value = res.isValid
     serverValidationMessage.value = res.isValid
-      ? '后端校验通过'
+      ? t('approvalDesigner.celValidateOkServer')
       : res.errors.join('；')
     serverVariables.value = res.variables ?? []
   } catch {
@@ -187,7 +191,7 @@ const runTryRun = async () => {
     try {
       record = JSON.parse(tryRunContext.value)
     } catch {
-      tryRunResult.value = { success: false, resultValue: null, resultBool: null, error: '上下文 JSON 格式错误' }
+      tryRunResult.value = { success: false, resultValue: null, resultBool: null, error: t('approvalDesigner.celTryContextJsonErr') }
       return
     }
     tryRunResult.value = await evaluateExpression({

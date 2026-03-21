@@ -1,16 +1,16 @@
 <template>
   <div class="condition-editor">
     <div v-if="!modelValue || modelValue.length === 0" class="empty-state">
-      <div class="empty-text">暂无条件，请添加条件组</div>
+      <div class="empty-text">{{ t('approvalDesigner.condEmptyAddGroup') }}</div>
       <a-button type="primary" size="small" @click="addGroup">
-        <PlusOutlined /> 添加条件组
+        <PlusOutlined /> {{ t('approvalDesigner.condBtnAddGroup') }}
       </a-button>
     </div>
 
     <div v-else class="group-list">
       <div v-for="(group, gIndex) in modelValue" :key="gIndex" class="condition-group">
         <div class="group-header">
-          <span class="group-title">条件组 {{ gIndex + 1 }} (组内满足所有条件)</span>
+          <span class="group-title">{{ t('approvalDesigner.condGroupTitle', { index: gIndex + 1 }) }}</span>
           <a-button type="text" danger size="small" @click="removeGroup(gIndex)">
             <DeleteOutlined />
           </a-button>
@@ -21,7 +21,7 @@
             <div class="condition-row">
               <a-select 
                 v-model:value="cond.field" 
-                placeholder="选择字段" 
+                :placeholder="t('approvalDesigner.phSelectField')" 
                 style="width: 120px"
                 @change="onFieldChange(cond)"
               >
@@ -30,7 +30,7 @@
                 </a-select-option>
               </a-select>
               
-              <a-select v-model:value="cond.operator" placeholder="运算符" style="width: 100px">
+              <a-select v-model:value="cond.operator" :placeholder="t('approvalDesigner.phOperator')" style="width: 100px">
                 <a-select-option v-for="op in getOperators(cond.field)" :key="op.value" :value="op.value">
                   {{ op.label }}
                 </a-select-option>
@@ -40,14 +40,14 @@
                 <a-input-number
                   v-if="isNumberField(cond.field)"
                   :value="typeof cond.value === 'number' ? cond.value : Number(cond.value) || undefined"
-                  placeholder="数值"
+                  :placeholder="t('approvalDesigner.phNumber')"
                   style="width: 100%"
                   @update:value="(v: number | null) => cond.value = v ?? ''"
                 />
                 <a-date-picker
                   v-else-if="isDateField(cond.field)"
                   :value="undefined"
-                  placeholder="选择日期"
+                  :placeholder="t('approvalDesigner.phPickDate')"
                   style="width: 100%"
                   value-format="YYYY-MM-DD"
                   @change="(_d: unknown, dateStr: string) => cond.value = dateStr"
@@ -55,7 +55,7 @@
                 <a-select
                   v-else-if="getFieldOptions(cond.field).length > 0"
                   v-model:value="cond.value"
-                  placeholder="选择值"
+                  :placeholder="t('approvalDesigner.phPickValue')"
                   style="width: 100%"
                   allow-clear
                   show-search
@@ -68,7 +68,7 @@
                     {{ opt.label }}
                   </a-select-option>
                 </a-select>
-                <a-input v-else v-model:value="cond.value" placeholder="比较值" />
+                <a-input v-else v-model:value="cond.value" :placeholder="t('approvalDesigner.phCompareValue')" />
               </div>
               
               <a-button type="text" danger size="small" class="delete-btn" @click="removeCondition(gIndex, cIndex)">
@@ -78,25 +78,27 @@
           </div>
           
           <a-button type="dashed" size="small" block @click="addCondition(gIndex)">
-            <PlusOutlined /> 添加条件
+            <PlusOutlined /> {{ t('approvalDesigner.condBtnAddCondition') }}
           </a-button>
         </div>
 
         <div v-if="gIndex < modelValue.length - 1" class="group-divider">
-          <span>OR (满足任一组即可)</span>
+          <span>{{ t('approvalDesigner.condOrHint') }}</span>
         </div>
       </div>
       
       <a-button type="dashed" block @click="addGroup" style="margin-top: 8px">
-        <PlusOutlined /> 添加条件组 (OR)
+        <PlusOutlined /> {{ t('approvalDesigner.condBtnAddGroupOr') }}
       </a-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { PlusOutlined, DeleteOutlined, CloseOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { ConditionGroup, ConditionExpression } from '@/types/approval-tree';
 import type { LfFormField } from '@/types/approval-definition';
 
@@ -109,31 +111,37 @@ const emit = defineEmits<{
   'update:modelValue': [value: ConditionGroup[]];
 }>();
 
-// ── Operators ──
-const commonOperators = [
-  { label: '等于', value: 'equals' },
-  { label: '不等于', value: 'notEquals' },
-];
+// ── Operators (labels follow locale) ──
+function commonOperators() {
+  return [
+    { label: t('approvalDesigner.condOpEquals'), value: 'equals' },
+    { label: t('approvalDesigner.condOpNotEquals'), value: 'notEquals' },
+  ];
+}
 
-const numberOperators = [
-  ...commonOperators,
-  { label: '大于', value: 'greaterThan' },
-  { label: '小于', value: 'lessThan' },
-  { label: '大于等于', value: 'greaterThanOrEqual' },
-  { label: '小于等于', value: 'lessThanOrEqual' },
-];
+function numberOperators() {
+  return [
+    ...commonOperators(),
+    { label: t('approvalDesigner.condOpGreaterThan'), value: 'greaterThan' },
+    { label: t('approvalDesigner.condOpLessThan'), value: 'lessThan' },
+    { label: t('approvalDesigner.condOpGreaterOrEqual'), value: 'greaterThanOrEqual' },
+    { label: t('approvalDesigner.condOpLessOrEqual'), value: 'lessThanOrEqual' },
+  ];
+}
 
-const stringOperators = [
-  ...commonOperators,
-  { label: '包含', value: 'contains' },
-  { label: '开头是', value: 'startsWith' },
-  { label: '结尾是', value: 'endsWith' },
-];
+function stringOperators() {
+  return [
+    ...commonOperators(),
+    { label: t('approvalDesigner.condOpContains'), value: 'contains' },
+    { label: t('approvalDesigner.condOpStartsWith'), value: 'startsWith' },
+    { label: t('approvalDesigner.condOpEndsWith'), value: 'endsWith' },
+  ];
+}
 
 function getOperators(fieldId: string) {
-  if (!props.formFields) return commonOperators;
+  if (!props.formFields) return commonOperators();
   const field = props.formFields.find(f => (f.fieldId || f.id) === fieldId);
-  if (!field) return commonOperators;
+  if (!field) return commonOperators();
 
   const fieldType = (field.fieldType || field.widgetType || '').toLowerCase();
   const valueType = (field.valueType || '').toLowerCase();
@@ -141,12 +149,12 @@ function getOperators(fieldId: string) {
     ['number', 'integer', 'decimal'].some((it) => valueType.includes(it))
     || ['input-number', 'slider', 'rate', 'number'].some((it) => fieldType.includes(it))
   ) {
-    return numberOperators;
+    return numberOperators();
   }
   if (['string', 'text'].some((it) => valueType.includes(it))) {
-    return stringOperators;
+    return stringOperators();
   }
-  return stringOperators;
+  return stringOperators();
 }
 
 function onFieldChange(cond: ConditionExpression) {

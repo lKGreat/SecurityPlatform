@@ -2,8 +2,8 @@
   <transition name="dd-palette-slide">
     <div v-show="visible" class="dd-palette">
       <div class="dd-palette__header">
-        <span>节点面板</span>
-        <button class="dd-palette__close" @click="emit('update:visible', false)" title="关闭">
+        <span>{{ t('approvalDesigner.palTitle') }}</span>
+        <button class="dd-palette__close" @click="emit('update:visible', false)" :title="t('approvalDesigner.palCloseTitle')">
           <CloseOutlined />
         </button>
       </div>
@@ -13,20 +13,20 @@
           v-model.trim="keyword"
           class="dd-palette__search-input"
           type="text"
-          placeholder="搜索节点（名称/说明）"
+          :placeholder="t('approvalDesigner.palSearchPh')"
         />
       </div>
       <div
         v-for="group in filteredNodeGroups"
-        :key="group.title"
+        :key="group.key"
         class="dd-palette__group"
       >
-        <button class="dd-palette__group-title" type="button" @click="toggleGroup(group.title)">
-          <component :is="expandedGroups.has(group.title) ? DownOutlined : RightOutlined" />
+        <button class="dd-palette__group-title" type="button" @click="toggleGroup(group.key)">
+          <component :is="expandedGroups.has(group.key) ? DownOutlined : RightOutlined" />
           <span>{{ group.title }}</span>
           <span class="dd-palette__group-count">{{ group.items.length }}</span>
         </button>
-        <div v-show="expandedGroups.has(group.title)">
+        <div v-show="expandedGroups.has(group.key)">
           <div
             v-for="item in group.items"
             :key="item.type"
@@ -44,7 +44,7 @@
         </div>
       </div>
       <div v-if="filteredNodeGroups.length === 0" class="dd-palette__empty">
-        未找到匹配节点
+        {{ t('approvalDesigner.palEmpty') }}
       </div>
     </div>
   </transition>
@@ -52,6 +52,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import type { Component } from 'vue';
 import {
   UserOutlined,
   SendOutlined,
@@ -68,46 +70,74 @@ import {
   RightOutlined,
 } from '@ant-design/icons-vue';
 
+const { t } = useI18n();
+
 defineProps<{
   visible: boolean;
 }>();
 
-const nodeGroups = [
+type PaletteItem = { type: string; label: string; desc: string; icon: Component; color: string };
+type PaletteGroup = { key: string; title: string; items: PaletteItem[] };
+
+const groupDefs: Array<{
+  key: string;
+  titleKey: string;
+  items: Array<{ type: string; labelKey: string; descKey: string; icon: Component; color: string }>;
+}> = [
   {
-    title: '基础节点',
+    key: 'basic',
+    titleKey: 'approvalDesigner.palCatBasic',
     items: [
-      { type: 'approve', label: '审批人', desc: '指定人员进行审批', icon: UserOutlined, color: '#ff943e' },
-      { type: 'copy', label: '抄送人', desc: '抄送通知相关人员', icon: SendOutlined, color: '#3296fa' },
-    ]
+      { type: 'approve', labelKey: 'approvalDesigner.palNodeApprove', descKey: 'approvalDesigner.palNodeApproveDesc', icon: UserOutlined, color: '#ff943e' },
+      { type: 'copy', labelKey: 'approvalDesigner.palNodeCopy', descKey: 'approvalDesigner.palNodeCopyDesc', icon: SendOutlined, color: '#3296fa' },
+    ],
   },
   {
-    title: '流程控制',
+    key: 'control',
+    titleKey: 'approvalDesigner.palCatControl',
     items: [
-      { type: 'condition', label: '条件分支', desc: '根据条件分流', icon: BranchesOutlined, color: '#15bc83' },
-      { type: 'parallel', label: '并行分支', desc: '多任务同时进行', icon: ApartmentOutlined, color: '#ff943e' },
-      { type: 'inclusive', label: '包容分支', desc: '满足条件的分支都执行', icon: NodeIndexOutlined, color: '#15bc83' },
-      { type: 'route', label: '路由分支', desc: '重定向到指定节点', icon: SwapOutlined, color: '#718dff' },
-    ]
+      { type: 'condition', labelKey: 'approvalDesigner.palNodeCondition', descKey: 'approvalDesigner.palNodeConditionDesc', icon: BranchesOutlined, color: '#15bc83' },
+      { type: 'parallel', labelKey: 'approvalDesigner.palNodeParallel', descKey: 'approvalDesigner.palNodeParallelDesc', icon: ApartmentOutlined, color: '#ff943e' },
+      { type: 'inclusive', labelKey: 'approvalDesigner.palNodeInclusive', descKey: 'approvalDesigner.palNodeInclusiveDesc', icon: NodeIndexOutlined, color: '#15bc83' },
+      { type: 'route', labelKey: 'approvalDesigner.palNodeRoute', descKey: 'approvalDesigner.palNodeRouteDesc', icon: SwapOutlined, color: '#718dff' },
+    ],
   },
   {
-    title: '高级节点',
+    key: 'advanced',
+    titleKey: 'approvalDesigner.palCatAdvanced',
     items: [
-      { type: 'callProcess', label: '子流程', desc: '调用外部流程', icon: SubnodeOutlined, color: '#faad14' },
-      { type: 'timer', label: '定时器', desc: '延时或定时执行', icon: ClockCircleOutlined, color: '#f5222d' },
-      { type: 'trigger', label: '触发器', desc: '触发外部动作', icon: ThunderboltOutlined, color: '#722ed1' },
-    ]
-  }
+      { type: 'callProcess', labelKey: 'approvalDesigner.palNodeSubflow', descKey: 'approvalDesigner.palNodeSubflowDesc', icon: SubnodeOutlined, color: '#faad14' },
+      { type: 'timer', labelKey: 'approvalDesigner.palNodeTimer', descKey: 'approvalDesigner.palNodeTimerDesc', icon: ClockCircleOutlined, color: '#f5222d' },
+      { type: 'trigger', labelKey: 'approvalDesigner.palNodeTrigger', descKey: 'approvalDesigner.palNodeTriggerDesc', icon: ThunderboltOutlined, color: '#722ed1' },
+    ],
+  },
 ];
+
+const nodeGroups = computed((): PaletteGroup[] =>
+  groupDefs.map((g) => ({
+    key: g.key,
+    title: t(g.titleKey),
+    items: g.items.map((it) => ({
+      type: it.type,
+      label: t(it.labelKey),
+      desc: t(it.descKey),
+      icon: it.icon,
+      color: it.color,
+    })),
+  })),
+);
+
 const keyword = ref('');
-const expandedGroups = ref(new Set(nodeGroups.map((group) => group.title)));
+const expandedGroups = ref(new Set(groupDefs.map((g) => g.key)));
 
 const filteredNodeGroups = computed(() => {
+  const groups = nodeGroups.value;
   const search = keyword.value.toLowerCase();
   if (!search) {
-    return nodeGroups;
+    return groups;
   }
 
-  return nodeGroups
+  return groups
     .map((group) => ({
       ...group,
       items: group.items.filter((item) =>
@@ -117,11 +147,11 @@ const filteredNodeGroups = computed(() => {
     .filter((group) => group.items.length > 0);
 });
 
-const toggleGroup = (title: string) => {
-  if (expandedGroups.value.has(title)) {
-    expandedGroups.value.delete(title);
+const toggleGroup = (key: string) => {
+  if (expandedGroups.value.has(key)) {
+    expandedGroups.value.delete(key);
   } else {
-    expandedGroups.value.add(title);
+    expandedGroups.value.add(key);
   }
 };
 
@@ -205,95 +235,86 @@ const emit = defineEmits<{
   align-items: center;
   gap: 6px;
   width: 100%;
+  padding: 8px 16px;
   border: none;
   background: transparent;
-  text-align: left;
-  padding: 0 16px;
-  font-size: 12px;
-  color: #8c8c8c;
-  margin-bottom: 4px;
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #595959;
+  text-align: left;
+}
+
+.dd-palette__group-title:hover {
+  background: #fafafa;
 }
 
 .dd-palette__group-count {
   margin-left: auto;
-  color: #bfbfbf;
-}
-
-.dd-palette__group-title:hover {
-  color: #1677ff;
+  font-size: 11px;
+  color: #8c8c8c;
+  font-weight: 400;
 }
 
 .dd-palette__item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
+  gap: 10px;
+  padding: 8px 16px 8px 28px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.2s;
 }
 
 .dd-palette__item:hover {
-  background: #f0f5ff;
-}
-
-.dd-palette__item:active {
-  background: #e6f0ff;
+  background: #f5f5f5;
 }
 
 .dd-palette__icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-size: 16px;
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 }
 
 .dd-palette__info {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .dd-palette__label {
   font-size: 13px;
   font-weight: 500;
   color: #1f1f1f;
-  line-height: 1.2;
 }
 
 .dd-palette__desc {
   font-size: 11px;
   color: #8c8c8c;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
 }
 
 .dd-palette__empty {
-  margin: 12px;
-  padding: 12px;
+  padding: 16px;
   text-align: center;
   font-size: 12px;
   color: #8c8c8c;
-  background: #fafafa;
-  border-radius: 6px;
 }
 
-/* 侧边栏滑入/滑出动画 */
 .dd-palette-slide-enter-active,
 .dd-palette-slide-leave-active {
-  transition: all 0.25s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
+
 .dd-palette-slide-enter-from,
 .dd-palette-slide-leave-to {
-  transform: translateX(-100%);
+  transform: translateX(-12px);
   opacity: 0;
 }
 </style>

@@ -6,11 +6,11 @@
   >
     <div class="dd-node__header dd-node__header--trigger">
       <ThunderboltOutlined class="dd-node__icon" />
-      <span class="dd-node__title">{{ data.nodeName || '触发器' }}</span>
+      <span class="dd-node__title">{{ data.nodeName || t('approvalDesigner.shapeTriggerDefault') }}</span>
       <CloseOutlined class="dd-node__delete" @click.stop="handleDelete" />
     </div>
     <div class="dd-node__body">
-      <span class="dd-node__text">{{ data.triggerType === 'immediate' ? '立即触发' : '定时触发' }}</span>
+      <span class="dd-node__text">{{ data.triggerType === 'immediate' ? t('approvalDesigner.propsTriggerImmediate') : t('approvalDesigner.propsTriggerScheduled') }}</span>
       <RightOutlined class="dd-node__arrow" />
     </div>
   </div>
@@ -18,7 +18,10 @@
 
 <script setup lang="ts">
 import { inject, ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { ThunderboltOutlined, CloseOutlined, RightOutlined } from '@ant-design/icons-vue';
+
+const { t } = useI18n();
 import type { Node } from '@antv/x6';
 
 const getNode = inject<() => Node>('getNode')!;

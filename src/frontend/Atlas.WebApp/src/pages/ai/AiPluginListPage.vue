@@ -1,16 +1,16 @@
 <template>
-  <a-card title="插件管理" :bordered="false">
+  <a-card :title="t('ai.plugin.listTitle')" :bordered="false">
     <div class="toolbar">
       <a-space wrap>
         <a-input-search
           v-model:value="keyword"
-          placeholder="搜索插件名称"
+          :placeholder="t('ai.plugin.searchPlaceholder')"
           style="width: 260px"
           @search="loadData"
         />
-        <a-button @click="showBuiltInMetadata">内置插件</a-button>
-        <a-button @click="handleReset">重置</a-button>
-        <a-button type="primary" @click="openCreate">新建插件</a-button>
+        <a-button @click="showBuiltInMetadata">{{ t("ai.plugin.builtIn") }}</a-button>
+        <a-button @click="handleReset">{{ t("common.reset") }}</a-button>
+        <a-button type="primary" @click="openCreate">{{ t("ai.plugin.newPlugin") }}</a-button>
       </a-space>
     </div>
 
@@ -18,25 +18,25 @@
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'type'">
           <a-tag :color="record.type === 1 ? 'purple' : 'blue'">
-            {{ record.type === 1 ? "内置" : "自定义" }}
+            {{ record.type === 1 ? t("ai.plugin.typeBuiltIn") : t("ai.plugin.typeCustom") }}
           </a-tag>
         </template>
         <template v-if="column.key === 'status'">
           <a-tag :color="record.status === 1 ? 'green' : 'default'">
-            {{ record.status === 1 ? "已发布" : "草稿" }}
+            {{ record.status === 1 ? t("ai.plugin.statusPublished") : t("ai.plugin.statusDraft") }}
           </a-tag>
         </template>
         <template v-if="column.key === 'lock'">
           <a-tag :color="record.isLocked ? 'red' : 'default'">
-            {{ record.isLocked ? "已锁定" : "未锁定" }}
+            {{ record.isLocked ? t("ai.plugin.locked") : t("ai.plugin.unlocked") }}
           </a-tag>
         </template>
         <template v-if="column.key === 'action'">
           <a-space>
-            <a-button type="link" @click="goDetail(record.id)">详情</a-button>
-            <a-button type="link" @click="openEdit(record.id)">编辑</a-button>
-            <a-popconfirm title="确认删除该插件？" @confirm="handleDelete(record.id)">
-              <a-button type="link" danger>删除</a-button>
+            <a-button type="link" @click="goDetail(record.id)">{{ t("ai.plugin.detail") }}</a-button>
+            <a-button type="link" @click="openEdit(record.id)">{{ t("common.edit") }}</a-button>
+            <a-popconfirm :title="t('ai.plugin.deleteConfirm')" @confirm="handleDelete(record.id)">
+              <a-button type="link" danger>{{ t("common.delete") }}</a-button>
             </a-popconfirm>
           </a-space>
         </template>
@@ -56,35 +56,35 @@
 
     <a-modal
       v-model:open="modalOpen"
-      :title="editingId ? '编辑插件' : '新建插件'"
+      :title="editingId ? t('ai.plugin.modalEdit') : t('ai.plugin.modalCreate')"
       :confirm-loading="modalLoading"
       width="760px"
       @ok="submitForm"
       @cancel="closeModal"
     >
       <a-form ref="formRef" :model="form" layout="vertical" :rules="rules">
-        <a-form-item label="名称" name="name">
+        <a-form-item :label="t('ai.promptLib.colName')" name="name">
           <a-input v-model:value="form.name" />
         </a-form-item>
-        <a-form-item label="描述" name="description">
+        <a-form-item :label="t('ai.promptLib.labelDescription')" name="description">
           <a-textarea v-model:value="form.description" :rows="3" />
         </a-form-item>
-        <a-form-item label="图标" name="icon">
+        <a-form-item :label="t('ai.plugin.labelIcon')" name="icon">
           <a-input v-model:value="form.icon" />
         </a-form-item>
-        <a-form-item label="分类" name="category">
+        <a-form-item :label="t('ai.promptLib.labelCategory')" name="category">
           <a-input v-model:value="form.category" />
         </a-form-item>
-        <a-form-item label="类型" name="type">
+        <a-form-item :label="t('ai.plugin.labelType')" name="type">
           <a-select v-model:value="form.type" :options="typeOptions" />
         </a-form-item>
-        <a-form-item label="定义 JSON" name="definitionJson">
+        <a-form-item :label="t('ai.plugin.labelDefinitionJson')" name="definitionJson">
           <a-textarea v-model:value="form.definitionJson" :rows="8" />
         </a-form-item>
       </a-form>
     </a-modal>
 
-    <a-drawer v-model:open="builtInDrawerOpen" title="内置插件元数据" width="760">
+    <a-drawer v-model:open="builtInDrawerOpen" :title="t('ai.plugin.drawerBuiltInTitle')" width="760">
       <a-table row-key="code" :columns="builtInColumns" :data-source="builtInList" :pagination="false">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'tags'">
@@ -99,7 +99,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, onUnmounted } from "vue";
+import { computed, onMounted, reactive, ref, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
@@ -130,20 +133,20 @@ const pageIndex = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 
-const columns = [
-  { title: "名称", dataIndex: "name", key: "name", width: 220 },
-  { title: "分类", dataIndex: "category", key: "category", width: 140 },
-  { title: "类型", key: "type", width: 100 },
-  { title: "状态", key: "status", width: 100 },
-  { title: "锁定", key: "lock", width: 100 },
-  { title: "更新时间", dataIndex: "updatedAt", key: "updatedAt", width: 200 },
-  { title: "操作", key: "action", width: 180 }
-];
+const columns = computed(() => [
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 220 },
+  { title: t("ai.promptLib.labelCategory"), dataIndex: "category", key: "category", width: 140 },
+  { title: t("ai.plugin.labelType"), key: "type", width: 100 },
+  { title: t("ai.workflow.colStatus"), key: "status", width: 100 },
+  { title: t("ai.plugin.colLock"), key: "lock", width: 100 },
+  { title: t("ai.workflow.colUpdatedAt"), dataIndex: "updatedAt", key: "updatedAt", width: 200 },
+  { title: t("ai.colActions"), key: "action", width: 180 }
+]);
 
-const typeOptions = [
-  { label: "自定义", value: 0 },
-  { label: "内置", value: 1 }
-];
+const typeOptions = computed(() => [
+  { label: t("ai.plugin.typeCustom"), value: 0 },
+  { label: t("ai.plugin.typeBuiltIn"), value: 1 }
+]);
 
 const modalOpen = ref(false);
 const modalLoading = ref(false);
@@ -157,19 +160,19 @@ const form = reactive({
   type: 0 as AiPluginType,
   definitionJson: "{}"
 });
-const rules = {
-  name: [{ required: true, message: "请输入插件名称" }]
-};
+const rules = computed(() => ({
+  name: [{ required: true, message: t("ai.plugin.ruleName") }]
+}));
 
 const builtInDrawerOpen = ref(false);
 const builtInList = ref<AiPluginBuiltInMetaItem[]>([]);
-const builtInColumns = [
+const builtInColumns = computed(() => [
   { title: "Code", dataIndex: "code", key: "code", width: 180 },
-  { title: "名称", dataIndex: "name", key: "name", width: 150 },
-  { title: "分类", dataIndex: "category", key: "category", width: 120 },
-  { title: "描述", dataIndex: "description", key: "description" },
-  { title: "标签", key: "tags", width: 220 }
-];
+  { title: t("ai.promptLib.colName"), dataIndex: "name", key: "name", width: 150 },
+  { title: t("ai.promptLib.labelCategory"), dataIndex: "category", key: "category", width: 120 },
+  { title: t("ai.promptLib.labelDescription"), dataIndex: "description", key: "description" },
+  { title: t("ai.promptLib.colTags"), key: "tags", width: 220 }
+]);
 
 async function loadData() {
   loading.value = true;
@@ -183,7 +186,7 @@ async function loadData() {
     list.value = result.items;
     total.value = Number(result.total);
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载插件列表失败");
+    message.error((error as Error).message || t("ai.plugin.loadListFailed"));
   } finally {
     loading.value = false;
   }
@@ -233,7 +236,7 @@ async function openEdit(id: number) {
     });
     modalOpen.value = true;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载插件详情失败");
+    message.error((error as Error).message || t("ai.plugin.loadDetailFailed"));
   }
 }
 
@@ -266,12 +269,12 @@ async function submitForm() {
       await updateAiPlugin(editingId.value, payload);
 
       if (!isMounted.value) return;
-      message.success("更新成功");
+      message.success(t("crud.updateSuccess"));
     } else {
       await createAiPlugin(payload);
 
       if (!isMounted.value) return;
-      message.success("创建成功");
+      message.success(t("crud.createSuccess"));
     }
 
     modalOpen.value = false;
@@ -279,7 +282,7 @@ async function submitForm() {
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "提交失败");
+    message.error((error as Error).message || t("crud.submitFailed"));
   } finally {
     modalLoading.value = false;
   }
@@ -290,12 +293,12 @@ async function handleDelete(id: number) {
     await deleteAiPlugin(id);
 
     if (!isMounted.value) return;
-    message.success("删除成功");
+    message.success(t("crud.deleteSuccess"));
     await loadData();
 
     if (!isMounted.value) return;
   } catch (error: unknown) {
-    message.error((error as Error).message || "删除失败");
+    message.error((error as Error).message || t("crud.deleteFailed"));
   }
 }
 
@@ -306,7 +309,7 @@ async function showBuiltInMetadata() {
     if (!isMounted.value) return;
     builtInDrawerOpen.value = true;
   } catch (error: unknown) {
-    message.error((error as Error).message || "加载内置插件失败");
+    message.error((error as Error).message || t("ai.plugin.loadBuiltInFailed"));
   }
 }
 
