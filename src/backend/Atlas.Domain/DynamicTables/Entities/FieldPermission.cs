@@ -24,7 +24,8 @@ public sealed class FieldPermission : TenantEntity
         bool canView,
         bool canEdit,
         long id,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        long? appId = null)
         : base(tenantId)
     {
         Id = id;
@@ -35,6 +36,7 @@ public sealed class FieldPermission : TenantEntity
         CanEdit = canEdit;
         CreatedAt = now;
         UpdatedAt = now;
+        AppId = appId;
     }
 
     public string TableKey { get; private set; }
@@ -44,6 +46,9 @@ public sealed class FieldPermission : TenantEntity
     public bool CanEdit { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
+
+    /// <summary>所属应用 ID。null=平台级字段权限，有值=应用级字段权限。</summary>
+    public long? AppId { get; private set; }
 
     public void Update(bool canView, bool canEdit, DateTimeOffset now)
     {

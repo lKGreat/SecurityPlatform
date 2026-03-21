@@ -4,7 +4,10 @@
       <div class="panel-title">
         {{ t("systemRoles.assignPanelTitle", { roleName, roleCode }) }}
       </div>
-      <a-button type="primary" :loading="submitting" @click="submitAssign">{{ t("systemRoles.saveAssign") }}</a-button>
+      <a-space>
+        <a-tag v-if="scope === 'app'" color="blue">{{ t('systemRoles.appScope', '应用级') }}</a-tag>
+        <a-button type="primary" :loading="submitting" @click="submitAssign">{{ t("systemRoles.saveAssign") }}</a-button>
+      </a-space>
     </div>
 
     <div class="panel-content">
@@ -35,9 +38,9 @@
             />
           </a-tab-pane>
           
-          <a-tab-pane v-if="canAssignMenus" key="menus" :tab="t('systemRoles.menuTab')">
+          <a-tab-pane v-if="canAssignMenus" key="menus" :tab="scope === 'app' ? t('systemRoles.pageTab', '页面分配') : t('systemRoles.menuTab')">
             <a-alert
-              :message="t('systemRoles.menuTabHint')"
+              :message="scope === 'app' ? t('systemRoles.pageTabHint', '勾选此应用角色可访问的页面') : t('systemRoles.menuTabHint')"
               type="info"
               show-icon
               style="margin-bottom: 12px"
@@ -198,9 +201,23 @@ import {
   getDynamicFieldPermissions,
   setDynamicFieldPermissions
 } from '@/services/dynamic-tables';
+import {
+  getTenantAppRoleDetail,
+  updateTenantAppRolePermissions,
+  getAppRoleDataScope,
+  setAppRoleDataScope,
+  getAppDepartmentAll,
+  getAppPermissionsPaged,
+  getAppRoleAvailablePages,
+  getAppRolePages,
+  setAppRolePages,
+  getAppRoleFieldPermissions,
+  setAppRoleFieldPermissions
+} from '@/services/api-app-members';
 import { debounce, handleTree, type SelectOption } from '@/utils/common';
 import type { DataNode } from 'ant-design-vue/es/tree';
 import { getProjectScopeEnabled } from "@/utils/auth";
+import type { AppPageListItem, AppRoleFieldPermissionGroup } from '@/types/platform-v2';
 
 const { t } = useI18n();
 
@@ -211,11 +228,17 @@ const props = defineProps<{
   canAssignPermissions: boolean;
   canAssignMenus: boolean;
   canManageDataScope: boolean;
+  /** 上下文范围：platform=平台级，app=应用级 */
+  scope?: 'platform' | 'app';
+  /** 应用 ID，scope=app 时必填 */
+  appId?: string;
 }>();
 
 const emit = defineEmits<{
   (e: 'success'): void;
 }>();
+
+const isAppScope = computed(() => props.scope === 'app' && !!props.appId);
 
 const isMounted = ref(true);
 onBeforeUnmount(() => {
@@ -244,6 +267,7 @@ const dataScopeOptions = [
 
 const assignModel = reactive({
   permissionIds: [] as number[],
+  permissionCodes: [] as string[],
   menuIds: [] as number[],
   dataScope: 0 as number,
   deptIds: [] as number[]
@@ -312,11 +336,18 @@ const clearAllMenus = () => {
   menuCheckedKeys.value = [];
 };
 
+// 平台模式：key 是 ID（数字），应用模式：key 是编码（字符串，前缀 perm_code:XXX）
+const PERM_CODE_PREFIX = 'perm_code:';
+
 watch(permissionCheckedKeys, (val) => {
-  if (Array.isArray(val)) {
-    assignModel.permissionIds = filterNumericKeys(val);
-  } else if (val && val.checked) {
-    assignModel.permissionIds = filterNumericKeys(val.checked);
+  const keys = Array.isArray(val) ? val : (val?.checked ?? []);
+  if (isAppScope.value) {
+    // 应用模式：只收集以 PERM_CODE_PREFIX 开头的叶子节点
+    assignModel.permissionCodes = keys
+      .filter((k): k is string => typeof k === 'string' && k.startsWith(PERM_CODE_PREFIX))
+      .map(k => k.slice(PERM_CODE_PREFIX.length));
+  } else {
+    assignModel.permissionIds = filterNumericKeys(Array.isArray(val) ? val : (val?.checked ?? []));
   }
 });
 
@@ -329,7 +360,7 @@ watch(menuCheckedKeys, (val) => {
 });
 
 watch(() => assignModel.permissionIds, (newVal) => {
-  if (Array.isArray(newVal) && (!Array.isArray(permissionCheckedKeys.value) || newVal.join(',') !== (permissionCheckedKeys.value as number[]).join(','))) {
+  if (!isAppScope.value && Array.isArray(newVal) && (!Array.isArray(permissionCheckedKeys.value) || newVal.join(',') !== (permissionCheckedKeys.value as number[]).join(','))) {
     permissionCheckedKeys.value = [...newVal];
   }
 });
@@ -346,6 +377,11 @@ const departmentOptions = ref<SelectOption[]>([]);
 const permissionLoading = ref(false);
 const menuLoading = ref(false);
 const departmentLoading = ref(false);
+
+// 应用级页面列表（app scope 时用于"页面分配"Tab）
+const appPageListItems = ref<AppPageListItem[]>([]);
+// 应用级字段权限所有分组（预加载，app scope 时用）
+const appFieldPermissionGroups = ref<AppRoleFieldPermissionGroup[]>([]);
 
 const dynamicTableOptions = ref<Array<{ label: string; value: string }>>([]);
 const dynamicTableLoading = ref(false);
@@ -380,32 +416,46 @@ const loadPermissionOptions = async (keyword?: string) => {
   if (!isMounted.value) return;
   permissionLoading.value = true;
   try {
-    const result = await getPermissionsPaged({
-      pageIndex: 1,
-      pageSize: 100,
-      keyword: keyword?.trim() || undefined
-    });
+    let items: Array<{ id: string; code: string; name: string }> = [];
+    if (isAppScope.value && props.appId) {
+      // 应用模式：从应用级权限 API 加载
+      const result = await getAppPermissionsPaged(props.appId, {
+        pageIndex: 1,
+        pageSize: 200,
+        keyword: keyword?.trim() || undefined
+      });
+      items = result.items;
+    } else {
+      // 平台模式：从平台级权限 API 加载
+      const result = await getPermissionsPaged({
+        pageIndex: 1,
+        pageSize: 200,
+        keyword: keyword?.trim() || undefined
+      });
+      items = result.items;
+    }
     if (!isMounted.value) return;
-    const items = result.items;
-    const rootNodes: Record<string, any> = {};
-    items.forEach((item: any) => {
+    const rootNodes: Record<string, DataNode> = {};
+    items.forEach((item: { id: string; code: string; name: string }) => {
       const parts = item.code.split(':');
       const moduleCode = parts[0] || '默认';
       if (!rootNodes[moduleCode]) {
-         rootNodes[moduleCode] = {
-           key: `module_${moduleCode}`,
-           title: moduleCode.toUpperCase(),
-           children: []
-         };
+        rootNodes[moduleCode] = {
+          key: `module_${moduleCode}`,
+          title: moduleCode.toUpperCase(),
+          children: []
+        };
       }
-      rootNodes[moduleCode].children.push({
-        key: Number(item.id),
+      // 应用模式：key 用字符串编码，平台模式：key 用数字 ID
+      const nodeKey = isAppScope.value ? `${PERM_CODE_PREFIX}${item.code}` : Number(item.id);
+      (rootNodes[moduleCode].children as DataNode[]).push({
+        key: nodeKey,
         title: `${item.name} (${item.code})`
       });
     });
     permissionTreeData.value = Object.values(rootNodes);
-  } catch (error) {
-    // console.error(error);
+  } catch {
+    // silent
   } finally {
     if (isMounted.value) {
       permissionLoading.value = false;
@@ -419,7 +469,7 @@ const loadMenuOptions = async (keyword?: string) => {
   try {
     const items = await getMenusAll();
     if (!isMounted.value) return;
-    const formatted = items.map((item: any) => ({
+    const formatted = items.map((item) => ({
       ...item,
       key: Number(item.id),
       value: Number(item.id),
@@ -428,10 +478,10 @@ const loadMenuOptions = async (keyword?: string) => {
       parentId: item.parentId ? Number(item.parentId) : 0
     }));
     const keywordTrimmed = keyword?.trim().toLowerCase();
-    const filtered = keywordTrimmed ? formatted.filter((f: any) => f.title.toLowerCase().includes(keywordTrimmed)) : formatted;
+    const filtered = keywordTrimmed ? formatted.filter((f) => (f.title as string).toLowerCase().includes(keywordTrimmed)) : formatted;
     menuTreeData.value = handleTree(filtered, "id", "parentId", "children");
-  } catch (error) {
-    // console.error(error);
+  } catch {
+    // silent
   } finally {
     if (isMounted.value) {
       menuLoading.value = false;
@@ -442,25 +492,69 @@ const loadMenuOptions = async (keyword?: string) => {
 const handlePermissionSearch = debounce((value: string) => void loadPermissionOptions(value));
 const handleMenuSearch = debounce((value: string) => void loadMenuOptions(value));
 
+const loadAppPageOptions = async () => {
+  if (!isMounted.value || !props.appId) return;
+  menuLoading.value = true;
+  try {
+    const pages = await getAppRoleAvailablePages(props.appId);
+    if (!isMounted.value) return;
+    appPageListItems.value = pages;
+    const formatted = pages.map((p) => ({
+      key: Number(p.id),
+      value: Number(p.id),
+      title: p.name,
+      id: Number(p.id),
+      parentId: p.parentPageId ?? 0
+    }));
+    menuTreeData.value = handleTree(formatted, "id", "parentId", "children");
+  } catch {
+    // silent
+  } finally {
+    if (isMounted.value) menuLoading.value = false;
+  }
+};
+
+const loadAppFieldPermissions = async () => {
+  if (!isMounted.value || !props.appId || !props.roleId) return;
+  try {
+    const groups = await getAppRoleFieldPermissions(props.appId, props.roleId);
+    if (!isMounted.value) return;
+    appFieldPermissionGroups.value = groups;
+    dynamicTableOptions.value = groups.map((g) => ({
+      label: g.tableKey,
+      value: g.tableKey
+    }));
+  } catch {
+    // silent
+  }
+};
 const loadDepartmentOptions = async (keyword?: string) => {
   if (!isMounted.value) return;
   departmentLoading.value = true;
   try {
-    const items = await getDepartmentsAll();
+    let items: Array<{ id: string; name: string; parentId?: string | number | null }> = [];
+    if (isAppScope.value && props.appId) {
+      // 应用模式：加载应用级部门
+      const appDepts = await getAppDepartmentAll(props.appId);
+      items = appDepts.map(d => ({ id: d.id, name: d.name, parentId: d.parentId }));
+    } else {
+      // 平台模式：加载平台级部门
+      items = await getDepartmentsAll();
+    }
     if (!isMounted.value) return;
-    const formatted = items.map((item: any) => ({
+    const formatted = items.map((item) => ({
       ...item,
       key: Number(item.id),
       value: Number(item.id),
-      title: `${item.name}`,
+      title: item.name,
       id: Number(item.id),
       parentId: item.parentId ? Number(item.parentId) : 0
     }));
     const keywordTrimmed = keyword?.trim().toLowerCase();
-    const filtered = keywordTrimmed ? formatted.filter((f: any) => f.title.toLowerCase().includes(keywordTrimmed)) : formatted;
+    const filtered = keywordTrimmed ? formatted.filter((f) => (f.title as string).toLowerCase().includes(keywordTrimmed)) : formatted;
     departmentTreeData.value = handleTree(filtered, "id", "parentId", "children");
-  } catch (error) {
-    // console.error(error);
+  } catch {
+    // silent
   } finally {
     if (isMounted.value) {
       departmentLoading.value = false;
@@ -484,13 +578,8 @@ const loadDynamicTableOptions = async (search?: string) => {
       label: `${item.displayName} (${item.tableKey})`,
       value: item.tableKey
     }));
-  } catch (error: any) {
-    if (isMounted.value) {
-      const isMissingAppCtx = error.payload?.code === 'APP_CONTEXT_REQUIRED' || error.message?.includes('APP_CONTEXT_REQUIRED');
-      if (!isMissingAppCtx) {
-        // error tracking
-      }
-    }
+  } catch {
+    // silent
   } finally {
     if (isMounted.value) {
       dynamicTableLoading.value = false;
@@ -539,7 +628,15 @@ const handleFieldPermissionTableChange = (value: string) => {
     existingFieldPermissions.value = [];
     return;
   }
-  void loadFieldPermissions(value);
+  if (isAppScope.value) {
+    const group = appFieldPermissionGroups.value.find((g) => g.tableKey === value);
+    fieldPermissionRows.value = group
+      ? group.fields.map((f) => ({ fieldName: f.fieldName, label: f.fieldName, canView: f.canView, canEdit: f.canEdit }))
+      : [];
+    existingFieldPermissions.value = [];
+  } else {
+    void loadFieldPermissions(value);
+  }
 };
 
 const handleFieldViewChange = (fieldName: string, value: boolean) => {
@@ -565,23 +662,56 @@ const fetchRoleDetail = async () => {
   existingFieldPermissions.value = [];
 
   try {
-    await Promise.all([
-      props.canAssignPermissions ? loadPermissionOptions() : Promise.resolve(),
-      props.canAssignMenus ? loadMenuOptions() : Promise.resolve(),
-      props.canAssignPermissions ? loadDynamicTableOptions() : Promise.resolve(),
-      props.canManageDataScope ? loadDepartmentOptions() : Promise.resolve()
-    ]);
+    if (isAppScope.value && props.appId) {
+      // 应用模式：并行加载权限选项、动态表等
+      await Promise.all([
+        props.canAssignPermissions ? loadPermissionOptions() : Promise.resolve(),
+        props.canAssignMenus ? loadAppPageOptions() : Promise.resolve(),
+        props.canAssignPermissions ? loadAppFieldPermissions() : Promise.resolve(),
+        props.canManageDataScope ? loadDepartmentOptions() : Promise.resolve()
+      ]);
+      if (!isMounted.value) return;
 
-    if (!isMounted.value) return;
-    const detail = await getRoleDetail(props.roleId);
-    if (!isMounted.value) return;
-    assignModel.permissionIds = detail.permissionIds?.slice() ?? [];
-    assignModel.menuIds = detail.menuIds?.slice() ?? [];
-    // 兼容历史值：CurrentTenant(1) 在前端统一映射为“全部数据(0)”展示。
-    assignModel.dataScope = detail.dataScope === 1 ? 0 : (detail.dataScope ?? 0);
-    assignModel.deptIds = (detail.deptIds ?? [])
-      .map((value) => Number(value))
-      .filter((value) => Number.isFinite(value));
+      const [roleDetail, dataScopeDetail, pageIds] = await Promise.all([
+        getTenantAppRoleDetail(props.appId, props.roleId),
+        props.canManageDataScope ? getAppRoleDataScope(props.appId, props.roleId) : Promise.resolve(null),
+        props.canAssignMenus ? getAppRolePages(props.appId, props.roleId) : Promise.resolve([])
+      ]);
+      if (!isMounted.value) return;
+
+      // 应用角色：权限是 codes
+      assignModel.permissionCodes = roleDetail.permissionCodes?.slice() ?? [];
+      permissionCheckedKeys.value = assignModel.permissionCodes.map(code => `${PERM_CODE_PREFIX}${code}`);
+
+      // 页面分配
+      assignModel.menuIds = pageIds.map(Number).filter(Number.isFinite);
+
+      if (dataScopeDetail) {
+        assignModel.dataScope = dataScopeDetail.dataScope ?? 0;
+        assignModel.deptIds = (dataScopeDetail.deptIds ?? [])
+          .map(v => Number(v))
+          .filter(v => Number.isFinite(v));
+      }
+    } else {
+      // 平台模式：原有逻辑
+      await Promise.all([
+        props.canAssignPermissions ? loadPermissionOptions() : Promise.resolve(),
+        props.canAssignMenus ? loadMenuOptions() : Promise.resolve(),
+        props.canAssignPermissions ? loadDynamicTableOptions() : Promise.resolve(),
+        props.canManageDataScope ? loadDepartmentOptions() : Promise.resolve()
+      ]);
+
+      if (!isMounted.value) return;
+      const detail = await getRoleDetail(props.roleId);
+      if (!isMounted.value) return;
+      assignModel.permissionIds = detail.permissionIds?.slice() ?? [];
+      assignModel.menuIds = detail.menuIds?.slice() ?? [];
+      // 兼容历史值：CurrentTenant(1) 在前端统一映射为"全部数据(0)"展示。
+      assignModel.dataScope = detail.dataScope === 1 ? 0 : (detail.dataScope ?? 0);
+      assignModel.deptIds = (detail.deptIds ?? [])
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value));
+    }
   } catch (error) {
     if (isMounted.value) {
       message.error((error as Error).message || "加载角色详情失败");
@@ -599,24 +729,69 @@ const submitAssign = async () => {
   submitting.value = true;
   try {
     const tasks: Promise<unknown>[] = [];
-    
-    if (props.canAssignPermissions) {
-      tasks.push(updateRolePermissions(props.roleId, { permissionIds: assignModel.permissionIds }));
+
+    if (isAppScope.value && props.appId) {
+      // 应用模式：使用应用级 API
+      if (props.canAssignPermissions) {
+        tasks.push(updateTenantAppRolePermissions(props.appId, props.roleId, {
+          permissionCodes: assignModel.permissionCodes
+        }));
+      }
+
+      if (props.canAssignMenus) {
+        tasks.push(setAppRolePages(props.appId, props.roleId, {
+          pageIds: assignModel.menuIds
+        }));
+      }
+
+      if (props.canManageDataScope) {
+        tasks.push(setAppRoleDataScope(props.appId, props.roleId, {
+          dataScope: assignModel.dataScope,
+          deptIds: assignModel.dataScope === 2 ? assignModel.deptIds : undefined
+        }));
+      }
+
+      // 应用级字段权限：将当前已编辑表的数据合并回 groups 后整体保存
+      if (props.canAssignPermissions && appFieldPermissionGroups.value.length > 0) {
+        let groups = [...appFieldPermissionGroups.value];
+        if (fieldPermissionTableKey.value) {
+          const curTableKey = fieldPermissionTableKey.value;
+          groups = groups.map((g) => {
+            if (g.tableKey === curTableKey) {
+              return {
+                tableKey: g.tableKey,
+                fields: fieldPermissionRows.value.map((r) => ({
+                  fieldName: r.fieldName,
+                  canView: r.canView,
+                  canEdit: r.canEdit
+                }))
+              };
+            }
+            return g;
+          });
+        }
+        tasks.push(setAppRoleFieldPermissions(props.appId, props.roleId, { groups }));
+      }
+    } else {
+      // 平台模式：使用平台 API
+      if (props.canAssignPermissions) {
+        tasks.push(updateRolePermissions(props.roleId, { permissionIds: assignModel.permissionIds }));
+      }
+      
+      if (props.canAssignMenus) {
+        tasks.push(updateRoleMenus(props.roleId, { menuIds: assignModel.menuIds }));
+      }
+      
+      if (props.canManageDataScope) {
+        tasks.push(setRoleDataScope(
+          props.roleId,
+          assignModel.dataScope,
+          assignModel.dataScope === 2 ? assignModel.deptIds : undefined
+        ));
+      }
     }
     
-    if (props.canAssignMenus) {
-      tasks.push(updateRoleMenus(props.roleId, { menuIds: assignModel.menuIds }));
-    }
-    
-    if (props.canManageDataScope) {
-      tasks.push(setRoleDataScope(
-        props.roleId,
-        assignModel.dataScope,
-        assignModel.dataScope === 2 ? assignModel.deptIds : undefined
-      ));
-    }
-    
-    if (fieldPermissionTableKey.value && props.roleCode) {
+    if (fieldPermissionTableKey.value && props.roleCode && !isAppScope.value) {
       const merged = existingFieldPermissions.value
         .filter((item) => item.roleCode !== props.roleCode)
         .concat(

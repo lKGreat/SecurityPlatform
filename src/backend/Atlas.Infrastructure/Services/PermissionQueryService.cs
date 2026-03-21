@@ -32,7 +32,9 @@ public sealed class PermissionQueryService : IPermissionQueryService
             pageSize,
             request.Keyword,
             request.Type,
-            cancellationToken);
+            cancellationToken,
+            request.AppId,
+            request.PlatformOnly);
 
         var resultItems = items.Select(x => _mapper.Map<PermissionListItem>(x)).ToArray();
         return new PagedResult<PermissionListItem>(resultItems, total, pageIndex, pageSize);

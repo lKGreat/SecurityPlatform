@@ -87,6 +87,7 @@
         <template #detail>
           <RoleAssignPanel
             v-if="selectedItem"
+            scope="platform"
             :role-id="selectedItem.id"
             :role-code="selectedItem.code"
             :role-name="selectedItem.name"

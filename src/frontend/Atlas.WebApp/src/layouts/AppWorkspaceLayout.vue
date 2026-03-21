@@ -43,12 +43,23 @@
           <a-menu-item :key="dataPath">
             <span data-testid="e2e-app-workspace-menu-data">Data</span>
           </a-menu-item>
-          <a-menu-item :key="usersPath">
-            <span data-testid="e2e-app-workspace-menu-users">Users</span>
-          </a-menu-item>
-          <a-menu-item :key="rolesPath">
-            <span data-testid="e2e-app-workspace-menu-roles">Roles</span>
-          </a-menu-item>
+          <a-sub-menu key="org-sub" title="组织管理">
+            <a-menu-item :key="usersPath">
+              <span data-testid="e2e-app-workspace-menu-users">应用成员</span>
+            </a-menu-item>
+            <a-menu-item :key="rolesPath">
+              <span data-testid="e2e-app-workspace-menu-roles">应用角色</span>
+            </a-menu-item>
+            <a-menu-item :key="departmentsPath">
+              <span data-testid="e2e-app-workspace-menu-departments">应用部门</span>
+            </a-menu-item>
+            <a-menu-item :key="positionsPath">
+              <span data-testid="e2e-app-workspace-menu-positions">应用职位</span>
+            </a-menu-item>
+            <a-menu-item :key="projectsPath">
+              <span data-testid="e2e-app-workspace-menu-projects">应用项目</span>
+            </a-menu-item>
+          </a-sub-menu>
           <a-menu-item :key="runtimeHomePath">
             <span data-testid="e2e-app-workspace-menu-runtime">Runtime</span>
           </a-menu-item>
@@ -147,6 +158,9 @@ const pluginsPath = computed(() => `/apps/${appId.value}/plugins`);
 const dataPath = computed(() => `/apps/${appId.value}/data`);
 const usersPath = computed(() => `/apps/${appId.value}/users`);
 const rolesPath = computed(() => `/apps/${appId.value}/roles`);
+const departmentsPath = computed(() => `/apps/${appId.value}/departments`);
+const positionsPath = computed(() => `/apps/${appId.value}/positions`);
+const projectsPath = computed(() => `/apps/${appId.value}/projects`);
 const runtimeHomePath = computed(() => `/apps/${appId.value}/run/home`);
 const settingsPath = computed(() => `/apps/${appId.value}/settings`);
 
@@ -183,6 +197,15 @@ const selectedKeys = computed(() => {
   }
   if (route.path.startsWith(rolesPath.value)) {
     return [rolesPath.value];
+  }
+  if (route.path.startsWith(departmentsPath.value)) {
+    return [departmentsPath.value];
+  }
+  if (route.path.startsWith(positionsPath.value)) {
+    return [positionsPath.value];
+  }
+  if (route.path.startsWith(projectsPath.value)) {
+    return [projectsPath.value];
   }
   if (route.path.startsWith(`/apps/${appId.value}/run/`)) {
     return [runtimeHomePath.value];

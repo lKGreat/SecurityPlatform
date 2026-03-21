@@ -39,6 +39,9 @@ const DynamicTableCrudPage = () => import("@/pages/dynamic/DynamicTableCrudPage.
 const AppUsersPage = () => import("@/pages/apps/AppUsersPage.vue");
 const AppRolesPage = () => import("@/pages/apps/AppRolesPage.vue");
 const AppPermissionsPage = () => import("@/pages/system/PermissionsPage.vue");
+const AppDepartmentsPage = () => import("@/pages/apps/AppDepartmentsPage.vue");
+const AppPositionsPage = () => import("@/pages/apps/AppPositionsPage.vue");
+const AppProjectsPage = () => import("@/pages/apps/AppProjectsPage.vue");
 const ModelConfigsPage = () => import("@/pages/ai/ModelConfigsPage.vue");
 const AiVariablesPage = () => import("@/pages/ai/AiVariablesPage.vue");
 const AiOpenPlatformPage = () => import("@/pages/ai/AiOpenPlatformPage.vue");
@@ -143,6 +146,9 @@ const router = createRouter({
     { path: "/apps/:appId/users", name: "app-workspace-users", component: AppUsersPage, meta: { requiresAuth: true, title: "应用成员", titleKey: "route.appUsers", requiresPermission: "apps:members:view" } },
     { path: "/apps/:appId/roles", name: "app-workspace-roles", component: AppRolesPage, meta: { requiresAuth: true, title: "应用角色", titleKey: "route.appRoles", requiresPermission: "apps:roles:view" } },
     { path: "/apps/:appId/permissions", name: "app-workspace-permissions", component: AppPermissionsPage, meta: { requiresAuth: true, title: "权限入口", titleKey: "route.permissionsEntry", requiresPermission: "apps:view" } },
+    { path: "/apps/:appId/departments", name: "app-workspace-departments", component: AppDepartmentsPage, meta: { requiresAuth: true, title: "应用部门", titleKey: "route.appDepartments", requiresPermission: "apps:roles:view" } },
+    { path: "/apps/:appId/positions", name: "app-workspace-positions", component: AppPositionsPage, meta: { requiresAuth: true, title: "应用职位", titleKey: "route.appPositions", requiresPermission: "apps:roles:view" } },
+    { path: "/apps/:appId/projects", name: "app-workspace-projects", component: AppProjectsPage, meta: { requiresAuth: true, title: "应用项目", titleKey: "route.appProjects", requiresPermission: "apps:roles:view" } },
     { path: "/r/:appKey/:pageKey", name: "runtime-delivery-page", component: PageRuntimeRenderer, meta: { requiresAuth: true, title: "运行交付面", titleKey: "route.runtimeDelivery" } },
     { path: "/process/instances/:id", name: "process-instance-detail", component: ApprovalInstanceDetailPage, meta: { requiresAuth: true, title: "流程详情", titleKey: "route.processDetail", requiresPermission: "approval:flow:view" } },
     { path: "/system/notifications", name: "system-notifications", component: NotificationsPage, meta: { requiresAuth: true, title: "通知中心", titleKey: "route.notifications" } },

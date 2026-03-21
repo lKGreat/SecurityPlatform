@@ -157,3 +157,51 @@ public interface IAppRolePermissionRepository
 
     Task AddRangeAsync(IReadOnlyList<AppRolePermission> entities, CancellationToken cancellationToken = default);
 }
+
+public interface IAppRolePageRepository
+{
+    Task<IReadOnlyList<long>> QueryPageIdsByRoleIdAsync(
+        TenantId tenantId,
+        long appId,
+        long roleId,
+        CancellationToken cancellationToken = default);
+
+    Task ReplaceAsync(
+        TenantId tenantId,
+        long appId,
+        long roleId,
+        IReadOnlyList<long> pageIds,
+        IReadOnlyList<AppRolePage> newEntities,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IAppDepartmentRepository
+{
+    Task<IReadOnlyList<AppDepartment>> QueryByAppIdAsync(TenantId tenantId, long appId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<AppDepartment> Items, int TotalCount)> QueryPageAsync(TenantId tenantId, long appId, int pageIndex, int pageSize, string? keyword, CancellationToken cancellationToken = default);
+    Task<AppDepartment?> FindByIdAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AppDepartment>> QueryByIdsAsync(TenantId tenantId, long appId, IReadOnlyList<long> ids, CancellationToken cancellationToken = default);
+    Task AddAsync(AppDepartment entity, CancellationToken cancellationToken = default);
+    Task UpdateAsync(AppDepartment entity, CancellationToken cancellationToken = default);
+    Task DeleteAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+}
+
+public interface IAppPositionRepository
+{
+    Task<IReadOnlyList<AppPosition>> QueryByAppIdAsync(TenantId tenantId, long appId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<AppPosition> Items, int TotalCount)> QueryPageAsync(TenantId tenantId, long appId, int pageIndex, int pageSize, string? keyword, CancellationToken cancellationToken = default);
+    Task<AppPosition?> FindByIdAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+    Task AddAsync(AppPosition entity, CancellationToken cancellationToken = default);
+    Task UpdateAsync(AppPosition entity, CancellationToken cancellationToken = default);
+    Task DeleteAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+}
+
+public interface IAppProjectRepository
+{
+    Task<IReadOnlyList<AppProject>> QueryByAppIdAsync(TenantId tenantId, long appId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<AppProject> Items, int TotalCount)> QueryPageAsync(TenantId tenantId, long appId, int pageIndex, int pageSize, string? keyword, CancellationToken cancellationToken = default);
+    Task<AppProject?> FindByIdAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+    Task AddAsync(AppProject entity, CancellationToken cancellationToken = default);
+    Task UpdateAsync(AppProject entity, CancellationToken cancellationToken = default);
+    Task DeleteAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+}

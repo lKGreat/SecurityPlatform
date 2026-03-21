@@ -549,6 +549,26 @@ public sealed class LowCodeAppsController : ControllerBase
     }
 
     /// <summary>
+    /// 获取应用页面列表
+    /// </summary>
+    [HttpGet("{appId:long}/pages")]
+    [Authorize(Policy = PermissionPolicies.AppsView)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<LowCodePageListItem>>>> GetPages(
+        long appId,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var detail = await _queryService.GetByIdAsync(tenantId, appId, cancellationToken);
+        if (detail is null)
+        {
+            return NotFound(ApiResponse<IReadOnlyList<LowCodePageListItem>>.Fail(
+                ErrorCodes.NotFound, "应用不存在", HttpContext.TraceIdentifier));
+        }
+
+        return Ok(ApiResponse<IReadOnlyList<LowCodePageListItem>>.Ok(detail.Pages, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
     /// 获取应用页面树
     /// </summary>
     [HttpGet("{appId:long}/pages/tree")]

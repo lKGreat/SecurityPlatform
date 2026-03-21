@@ -22,10 +22,20 @@ public sealed class PermissionRepository : RepositoryBase<Permission>, IPermissi
         int pageSize,
         string? keyword,
         string? type,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? appId = null,
+        bool platformOnly = false)
     {
         var query = Db.Queryable<Permission>()
             .Where(x => x.TenantIdValue == tenantId.Value);
+        if (platformOnly)
+        {
+            query = query.Where(x => x.AppId == null);
+        }
+        else if (appId.HasValue)
+        {
+            query = query.Where(x => x.AppId == appId.Value);
+        }
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             query = query.Where(x => x.Name.Contains(keyword) || x.Code.Contains(keyword));
@@ -44,11 +54,30 @@ public sealed class PermissionRepository : RepositoryBase<Permission>, IPermissi
         return (list, totalCount);
     }
 
-    public async Task<IReadOnlyList<Permission>> QueryAllAsync(TenantId tenantId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Permission>> QueryAllAsync(TenantId tenantId, CancellationToken cancellationToken, bool platformOnly = false)
     {
-        return await Db.Queryable<Permission>()
-            .Where(x => x.TenantIdValue == tenantId.Value)
+        var query = Db.Queryable<Permission>()
+            .Where(x => x.TenantIdValue == tenantId.Value);
+        if (platformOnly)
+        {
+            query = query.Where(x => x.AppId == null);
+        }
+        return await query
             .OrderBy(x => x.Code, OrderByType.Asc)
             .ToListAsync(cancellationToken);
+    }
+
+    public override async Task DeleteAsync(TenantId tenantId, long id, CancellationToken cancellationToken)
+    {
+        await Db.Deleteable<Permission>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.Id == id)
+            .ExecuteCommandAsync(cancellationToken);
+    }
+
+    public async Task<Permission?> FindByIdAndAppIdAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken)
+    {
+        return await Db.Queryable<Permission>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.AppId == appId && x.Id == id)
+            .FirstAsync(cancellationToken);
     }
 }

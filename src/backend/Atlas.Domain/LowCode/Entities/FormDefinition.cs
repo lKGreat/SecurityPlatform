@@ -29,7 +29,7 @@ public sealed class FormDefinition : TenantEntity
     {
         Id = id;
         Name = name;
-        Description = description;
+        Description = description ?? string.Empty;
         Category = category;
         SchemaJson = schemaJson;
         Version = 1;
@@ -93,7 +93,7 @@ public sealed class FormDefinition : TenantEntity
         DateTimeOffset now)
     {
         Name = name;
-        Description = description;
+        Description = description ?? string.Empty;
         Category = category;
         SchemaJson = schemaJson;
         Version += 1;

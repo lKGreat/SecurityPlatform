@@ -206,6 +206,11 @@ GET {{baseUrl}}/api/v1/lowcode-apps/pages/{{pageId}}/versions
 Authorization: Bearer {{accessToken}}
 X-Tenant-Id: {{tenantId}}
 
+### 获取应用页面列表
+GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/pages
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenantId}}
+
 ### 获取页面树（新增接口）
 GET {{baseUrl}}/api/v1/lowcode-apps/{{appId}}/pages/tree
 Authorization: Bearer {{accessToken}}

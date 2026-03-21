@@ -50,7 +50,7 @@ public sealed class DynamicTablesController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = PermissionPolicies.AppAdmin)]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ActionResult<ApiResponse<PagedResult<DynamicTableListItem>>>> Get(
         [FromQuery] PagedRequest request,
         CancellationToken cancellationToken)
@@ -61,7 +61,7 @@ public sealed class DynamicTablesController : ControllerBase
     }
 
     [HttpGet("{tableKey}")]
-    [Authorize(Policy = PermissionPolicies.AppAdmin)]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ActionResult<ApiResponse<DynamicTableDetail?>>> GetByKey(
         string tableKey,
         CancellationToken cancellationToken)
@@ -80,7 +80,7 @@ public sealed class DynamicTablesController : ControllerBase
     }
 
     [HttpGet("{tableKey}/fields")]
-    [Authorize(Policy = PermissionPolicies.AppAdmin)]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<DynamicFieldDefinition>>>> GetFields(
         string tableKey,
         CancellationToken cancellationToken)
@@ -99,7 +99,7 @@ public sealed class DynamicTablesController : ControllerBase
     }
 
     [HttpGet("{tableKey}/relations")]
-    [Authorize(Policy = PermissionPolicies.AppAdmin)]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<DynamicRelationDefinition>>>> GetRelations(
         string tableKey,
         CancellationToken cancellationToken)
@@ -118,7 +118,7 @@ public sealed class DynamicTablesController : ControllerBase
     }
 
     [HttpGet("{tableKey}/field-permissions")]
-    [Authorize(Policy = PermissionPolicies.AppAdmin)]
+    [Authorize(Policy = PermissionPolicies.SystemAdmin)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<DynamicFieldPermissionRule>>>> GetFieldPermissions(
         string tableKey,
         CancellationToken cancellationToken)

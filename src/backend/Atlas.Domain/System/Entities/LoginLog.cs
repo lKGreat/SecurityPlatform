@@ -34,7 +34,7 @@ public sealed class LoginLog : TenantEntity
         Browser = browser;
         OperatingSystem = operatingSystem;
         LoginStatus = loginStatus;
-        Message = message;
+        Message = message ?? string.Empty;
         LoginTime = loginTime;
     }
 

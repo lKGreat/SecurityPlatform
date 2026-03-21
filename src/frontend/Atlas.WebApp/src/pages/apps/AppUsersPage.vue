@@ -2,7 +2,16 @@
   <div class="app-users-page">
     <a-page-header title="应用成员" sub-title="管理应用级成员与角色绑定" />
 
-    <a-card class="mt12">
+    <a-alert
+      v-if="useSharedUsers === true"
+      class="mt12"
+      type="info"
+      show-icon
+      message="该应用已启用共享用户模式"
+      description="当前应用的用户来自平台公共用户池，无需单独维护应用成员列表。如需管理人员权限，请在角色管理中进行配置。"
+    />
+
+    <a-card v-if="useSharedUsers === false" class="mt12">
       <template #extra>
         <a-space>
           <a-input-search
@@ -158,6 +167,7 @@ import { debounce, formatDateTime } from "@/utils/common";
 import { useUserStore } from "@/stores/user";
 import { isAdminRole } from "@/utils/auth";
 import { getUsersPaged } from "@/services/api-users";
+import { getLowCodeAppDetail } from "@/services/lowcode";
 import {
   addTenantAppMembers,
   getTenantAppMembersPaged,
@@ -173,6 +183,8 @@ type SelectOption = { label: string; value: string };
 const route = useRoute();
 const userStore = useUserStore();
 const appId = computed(() => String(route.params.appId ?? ""));
+
+const useSharedUsers = ref<boolean | null>(null);
 
 const loading = ref(false);
 const submitting = ref(false);
@@ -449,8 +461,25 @@ async function removeMember(userId: string) {
 }
 
 onMounted(() => {
-  void loadMembers();
+  void loadAppAndMembers();
 });
+
+async function loadAppAndMembers() {
+  if (!appId.value) {
+    return;
+  }
+  try {
+    const detail = await getLowCodeAppDetail(appId.value);
+    if (!isMounted.value) return;
+    useSharedUsers.value = detail.useSharedUsers;
+    if (!detail.useSharedUsers) {
+      void loadMembers();
+    }
+  } catch {
+    useSharedUsers.value = false;
+    void loadMembers();
+  }
+}
 </script>
 
 <style scoped>

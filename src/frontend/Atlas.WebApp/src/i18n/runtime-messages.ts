@@ -245,7 +245,9 @@ export const runtimeMessages: Record<SupportedLocale, MessageTree> = {
       dataScopePreviewCustomDept: "当前已选择 {count} 个部门，最终可见数据由角色映射部门决定。",
       projectScopeConsistencyWarning: "已选择项目维度，但当前应用未开启项目模式。请先在应用设置中启用项目作用域。",
       assignSaveSuccess: "权限配置已保存完成",
-      assignSaveFailed: "更新权限配置失败"
+      assignSaveFailed: "更新权限配置失败",
+      independentSelection: "独立选择",
+      parentChildLinkage: "父子联动"
     },
     systemPermissions: {
       pageTitle: "权限管理",
@@ -651,7 +653,9 @@ export const runtimeMessages: Record<SupportedLocale, MessageTree> = {
       dataScopePreviewCustomDept: "{count} departments are selected. Effective data visibility follows role-to-department mapping.",
       projectScopeConsistencyWarning: "Project scope is selected, but the current app does not enable project mode. Enable project scope in app settings first.",
       assignSaveSuccess: "Role configuration saved",
-      assignSaveFailed: "Failed to update role configuration"
+      assignSaveFailed: "Failed to update role configuration",
+      independentSelection: "Independent",
+      parentChildLinkage: "Linkage"
     },
     systemPermissions: {
       pageTitle: "Permission Management",

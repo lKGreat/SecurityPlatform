@@ -1,6 +1,7 @@
 using Atlas.Application.Platform.Models;
 using Atlas.Application.LowCode.Models;
 using Atlas.Application.System.Models;
+using Atlas.Application.Identity.Models;
 using Atlas.Core.Models;
 using Atlas.Core.Tenancy;
 
@@ -401,4 +402,63 @@ public interface IDebugLayerQueryService
         long? projectId,
         bool projectScopeEnabled,
         CancellationToken cancellationToken = default);
+}
+
+public interface IAppOrgQueryService
+{
+    // Departments
+    Task<PagedResult<AppDepartmentListItem>> QueryDepartmentsAsync(TenantId tenantId, long appId, PagedRequest request, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AppDepartmentListItem>> GetAllDepartmentsAsync(TenantId tenantId, long appId, CancellationToken cancellationToken = default);
+    Task<AppDepartmentDetail?> GetDepartmentByIdAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+    // Positions
+    Task<PagedResult<AppPositionListItem>> QueryPositionsAsync(TenantId tenantId, long appId, PagedRequest request, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AppPositionListItem>> GetAllPositionsAsync(TenantId tenantId, long appId, CancellationToken cancellationToken = default);
+    Task<AppPositionDetail?> GetPositionByIdAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+    // Projects
+    Task<PagedResult<AppProjectListItem>> QueryProjectsAsync(TenantId tenantId, long appId, PagedRequest request, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AppProjectListItem>> GetAllProjectsAsync(TenantId tenantId, long appId, CancellationToken cancellationToken = default);
+    Task<AppProjectDetail?> GetProjectByIdAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+}
+
+public interface IAppOrgCommandService
+{
+    // Departments
+    Task<long> CreateDepartmentAsync(TenantId tenantId, long appId, AppDepartmentCreateRequest request, CancellationToken cancellationToken = default);
+    Task UpdateDepartmentAsync(TenantId tenantId, long appId, long id, AppDepartmentUpdateRequest request, CancellationToken cancellationToken = default);
+    Task DeleteDepartmentAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+    // Positions
+    Task<long> CreatePositionAsync(TenantId tenantId, long appId, AppPositionCreateRequest request, CancellationToken cancellationToken = default);
+    Task UpdatePositionAsync(TenantId tenantId, long appId, long id, AppPositionUpdateRequest request, CancellationToken cancellationToken = default);
+    Task DeletePositionAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+    // Projects
+    Task<long> CreateProjectAsync(TenantId tenantId, long appId, AppProjectCreateRequest request, CancellationToken cancellationToken = default);
+    Task UpdateProjectAsync(TenantId tenantId, long appId, long id, AppProjectUpdateRequest request, CancellationToken cancellationToken = default);
+    Task DeleteProjectAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+}
+
+public interface IAppRoleAssignmentQueryService
+{
+    Task<AppRoleAssignmentDetail> GetRoleAssignmentAsync(TenantId tenantId, long appId, long roleId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<long>> GetRolePagesAsync(TenantId tenantId, long appId, long roleId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AppRoleFieldPermissionGroup>> GetRoleFieldPermissionsAsync(TenantId tenantId, long appId, long roleId, CancellationToken cancellationToken = default);
+}
+
+public interface IAppRoleAssignmentCommandService
+{
+    Task SetDataScopeAsync(TenantId tenantId, long appId, long roleId, AppRoleDataScopeRequest request, CancellationToken cancellationToken = default);
+    Task SetRolePagesAsync(TenantId tenantId, long appId, long roleId, IReadOnlyList<long> pageIds, CancellationToken cancellationToken = default);
+    Task SetRoleFieldPermissionsAsync(TenantId tenantId, long appId, long roleId, AppRoleFieldPermissionsRequest request, CancellationToken cancellationToken = default);
+}
+
+public interface IAppPermissionQueryService
+{
+    Task<PagedResult<PermissionListItem>> QueryAsync(TenantId tenantId, long appId, PermissionQueryRequest request, CancellationToken cancellationToken = default);
+    Task<PermissionDetail?> GetByIdAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
+}
+
+public interface IAppPermissionCommandService
+{
+    Task<long> CreateAsync(TenantId tenantId, long appId, PermissionCreateRequest request, long id, CancellationToken cancellationToken = default);
+    Task UpdateAsync(TenantId tenantId, long appId, long id, PermissionUpdateRequest request, CancellationToken cancellationToken = default);
+    Task DeleteAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken = default);
 }

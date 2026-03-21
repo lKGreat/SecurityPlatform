@@ -56,4 +56,48 @@ public sealed class FieldPermissionRepository : IFieldPermissionRepository
     {
         return appId.HasValue ? $"app:{appId.Value}:{tableKey}" : tableKey;
     }
+
+    public async Task<IReadOnlyList<FieldPermission>> ListByRoleCodeAndAppIdAsync(
+        TenantId tenantId,
+        long appId,
+        string roleCode,
+        CancellationToken cancellationToken)
+    {
+        var prefix = $"app:{appId}:";
+        return await _db.Queryable<FieldPermission>()
+            .Where(x =>
+                x.TenantIdValue == tenantId.Value
+                && x.RoleCode == roleCode
+                && x.TableKey.StartsWith(prefix))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task ReplaceByRoleCodeAndAppIdAsync(
+        TenantId tenantId,
+        long appId,
+        string roleCode,
+        IReadOnlyList<FieldPermission> permissions,
+        CancellationToken cancellationToken)
+    {
+        var prefix = $"app:{appId}:";
+        var result = await _db.Ado.UseTranAsync(async () =>
+        {
+            await _db.Deleteable<FieldPermission>()
+                .Where(x =>
+                    x.TenantIdValue == tenantId.Value
+                    && x.RoleCode == roleCode
+                    && x.TableKey.StartsWith(prefix))
+                .ExecuteCommandAsync(cancellationToken);
+
+            if (permissions.Count > 0)
+            {
+                await _db.Insertable(permissions.ToList()).ExecuteCommandAsync(cancellationToken);
+            }
+        });
+
+        if (!result.IsSuccess)
+        {
+            throw result.ErrorException ?? new InvalidOperationException("替换角色字段权限失败。");
+        }
+    }
 }

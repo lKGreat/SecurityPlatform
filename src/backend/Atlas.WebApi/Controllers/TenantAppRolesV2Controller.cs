@@ -1,3 +1,4 @@
+using Atlas.Application.LowCode.Abstractions;
 using Atlas.Application.Platform.Abstractions;
 using Atlas.Application.Platform.Models;
 using Atlas.Core.Identity;
@@ -17,6 +18,9 @@ public sealed class TenantAppRolesV2Controller : ControllerBase
 {
     private readonly ITenantAppRoleQueryService _queryService;
     private readonly ITenantAppRoleCommandService _commandService;
+    private readonly IAppRoleAssignmentQueryService _assignmentQueryService;
+    private readonly IAppRoleAssignmentCommandService _assignmentCommandService;
+    private readonly ILowCodePageRepository _pageRepository;
     private readonly ITenantProvider _tenantProvider;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IValidator<TenantAppRoleCreateRequest> _createValidator;
@@ -26,6 +30,9 @@ public sealed class TenantAppRolesV2Controller : ControllerBase
     public TenantAppRolesV2Controller(
         ITenantAppRoleQueryService queryService,
         ITenantAppRoleCommandService commandService,
+        IAppRoleAssignmentQueryService assignmentQueryService,
+        IAppRoleAssignmentCommandService assignmentCommandService,
+        ILowCodePageRepository pageRepository,
         ITenantProvider tenantProvider,
         ICurrentUserAccessor currentUserAccessor,
         IValidator<TenantAppRoleCreateRequest> createValidator,
@@ -34,6 +41,9 @@ public sealed class TenantAppRolesV2Controller : ControllerBase
     {
         _queryService = queryService;
         _commandService = commandService;
+        _assignmentQueryService = assignmentQueryService;
+        _assignmentCommandService = assignmentCommandService;
+        _pageRepository = pageRepository;
         _tenantProvider = tenantProvider;
         _currentUserAccessor = currentUserAccessor;
         _createValidator = createValidator;
@@ -163,6 +173,108 @@ public sealed class TenantAppRolesV2Controller : ControllerBase
     {
         var tenantId = _tenantProvider.GetTenantId();
         await _commandService.DeleteAsync(tenantId, appId, roleId, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { appId = appId.ToString(), roleId = roleId.ToString() }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>获取应用角色的数据范围配置</summary>
+    [HttpGet("{roleId:long}/data-scope")]
+    [Authorize(Policy = PermissionPolicies.AppRolesView)]
+    public async Task<ActionResult<ApiResponse<AppRoleAssignmentDetail>>> GetDataScope(
+        long appId,
+        long roleId,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var detail = await _assignmentQueryService.GetRoleAssignmentAsync(tenantId, appId, roleId, cancellationToken);
+        return Ok(ApiResponse<AppRoleAssignmentDetail>.Ok(detail, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>设置应用角色的数据范围</summary>
+    [HttpPut("{roleId:long}/data-scope")]
+    [Authorize(Policy = PermissionPolicies.AppRolesUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> SetDataScope(
+        long appId,
+        long roleId,
+        [FromBody] AppRoleDataScopeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        await _assignmentCommandService.SetDataScopeAsync(tenantId, appId, roleId, request, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { appId = appId.ToString(), roleId = roleId.ToString() }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>获取应用下所有可分配的页面列表</summary>
+    [HttpGet("available-pages")]
+    [Authorize(Policy = PermissionPolicies.AppRolesView)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<AppPageListItem>>>> GetAvailablePages(
+        long appId,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var pages = await _pageRepository.GetByAppIdAsync(tenantId, appId, cancellationToken);
+        var result = pages.Select(p => new AppPageListItem(
+            p.Id.ToString(),
+            p.PageKey,
+            p.Name,
+            p.Description,
+            p.RoutePath,
+            p.ParentPageId,
+            p.SortOrder,
+            p.IsPublished)).ToArray();
+        return Ok(ApiResponse<IReadOnlyList<AppPageListItem>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>获取应用角色已分配的页面 ID 列表</summary>
+    [HttpGet("{roleId:long}/pages")]
+    [Authorize(Policy = PermissionPolicies.AppRolesView)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<long>>>> GetRolePages(
+        long appId,
+        long roleId,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var pageIds = await _assignmentQueryService.GetRolePagesAsync(tenantId, appId, roleId, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<long>>.Ok(pageIds, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>设置应用角色的页面分配（全量替换）</summary>
+    [HttpPut("{roleId:long}/pages")]
+    [Authorize(Policy = PermissionPolicies.AppRolesUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> SetRolePages(
+        long appId,
+        long roleId,
+        [FromBody] AppRolePagesRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        await _assignmentCommandService.SetRolePagesAsync(tenantId, appId, roleId, request.PageIds, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { appId = appId.ToString(), roleId = roleId.ToString() }, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>获取应用角色的字段权限配置</summary>
+    [HttpGet("{roleId:long}/field-permissions")]
+    [Authorize(Policy = PermissionPolicies.AppRolesView)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<AppRoleFieldPermissionGroup>>>> GetRoleFieldPermissions(
+        long appId,
+        long roleId,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        var groups = await _assignmentQueryService.GetRoleFieldPermissionsAsync(tenantId, appId, roleId, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<AppRoleFieldPermissionGroup>>.Ok(groups, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>设置应用角色的字段权限（全量替换）</summary>
+    [HttpPut("{roleId:long}/field-permissions")]
+    [Authorize(Policy = PermissionPolicies.AppRolesUpdate)]
+    public async Task<ActionResult<ApiResponse<object>>> SetRoleFieldPermissions(
+        long appId,
+        long roleId,
+        [FromBody] AppRoleFieldPermissionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantProvider.GetTenantId();
+        await _assignmentCommandService.SetRoleFieldPermissionsAsync(tenantId, appId, roleId, request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { appId = appId.ToString(), roleId = roleId.ToString() }, HttpContext.TraceIdentifier));
     }
 }

@@ -17,4 +17,19 @@ public interface IFieldPermissionRepository
         long? appId,
         IReadOnlyList<FieldPermission> permissions,
         CancellationToken cancellationToken);
+
+    /// <summary>查询某应用下某角色（RoleCode）所有表的字段权限。</summary>
+    Task<IReadOnlyList<FieldPermission>> ListByRoleCodeAndAppIdAsync(
+        TenantId tenantId,
+        long appId,
+        string roleCode,
+        CancellationToken cancellationToken);
+
+    /// <summary>替换某应用下某角色的所有字段权限（先按 roleCode+app 范围删除，再批量插入）。</summary>
+    Task ReplaceByRoleCodeAndAppIdAsync(
+        TenantId tenantId,
+        long appId,
+        string roleCode,
+        IReadOnlyList<FieldPermission> permissions,
+        CancellationToken cancellationToken);
 }

@@ -1,4 +1,5 @@
 using Atlas.Core.Abstractions;
+using Atlas.Core.Enums;
 using Atlas.Core.Tenancy;
 
 namespace Atlas.Domain.Platform.Entities;
@@ -77,6 +78,12 @@ public sealed class AppRole : TenantEntity
     public long UpdatedBy { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
+    /// <summary>数据权限范围（等保2.0 最小化授权原则）</summary>
+    public DataScopeType DataScope { get; private set; } = DataScopeType.All;
+
+    /// <summary>自定义部门 ID 列表（逗号分隔），DataScope=CustomDept 时使用。</summary>
+    public string? DeptIds { get; private set; }
+
     public void Update(
         string name,
         string? description,
@@ -87,6 +94,12 @@ public sealed class AppRole : TenantEntity
         Description = description ?? string.Empty;
         UpdatedBy = updatedBy;
         UpdatedAt = updatedAt;
+    }
+
+    public void SetDataScope(DataScopeType scope, string? deptIds = null)
+    {
+        DataScope = scope;
+        DeptIds = scope == DataScopeType.CustomDept ? deptIds : null;
     }
 }
 
@@ -141,4 +154,31 @@ public sealed class AppRolePermission : TenantEntity
     public long AppId { get; private set; }
     public long RoleId { get; private set; }
     public string PermissionCode { get; private set; }
+}
+
+/// <summary>应用角色 ↔ 低代码页面关联（对应平台级的 RoleMenu）</summary>
+public sealed class AppRolePage : TenantEntity
+{
+    public AppRolePage()
+        : base(TenantId.Empty)
+    {
+    }
+
+    public AppRolePage(
+        TenantId tenantId,
+        long appId,
+        long roleId,
+        long pageId,
+        long id)
+        : base(tenantId)
+    {
+        Id = id;
+        AppId = appId;
+        RoleId = roleId;
+        PageId = pageId;
+    }
+
+    public long AppId { get; private set; }
+    public long RoleId { get; private set; }
+    public long PageId { get; private set; }
 }

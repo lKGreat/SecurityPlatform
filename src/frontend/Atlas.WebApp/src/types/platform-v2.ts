@@ -361,3 +361,135 @@ export interface DebugLayerEmbedMetadata {
   projectScopeEnabled: boolean;
   resources: DebugLayerResourceItem[];
 }
+
+// ===== 应用级组织管理类型 =====
+
+export interface AppDepartmentListItem {
+  id: string;
+  name: string;
+  code: string;
+  parentId?: string;
+  sortOrder: number;
+}
+
+export interface AppDepartmentDetail extends AppDepartmentListItem {
+  appId: string;
+}
+
+export interface AppDepartmentCreateRequest {
+  name: string;
+  code: string;
+  parentId?: number;
+  sortOrder: number;
+}
+
+export interface AppDepartmentUpdateRequest {
+  name: string;
+  code: string;
+  parentId?: number;
+  sortOrder: number;
+}
+
+export interface AppPositionListItem {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface AppPositionDetail extends AppPositionListItem {
+  appId: string;
+}
+
+export interface AppPositionCreateRequest {
+  name: string;
+  code: string;
+  description?: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface AppPositionUpdateRequest {
+  name: string;
+  description?: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface AppProjectListItem {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export interface AppProjectDetail extends AppProjectListItem {
+  appId: string;
+}
+
+export interface AppProjectCreateRequest {
+  code: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export interface AppProjectUpdateRequest {
+  name: string;
+  description?: string;
+  isActive: boolean;
+}
+
+// ===== 应用角色分配类型 =====
+
+export interface AppRoleAssignmentDetail {
+  roleId: string;
+  roleCode: string;
+  roleName: string;
+  dataScope: number;
+  deptIds: string[];
+}
+
+export interface AppRoleDataScopeRequest {
+  dataScope: number;
+  deptIds?: number[];
+}
+
+// ===== 应用角色页面分配 =====
+
+export interface AppRolePagesRequest {
+  pageIds: number[];
+}
+
+// ===== 应用角色字段权限 =====
+
+export interface AppRoleFieldPermissionItem {
+  fieldName: string;
+  canView: boolean;
+  canEdit: boolean;
+}
+
+export interface AppRoleFieldPermissionGroup {
+  tableKey: string;
+  fields: AppRoleFieldPermissionItem[];
+}
+
+export interface AppRoleFieldPermissionsRequest {
+  groups: AppRoleFieldPermissionGroup[];
+}
+
+// ===== 应用级页面 =====
+
+export interface AppPageListItem {
+  id: string;
+  pageKey: string;
+  name: string;
+  description?: string;
+  routePath?: string;
+  parentPageId?: number;
+  sortOrder: number;
+  isPublished: boolean;
+}

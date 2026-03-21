@@ -15,6 +15,10 @@ public static class PlatformServiceRegistration
         services.AddScoped<IAppRoleRepository, AppRoleRepository>();
         services.AddScoped<IAppUserRoleRepository, AppUserRoleRepository>();
         services.AddScoped<IAppRolePermissionRepository, AppRolePermissionRepository>();
+        services.AddScoped<IAppRolePageRepository, AppRolePageRepository>();
+        services.AddScoped<IAppDepartmentRepository, AppDepartmentRepository>();
+        services.AddScoped<IAppPositionRepository, AppPositionRepository>();
+        services.AddScoped<IAppProjectRepository, AppProjectRepository>();
         services.AddScoped<IPlatformQueryService, PlatformQueryService>();
         services.AddScoped<IAppManifestQueryService, AppManifestQueryService>();
         services.AddScoped<IApplicationCatalogQueryService, ApplicationCatalogQueryService>();
@@ -27,6 +31,12 @@ public static class PlatformServiceRegistration
         services.AddScoped<ITenantAppMemberCommandService, TenantAppMemberCommandService>();
         services.AddScoped<ITenantAppRoleQueryService, TenantAppRoleQueryService>();
         services.AddScoped<ITenantAppRoleCommandService, TenantAppRoleCommandService>();
+        services.AddScoped<IAppOrgQueryService, AppOrgQueryService>();
+        services.AddScoped<IAppOrgCommandService, AppOrgCommandService>();
+        services.AddScoped<IAppRoleAssignmentQueryService, AppRoleAssignmentQueryService>();
+        services.AddScoped<IAppRoleAssignmentCommandService, AppRoleAssignmentCommandService>();
+        services.AddScoped<IAppPermissionQueryService, AppPermissionQueryService>();
+        services.AddScoped<IAppPermissionCommandService, AppPermissionCommandService>();
         services.AddScoped<IResourceCenterQueryService, ResourceCenterQueryService>();
         services.AddScoped<IResourceCenterCommandService, ResourceCenterCommandService>();
         services.AddScoped<IReleaseCenterQueryService, ReleaseCenterQueryService>();

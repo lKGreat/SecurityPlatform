@@ -421,3 +421,132 @@ public sealed record DebugLayerEmbedMetadata(
     string? ProjectId,
     bool ProjectScopeEnabled,
     IReadOnlyList<DebugLayerResourceItem> Resources);
+
+// ===== 应用级组织管理 Models =====
+
+public sealed record AppDepartmentListItem(
+    string Id,
+    string Name,
+    string Code,
+    string? ParentId,
+    int SortOrder);
+
+public sealed record AppDepartmentDetail(
+    string Id,
+    string AppId,
+    string Name,
+    string Code,
+    string? ParentId,
+    int SortOrder);
+
+public sealed record AppDepartmentCreateRequest(
+    string Name,
+    string Code,
+    long? ParentId,
+    int SortOrder);
+
+public sealed record AppDepartmentUpdateRequest(
+    string Name,
+    string Code,
+    long? ParentId,
+    int SortOrder);
+
+public sealed record AppPositionListItem(
+    string Id,
+    string Name,
+    string Code,
+    string? Description,
+    bool IsActive,
+    int SortOrder);
+
+public sealed record AppPositionDetail(
+    string Id,
+    string AppId,
+    string Name,
+    string Code,
+    string? Description,
+    bool IsActive,
+    int SortOrder);
+
+public sealed record AppPositionCreateRequest(
+    string Name,
+    string Code,
+    string? Description,
+    bool IsActive,
+    int SortOrder);
+
+public sealed record AppPositionUpdateRequest(
+    string Name,
+    string? Description,
+    bool IsActive,
+    int SortOrder);
+
+public sealed record AppProjectListItem(
+    string Id,
+    string Code,
+    string Name,
+    string? Description,
+    bool IsActive);
+
+public sealed record AppProjectDetail(
+    string Id,
+    string AppId,
+    string Code,
+    string Name,
+    string? Description,
+    bool IsActive);
+
+public sealed record AppProjectCreateRequest(
+    string Code,
+    string Name,
+    string? Description,
+    bool IsActive = true);
+
+public sealed record AppProjectUpdateRequest(
+    string Name,
+    string? Description,
+    bool IsActive);
+
+// ===== 应用角色分配 Models =====
+
+public sealed record AppRoleAssignmentDetail(
+    string RoleId,
+    string RoleCode,
+    string RoleName,
+    int DataScope,
+    IReadOnlyList<string> DeptIds);
+
+public sealed record AppRoleDataScopeRequest(
+    int DataScope,
+    IReadOnlyList<long>? DeptIds);
+
+// ===== 应用角色页面分配 =====
+
+public sealed record AppRolePagesRequest(
+    IReadOnlyList<long> PageIds);
+
+// ===== 应用角色字段权限 =====
+
+public sealed record AppRoleFieldPermissionGroup(
+    string TableKey,
+    IReadOnlyList<AppRoleFieldPermissionItem> Fields);
+
+public sealed record AppRoleFieldPermissionItem(
+    string FieldName,
+    bool CanView,
+    bool CanEdit);
+
+public sealed record AppRoleFieldPermissionsRequest(
+    IReadOnlyList<AppRoleFieldPermissionGroup> Groups);
+
+// ===== 应用级页面列表项 =====
+
+public sealed record AppPageListItem(
+    string Id,
+    string PageKey,
+    string Name,
+    string? Description,
+    string? RoutePath,
+    long? ParentPageId,
+    int SortOrder,
+    bool IsPublished);

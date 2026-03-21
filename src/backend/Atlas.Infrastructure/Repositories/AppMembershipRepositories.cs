@@ -320,6 +320,53 @@ public sealed class AppUserRoleRepository : IAppUserRoleRepository
     }
 }
 
+public sealed class AppRolePageRepository : IAppRolePageRepository
+{
+    private readonly ISqlSugarClient _db;
+
+    public AppRolePageRepository(ISqlSugarClient db)
+    {
+        _db = db;
+    }
+
+    public async Task<IReadOnlyList<long>> QueryPageIdsByRoleIdAsync(
+        TenantId tenantId,
+        long appId,
+        long roleId,
+        CancellationToken cancellationToken = default)
+    {
+        var list = await _db.Queryable<AppRolePage>()
+            .Where(x => x.TenantIdValue == tenantId.Value && x.AppId == appId && x.RoleId == roleId)
+            .Select(x => x.PageId)
+            .ToListAsync(cancellationToken);
+        return list;
+    }
+
+    public async Task ReplaceAsync(
+        TenantId tenantId,
+        long appId,
+        long roleId,
+        IReadOnlyList<long> pageIds,
+        IReadOnlyList<AppRolePage> newEntities,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _db.Ado.UseTranAsync(async () =>
+        {
+            await _db.Deleteable<AppRolePage>()
+                .Where(x => x.TenantIdValue == tenantId.Value && x.AppId == appId && x.RoleId == roleId)
+                .ExecuteCommandAsync(cancellationToken);
+            if (newEntities.Count > 0)
+            {
+                await _db.Insertable(newEntities.ToList()).ExecuteCommandAsync(cancellationToken);
+            }
+        });
+        if (!result.IsSuccess)
+        {
+            throw result.ErrorException ?? new InvalidOperationException("替换应用角色页面分配失败。");
+        }
+    }
+}
+
 public sealed class AppRolePermissionRepository : IAppRolePermissionRepository
 {
     private readonly ISqlSugarClient _db;

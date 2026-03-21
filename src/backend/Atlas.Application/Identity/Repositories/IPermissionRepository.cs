@@ -13,9 +13,13 @@ public interface IPermissionRepository
         int pageSize,
         string? keyword,
         string? type,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        long? appId = null,
+        bool platformOnly = false);
     Task<IReadOnlyList<Permission>> QueryByIdsAsync(TenantId tenantId, IReadOnlyList<long> ids, CancellationToken cancellationToken);
-    Task<IReadOnlyList<Permission>> QueryAllAsync(TenantId tenantId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Permission>> QueryAllAsync(TenantId tenantId, CancellationToken cancellationToken, bool platformOnly = false);
     Task AddAsync(Permission permission, CancellationToken cancellationToken);
     Task UpdateAsync(Permission permission, CancellationToken cancellationToken);
+    Task DeleteAsync(TenantId tenantId, long id, CancellationToken cancellationToken);
+    Task<Permission?> FindByIdAndAppIdAsync(TenantId tenantId, long appId, long id, CancellationToken cancellationToken);
 }

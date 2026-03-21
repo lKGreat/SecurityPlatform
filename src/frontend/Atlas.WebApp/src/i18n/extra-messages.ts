@@ -128,7 +128,8 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       projects: "项目管理",
       assets: "资产管理",
       audit: "审计日志",
-      alert: "告警管理"
+      alert: "告警管理",
+      appUsers: "应用成员"
     },
     authPage: {
       brandTitle: "Atlas 安全平台",
@@ -330,7 +331,8 @@ export const extraMessages: Record<SupportedLocale, MessageTree> = {
       projects: "Project Management",
       assets: "Asset Management",
       audit: "Audit Logs",
-      alert: "Alert Management"
+      alert: "Alert Management",
+      appUsers: "App Users"
     },
     authPage: {
       brandTitle: "Atlas Security Platform",
