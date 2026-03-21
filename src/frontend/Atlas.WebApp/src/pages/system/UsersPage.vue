@@ -1,5 +1,6 @@
 <template>
-  <CrudPageLayout
+  <div>
+    <CrudPageLayout
     :title="t('systemUsers.pageTitle')"
     v-model:keyword="keyword"
     :search-placeholder="t('systemUsers.searchPlaceholder')"
@@ -215,6 +216,7 @@
       </div>
     </div>
   </a-modal>
+  </div>
 </template>
 
 <script setup lang="ts">

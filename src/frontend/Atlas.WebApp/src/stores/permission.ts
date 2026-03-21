@@ -108,13 +108,7 @@ export const usePermissionStore = defineStore("permission", {
       const sidebarRoutes = buildRoutesFromRouters(sdata, false, false);
       const rewriteRoutes = buildRoutesFromRouters(rdata, false, true);
 
-      // 追加 404
-      rewriteRoutes.push({
-        path: "/:pathMatch(.*)*",
-        name: "not-found-dynamic",
-        redirect: "/404",
-        meta: { hidden: true }
-      });
+      // Vue Router v4 statically registers the 404 catch-all, no need to push dynamically
 
       this.sidebarRouters = sdata;
       this.addRoutes = rewriteRoutes;
@@ -135,10 +129,7 @@ export const usePermissionStore = defineStore("permission", {
           continue;
         }
         if (route.path && existingPaths.has(route.path)) {
-          // path 冲突：动态路由与已注册路由的 path 相同，跳过注册并输出警告
-          console.warn(
-            `[route-conflict] 动态路由 path 与已注册路由冲突，已跳过注册: path="${route.path}" name="${String(name)}"`
-          );
+          // path 冲突：动态路由与已注册路由的 path 相同，常见于 /console 等静态根路由，跳过不告警
           continue;
         }
         router.addRoute(route);

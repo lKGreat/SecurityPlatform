@@ -297,7 +297,7 @@ const fetchData = async () => {
     });
     if (!isMounted.value) return;
     dataSource.value = result.items;
-    pagination.total = result.total;
+    pagination.total = Number(result.total) || 0;
   } catch (error) {
     if (!isMounted.value) return;
     message.error((error as Error).message || t("crud.queryFailed"));

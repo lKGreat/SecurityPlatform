@@ -20,7 +20,7 @@
 
     <a-card :bordered="false">
       <template #extra>
-        <a-button type="primary" v-permission="'system:tenant:create'" @click="handleCreate">
+        <a-button type="primary" v-if="hasPermission(profile, 'system:tenant:create')" @click="handleCreate">
           <template #icon><PlusOutlined /></template>
           {{ t("systemTenants.createTenant") }}
         </a-button>
@@ -47,7 +47,7 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small" v-permission="'system:tenant:update'" @click="handleEdit(record)">
+              <a-button type="link" size="small" v-if="hasPermission(profile, 'system:tenant:update')" @click="handleEdit(record)">
                 {{ t("common.edit") }}
               </a-button>
               <a-popconfirm
@@ -57,7 +57,7 @@
                 :disabled="record.id === 1 || record.id === 10000"
                 @confirm="handleDelete(record)"
               >
-                <a-button type="link" size="small" danger v-permission="'system:tenant:delete'" :disabled="record.id === 1 || record.id === 10000">
+                <a-button type="link" size="small" danger v-if="hasPermission(profile, 'system:tenant:delete')" :disabled="record.id === 1 || record.id === 10000">
                   {{ t("common.delete") }}
                 </a-button>
               </a-popconfirm>
@@ -106,8 +106,10 @@ import { useI18n } from "vue-i18n";
 import dayjs from 'dayjs';
 import * as tenantApi from '@/services/api-tenants';
 import type { TenantQueryRequest, TenantCreateRequest, TenantUpdateRequest, TenantDto } from '@/services/api-tenants';
+import { getAuthProfile, hasPermission } from '@/utils/auth';
 
 const { t } = useI18n();
+const profile = getAuthProfile();
 
 // -- 搜索与列表状态 --
 const searchParams = reactive<TenantQueryRequest>({
@@ -175,7 +177,7 @@ const fetchData = async () => {
     if (!isMounted.value) return;
     if (res) {
       tableData.value = res.items || [];
-      pagination.total = res.total || 0;
+      pagination.total = Number(res.total) || 0;
     }
   } catch (error: unknown) {
     if (!isMounted.value) return;
